@@ -1,0 +1,982 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] bcmdhd: adapt more of the driver to Linux 7.3
+
+Replace removed timers/random helpers and legacy kernel_read,
+PCI DMA and cfg80211 notification call sites. This is not the
+complete port; the remaining cfg80211 wireless_dev and station
+info changes are described in HANDOFF.md.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/Makefile b/Makefile
+index 1f760bd..f55224a 100755
+--- a/Makefile
++++ b/Makefile
+@@ -7,7 +7,7 @@
+ #CONFIG_BCMDHD_PCIE := y
+ #CONFIG_BCMDHD_OOB := y
+ 
+-DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER -DSDTEST       \
++DHDCFLAGS = -Wall -Wno-error=date-time -Wstrict-prototypes -Dlinux -DBCMDRIVER -DSDTEST       \
+ 	-DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DBCMFILEIMAGE            \
+ 	-DDHDTHREAD -DDHD_DEBUG -DSHOW_EVENTS -DBCMDBG -DGET_OTP_MAC_ENABLE   \
+ 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DSUPPORT_PM2_ONLY             \
+diff --git a/bcmsdh_sdmmc.c b/bcmsdh_sdmmc.c
+index ee580d5..337c569 100755
+--- a/bcmsdh_sdmmc.c
++++ b/bcmsdh_sdmmc.c
+@@ -804,10 +804,10 @@ sdioh_request_byte(sdioh_info_t* sd, uint rw, uint func, uint regaddr, uint8* by
+ #if defined(MMC_SDIO_ABORT)
+ 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+ #endif
+-	struct timespec now, before;
++	struct timespec64 now, before;
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&before);
++		ktime_get_real_ts64(&before);
+ 
+ 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
+ 
+@@ -906,7 +906,7 @@ sdioh_request_byte(sdioh_info_t* sd, uint rw, uint func, uint regaddr, uint8* by
+ 	}
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&now);
++		ktime_get_real_ts64(&now);
+ 	sd_cost(("%s: rw=%d len=1 cost=%lds %luus\n", __FUNCTION__,
+ 		rw, now.tv_sec - before.tv_sec, now.tv_nsec / 1000 - before.tv_nsec / 1000));
+ 
+@@ -1318,10 +1318,10 @@ sdioh_request_word(sdioh_info_t* sd, uint cmd_type, uint rw, uint func, uint add
+ #if defined(MMC_SDIO_ABORT)
+ 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+ #endif
+-	struct timespec now, before;
++	struct timespec64 now, before;
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&before);
++		ktime_get_real_ts64(&before);
+ 
+ 	if (func == 0) {
+ 		sd_err(("%s: Only CMD52 allowed to F0.\n", __FUNCTION__));
+@@ -1391,7 +1391,7 @@ sdioh_request_word(sdioh_info_t* sd, uint cmd_type, uint rw, uint func, uint add
+ 	}
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&now);
++		ktime_get_real_ts64(&now);
+ 	sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
+ 		rw, nbytes, now.tv_sec - before.tv_sec, now.tv_nsec / 1000 - before.tv_nsec / 1000));
+ 
+@@ -1421,7 +1421,7 @@ sdioh_request_packet_chain(sdioh_info_t* sd, uint fix_inc, uint write, uint func
+ 	uint local_plen = 0;
+ 	uint pkt_len = 0;
+ #endif /* BCMSDIOH_TXGLOM */
+-	struct timespec now, before;
++	struct timespec64 now, before;
+ 
+ 	sd_trace(("%s: Enter\n", __FUNCTION__));
+ 	ASSERT(pkt);
+@@ -1429,7 +1429,7 @@ sdioh_request_packet_chain(sdioh_info_t* sd, uint fix_inc, uint write, uint func
+ 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&before);
++		ktime_get_real_ts64(&before);
+ 
+ 	blk_size = sd->client_block_size[func];
+ 	max_blk_count = min(host->max_blk_count, (uint)MAX_IO_RW_EXTENDED_BLK);
+@@ -1609,7 +1609,7 @@ sdioh_request_packet_chain(sdioh_info_t* sd, uint fix_inc, uint write, uint func
+ #endif /* BCMSDIOH_TXGLOM */
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&now);
++		ktime_get_real_ts64(&now);
+ 	sd_cost(("%s: rw=%d, cost=%lds %luus\n", __FUNCTION__,
+ 		write, now.tv_sec - before.tv_sec, now.tv_nsec / 1000 - before.tv_nsec / 1000));
+ 
+@@ -1623,13 +1623,13 @@ sdioh_buffer_tofrom_bus(sdioh_info_t* sd, uint fix_inc, uint write, uint func,
+ {
+ 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
+ 	int err_ret = 0;
+-	struct timespec now, before;
++	struct timespec64 now, before;
+ 
+ 	sd_trace(("%s: Enter\n", __FUNCTION__));
+ 	ASSERT(buf);
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&before);
++		ktime_get_real_ts64(&before);
+ 
+ 	/* NOTE:
+ 	 * For all writes, each packet length is aligned to 32 (or 4)
+@@ -1664,7 +1664,7 @@ sdioh_buffer_tofrom_bus(sdioh_info_t* sd, uint fix_inc, uint write, uint func,
+ 	sd_trace(("%s: Exit\n", __FUNCTION__));
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&now);
++		ktime_get_real_ts64(&now);
+ 	sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
+ 		write, len, now.tv_sec - before.tv_sec, now.tv_nsec / 1000 - before.tv_nsec / 1000));
+ 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
+@@ -1688,14 +1688,14 @@ sdioh_request_buffer(sdioh_info_t* sd, uint pio_dma, uint fix_inc, uint write, u
+ {
+ 	SDIOH_API_RC status;
+ 	void* tmppkt;
+-	struct timespec now, before;
++	struct timespec64 now, before;
+ 
+ 	sd_trace(("%s: Enter\n", __FUNCTION__));
+ 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
+ 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&before);
++		ktime_get_real_ts64(&before);
+ 
+ 	if (pkt) {
+ 		/* packet chain, only used for tx/rx glom, all packets length
+@@ -1739,7 +1739,7 @@ sdioh_request_buffer(sdioh_info_t* sd, uint pio_dma, uint fix_inc, uint write, u
+ 	PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
+ 
+ 	if (sd_msglevel && SDH_COST_VAL)
+-		getnstimeofday(&now);
++		ktime_get_real_ts64(&now);
+ 	sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
+ 		buf_len, now.tv_sec - before.tv_sec, now.tv_nsec / 1000 - before.tv_nsec / 1000));
+ 
+diff --git a/bcmutils.c b/bcmutils.c
+index 9f7704c..aee2e3a 100755
+--- a/bcmutils.c
++++ b/bcmutils.c
+@@ -8,7 +8,11 @@
+ #include <bcm_cfg.h>
+ #include <typedefs.h>
+ #include <bcmdefs.h>
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
++#endif
+ #ifdef BCMDRIVER
+ 
+ #include <osl.h>
+diff --git a/dhd_custom_gpio.c b/dhd_custom_gpio.c
+index 8c0c944..c7af706 100755
+--- a/dhd_custom_gpio.c
++++ b/dhd_custom_gpio.c
+@@ -144,7 +144,7 @@ void get_customized_country_code(void* adapter, char* country_iso_code, wl_count
+ 
+ 	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code);
+ 	if (cloc_ptr) {
+-		strlcpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
++		strscpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
+ 		cspec->rev = cloc_ptr->custom_locale_rev;
+ 	}
+ 	return;
+diff --git a/dhd_ip.c b/dhd_ip.c
+index cb54452..b00f423 100755
+--- a/dhd_ip.c
++++ b/dhd_ip.c
+@@ -326,10 +326,17 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
+ 	return;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++static void dhd_tcpack_send(struct timer_list *t)
++{
++	tcpack_sup_module_t *tcpack_sup_mod;
++	tcpack_info_t *cur_tbl = timer_container_of(cur_tbl, t, timer);
++#else
+ static void dhd_tcpack_send(ulong data)
+ {
+ 	tcpack_sup_module_t *tcpack_sup_mod;
+ 	tcpack_info_t *cur_tbl = (tcpack_info_t *)data;
++#endif
+ 	dhd_pub_t *dhdp;
+ 	int ifidx;
+ 	void* pkt;
+@@ -442,10 +449,15 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
+ 		for (i = 0; i < TCPACK_INFO_MAXNUM; i++)
+ 		{
+ 			tcpack_sup_mod->tcpack_info_tbl[i].dhdp = dhdp;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++			timer_setup(&tcpack_sup_mod->tcpack_info_tbl[i].timer,
++				dhd_tcpack_send, 0);
++#else
+ 			init_timer(&tcpack_sup_mod->tcpack_info_tbl[i].timer);
+ 			tcpack_sup_mod->tcpack_info_tbl[i].timer.data =
+ 				(ulong)&tcpack_sup_mod->tcpack_info_tbl[i];
+ 			tcpack_sup_mod->tcpack_info_tbl[i].timer.function = dhd_tcpack_send;
++#endif
+ 		}
+ 	}
+ 
+@@ -492,7 +504,11 @@ dhd_tcpack_info_tbl_clean(dhd_pub_t *dhdp)
+ 
+ 	if (dhdp->tcpack_sup_mode == TCPACK_SUP_HOLD) {
+ 		for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++			timer_delete_sync(&tcpack_sup_mod->tcpack_info_tbl[i].timer);
++#else
+ 			del_timer_sync(&tcpack_sup_mod->tcpack_info_tbl[i].timer);
++#endif
+ 		}
+ 	}
+ 
+@@ -1253,7 +1269,7 @@ dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx)
+ 		dhd_os_tcpackunlock(dhdp);
+ 
+ 		if (!hold) {
+-			del_timer_sync(&tcpack_info_tbl[i].timer);
++			timer_delete_sync(&tcpack_info_tbl[i].timer);
+ 		}
+ 		goto exit;
+ 	}
+diff --git a/dhd_linux.c b/dhd_linux.c
+index 79e9c4b..5639f03 100755
+--- a/dhd_linux.c
++++ b/dhd_linux.c
+@@ -3145,8 +3145,6 @@ dhd_rx_frame(dhd_pub_t* dhdp, int ifidx, void* pktbuf, int numpkt, uint8 chan)
+ 		ASSERT(ifidx < DHD_MAX_IFS && dhd->iflist[ifidx]);
+ 		ifp = dhd->iflist[ifidx];
+ 
+-		if (ifp->net)
+-			ifp->net->last_rx = jiffies;
+ 
+ 		if (ntoh16(skb->protocol) != ETHER_TYPE_BRCM) {
+ 			dhdp->dstats.rx_bytes += skb->len;
+@@ -3181,7 +3179,9 @@ dhd_rx_frame(dhd_pub_t* dhdp, int ifidx, void* pktbuf, int numpkt, uint8 chan)
+ 				 * by netif_rx_ni(), but in earlier kernels, we need
+ 				 * to do it manually.
+ 				 */
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
++				netif_rx(skb);
++#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+ 				netif_rx_ni(skb);
+ #else
+ 				ulong flags;
+@@ -3338,12 +3338,18 @@ dhd_watchdog_thread(void* data)
+ 			break;
+ 		}
+ 
+-	complete_and_exit(&tsk->completed, 0);
++	kthread_complete_and_exit(&tsk->completed, 0);
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++static void dhd_watchdog(struct timer_list *t)
++{
++	dhd_info_t *dhd = timer_container_of(dhd, t, timer);
++#else
+ static void dhd_watchdog(ulong data)
+ {
+ 	dhd_info_t* dhd = (dhd_info_t*)data;
++#endif
+ 	unsigned long flags;
+ 
+ 	if (dhd->pub.dongle_reset) {
+@@ -3461,7 +3467,7 @@ dhd_dpc_thread(void* data)
+ 		else
+ 			break;
+ 	}
+-	complete_and_exit(&tsk->completed, 0);
++	kthread_complete_and_exit(&tsk->completed, 0);
+ }
+ 
+ static int
+@@ -3518,7 +3524,9 @@ dhd_rxf_thread(void* data)
+ 				void* skbnext = PKTNEXT(pub->osh, skb);
+ 				PKTSETNEXT(pub->osh, skb, NULL);
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
++				netif_rx(skb);
++#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+ 				netif_rx_ni(skb);
+ #else
+ 				netif_rx(skb);
+@@ -3541,7 +3549,7 @@ dhd_rxf_thread(void* data)
+ 		else
+ 			break;
+ 	}
+-	complete_and_exit(&tsk->completed, 0);
++	kthread_complete_and_exit(&tsk->completed, 0);
+ }
+ 
+ #ifdef BCMPCIE
+@@ -4666,11 +4674,11 @@ struct net_device*
+ 	}
+ #ifdef WL_CFG80211
+ 	if (ifidx == 0)
+-		ifp->net->destructor = free_netdev;
++		ifp->net->priv_destructor = free_netdev;
+ 	else
+-		ifp->net->destructor = dhd_netdev_free;
++		ifp->net->priv_destructor = dhd_netdev_free;
+ #else
+-	ifp->net->destructor = free_netdev;
++	ifp->net->priv_destructor = free_netdev;
+ #endif /* WL_CFG80211 */
+ 	strncpy(ifp->name, ifp->net->name, IFNAMSIZ);
+ 	ifp->name[IFNAMSIZ - 1] = '\0';
+@@ -5129,9 +5137,13 @@ dhd_attach(osl_t* osh, struct dhd_bus* bus, uint bus_hdrlen)
+ 
+ 
+ 	/* Set up the watchdog timer */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++	timer_setup(&dhd->timer, dhd_watchdog, 0);
++#else
+ 	init_timer(&dhd->timer);
+ 	dhd->timer.data = (ulong)dhd;
+ 	dhd->timer.function = dhd_watchdog;
++#endif
+ 	dhd->default_wd_interval = dhd_watchdog_ms;
+ 
+ 	if (dhd_watchdog_prio >= 0) {
+@@ -5418,7 +5430,15 @@ dhd_bus_start(dhd_pub_t* dhdp)
+ 		DHD_GENERAL_LOCK(&dhd->pub, flags);
+ 		dhd->wd_timer_valid = FALSE;
+ 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		timer_delete_sync(&dhd->timer);
++#else
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		timer_delete_sync(&dhd->timer);
++#else
+ 		del_timer_sync(&dhd->timer);
++#endif
++#endif
+ 
+ 		dhd_os_sdunlock(dhdp);
+ #endif /* BCMPCIE_OOB_HOST_WAKE */
+@@ -5462,7 +5482,11 @@ dhd_bus_start(dhd_pub_t* dhdp)
+ 		DHD_GENERAL_LOCK(&dhd->pub, flags);
+ 		dhd->wd_timer_valid = FALSE;
+ 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		timer_delete_sync(&dhd->timer);
++#else
+ 		del_timer_sync(&dhd->timer);
++#endif
+ 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
+ 		dhd_os_sdunlock(dhdp);
+ 		DHD_PERIM_UNLOCK(dhdp);
+@@ -7558,7 +7582,11 @@ void dhd_detach(dhd_pub_t* dhdp)
+ 	dhd->wd_timer_valid = FALSE;
+ 	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
+ 	if (timer_valid)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		timer_delete_sync(&dhd->timer);
++#else
+ 		del_timer_sync(&dhd->timer);
++#endif
+ 
+ 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
+ 		if (dhd->thr_wdt_ctl.thr_pid >= 0) {
+@@ -7903,7 +7931,11 @@ dhd_os_wd_timer(void* bus, uint wdtick)
+ 	if (!wdtick && dhd->wd_timer_valid == TRUE) {
+ 		dhd->wd_timer_valid = FALSE;
+ 		DHD_GENERAL_UNLOCK(pub, flags);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		timer_delete_sync(&dhd->timer);
++#else
+ 		del_timer_sync(&dhd->timer);
++#endif
+ 		DHD_OS_WD_WAKE_UNLOCK(pub);
+ 		return;
+ 	}
+@@ -7945,9 +7977,13 @@ dhd_os_get_image_block(char* buf, int len, void* image)
+ 	if (!image)
+ 		return 0;
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++	rdlen = kernel_read(fp, buf, len, &fp->f_pos);
++#else
+ 	rdlen = kernel_read(fp, fp->f_pos, buf, len);
+ 	if (rdlen > 0)
+ 		fp->f_pos += rdlen;
++#endif
+ 
+ 	return rdlen;
+ }
+@@ -8946,12 +8982,16 @@ write_to_file(dhd_pub_t* dhd, uint8* buf, int size)
+ {
+ 	int ret = 0;
+ 	struct file* fp;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t old_fs;
++#endif
+ 	loff_t pos = 0;
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	/* change to KERNEL_DS address limit */
+ 	old_fs = get_fs();
+ 	set_fs(KERNEL_DS);
++#endif
+ 
+ 	/* open file to write */
+ 	fp = filp_open("/tmp/mem_dump", O_WRONLY | O_CREAT, 0640);
+@@ -8962,7 +9002,11 @@ write_to_file(dhd_pub_t* dhd, uint8* buf, int size)
+ 	}
+ 
+ 	/* Write buf to file */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++	kernel_write(fp, buf, size, &pos);
++#else
+ 	fp->f_op->write(fp, buf, size, &pos);
++#endif
+ 
+ exit:
+ 	/* free buf before return */
+@@ -8970,8 +9014,10 @@ exit:
+ 	/* close file before return */
+ 	if (fp)
+ 		filp_close(fp, current->files);
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	/* restore previous address limit */
+ 	set_fs(old_fs);
++#endif
+ 
+ 	return ret;
+ }
+diff --git a/dhd_pno.c b/dhd_pno.c
+index d307338..fa7884e 100755
+--- a/dhd_pno.c
++++ b/dhd_pno.c
+@@ -1355,7 +1355,7 @@ exit:
+ 	}
+ 	mutex_unlock(&_pno_state->pno_mutex);
+ exit_no_unlock:
+-	if (waitqueue_active(&_pno_state->get_batch_done.wait))
++	if (swait_active(&_pno_state->get_batch_done.wait))
+ 		complete(&_pno_state->get_batch_done);
+ 	return err;
+ }
+@@ -1800,7 +1800,7 @@ dhd_pno_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
+ 	{
+ 		struct dhd_pno_batch_params *params_batch;
+ 		params_batch = &_pno_state->pno_params_arr[INDEX_OF_BATCH_PARAMS].params_batch;
+-		if (!waitqueue_active(&_pno_state->get_batch_done.wait)) {
++		if (!swait_active(&_pno_state->get_batch_done.wait)) {
+ 			DHD_PNO(("%s : WLC_E_PFN_BEST_BATCHING\n", __FUNCTION__));
+ 			params_batch->get_batch.buf = NULL;
+ 			params_batch->get_batch.bufsize = 0;
+diff --git a/include/linuxver.h b/include/linuxver.h
+index 7beaffc..4c4c420 100755
+--- a/include/linuxver.h
++++ b/include/linuxver.h
+@@ -572,12 +572,28 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
+ 	return sem_up;
+ }
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
++#define SMP_RD_BARRIER_DEPENDS(x) smp_rmb()
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+ #define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
+ #else
+ #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *rtw_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy rtw_strncpy
++#endif
++
+ #define PROC_START(thread_func, owner, tsk_ctl, flags, name) \
+ { \
+ 	sema_init(&((tsk_ctl)->sema), 0); \
+diff --git a/linux_osl.c b/linux_osl.c
+index 43029b7..d70b064 100755
+--- a/linux_osl.c
++++ b/linux_osl.c
+@@ -1540,7 +1540,7 @@ osl_dma_map(osl_t *osh, void *va, uint size, int direction, void *p, hnddma_seg_
+ #endif
+ 
+ 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
+-	dir = (direction == DMA_TX)? PCI_DMA_TODEVICE: PCI_DMA_FROMDEVICE;
++	dir = (direction == DMA_TX)? DMA_TO_DEVICE: DMA_FROM_DEVICE;
+ 
+ #if defined(__ARM_ARCH_7A__) && defined(BCMDMASGLISTOSL)
+ 	if (dmah != NULL) {
+@@ -1563,7 +1563,7 @@ osl_dma_map(osl_t *osh, void *va, uint size, int direction, void *p, hnddma_seg_
+ 					}
+ 				}
+ #else
+-				pci_map_sg(osh->pdev, sg, nsegs, dir);
++				dma_map_sg(&((struct pci_dev *)osh->pdev)->dev, sg, nsegs, dir);
+ #endif
+ 			} else {
+ 				nsegs = 1;
+@@ -1573,7 +1573,7 @@ osl_dma_map(osl_t *osh, void *va, uint size, int direction, void *p, hnddma_seg_
+ #ifdef BCM47XX_ACP_WAR
+ 				if (virt_to_phys(PKTDATA(osh, skb)) >= ACP_WIN_LIMIT)
+ #endif
+-				pci_map_single(osh->pdev, PKTDATA(osh, skb), PKTLEN(osh, skb), dir);
++				dma_map_single(&((struct pci_dev *)osh->pdev)->dev, PKTDATA(osh, skb), PKTLEN(osh, skb), dir);
+ 			}
+ 			totsegs += nsegs;
+ 			totlen += PKTLEN(osh, skb);
+@@ -1593,7 +1593,7 @@ osl_dma_map(osl_t *osh, void *va, uint size, int direction, void *p, hnddma_seg_
+ 	if (pa < ACP_WIN_LIMIT)
+ 		return (pa);
+ #endif
+-	return (pci_map_single(osh->pdev, va, size, dir));
++	return (dma_map_single(&((struct pci_dev *)osh->pdev)->dev, va, size, dir));
+ }
+ 
+ void BCMFASTPATH
+@@ -1606,8 +1606,8 @@ osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction)
+ 	if (pa < ACP_WIN_LIMIT)
+ 		return;
+ #endif
+-	dir = (direction == DMA_TX)? PCI_DMA_TODEVICE: PCI_DMA_FROMDEVICE;
+-	pci_unmap_single(osh->pdev, (uint32)pa, size, dir);
++	dir = (direction == DMA_TX)? DMA_TO_DEVICE: DMA_FROM_DEVICE;
++	dma_unmap_single(&((struct pci_dev *)osh->pdev)->dev, (uint32)pa, size, dir);
+ }
+ 
+ 
+@@ -1892,9 +1892,13 @@ osl_os_get_image_block(char *buf, int len, void *image)
+ 	if (!image)
+ 		return 0;
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++	rdlen = kernel_read(fp, buf, len, &fp->f_pos);
++#else
+ 	rdlen = kernel_read(fp, fp->f_pos, buf, len);
+ 	if (rdlen > 0)
+ 		fp->f_pos += rdlen;
++#endif
+ 
+ 	return rdlen;
+ }
+diff --git a/wl_android.c b/wl_android.c
+index ed209f9..d242a51 100755
+--- a/wl_android.c
++++ b/wl_android.c
+@@ -2505,11 +2505,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 
+ 	ANDROID_INFO(("%s: Android private cmd \"%s\" on %s\n", __FUNCTION__, command, ifr->ifr_name));
+ 
+-	if (strnicmp(command, CMD_START, strlen(CMD_START)) == 0) {
++	if (strncasecmp(command, CMD_START, strlen(CMD_START)) == 0) {
+ 		ANDROID_INFO(("%s, Received regular START command\n", __FUNCTION__));
+ 		bytes_written = wl_android_wifi_on(net);
+ 	}
+-	else if (strnicmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) == 0) {
++	else if (strncasecmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) == 0) {
+ 		bytes_written = wl_android_set_fwpath(net, command, priv_cmd.total_len);
+ 	}
+ 
+@@ -2520,53 +2520,53 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 		goto exit;
+ 	}
+ 
+-	if (strnicmp(command, CMD_STOP, strlen(CMD_STOP)) == 0) {
++	if (strncasecmp(command, CMD_STOP, strlen(CMD_STOP)) == 0) {
+ 		bytes_written = wl_android_wifi_off(net);
+ 	}
+-	else if (strnicmp(command, CMD_SCAN_ACTIVE, strlen(CMD_SCAN_ACTIVE)) == 0) {
++	else if (strncasecmp(command, CMD_SCAN_ACTIVE, strlen(CMD_SCAN_ACTIVE)) == 0) {
+ 		/* TBD: SCAN-ACTIVE */
+ 	}
+-	else if (strnicmp(command, CMD_SCAN_PASSIVE, strlen(CMD_SCAN_PASSIVE)) == 0) {
++	else if (strncasecmp(command, CMD_SCAN_PASSIVE, strlen(CMD_SCAN_PASSIVE)) == 0) {
+ 		/* TBD: SCAN-PASSIVE */
+ 	}
+-	else if (strnicmp(command, CMD_RSSI, strlen(CMD_RSSI)) == 0) {
++	else if (strncasecmp(command, CMD_RSSI, strlen(CMD_RSSI)) == 0) {
+ 		bytes_written = wl_android_get_rssi(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_LINKSPEED, strlen(CMD_LINKSPEED)) == 0) {
++	else if (strncasecmp(command, CMD_LINKSPEED, strlen(CMD_LINKSPEED)) == 0) {
+ 		bytes_written = wl_android_get_link_speed(net, command, priv_cmd.total_len);
+ 	}
+ #ifdef PKT_FILTER_SUPPORT
+-	else if (strnicmp(command, CMD_RXFILTER_START, strlen(CMD_RXFILTER_START)) == 0) {
++	else if (strncasecmp(command, CMD_RXFILTER_START, strlen(CMD_RXFILTER_START)) == 0) {
+ 		bytes_written = net_os_enable_packet_filter(net, 1);
+ 	}
+-	else if (strnicmp(command, CMD_RXFILTER_STOP, strlen(CMD_RXFILTER_STOP)) == 0) {
++	else if (strncasecmp(command, CMD_RXFILTER_STOP, strlen(CMD_RXFILTER_STOP)) == 0) {
+ 		bytes_written = net_os_enable_packet_filter(net, 0);
+ 	}
+-	else if (strnicmp(command, CMD_RXFILTER_ADD, strlen(CMD_RXFILTER_ADD)) == 0) {
++	else if (strncasecmp(command, CMD_RXFILTER_ADD, strlen(CMD_RXFILTER_ADD)) == 0) {
+ 		int filter_num = *(command + strlen(CMD_RXFILTER_ADD) + 1) - '0';
+ 		bytes_written = net_os_rxfilter_add_remove(net, TRUE, filter_num);
+ 	}
+-	else if (strnicmp(command, CMD_RXFILTER_REMOVE, strlen(CMD_RXFILTER_REMOVE)) == 0) {
++	else if (strncasecmp(command, CMD_RXFILTER_REMOVE, strlen(CMD_RXFILTER_REMOVE)) == 0) {
+ 		int filter_num = *(command + strlen(CMD_RXFILTER_REMOVE) + 1) - '0';
+ 		bytes_written = net_os_rxfilter_add_remove(net, FALSE, filter_num);
+ 	}
+ #if defined(CUSTOM_PLATFORM_NV_TEGRA)
+-	else if (strnicmp(command, CMD_PKT_FILTER_MODE, strlen(CMD_PKT_FILTER_MODE)) == 0) {
++	else if (strncasecmp(command, CMD_PKT_FILTER_MODE, strlen(CMD_PKT_FILTER_MODE)) == 0) {
+ 		dhd_set_packet_filter_mode(net, &command[strlen(CMD_PKT_FILTER_MODE) + 1]);
+-	} else if (strnicmp(command, CMD_PKT_FILTER_PORTS, strlen(CMD_PKT_FILTER_PORTS)) == 0) {
++	} else if (strncasecmp(command, CMD_PKT_FILTER_PORTS, strlen(CMD_PKT_FILTER_PORTS)) == 0) {
+ 		bytes_written = dhd_set_packet_filter_ports(net,
+ 			&command[strlen(CMD_PKT_FILTER_PORTS) + 1]);
+ 		ret = bytes_written;
+ 	}
+ #endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
+ #endif /* PKT_FILTER_SUPPORT */
+-	else if (strnicmp(command, CMD_BTCOEXSCAN_START, strlen(CMD_BTCOEXSCAN_START)) == 0) {
++	else if (strncasecmp(command, CMD_BTCOEXSCAN_START, strlen(CMD_BTCOEXSCAN_START)) == 0) {
+ 		/* TBD: BTCOEXSCAN-START */
+ 	}
+-	else if (strnicmp(command, CMD_BTCOEXSCAN_STOP, strlen(CMD_BTCOEXSCAN_STOP)) == 0) {
++	else if (strncasecmp(command, CMD_BTCOEXSCAN_STOP, strlen(CMD_BTCOEXSCAN_STOP)) == 0) {
+ 		/* TBD: BTCOEXSCAN-STOP */
+ 	}
+-	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
++	else if (strncasecmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
+ #ifdef WL_CFG80211
+ 		void *dhdp = wl_cfg80211_get_dhdp();
+ 		bytes_written = wl_cfg80211_set_btcoex_dhcp(net, dhdp, command);
+@@ -2581,13 +2581,13 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ #endif /* PKT_FILTER_SUPPORT */
+ #endif /* WL_CFG80211 */
+ 	}
+-	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
++	else if (strncasecmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
+ 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
++	else if (strncasecmp(command, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
+ 		bytes_written = wl_android_set_suspendmode(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
++	else if (strncasecmp(command, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
+ 		uint band = *(command + strlen(CMD_SETBAND) + 1) - '0';
+ 
+ 		if (dhd_conf_get_band(dhd_get_pub(net)) != WLC_BAND_AUTO) {
+@@ -2613,12 +2613,12 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 		bytes_written = wldev_set_band(net, band);
+ #endif /* WL_HOST_BAND_MGMT */
+ 	}
+-	else if (strnicmp(command, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
++	else if (strncasecmp(command, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
+ 		bytes_written = wl_android_get_band(net, command, priv_cmd.total_len);
+ 	}
+ #ifdef WL_CFG80211
+ 	/* CUSTOMER_SET_COUNTRY feature is define for only GGSM model */
+-	else if (strnicmp(command, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
++	else if (strncasecmp(command, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
+ 		char *country_code = command + strlen(CMD_COUNTRY) + 1;
+ #ifdef CUSTOMER_HW5
+ 		/* Customer_hw5 want to keep connections */
+@@ -2631,32 +2631,32 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 
+ 
+ #ifdef PNO_SUPPORT
+-	else if (strnicmp(command, CMD_PNOSSIDCLR_SET, strlen(CMD_PNOSSIDCLR_SET)) == 0) {
++	else if (strncasecmp(command, CMD_PNOSSIDCLR_SET, strlen(CMD_PNOSSIDCLR_SET)) == 0) {
+ 		bytes_written = dhd_dev_pno_stop_for_ssid(net);
+ 	}
+ #ifndef WL_SCHED_SCAN
+-	else if (strnicmp(command, CMD_PNOSETUP_SET, strlen(CMD_PNOSETUP_SET)) == 0) {
++	else if (strncasecmp(command, CMD_PNOSETUP_SET, strlen(CMD_PNOSETUP_SET)) == 0) {
+ 		bytes_written = wl_android_set_pno_setup(net, command, priv_cmd.total_len);
+ 	}
+ #endif /* !WL_SCHED_SCAN */
+-	else if (strnicmp(command, CMD_PNOENABLE_SET, strlen(CMD_PNOENABLE_SET)) == 0) {
++	else if (strncasecmp(command, CMD_PNOENABLE_SET, strlen(CMD_PNOENABLE_SET)) == 0) {
+ 		int enable = *(command + strlen(CMD_PNOENABLE_SET) + 1) - '0';
+ 		bytes_written = (enable)? 0 : dhd_dev_pno_stop_for_ssid(net);
+ 	}
+-	else if (strnicmp(command, CMD_WLS_BATCHING, strlen(CMD_WLS_BATCHING)) == 0) {
++	else if (strncasecmp(command, CMD_WLS_BATCHING, strlen(CMD_WLS_BATCHING)) == 0) {
+ 		bytes_written = wls_parse_batching_cmd(net, command, priv_cmd.total_len);
+ 	}
+ #endif /* PNO_SUPPORT */
+-	else if (strnicmp(command, CMD_P2P_DEV_ADDR, strlen(CMD_P2P_DEV_ADDR)) == 0) {
++	else if (strncasecmp(command, CMD_P2P_DEV_ADDR, strlen(CMD_P2P_DEV_ADDR)) == 0) {
+ 		bytes_written = wl_android_get_p2p_dev_addr(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_P2P_SET_NOA, strlen(CMD_P2P_SET_NOA)) == 0) {
++	else if (strncasecmp(command, CMD_P2P_SET_NOA, strlen(CMD_P2P_SET_NOA)) == 0) {
+ 		int skip = strlen(CMD_P2P_SET_NOA) + 1;
+ 		bytes_written = wl_cfg80211_set_p2p_noa(net, command + skip,
+ 			priv_cmd.total_len - skip);
+ 	}
+ #ifdef WL_SDO
+-	else if (strnicmp(command, CMD_P2P_SD_OFFLOAD, strlen(CMD_P2P_SD_OFFLOAD)) == 0) {
++	else if (strncasecmp(command, CMD_P2P_SD_OFFLOAD, strlen(CMD_P2P_SD_OFFLOAD)) == 0) {
+ 		u8 *buf = command;
+ 		u8 *cmd_id = NULL;
+ 		int len;
+@@ -2672,158 +2672,158 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 	}
+ #endif /* WL_SDO */
+ #ifdef WL_NAN
+-	else if (strnicmp(command, CMD_NAN, strlen(CMD_NAN)) == 0) {
++	else if (strncasecmp(command, CMD_NAN, strlen(CMD_NAN)) == 0) {
+ 		bytes_written = wl_cfg80211_nan_cmd_handler(net, command,
+ 			priv_cmd.total_len);
+ 	}
+ #endif /* WL_NAN */
+ #if !defined WL_ENABLE_P2P_IF
+-	else if (strnicmp(command, CMD_P2P_GET_NOA, strlen(CMD_P2P_GET_NOA)) == 0) {
++	else if (strncasecmp(command, CMD_P2P_GET_NOA, strlen(CMD_P2P_GET_NOA)) == 0) {
+ 		bytes_written = wl_cfg80211_get_p2p_noa(net, command, priv_cmd.total_len);
+ 	}
+ #endif /* WL_ENABLE_P2P_IF */
+-	else if (strnicmp(command, CMD_P2P_SET_PS, strlen(CMD_P2P_SET_PS)) == 0) {
++	else if (strncasecmp(command, CMD_P2P_SET_PS, strlen(CMD_P2P_SET_PS)) == 0) {
+ 		int skip = strlen(CMD_P2P_SET_PS) + 1;
+ 		bytes_written = wl_cfg80211_set_p2p_ps(net, command + skip,
+ 			priv_cmd.total_len - skip);
+ 	}
+ #ifdef WL_CFG80211
+-	else if (strnicmp(command, CMD_SET_AP_WPS_P2P_IE,
++	else if (strncasecmp(command, CMD_SET_AP_WPS_P2P_IE,
+ 		strlen(CMD_SET_AP_WPS_P2P_IE)) == 0) {
+ 		int skip = strlen(CMD_SET_AP_WPS_P2P_IE) + 3;
+ 		bytes_written = wl_cfg80211_set_wps_p2p_ie(net, command + skip,
+ 			priv_cmd.total_len - skip, *(command + skip - 2) - '0');
+ 	}
+ #ifdef WLFBT
+-	else if (strnicmp(command, CMD_GET_FTKEY, strlen(CMD_GET_FTKEY)) == 0) {
++	else if (strncasecmp(command, CMD_GET_FTKEY, strlen(CMD_GET_FTKEY)) == 0) {
+ 		wl_cfg80211_get_fbt_key(command);
+ 		bytes_written = FBT_KEYLEN;
+ 	}
+ #endif /* WLFBT */
+ #endif /* WL_CFG80211 */
+-	else if (strnicmp(command, CMD_OKC_SET_PMK, strlen(CMD_OKC_SET_PMK)) == 0)
++	else if (strncasecmp(command, CMD_OKC_SET_PMK, strlen(CMD_OKC_SET_PMK)) == 0)
+ 		bytes_written = wl_android_set_pmk(net, command, priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_OKC_ENABLE, strlen(CMD_OKC_ENABLE)) == 0)
++	else if (strncasecmp(command, CMD_OKC_ENABLE, strlen(CMD_OKC_ENABLE)) == 0)
+ 		bytes_written = wl_android_okc_enable(net, command, priv_cmd.total_len);
+ #ifdef BCMCCX
+-	else if (strnicmp(command, CMD_GETCCKM_RN, strlen(CMD_GETCCKM_RN)) == 0) {
++	else if (strncasecmp(command, CMD_GETCCKM_RN, strlen(CMD_GETCCKM_RN)) == 0) {
+ 		bytes_written = wl_android_get_cckm_rn(net, command);
+ 	}
+-	else if (strnicmp(command, CMD_SETCCKM_KRK, strlen(CMD_SETCCKM_KRK)) == 0) {
++	else if (strncasecmp(command, CMD_SETCCKM_KRK, strlen(CMD_SETCCKM_KRK)) == 0) {
+ 		bytes_written = wl_android_set_cckm_krk(net, command);
+ 	}
+-	else if (strnicmp(command, CMD_GET_ASSOC_RES_IES, strlen(CMD_GET_ASSOC_RES_IES)) == 0) {
++	else if (strncasecmp(command, CMD_GET_ASSOC_RES_IES, strlen(CMD_GET_ASSOC_RES_IES)) == 0) {
+ 		bytes_written = wl_android_get_assoc_res_ies(net, command);
+ 	}
+ #endif /* BCMCCX */
+ #if defined(WL_SUPPORT_AUTO_CHANNEL)
+-	else if (strnicmp(command, CMD_GET_BEST_CHANNELS,
++	else if (strncasecmp(command, CMD_GET_BEST_CHANNELS,
+ 		strlen(CMD_GET_BEST_CHANNELS)) == 0) {
+ 		bytes_written = wl_cfg80211_get_best_channels(net, command,
+ 			priv_cmd.total_len);
+ 	}
+ #endif /* WL_SUPPORT_AUTO_CHANNEL */
+-	else if (strnicmp(command, CMD_HAPD_MAC_FILTER, strlen(CMD_HAPD_MAC_FILTER)) == 0) {
++	else if (strncasecmp(command, CMD_HAPD_MAC_FILTER, strlen(CMD_HAPD_MAC_FILTER)) == 0) {
+ 		int skip = strlen(CMD_HAPD_MAC_FILTER) + 1;
+ 		wl_android_set_mac_address_filter(net, (const char*)command+skip);
+ 	}
+-	else if (strnicmp(command, CMD_SETROAMMODE, strlen(CMD_SETROAMMODE)) == 0)
++	else if (strncasecmp(command, CMD_SETROAMMODE, strlen(CMD_SETROAMMODE)) == 0)
+ 		bytes_written = wl_android_set_roam_mode(net, command, priv_cmd.total_len);
+ #if defined(BCMFW_ROAM_ENABLE)
+-	else if (strnicmp(command, CMD_SET_ROAMPREF, strlen(CMD_SET_ROAMPREF)) == 0) {
++	else if (strncasecmp(command, CMD_SET_ROAMPREF, strlen(CMD_SET_ROAMPREF)) == 0) {
+ 		bytes_written = wl_android_set_roampref(net, command, priv_cmd.total_len);
+ 	}
+ #endif /* BCMFW_ROAM_ENABLE */
+ #ifdef WL_CFG80211
+-	else if (strnicmp(command, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
++	else if (strncasecmp(command, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
+ 		bytes_written = wl_android_set_miracast(net, command, priv_cmd.total_len);
+ #if defined(CUSTOM_PLATFORM_NV_TEGRA)
+-	else if (strnicmp(command, CMD_SETMIRACAST, strlen(CMD_SETMIRACAST)) == 0)
++	else if (strncasecmp(command, CMD_SETMIRACAST, strlen(CMD_SETMIRACAST)) == 0)
+ 		bytes_written = wldev_miracast_tuning(net, command, priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_ASSOCRESPIE, strlen(CMD_ASSOCRESPIE)) == 0)
++	else if (strncasecmp(command, CMD_ASSOCRESPIE, strlen(CMD_ASSOCRESPIE)) == 0)
+ 		bytes_written = wldev_get_assoc_resp_ie(net, command, priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_RXRATESTATS, strlen(CMD_RXRATESTATS)) == 0)
++	else if (strncasecmp(command, CMD_RXRATESTATS, strlen(CMD_RXRATESTATS)) == 0)
+ 		bytes_written = wldev_get_rx_rate_stats(net, command, priv_cmd.total_len);
+ #endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
+-	else if (strnicmp(command, CMD_SETIBSSBEACONOUIDATA, strlen(CMD_SETIBSSBEACONOUIDATA)) == 0)
++	else if (strncasecmp(command, CMD_SETIBSSBEACONOUIDATA, strlen(CMD_SETIBSSBEACONOUIDATA)) == 0)
+ 		bytes_written = wl_android_set_ibss_beacon_ouidata(net,
+ 		command, priv_cmd.total_len);
+ #endif
+ #ifdef WLAIBSS
+-	else if (strnicmp(command, CMD_SETIBSSTXFAILEVENT,
++	else if (strncasecmp(command, CMD_SETIBSSTXFAILEVENT,
+ 		strlen(CMD_SETIBSSTXFAILEVENT)) == 0)
+ 		bytes_written = wl_android_set_ibss_txfail_event(net, command, priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_GET_IBSS_PEER_INFO_ALL,
++	else if (strncasecmp(command, CMD_GET_IBSS_PEER_INFO_ALL,
+ 		strlen(CMD_GET_IBSS_PEER_INFO_ALL)) == 0)
+ 		bytes_written = wl_android_get_ibss_peer_info(net, command, priv_cmd.total_len,
+ 			TRUE);
+-	else if (strnicmp(command, CMD_GET_IBSS_PEER_INFO,
++	else if (strncasecmp(command, CMD_GET_IBSS_PEER_INFO,
+ 		strlen(CMD_GET_IBSS_PEER_INFO)) == 0)
+ 		bytes_written = wl_android_get_ibss_peer_info(net, command, priv_cmd.total_len,
+ 			FALSE);
+-	else if (strnicmp(command, CMD_SETIBSSROUTETABLE,
++	else if (strncasecmp(command, CMD_SETIBSSROUTETABLE,
+ 		strlen(CMD_SETIBSSROUTETABLE)) == 0)
+ 		bytes_written = wl_android_set_ibss_routetable(net, command,
+ 			priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_SETIBSSAMPDU, strlen(CMD_SETIBSSAMPDU)) == 0)
++	else if (strncasecmp(command, CMD_SETIBSSAMPDU, strlen(CMD_SETIBSSAMPDU)) == 0)
+ 		bytes_written = wl_android_set_ibss_ampdu(net, command, priv_cmd.total_len);
+-	else if (strnicmp(command, CMD_SETIBSSANTENNAMODE, strlen(CMD_SETIBSSANTENNAMODE)) == 0)
++	else if (strncasecmp(command, CMD_SETIBSSANTENNAMODE, strlen(CMD_SETIBSSANTENNAMODE)) == 0)
+ 		bytes_written = wl_android_set_ibss_antenna(net, command, priv_cmd.total_len);
+ #endif /* WLAIBSS */
+-	else if (strnicmp(command, CMD_KEEP_ALIVE, strlen(CMD_KEEP_ALIVE)) == 0) {
++	else if (strncasecmp(command, CMD_KEEP_ALIVE, strlen(CMD_KEEP_ALIVE)) == 0) {
+ 		int skip = strlen(CMD_KEEP_ALIVE) + 1;
+ 		bytes_written = wl_keep_alive_set(net, command + skip, priv_cmd.total_len - skip);
+ 	}
+ #ifdef WL_CFG80211
+-	else if (strnicmp(command, CMD_ROAM_OFFLOAD, strlen(CMD_ROAM_OFFLOAD)) == 0) {
++	else if (strncasecmp(command, CMD_ROAM_OFFLOAD, strlen(CMD_ROAM_OFFLOAD)) == 0) {
+ 		int enable = *(command + strlen(CMD_ROAM_OFFLOAD) + 1) - '0';
+ 		bytes_written = wl_cfg80211_enable_roam_offload(net, enable);
+ 	}
+-	else if (strnicmp(command, CMD_ROAM_OFFLOAD_APLIST, strlen(CMD_ROAM_OFFLOAD_APLIST)) == 0) {
++	else if (strncasecmp(command, CMD_ROAM_OFFLOAD_APLIST, strlen(CMD_ROAM_OFFLOAD_APLIST)) == 0) {
+ 		bytes_written = wl_android_set_roam_offload_bssid_list(net,
+ 			command + strlen(CMD_ROAM_OFFLOAD_APLIST) + 1);
+ 	}
+ #endif
+ #ifdef P2PRESP_WFDIE_SRC
+-	else if (strnicmp(command, CMD_P2P_SET_WFDIE_RESP,
++	else if (strncasecmp(command, CMD_P2P_SET_WFDIE_RESP,
+ 		strlen(CMD_P2P_SET_WFDIE_RESP)) == 0) {
+ 		int mode = *(command + strlen(CMD_P2P_SET_WFDIE_RESP) + 1) - '0';
+ 		bytes_written = wl_android_set_wfdie_resp(net, mode);
+-	} else if (strnicmp(command, CMD_P2P_GET_WFDIE_RESP,
++	} else if (strncasecmp(command, CMD_P2P_GET_WFDIE_RESP,
+ 		strlen(CMD_P2P_GET_WFDIE_RESP)) == 0) {
+ 		bytes_written = wl_android_get_wfdie_resp(net, command, priv_cmd.total_len);
+ 	}
+ #endif /* P2PRESP_WFDIE_SRC */
+-	else if (strnicmp(command, CMD_GET_LINK_STATUS, strlen(CMD_GET_LINK_STATUS)) == 0) {
++	else if (strncasecmp(command, CMD_GET_LINK_STATUS, strlen(CMD_GET_LINK_STATUS)) == 0) {
+ 		bytes_written = wl_android_get_link_status(net, command, priv_cmd.total_len);
+ 	}
+ #ifdef CONNECTION_STATISTICS
+-	else if (strnicmp(command, CMD_GET_CONNECTION_STATS,
++	else if (strncasecmp(command, CMD_GET_CONNECTION_STATS,
+ 		strlen(CMD_GET_CONNECTION_STATS)) == 0) {
+ 		bytes_written = wl_android_get_connection_stats(net, command,
+ 			priv_cmd.total_len);
+ 	}
+ #endif
+-	else if(strnicmp(command, CMD_GET_CHANNEL, strlen(CMD_GET_CHANNEL)) == 0) {
++	else if(strncasecmp(command, CMD_GET_CHANNEL, strlen(CMD_GET_CHANNEL)) == 0) {
+ 		bytes_written = wl_android_get_channel(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_SET_ROAM, strlen(CMD_SET_ROAM)) == 0) {
++	else if (strncasecmp(command, CMD_SET_ROAM, strlen(CMD_SET_ROAM)) == 0) {
+ 		bytes_written = wl_android_set_roam_trigger(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_GET_ROAM, strlen(CMD_GET_ROAM)) == 0) {
++	else if (strncasecmp(command, CMD_GET_ROAM, strlen(CMD_GET_ROAM)) == 0) {
+ 		bytes_written = wl_android_get_roam_trigger(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_GET_KEEP_ALIVE, strlen(CMD_GET_KEEP_ALIVE)) == 0) {
++	else if (strncasecmp(command, CMD_GET_KEEP_ALIVE, strlen(CMD_GET_KEEP_ALIVE)) == 0) {
+ 		int skip = strlen(CMD_GET_KEEP_ALIVE) + 1;
+ 		bytes_written = wl_android_get_keep_alive(net, command+skip, priv_cmd.total_len-skip);
+ 	}
+-	else if (strnicmp(command, CMD_GET_PM, strlen(CMD_GET_PM)) == 0) {
++	else if (strncasecmp(command, CMD_GET_PM, strlen(CMD_GET_PM)) == 0) {
+ 		bytes_written = wl_android_get_pm(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_SET_PM, strlen(CMD_SET_PM)) == 0) {
++	else if (strncasecmp(command, CMD_SET_PM, strlen(CMD_SET_PM)) == 0) {
+ 		bytes_written = wl_android_set_pm(net, command, priv_cmd.total_len);
+ 	}
+-	else if (strnicmp(command, CMD_MONITOR, strlen(CMD_MONITOR)) == 0) {
++	else if (strncasecmp(command, CMD_MONITOR, strlen(CMD_MONITOR)) == 0) {
+ 		bytes_written = wl_android_set_monitor(net, command, priv_cmd.total_len);
+ 	} else {
+ 		ANDROID_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
+diff --git a/wl_cfg80211.c b/wl_cfg80211.c
+index 6d55dcb..d532f5c 100755
+--- a/wl_cfg80211.c
++++ b/wl_cfg80211.c
+@@ -10039,6 +10039,21 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
+ 		MAC2STRDBG((u8*)(&e->addr)));
+ 	dhd_conf_set_wme(cfg->pub);
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++	{
++		struct cfg80211_roam_info roam_info = {0};
++
++		roam_info.links[0].bssid = curbssid;
++#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) || defined(WL_COMPAT_WIRELESS)
++		roam_info.links[0].channel = notify_channel;
++#endif
++		roam_info.req_ie = conn_info->req_ie;
++		roam_info.req_ie_len = conn_info->req_ie_len;
++		roam_info.resp_ie = conn_info->resp_ie;
++		roam_info.resp_ie_len = conn_info->resp_ie_len;
++		cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
++	}
++#else
+ 	cfg80211_roamed(ndev,
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) || defined(WL_COMPAT_WIRELESS)
+ 		notify_channel,
+@@ -10046,6 +10061,7 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
+ 		curbssid,
+ 		conn_info->req_ie, conn_info->req_ie_len,
+ 		conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
++#endif
+ 	WL_DBG(("Report roaming result\n"));
+ 
+ 	wl_set_drv_status(cfg, CONNECTED, ndev);
+@@ -10199,7 +10215,11 @@ wl_notify_pfn_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
+ #ifndef WL_SCHED_SCAN
+ 	mutex_lock(&cfg->usr_sync);
+ 	/* TODO: Use cfg80211_sched_scan_results(wiphy); */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
++	cfg80211_disconnected(ndev, 0, NULL, 0, true, GFP_KERNEL);
++#else
+ 	cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
++#endif
+ 	mutex_unlock(&cfg->usr_sync);
+ #else
+ 	/* If cfg80211 scheduled scan is supported, report the pno results via sched
+@@ -11140,7 +11160,13 @@ static s32 wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
+ 	}
+ #endif /* WL_SCHED_SCAN */
+ 	if (likely(cfg->scan_request)) {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
++		struct cfg80211_scan_info info = { .aborted = aborted };
++
++		cfg80211_scan_done(cfg->scan_request, &info);
++#else
+ 		cfg80211_scan_done(cfg->scan_request, aborted);
++#endif
+ 		cfg->scan_request = NULL;
+ 	}
+ 	if (p2p_is_on(cfg))
