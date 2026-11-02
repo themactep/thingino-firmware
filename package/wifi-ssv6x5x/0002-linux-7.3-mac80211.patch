@@ -1,0 +1,205 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6x5x: adapt the first mac80211 APIs to 7.3
+
+Handle the 7.3 mac80211 bss_info_changed, conf_tx and
+set_rts_threshold signatures, use vif cfg for association
+state, and relax two vendor warnings.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/Makefile b/Makefile
+index 9e0bc42..31411c3 100755
+--- a/Makefile
++++ b/Makefile
+@@ -33,7 +33,7 @@ MOD_DEF_H = include/ssv_mod_conf.h
+ # Generate $(KMODULE_NAME)-wifi.cfg
+ #BKP_CFG := $(shell cp $(KBUILD_TOP)/$(PLATFORMS)-wifi.cfg $(KBUILD_TOP)/image/$(KMODULE_NAME)-wifi.cfg)
+ 
+-EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include
++EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include -Wno-error=missing-prototypes -Wno-error=old-style-declaration
+ ccflags-y += $(EXTRA_CFLAGS)
+ subdir-ccflags-y += $(EXTRA_CFLAGS)
+ 
+diff --git a/include/ssv_conf_parser.h b/include/ssv_conf_parser.h
+old mode 100755
+new mode 100644
+index 6fb8b2f..c7bdec0
+--- a/include/ssv_conf_parser.h
++++ b/include/ssv_conf_parser.h
+@@ -4,17 +4,18 @@ char const *conf_parser[] = {
+ "__CHECK_ENDIAN__",
+ "DEBUG",
+ "SSV_SUPPORT_SSV6006",
++"SSV_SUPPORT_SDIO",
++"SSV_SUPPORT_USB",
+ "CONFIG_SSV6200_CLI_ENABLE",
+-"CONFIG_SSV_BUILD_AS_ONE_KO",
+ "CONFIG_SSV6200_HAS_RX_WORKQUEUE",
+ "USE_THREAD_RX",
+ "USE_GENERIC_DECI_TBL",
+ "CONFIG_SSV_CTL",
++"CONFIG_MMC_DISALLOW_STACK",
+ "HWIF_SDIO_RX_IRQ",
+ "CONFIG_FW_ALIGNMENT_CHECK",
+ "CONFIG_STA_BCN_FILTER",
+ "CONFIG_SDIO_FAVOR_RX",
+-"HWIF_IGNORE_SAFE_RW_REG",
+ "CONFIG_HW_SCAN",
+ "CONFIG_USB_TX_MULTI_URB",
+ "CONFIG_ENABLE_DBGMSG",
+@@ -22,17 +23,18 @@ char const *conf_parser[] = {
+ "__CHECK_ENDIAN__",
+ "DEBUG",
+ "SSV_SUPPORT_SSV6006",
++"SSV_SUPPORT_SDIO",
++"SSV_SUPPORT_USB",
+ "CONFIG_SSV6200_CLI_ENABLE",
+-"CONFIG_SSV_BUILD_AS_ONE_KO",
+ "CONFIG_SSV6200_HAS_RX_WORKQUEUE",
+ "USE_THREAD_RX",
+ "USE_GENERIC_DECI_TBL",
+ "CONFIG_SSV_CTL",
++"CONFIG_MMC_DISALLOW_STACK",
+ "HWIF_SDIO_RX_IRQ",
+ "CONFIG_FW_ALIGNMENT_CHECK",
+ "CONFIG_STA_BCN_FILTER",
+ "CONFIG_SDIO_FAVOR_RX",
+-"HWIF_IGNORE_SAFE_RW_REG",
+ "CONFIG_HW_SCAN",
+ "CONFIG_USB_TX_MULTI_URB",
+ "CONFIG_ENABLE_DBGMSG",
+diff --git a/smac/dev.c b/smac/dev.c
+index e6c809f..992f833 100755
+--- a/smac/dev.c
++++ b/smac/dev.c
+@@ -34,6 +34,11 @@
+ #include "lib.h"
+ #include "wow.h"
+ #include "dev.h"
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define SSV_VIF_ASSOC(v) ((v)->cfg.assoc)
++#else
++#define SSV_VIF_ASSOC(v) ((v)->bss_conf.assoc)
++#endif
+ #include "ap.h"
+ #include "init.h"
+ #include "ssv_skb.h"
+@@ -1755,7 +1760,7 @@ static void ssv6200_remove_interface(struct ieee80211_hw *hw,
+         if (vif_idx == 0) { // check station and enable beacon filter for vif_idx 1
+             if (NULL != sc->vif_info[1].vif) {
+                 if ((NL80211_IFTYPE_STATION == (sc->vif_info[1].vif)->type) && 
+-                    (true == (sc->vif_info[1].vif)->bss_conf.assoc) &&
++                    (true == SSV_VIF_ASSOC(sc->vif_info[1].vif)) &&
+                     (false == (sc->vif_info[1].vif)->p2p)) {
+                     
+                     //enable filter for beacon and probe request
+@@ -1768,7 +1773,7 @@ static void ssv6200_remove_interface(struct ieee80211_hw *hw,
+         if (vif_idx == 1) { // check station and enable beacon filter for vif_idx 0
+             if (NULL != sc->vif_info[1].vif) {
+                 if ((NL80211_IFTYPE_STATION == (sc->vif_info[0].vif)->type) && 
+-                    (true == (sc->vif_info[0].vif)->bss_conf.assoc) &&
++                    (true == SSV_VIF_ASSOC(sc->vif_info[0].vif)) &&
+                     (false == (sc->vif_info[0].vif)->p2p)) {
+                     
+                     //enable filter for beacon and probe request
+@@ -1808,7 +1813,7 @@ bool ssv6200_not_dual_intf_on_line(struct ssv_softc *sc)
+             vif = sc->vif_info[i].vif;
+ 
+             if ((vif->type == NL80211_IFTYPE_STATION) || (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
+-                if (vif->bss_conf.assoc)
++                if (SSV_VIF_ASSOC(vif))
+                     assoc++;
+                 if (vif->p2p)
+                     p2p++;
+@@ -1834,7 +1839,7 @@ int ssvxxx_get_sta_assco_cnt(struct ssv_softc *sc)
+             vif = sc->vif_info[i].vif;
+ 
+             if ((vif->type == NL80211_IFTYPE_STATION) || (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
+-                if (vif->bss_conf.assoc)
++                if (SSV_VIF_ASSOC(vif))
+                     assoc++;
+             }
+         }
+@@ -2090,7 +2095,11 @@ static void ssv6200_config_filter(struct ieee80211_hw *hw,
+ 
+ static void ssv6200_bss_info_changed(struct ieee80211_hw *hw,
+         struct ieee80211_vif *vif, struct ieee80211_bss_conf *info,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        u64 changed)
++#else
+         u32 changed)
++#endif
+ {
+     struct ssv_vif_priv_data *priv_vif = (struct ssv_vif_priv_data *)vif->drv_priv;
+     struct ssv_softc *sc = hw->priv;
+@@ -2755,7 +2764,11 @@ static int ssv6200_conf_tx(struct ieee80211_hw *hw, u16 queue,
+         const struct ieee80211_tx_queue_params *params)
+ #else
+ static int ssv6200_conf_tx(struct ieee80211_hw *hw,
+-        struct ieee80211_vif *vif, u16 queue,
++        struct ieee80211_vif *vif,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        unsigned int link_id,
++#endif
++        u16 queue,
+         const struct ieee80211_tx_queue_params *params)
+ #endif
+ {
+@@ -3091,9 +3104,16 @@ static int ssv6200_set_bitrate_mask(struct ieee80211_hw *hw,
+     return 0;
+ }
+ 
+-static int ssv6200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
++static int ssv6200_set_rts_threshold(struct ieee80211_hw *hw,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        int radio_idx,
++#endif
++        u32 value)
+ {
+     struct ssv_softc *sc=hw->priv;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)radio_idx;
++#endif
+     struct sk_buff *skb = NULL;
+     struct cfg_host_cmd *host_cmd = NULL;
+     struct ssv6xxx_rts_param *ptr = NULL;
+@@ -3469,7 +3489,7 @@ static void ssv6xxx_proc_data_rx_skb (struct ssv_softc *sc, struct sk_buff *rx_s
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+-        if ((vif->type == NL80211_IFTYPE_STATION) && (vif->bss_conf.assoc == false)) {
++        if ((vif->type == NL80211_IFTYPE_STATION) && (SSV_VIF_ASSOC(vif) == false)) {
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+ 
+@@ -3512,7 +3532,7 @@ static void ssv6xxx_proc_data_rx_skb (struct ssv_softc *sc, struct sk_buff *rx_s
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+-        if ((vif->type == NL80211_IFTYPE_STATION) && (vif->bss_conf.assoc == false)) {
++        if ((vif->type == NL80211_IFTYPE_STATION) && (SSV_VIF_ASSOC(vif) == false)) {
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+@@ -3692,7 +3712,7 @@ void ssv6xxx_beacon_miss_work(struct work_struct *work)
+ 
+         if ((sc->vif_info[i].vif->type == NL80211_IFTYPE_STATION) &&
+                 (sc->vif_info[i].vif->p2p == false) &&
+-                (sc->vif_info[i].vif->bss_conf.assoc == true))
++                (SSV_VIF_ASSOC(sc->vif_info[i].vif) == true))
+             break;
+     }
+     if (i == SSV6200_MAX_VIF)
+diff --git a/smac/hal/ssv6006c/ssv6006_priv.h b/smac/hal/ssv6006c/ssv6006_priv.h
+index 8acd293..f83c9ba 100755
+--- a/smac/hal/ssv6006c/ssv6006_priv.h
++++ b/smac/hal/ssv6006c/ssv6006_priv.h
+@@ -22,7 +22,7 @@
+ #define REG32(_addr)    REG32_R(_addr)
+ #define REG32_W(_addr, _value)   do { SMAC_REG_WRITE(sh, _addr, _value); } while (0)
+ 
+-static void inline print_null(const char *fmt, ...)
++static inline void print_null(const char *fmt, ...)
+ {
+ }
+ // Macros for turismo common header

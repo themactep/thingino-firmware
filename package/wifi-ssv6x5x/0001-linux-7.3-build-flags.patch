@@ -1,0 +1,28 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6x5x: anchor the build at the module directory
+
+Use M when kbuild is driving the build, and feed EXTRA_CFLAGS
+into ccflags-y/subdir-ccflags-y so 7.3 sees the include paths.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 13:06:57.438316107 -0500
++++ b/Makefile	2026-11-02 13:06:57.455799161 -0500
+@@ -8,7 +8,7 @@
+ SSV_DRV_PATH := $(PWD)
+ endif
+ 
+-KBUILD_TOP := $(SSV_DRV_PATH)
++KBUILD_TOP := $(if $(M),$(M),$(SSV_DRV_PATH))
+ ifeq ($(MAKELEVEL),0)
+ KBUILD_TOP := .
+ endif
+@@ -34,6 +34,8 @@
+ #BKP_CFG := $(shell cp $(KBUILD_TOP)/$(PLATFORMS)-wifi.cfg $(KBUILD_TOP)/image/$(KMODULE_NAME)-wifi.cfg)
+ 
+ EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include
++ccflags-y += $(EXTRA_CFLAGS)
++subdir-ccflags-y += $(EXTRA_CFLAGS)
+ 
+ DEF_PARSER_H = $(KBUILD_TOP)/include/ssv_conf_parser.h
+ $(shell env ccflags="$(ccflags-y)" $(KBUILD_TOP)/parser-conf.sh $(DEF_PARSER_H))
