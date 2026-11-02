@@ -1,0 +1,207 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mt7601u: add the 7.3 timer shim and remaining fixes
+
+Add a timer trampoline for the removed timer.data/function ABI,
+use timer_delete_sync, drop the remaining set_fs blocks, use
+timespec64 and ktime_get_boottime_ts64, pass the wireless device
+to the station notifications, and fix access_ok.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/os/linux/rt_linux.c b/os/linux/rt_linux.c
+index b43f502..493c930 100644
+--- a/os/linux/rt_linux.c
++++ b/os/linux/rt_linux.c
+@@ -103,6 +103,38 @@ VOID RtmpUtilInit(VOID)
+ }
+ 
+ /* timeout -- ms */
++#define RTMP_TIMER_MAX_ENTRIES 64
++struct rtmp_timer_entry {
++	struct timer_list *timer;
++	TIMER_FUNCTION fn;
++	void *data;
++};
++static struct rtmp_timer_entry rtmp_timer_entries[RTMP_TIMER_MAX_ENTRIES];
++static DEFINE_SPINLOCK(rtmp_timer_lock);
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++static void rtmp_os_timer_trampoline(struct timer_list *t)
++{
++	unsigned long flags;
++	TIMER_FUNCTION fn = NULL;
++	void *data = NULL;
++	int i;
++
++	spin_lock_irqsave(&rtmp_timer_lock, flags);
++	for (i = 0; i < RTMP_TIMER_MAX_ENTRIES; i++) {
++		if (rtmp_timer_entries[i].timer == t) {
++			fn = rtmp_timer_entries[i].fn;
++			data = rtmp_timer_entries[i].data;
++			break;
++		}
++	}
++	spin_unlock_irqrestore(&rtmp_timer_lock, flags);
++
++	if (fn)
++		fn((unsigned long)data);
++}
++#endif
++
+ static inline VOID __RTMP_SetPeriodicTimer(
+ 	IN OS_NDIS_MINIPORT_TIMER * pTimer,
+ 	IN unsigned long timeout)
+@@ -119,11 +151,35 @@ static inline VOID __RTMP_OS_Init_Timer(
+ 	IN TIMER_FUNCTION function,
+ 	IN PVOID data)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++	unsigned long flags;
++	int i;
++
++	if (timer_pending(pTimer))
++		return;
++
++	spin_lock_irqsave(&rtmp_timer_lock, flags);
++	for (i = 0; i < RTMP_TIMER_MAX_ENTRIES; i++) {
++		if (rtmp_timer_entries[i].timer == NULL || rtmp_timer_entries[i].timer == pTimer) {
++			rtmp_timer_entries[i].timer = pTimer;
++			rtmp_timer_entries[i].fn = function;
++			rtmp_timer_entries[i].data = data;
++			break;
++		}
++	}
++	spin_unlock_irqrestore(&rtmp_timer_lock, flags);
++
++	if (i == RTMP_TIMER_MAX_ENTRIES)
++		return;
++
++	timer_setup(pTimer, rtmp_os_timer_trampoline, 0);
++#else
+ 	if (!timer_pending(pTimer)) {
+ 		init_timer(pTimer);
+ 		pTimer->data = (unsigned long)data;
+ 		pTimer->function = function;
+ 	}
++#endif
+ }
+ 
+ static inline VOID __RTMP_OS_Add_Timer(
+@@ -151,7 +207,11 @@ static inline VOID __RTMP_OS_Del_Timer(
+ 	OUT BOOLEAN *pCancelled)
+ {
+ 	if (timer_pending(pTimer))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		*pCancelled = timer_delete_sync(pTimer);
++#else
+ 		*pCancelled = del_timer_sync(pTimer);
++#endif
+ 	else
+ 		*pCancelled = TRUE;
+ }
+@@ -159,7 +219,21 @@ static inline VOID __RTMP_OS_Del_Timer(
+ static inline VOID __RTMP_OS_Release_Timer(
+ 	IN OS_NDIS_MINIPORT_TIMER * pTimer)
+ {
+-	/* nothing to do */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++	unsigned long flags;
++	int i;
++
++	spin_lock_irqsave(&rtmp_timer_lock, flags);
++	for (i = 0; i < RTMP_TIMER_MAX_ENTRIES; i++) {
++		if (rtmp_timer_entries[i].timer == pTimer) {
++			rtmp_timer_entries[i].timer = NULL;
++			rtmp_timer_entries[i].fn = NULL;
++			rtmp_timer_entries[i].data = NULL;
++			break;
++		}
++	}
++	spin_unlock_irqrestore(&rtmp_timer_lock, flags);
++#endif
+ }
+ 
+ 
+@@ -2181,8 +2255,10 @@ VOID RtmpDrvAllE2PPrint(
+ 	if (!msg)
+ 		return;
+ 	
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	orig_fs = get_fs();
+ 	set_fs(KERNEL_DS);
++#endif
+ 	
+ 	/* open file */
+ 	file_w = filp_open(fileName, O_WRONLY | O_CREAT, 0);
+@@ -2229,7 +2305,9 @@ VOID RtmpDrvAllRFPrint(
+ {
+ 	struct file *file_w;
+ 	PSTRING fileName = "RFDump.txt";
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t orig_fs;
++#endif
+ 	/*UINT32 macAddr = 0, macValue = 0;*/
+ 	
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+@@ -3386,7 +3464,10 @@ VOID CFG80211OS_Scaning(
+ 	UINT32 IdChan;
+ 	UINT32 CenFreq;
+ 	UINT CurBand;
+-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	struct timespec64 ts;
++	UINT64 bootTime = 0;
++#elif (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32))
+ 	struct timespec ts;
+ 	UINT64 bootTime = 0;
+ #else
+@@ -3434,7 +3515,10 @@ VOID CFG80211OS_Scaning(
+ 		/* CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm) */
+ 		RSSI = RSSI * 100;  
+ 	}
+-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	ktime_get_boottime_ts64(&ts);
++	bootTime = ts.tv_sec;
++#elif (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32))
+ 	get_monotonic_boottime(&ts);
+ 	bootTime = ts.tv_sec;
+ 	bootTime *= USEC_PER_SEC;
+@@ -3715,7 +3799,9 @@ VOID CFG80211OS_NewSta(IN PNET_DEV pNetDev, IN const PUCHAR mac_addr, IN const P
+ 
+ 
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))	
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	return cfg80211_new_sta(pNetDev->ieee80211_ptr, mac_addr, &sinfo, GFP_KERNEL);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))	
+ 	return cfg80211_new_sta(pNetDev, mac_addr, &sinfo, GFP_KERNEL);
+ #endif
+ 
+@@ -3723,7 +3809,9 @@ VOID CFG80211OS_NewSta(IN PNET_DEV pNetDev, IN const PUCHAR mac_addr, IN const P
+ 
+ VOID CFG80211OS_DelSta(IN PNET_DEV pNetDev, IN const PUCHAR mac_addr)
+ {
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	return cfg80211_del_sta(pNetDev->ieee80211_ptr, mac_addr, GFP_KERNEL);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
+ 	return cfg80211_del_sta(pNetDev, mac_addr, GFP_KERNEL);
+ #endif
+ }
+diff --git a/os/linux/sta_ioctl.c b/os/linux/sta_ioctl.c
+index 6519c1c..915a367 100644
+--- a/os/linux/sta_ioctl.c
++++ b/os/linux/sta_ioctl.c
+@@ -2808,7 +2808,11 @@ INT rt28xx_sta_ioctl(
+ 		case SIOCGIWPRIV:
+ 			if (wrqin->u.data.pointer) 
+ 			{
++				#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
++				if ( access_ok(wrqin->u.data.pointer, sizeof(privtab)) != TRUE)
++#else
+ 				if ( access_ok(VERIFY_WRITE, wrqin->u.data.pointer, sizeof(privtab)) != TRUE)
++#endif
+ 					break;
+ 				if ((sizeof(privtab) / sizeof(privtab[0])) <= wrq->u.data.length)
+ 				{
