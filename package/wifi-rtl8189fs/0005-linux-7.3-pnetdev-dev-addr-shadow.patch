@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: update dev_addr shadow on every MAC write
+Subject: [PATCH] linux 7.3: update dev_addr shadow on every MAC write
 
 The driver still writes dev_addr directly in the INTEL_BYT paths and at
 registration. Kernel 5.17+ tracks a shadow copy and warns when it is

@@ -810,9 +810,9 @@ driver does when the switch GPIOs are unset.
  endmenu
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -76,4 +76,5 @@
- obj-y				+= amd-sbi/
+@@ -72,4 +72,5 @@
  obj-$(CONFIG_MISC_RP1)		+= rp1/
+ obj-$(CONFIG_INTEL_SSEI)	+= issei/
  obj-$(CONFIG_RMEM)		+= rmem.o
-+obj-$(CONFIG_INGENIC_MOTOR)	+= motor.o
  obj-$(CONFIG_INGENIC_AVPU)	+= avpu/
++obj-$(CONFIG_INGENIC_MOTOR)	+= motor.o

@@ -1,4 +1,7 @@
-# T41 (XBurst2) 7.2.11 port — handoff
+# T41 (XBurst2) 7.3.1 port — handoff
+
+> Originally written against 7.2.11 and updated for the 7.3.1 bump. The
+> verification below was performed on 7.2.11.
 
 State as of this session. The port **boots Thingino userspace on real Wyze
 Cam 4 (T41NQ) hardware**, reaches a login prompt, keeps its overlay across
@@ -14,11 +17,11 @@ Earlier bring-up narrative (CPU/TLB, CGU, pinctrl, RTC, RNG, I2C, DMA):
 | | |
 |---|---|
 | Worktree | `/home/paul/thingino/firmware/feature-k7` (branch `feature/kernel-7`) |
-| Kernel tree (build, patched) | `/home/paul/output/feature/kernel-7/wyze_cam4_t41nq_os04d10_atbm6062s-7.2.11-uclibc-192.168.88.141/build/linux-7.2.11` |
+| Kernel tree (build, patched) | `/home/paul/output/feature/kernel-7/wyze_cam4_t41nq_os04d10_atbm6062s-7.3.1-uclibc-192.168.88.141/build/linux-7.3.1` |
 | Camera | `wyze_cam4_t41nq_os04d10_atbm6062s`, SoC T41NQ, 16 MiB SPI NOR (zb25vq128, 64 KiB blocks, 4 KiB sectors), 128 MiB DRAM |
 | DTS | `configs/cameras/wyze_cam4_t41nq_os04d10_atbm6062s/wyze_cam4_t41nq.dts` |
-| Kernel fragment | `board/ingenic/xburst2/kernel/7.2.11/t41.generic.config` |
-| Patches | `package/all-patches/linux/7.2.11/` (0001–0117; 0102 fixed, 0113–0117 new) |
+| Kernel fragment | `board/ingenic/xburst2/kernel/7.3.1/t41.generic.config` |
+| Patches | `package/all-patches/linux/7.3.1/` (0001–0117; 0102 fixed, 0113–0117 new) |
 | Console capture | `~/screen-sessions/screenlog-*.txt` (older sessions) |
 | Camera root password | image default `root`; first login forces a change |
 
@@ -28,7 +31,7 @@ CAMERA=... IP=... make pack
 scripts/qemu-dev up wyze_cam4_t41nq_os04d10_atbm6062s --no-wait   # QEMU check, log in /run/user/1000/thingino-qemu-dev/<camera>/uart1.log
 
 # DFU (camera in bootrom; expect a108:c309 "bootrom T41NQ")
-OUT=/home/paul/output/feature/kernel-7/wyze_cam4_t41nq_os04d10_atbm6062s-7.2.11-uclibc-192.168.88.141
+OUT=/home/paul/output/feature/kernel-7/wyze_cam4_t41nq_os04d10_atbm6062s-7.3.1-uclibc-192.168.88.141
 $OUT/host/bin/thingino-dfu -l
 $OUT/host/bin/thingino-dfu -i <idx> -r /tmp/flash.bin --firmware-dir $OUT/host/share/thingino-dfu/firmware
 $OUT/host/bin/thingino-dfu -i <idx> -w $OUT/images/<camera>.bin --firmware-dir $OUT/host/share/thingino-dfu/firmware --reboot
@@ -220,7 +223,7 @@ non-removable card`, so the remaining suspects are the 32 kHz LPO/pinmux
 or the rail wiring, not the reset order.
 
 The master branch runs this camera's Wi-Fi on 4.4.94 with the vendor
-SDHCI and ATBM drivers. Our 7.2 port now enumerates the same card with
+SDHCI and ATBM drivers. Our 7.3 port now enumerates the same card with
 the mainline SDHCI core plus the T41 glue, and the ATBM driver binds to
 it. Association and throughput have not been tested yet.
 
@@ -262,7 +265,7 @@ MSC probes deferred.
 - **Camera.** open-tx-isp ships `driver/t41` and the OS04D10 IQ blob, but
   the package marks t41 as 4.4-only: there is no `sensor-src/t41`, and
   `driver/t41` is written against the vendor ABI. A 7.x port needs the
-  T41 ISP driver adapted to 7.2.11 plus an OS04D10 `sensor-src/t41`
+  T41 ISP driver adapted to 7.3.1 plus an OS04D10 `sensor-src/t41`
   rewrite in the T31 7.x sensor style.
   Hardware note from a user report: OS04D10 detection is marginal across
   units and becomes reliable when PA15 drive strength is set to 2
@@ -272,7 +275,7 @@ MSC probes deferred.
   no `xburst2_smp_ops`. The vendor 4.4 code (CCU reset-entry/mailbox, the
   bounce trampoline, per-CPU IRQ/timer, `play_dead`) is the reference; the
   per-CPU OST bases are already handled by the timer patch.
-- **ATBM Wi-Fi.** The driver now builds on 7.2.11: fork
+- **ATBM Wi-Fi.** The driver now builds on 7.3.1: fork
   `themactep/atbm-wifi`, branch `kernel-7.x-atbm6062s` at `be198b36`,
   uses the 606x WiFi6 tree with the 7.x mac80211 stack and the cfg80211
   call sites ported (station/channel/tx-power ops, MLO disassoc helpers,
@@ -323,7 +326,7 @@ and is what silently broke the baud rate. The new kernel work is in
 - `0116` CGU: open the TCU and OST module/OPCR gates
 - `0117` watchdog: T41 variant and boot-enabled adoption
 
-The patch series was applied to `linux-7.2.11.tar.xz` and the result matches
+The patch series was applied to `linux-7.3.1.tar.xz` and the result matches
 the tested build tree file-for-file. The DTS and the kernel fragment
 (`CONFIG_INGENIC_SYSOST=y`) are in the repo.
 

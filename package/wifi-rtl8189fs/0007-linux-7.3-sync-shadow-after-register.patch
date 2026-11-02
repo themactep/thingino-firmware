@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: sync the addr shadow after registration
+Subject: [PATCH] linux 7.3: sync the addr shadow after registration
 
 The pre-register dev_addr write cannot update dev_addr_shadow because
 the netdev address list is not initialized yet. Sync it right after a

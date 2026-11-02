@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: set dev_addr through eth_hw_addr_set
+Subject: [PATCH] linux 7.3: set dev_addr through eth_hw_addr_set
 
 Kernel 5.17 made dev_addr const and tracks a shadow copy that drivers
 must update through eth_hw_addr_set(). Direct writes trigger the

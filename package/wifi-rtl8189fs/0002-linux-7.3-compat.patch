@@ -1,7 +1,7 @@
 From 899a6aa6841e57c62f3cb5f5c70768e0c3958e01 Mon Sep 17 00:00:00 2001
 From: Paul Philippov <paul@themactep.com>
 Date: Mon, 19 Oct 2026 16:00:02 -0400
-Subject: [PATCH] linux 7.2 compatibility
+Subject: [PATCH] linux 7.3 compatibility
 
 ---
  Makefile                         |   5 +-

@@ -2,7 +2,7 @@ From: Paul Philippov <paul@themactep.com>
 Subject: [PATCH] t31: add an ALSA/TinyALSA audio transport
 
 The T31 audio I/O currently opens the vendor OSS /dev/dsp device and uses
-the Ingenic AMIC ioctls. That device does not exist on the 7.2 mainline
+the Ingenic AMIC ioctls. That device does not exist on the 7.x mainline
 kernel, where the AIC and internal codec are exposed as a normal ALSA
 PCM by the ASoC stack.
 

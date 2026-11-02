@@ -53,7 +53,6 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  obj-$(CONFIG_INGENIC_TCU_CLK)		+= tcu.o
 --- /dev/null
 +++ b/drivers/clk/ingenic/t41-cgu.c
-+++ b/drivers/clk/ingenic/t41-cgu.c
 @@ -0,0 +1,561 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -617,7 +616,6 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + */
 +CLK_OF_DECLARE_DRIVER(t41_cgu, "ingenic,t41-cgu", t41_cgu_init);
 --- /dev/null
-+++ b/include/dt-bindings/clock/ingenic,t41-cgu.h
 +++ b/include/dt-bindings/clock/ingenic,t41-cgu.h
 @@ -0,0 +1,81 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */

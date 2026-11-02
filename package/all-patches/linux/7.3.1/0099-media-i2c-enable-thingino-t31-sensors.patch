@@ -276,7 +276,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  obj-$(CONFIG_VIDEO_TC358746) += tc358746.o
 --- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
 +++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-@@ -877,6 +877,8 @@
+@@ -897,6 +897,8 @@
      description: JTY
    "^jutouch,.*":
      description: JuTouch Technology Co., Ltd.
@@ -284,4 +284,4 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +    description: JX Imaging
    "^kam,.*":
      description: Kamstrup A/S
-   "^karo,.*":
+   "^kandou,.*":

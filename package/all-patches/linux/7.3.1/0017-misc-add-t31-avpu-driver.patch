@@ -1091,9 +1091,10 @@ kernel partition has ~56 KB.
  endmenu
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -76,3 +76,4 @@
+@@ -71,4 +71,5 @@
  obj-y				+= amd-sbi/
  obj-$(CONFIG_MISC_RP1)		+= rp1/
+ obj-$(CONFIG_INTEL_SSEI)	+= issei/
  obj-$(CONFIG_RMEM)		+= rmem.o
 +obj-$(CONFIG_INGENIC_AVPU)	+= avpu/
 --- a/drivers/clk/ingenic/t31-cgu.c

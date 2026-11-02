@@ -1932,7 +1932,7 @@ index 1aa6a6d..11318a6 100644
  		.compatible = "ingenic,x2000-pinctrl",
  		.data = IF_ENABLED(CONFIG_MACH_X2000, &x2000_chip_info)
 diff --git a/drivers/spi/Kconfig b/drivers/spi/Kconfig
-index 8782514..4c9b88e 100644
+index a0f37e2..c06857e 100644
 --- a/drivers/spi/Kconfig
 +++ b/drivers/spi/Kconfig
 @@ -522,6 +522,14 @@ config SPI_INGENIC
@@ -1951,10 +1951,10 @@ index 8782514..4c9b88e 100644
  	tristate
  
 diff --git a/drivers/spi/Makefile b/drivers/spi/Makefile
-index 9fa1249..629e75e 100644
+index a18814f..b129a76 100644
 --- a/drivers/spi/Makefile
 +++ b/drivers/spi/Makefile
-@@ -73,6 +73,7 @@ obj-$(CONFIG_SPI_HISI_SFC_V3XX)		+= spi-hisi-sfc-v3xx.o
+@@ -74,6 +74,7 @@ obj-$(CONFIG_SPI_HISI_SFC_V3XX)		+= spi-hisi-sfc-v3xx.o
  obj-$(CONFIG_SPI_IMG_SPFI)		+= spi-img-spfi.o
  obj-$(CONFIG_SPI_IMX)			+= spi-imx.o
  obj-$(CONFIG_SPI_INGENIC)		+= spi-ingenic.o

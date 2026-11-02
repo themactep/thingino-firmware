@@ -940,27 +940,15 @@ choice
 	prompt "Kernel version"
 	help
 	  Select the desired  kernel version
-	default KERNEL_VERSION_7 if BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t41"
-	default KERNEL_VERSION_5 if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
-	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23"
-	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t30"
+	default KERNEL_VERSION_7
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
-	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
-	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_5
 	bool "Kernel 5.15"
-	depends on BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 config KERNEL_VERSION_7
-	bool "Kernel 7.2"
-	# t20, t31 and t41 default to 7.2 on this branch, so the default must
-	# not hide behind the experimental toggle (a user fragment that turns
-	# off BR2_THINGINO_DEV_PACKAGES would drop it and silently fall back
-	# to an older kernel). t40 has a 7.2 config as well; the remaining
-	# T-series families have machine types and are opted in per camera.
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL || BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	bool "Kernel 7.3"
 endchoice
 
 config KERNEL_MODERN
@@ -973,7 +961,7 @@ config KERNEL_MODERN
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
 	string
-	default "7.2.11" if KERNEL_VERSION_7
+	default "7.3.1" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

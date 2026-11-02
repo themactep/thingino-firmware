@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: do not touch the addr shadow before registration
+Subject: [PATCH] linux 7.3: do not touch the addr shadow before registration
 
 eth_hw_addr_set() expects the netdev address list to exist; it is not
 initialized until register_netdev(). Writing it from rtw_register_netdev

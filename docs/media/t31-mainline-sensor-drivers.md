@@ -1,7 +1,7 @@
 # T31 mainline sensor drivers (open ISP)
 
 This page describes the sensor-driver structure used by the T31 open-ISP path
-on Linux 7.2.11. It is the reference for porting a new sensor, including the
+on Linux 7.3.1. It is the reference for porting a new sensor, including the
 AE gain model, which is the part that is easy to get wrong.
 
 The short version: the kernel driver stays a normal mainline V4L2 subdev
@@ -12,7 +12,7 @@ of it. The bridge also owns the AE gain model for each sensor.
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
-| Mainline V4L2 driver | `linux/drivers/media/i2c/<sensor>.c`, carried as a patch in `package/all-patches/linux/7.2.11/` | Register sequences, V4L2 controls, the index-to-register gain table |
+| Mainline V4L2 driver | `linux/drivers/media/i2c/<sensor>.c`, carried as a patch in `package/all-patches/linux/7.3.1/` | Register sequences, V4L2 controls, the index-to-register gain table |
 | V4L2 bridge | open-tx-isp `driver/t31/tx_isp_v4l2_sensor.c` | Finds the probed subdev, implements `tx_isp_sensor_attribute`, `alloc_again`, `alloc_dgain`, and the per-sensor log2-Q16 gain model |
 | ISP core | open-tx-isp `driver/t31/tx_isp_module.c`, `tx_isp_core.c` | AE, CSI/ISP pipeline, frame production |
 | Sensor DT fragment | `configs/sensors/t31/<model>.dtsi` | I2C address, supplies, clock, MIPI endpoint; injected into the kernel leaf `.dts` before the camera fragment |
@@ -25,7 +25,7 @@ Bridge changes are carried as numbered patches in `package/open-tx-isp/`
 (for example `0015-`, `0016-`, `0017-`), not by editing the fetched tree.
 
 The kernel source is not edited directly. Add or change a driver with a patch
-in `package/all-patches/linux/7.2.11/`. The existing SC2336 port is
+in `package/all-patches/linux/7.3.1/`. The existing SC2336 port is
 `0020-media-i2c-add-sc2336.patch`; the Kconfig/Makefile entries are in
 `0099-media-i2c-enable-thingino-t31-sensors.patch`.
 
@@ -105,7 +105,7 @@ the extra entries will never be reachable.
 ### 1. Port the mainline driver
 
 Add `drivers/media/i2c/<sensor>.c` as a patch in
-`package/all-patches/linux/7.2.11/`. It must provide the controls listed
+`package/all-patches/linux/7.3.1/`. It must provide the controls listed
 above and a `*_gains[]` table whose control maximum is
 `ARRAY_SIZE(*_gains) - 1`.
 
@@ -261,8 +261,8 @@ the sensor's real maximum.
 ## File map
 
 ```text
-package/all-patches/linux/7.2.11/0020-media-i2c-add-sc2336.patch
-package/all-patches/linux/7.2.11/0099-media-i2c-enable-thingino-t31-sensors.patch
+package/all-patches/linux/7.3.1/0020-media-i2c-add-sc2336.patch
+package/all-patches/linux/7.3.1/0099-media-i2c-enable-thingino-t31-sensors.patch
 configs/sensors/t31/<model>.dtsi
 configs/cameras/<camera>/<camera>.dtsi
 configs/cameras/<camera>/<camera>_defconfig

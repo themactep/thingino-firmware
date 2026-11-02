@@ -24,7 +24,7 @@ OPENIMP_T31_EXTRA_CFLAGS =
 OPENIMP_T31_EXTRA_LIBS =
 ifeq ($(BR2_PACKAGE_TINYALSA),y)
 ifneq ($(filter t31,$(SOC_FAMILY)),)
-ifeq ($(KERNEL_VERSION),7.2.11)
+ifeq ($(KERNEL_VERSION),7.3.1)
 OPENIMP_DEPENDENCIES += tinyalsa
 OPENIMP_T31_TINYALSA_STAGING = $(BASE_DIR)/per-package/tinyalsa/host/$(notdir $(patsubst %-,%,$(TARGET_CROSS)))/sysroot
 OPENIMP_T31_TINYALSA_INCLUDE = $(BUILD_DIR)/tinyalsa-$(TINYALSA_VERSION)/include

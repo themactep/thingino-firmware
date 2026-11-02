@@ -287,13 +287,13 @@ else
 			echo "BR2_KERNEL_HEADERS_AS_KERNEL=y" >>$(OUTPUT_DIR)/.config; \
 		fi; \
 	elif [ "$(KERNEL_VERSION_7)" = "y" ]; then \
-		echo "** add kernel headers: 7.2 (SOC: $(SOC_FAMILY))"; \
-		if ! grep -q '^config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_2' "$(BUILDROOT_DIR)/package/linux-headers/Config.in.host"; then \
-			echo "ERROR: $(BUILDROOT_DIR) has no 7.2 kernel headers support"; \
+		echo "** add kernel headers: 7.3 (SOC: $(SOC_FAMILY))"; \
+		if ! grep -q '^config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_3' "$(BUILDROOT_DIR)/package/linux-headers/Config.in.host"; then \
+			echo "ERROR: $(BUILDROOT_DIR) has no 7.3 kernel headers support"; \
 			exit 1; \
 		fi; \
-		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_2=y" >>$(OUTPUT_DIR)/.config; \
-		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_2=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_3=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_3=y" >>$(OUTPUT_DIR)/.config; \
 		if [ "$(TOOLCHAIN_TYPE_RAW)" = "BUILDROOT" ]; then \
 			echo "BR2_KERNEL_HEADERS_AS_KERNEL=y" >>$(OUTPUT_DIR)/.config; \
 		fi; \
@@ -348,10 +348,10 @@ endif
 		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
-	# Kernel config override: 3.10.14, 4.4.94, 5.15.170 and 7.2.11 use the
+	# Kernel config override: 3.10.14, 4.4.94, 5.15.170 and 7.3.1 use the
 	# official kernel.org tarball + patches; all other versions use the
 	# thingino-linux git repo.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ] && [ "$(KERNEL_VERSION)" != "5.15.170" ] && [ "$(KERNEL_VERSION)" != "7.2.11" ]; then \
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ] && [ "$(KERNEL_VERSION)" != "5.15.170" ] && [ "$(KERNEL_VERSION)" != "7.3.1" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \

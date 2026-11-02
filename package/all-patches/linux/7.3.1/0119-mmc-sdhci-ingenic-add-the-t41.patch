@@ -4,7 +4,7 @@ Subject: [PATCH] mmc: sdhci-ingenic: add the T41 MSC host
 The T40/T41 MSC is a standard SDHCI block (0x13060000/0x13070000)
 whose card clock is the CGU MSC0/MSC1 mux and divider. The vendor
 4.4 driver is an sdhci_alloc_host implementation; provide the same
-glue on top of sdhci_pltfm so it builds on 7.2.11: the fixed vendor
+glue on top of sdhci_pltfm so it builds on 7.3.1: the fixed vendor
 capabilities, card detect/power sequencing from the device tree,
 and the CGU MSC clock switched between EXTAL and MPLL so the SDHCI
 divider can reach the 400 kHz identification clock. The module is named ingenic_sdhci_sdio.ko, which is

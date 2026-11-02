@@ -1,0 +1,361 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: jxf23: support the T20 10-bit parallel bus
+
+The T20 Wyze Cam 2 wires the JXF23 as a 10-bit DVP sensor on I2C0
+at 0x40 with a 24 MHz cgu_cim clock and an active-low PA18 reset.
+
+Accept a parallel endpoint and use the BGGR10 media bus code. The T20
+DVP module has its own power/clock sequence: the vendor keeps PLL 0x10
+at 0x48, waits 500 ms after 0x48=0x85, then writes 0x48=0x05,
+0x1f=0x01, the 0x99/0x9b padding registers and 0x12=0x00. Use it
+instead of the T31 MIPI sequence when the endpoint is parallel, and
+write 0x12=0x40 on stream off.
+
+Also accept the 24 MHz clock window, pulse the reset like the vendor
+sensor module, and read the T20 chip ID from 0x0a/0x0b (0xf0/0xf1 is
+the T31 MIPI variant). The CSI-2 path used by T31 is unchanged.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/jxf23.c
++++ b/drivers/media/i2c/jxf23.c
+@@ -257,6 +257,111 @@
+ 	{ CCI_REG8(0x48), 0x0a },
+ };
+ 
++/*
++ * The T20 DVP module uses a different power/clock sequence from the T31 MIPI
++ * module: it keeps PLL 0x10 at 0x48, waits 500 ms after 0x48=0x85, and then
++ * writes 0x48=0x05, 0x1f=0x01 and the two 0x99/0x9b padding registers.
++ */
++static const struct cci_reg_sequence jxf23_1080p25_dvp_regs[] = {
++	{ CCI_REG8(0x0e), 0x11 },
++	{ CCI_REG8(0x0f), 0x14 },
++	{ CCI_REG8(0x10), 0x40 },
++	{ CCI_REG8(0x11), 0x80 },
++	{ CCI_REG8(0x48), 0x05 },
++	{ CCI_REG8(0x96), 0xaa },
++	{ CCI_REG8(0x94), 0xc0 },
++	{ CCI_REG8(0x97), 0x8d },
++	{ CCI_REG8(0x96), 0x00 },
++	{ CCI_REG8(0x12), 0x40 },
++	{ CCI_REG8(0x0e), 0x11 },
++	{ CCI_REG8(0x0f), 0x14 },
++	{ CCI_REG8(0x10), 0x48 },
++	{ CCI_REG8(0x11), 0x80 },
++	{ CCI_REG8(0x0d), 0x50 },
++	{ CCI_REG8(0x5f), 0x41 },
++	{ CCI_REG8(0x60), 0x20 },
++	{ CCI_REG8(0x58), 0x12 },
++	{ CCI_REG8(0x57), 0x60 },
++	{ CCI_REG8(0x9d), 0x00 },
++	{ CCI_REG8(0x20), 0x00 },
++	{ CCI_REG8(0x21), 0x05 },
++	{ CCI_REG8(0x22), 0x46 },
++	{ CCI_REG8(0x23), 0x05 },
++	{ CCI_REG8(0x24), 0xc0 },
++	{ CCI_REG8(0x25), 0x38 },
++	{ CCI_REG8(0x26), 0x43 },
++	{ CCI_REG8(0x27), 0xc3 },
++	{ CCI_REG8(0x28), 0x19 },
++	{ CCI_REG8(0x29), 0x04 },
++	{ CCI_REG8(0x2c), 0x00 },
++	{ CCI_REG8(0x2d), 0x00 },
++	{ CCI_REG8(0x2e), 0x18 },
++	{ CCI_REG8(0x2f), 0x44 },
++	{ CCI_REG8(0x41), 0xc9 },
++	{ CCI_REG8(0x42), 0x13 },
++	{ CCI_REG8(0x46), 0x00 },
++	{ CCI_REG8(0x76), 0x60 },
++	{ CCI_REG8(0x77), 0x09 },
++	{ CCI_REG8(0x1d), 0xff },
++	{ CCI_REG8(0x1e), 0x9f },
++	{ CCI_REG8(0x6c), 0xc0 },
++	{ CCI_REG8(0x2a), 0xb1 },
++	{ CCI_REG8(0x2b), 0x24 },
++	{ CCI_REG8(0x31), 0x08 },
++	{ CCI_REG8(0x32), 0x4f },
++	{ CCI_REG8(0x33), 0x20 },
++	{ CCI_REG8(0x34), 0x5e },
++	{ CCI_REG8(0x35), 0x5e },
++	{ CCI_REG8(0x3a), 0xaf },
++	{ CCI_REG8(0x56), 0x32 },
++	{ CCI_REG8(0x59), 0xbf },
++	{ CCI_REG8(0x5a), 0x04 },
++	{ CCI_REG8(0x85), 0x5a },
++	{ CCI_REG8(0x8a), 0x04 },
++	{ CCI_REG8(0x8f), 0x90 },
++	{ CCI_REG8(0x91), 0x13 },
++	{ CCI_REG8(0x5b), 0xa0 },
++	{ CCI_REG8(0x5c), 0xf0 },
++	{ CCI_REG8(0x5d), 0xf4 },
++	{ CCI_REG8(0x5e), 0x1f },
++	{ CCI_REG8(0x62), 0x04 },
++	{ CCI_REG8(0x63), 0x0f },
++	{ CCI_REG8(0x64), 0xc0 },
++	{ CCI_REG8(0x66), 0x44 },
++	{ CCI_REG8(0x67), 0x73 },
++	{ CCI_REG8(0x69), 0x7c },
++	{ CCI_REG8(0x6a), 0x28 },
++	{ CCI_REG8(0x7a), 0xc0 },
++	{ CCI_REG8(0x4a), 0x05 },
++	{ CCI_REG8(0x7e), 0xcd },
++	{ CCI_REG8(0x49), 0x10 },
++	{ CCI_REG8(0x50), 0x02 },
++	{ CCI_REG8(0x7b), 0x4a },
++	{ CCI_REG8(0x7c), 0x0c },
++	{ CCI_REG8(0x7f), 0x57 },
++	{ CCI_REG8(0x90), 0x00 },
++	{ CCI_REG8(0x8e), 0x00 },
++	{ CCI_REG8(0x8c), 0xff },
++	{ CCI_REG8(0x8d), 0xc7 },
++	{ CCI_REG8(0x8b), 0x01 },
++	{ CCI_REG8(0x0c), 0x40 },
++	{ CCI_REG8(0x65), 0x02 },
++	{ CCI_REG8(0x80), 0x1a },
++	{ CCI_REG8(0x81), 0xc0 },
++	{ CCI_REG8(0x19), 0x20 },
++	{ CCI_REG8(0x12), 0x00 },
++	{ CCI_REG8(0x48), 0x85 },
++};
++
++static const struct cci_reg_sequence jxf23_1080p25_dvp_post[] = {
++	{ CCI_REG8(0x48), 0x05 },
++	{ CCI_REG8(0x1f), 0x01 },
++	{ CCI_REG8(0x99), 0x0f },
++	{ CCI_REG8(0x9b), 0x0f },
++	/* The vendor DVP sensor module writes 0x12=0x00 again in s_stream(). */
++	{ CCI_REG8(0x12), 0x00 },
++};
++
+ 
+ static const struct jxf23_mode jxf23_modes[] = {
+ 	{
+@@ -293,8 +398,11 @@
+ 	struct jxf23_ctrls ctrls;
+ 
+ 	const struct jxf23_mode *mode;
++	u32 bus_type;
+ };
+ 
++static u32 jxf23_mbus_code(struct jxf23 *jxf23);
++
+ static inline struct jxf23 *to_jxf23(struct v4l2_subdev *sd)
+ {
+ 	return container_of(sd, struct jxf23, sd);
+@@ -305,10 +413,10 @@
+ 	return &container_of(ctrl->handler, struct jxf23, ctrls.handler)->sd;
+ }
+ 
+-static void jxf23_fill_format(const struct jxf23_mode *mode,
++static void jxf23_fill_format(const struct jxf23_mode *mode, u32 code,
+ 			       struct v4l2_mbus_framefmt *fmt)
+ {
+-	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	fmt->code = code;
+ 	fmt->width = mode->width;
+ 	fmt->height = mode->height;
+ 	fmt->field = V4L2_FIELD_NONE;
+@@ -325,7 +433,7 @@
+ 	struct v4l2_rect *crop;
+ 
+ 	fmt = v4l2_subdev_state_get_format(state, 0);
+-	jxf23_fill_format(&jxf23_modes[0], fmt);
++	jxf23_fill_format(&jxf23_modes[0], jxf23_mbus_code(to_jxf23(sd)), fmt);
+ 
+ 	crop = v4l2_subdev_state_get_crop(state, 0);
+ 	crop->left = 0;
+@@ -343,7 +451,7 @@
+ 	if (code->index != 0)
+ 		return -EINVAL;
+ 
+-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	code->code = jxf23_mbus_code(to_jxf23(sd));
+ 
+ 	return 0;
+ }
+@@ -355,7 +463,7 @@
+ 	if (fse->index >= ARRAY_SIZE(jxf23_modes))
+ 		return -EINVAL;
+ 
+-	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
++	if (fse->code != jxf23_mbus_code(to_jxf23(sd)))
+ 		return -EINVAL;
+ 
+ 	fse->min_width = jxf23_modes[fse->index].width;
+@@ -400,7 +508,7 @@
+ 				      width, height,
+ 				      fmt->format.width, fmt->format.height);
+ 
+-	jxf23_fill_format(mode, &fmt->format);
++	jxf23_fill_format(mode, jxf23_mbus_code(jxf23), &fmt->format);
+ 	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
+ 	*framefmt = fmt->format;
+ 
+@@ -566,10 +674,18 @@
+ 	return ret;
+ }
+ 
+-static int jxf23_check_hwcfg(struct device *dev)
++static u32 jxf23_mbus_code(struct jxf23 *jxf23)
++{
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL)
++		return MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return MEDIA_BUS_FMT_SRGGB10_1X10;
++}
++
++static int jxf23_check_hwcfg(struct device *dev, u32 *bus_type)
+ {
+ 	struct v4l2_fwnode_endpoint ep = {
+-		.bus_type = V4L2_MBUS_CSI2_DPHY,
++		.bus_type = V4L2_MBUS_UNKNOWN,
+ 	};
+ 	struct fwnode_handle *endpoint;
+ 	unsigned int i;
+@@ -586,6 +702,24 @@
+ 	if (ret)
+ 		return ret;
+ 
++	if (ep.bus_type == V4L2_MBUS_PARALLEL) {
++		if (ep.bus.parallel.bus_width != 10) {
++			dev_err(dev, "only 10-bit parallel bus is supported\n");
++			ret = -EINVAL;
++			goto out;
++		}
++		*bus_type = V4L2_MBUS_PARALLEL;
++		ret = 0;
++		goto out;
++	}
++
++	if (ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
++		dev_err(dev, "unsupported media bus type %u\n", ep.bus_type);
++		ret = -EINVAL;
++		goto out;
++	}
++	*bus_type = V4L2_MBUS_CSI2_DPHY;
++
+ 	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
+ 		dev_err(dev, "only 2 data lanes are currently supported\n");
+ 		ret = -EINVAL;
+@@ -629,10 +763,15 @@
+ 	if (ret)
+ 		goto err_regulators;
+ 
+-	/* The sensor needs MCLK while reset is released. */
++	/*
++	 * The sensor needs MCLK while reset is released. The vendor
++	 * sequence is high -> low (40 ms) -> high (100 ms).
++	 */
+ 	gpiod_set_value_cansleep(jxf23->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(jxf23->reset_gpio, 1);
++	msleep(40);
+ 	gpiod_set_value_cansleep(jxf23->reset_gpio, 0);
+-	msleep(20);
++	msleep(100);
+ 
+ 	return 0;
+ 
+@@ -658,13 +797,24 @@
+ static int jxf23_identify_module(struct jxf23 *jxf23)
+ {
+ 	u64 id_h, id_l;
++	u32 reg_h = JXF23_REG_CHIP_ID_H;
++	u32 reg_l = JXF23_REG_CHIP_ID_L;
+ 	int ret;
+ 
+-	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_H, &id_h, NULL);
++	/*
++	 * The T31 MIPI variant reports its ID at 0xf0/0xf1. The T20 DVP
++	 * variant keeps it at 0x0a/0x0b (same values, different registers).
++	 */
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL) {
++		reg_h = CCI_REG8(0x0a);
++		reg_l = CCI_REG8(0x0b);
++	}
++
++	ret = cci_read(jxf23->regmap, reg_h, &id_h, NULL);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_L, &id_l, NULL);
++	ret = cci_read(jxf23->regmap, reg_l, &id_l, NULL);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -691,14 +841,26 @@
+ 	if (ret)
+ 		return ret;
+ 
+-	cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs,
+-			    ARRAY_SIZE(jxf23_1080p25_regs), &ret);
+-	if (ret)
+-		goto err_rpm_put;
+-
+-	msleep(250);
+-	cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs_post,
+-			    ARRAY_SIZE(jxf23_1080p25_regs_post), &ret);
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL) {
++		cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_dvp_regs,
++				    ARRAY_SIZE(jxf23_1080p25_dvp_regs), &ret);
++		if (ret)
++			goto err_rpm_put;
++
++		/* Two 250 ms settling delays in the vendor DVP sequence. */
++		msleep(500);
++		cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_dvp_post,
++				    ARRAY_SIZE(jxf23_1080p25_dvp_post), &ret);
++	} else {
++		cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs,
++				    ARRAY_SIZE(jxf23_1080p25_regs), &ret);
++		if (ret)
++			goto err_rpm_put;
++
++		msleep(250);
++		cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs_post,
++				    ARRAY_SIZE(jxf23_1080p25_regs_post), &ret);
++	}
+ 	if (ret)
+ 		goto err_rpm_put;
+ 
+@@ -718,7 +880,11 @@
+ 				  struct v4l2_subdev_state *state, u32 pad,
+ 				  u64 streams_mask)
+ {
++	struct jxf23 *jxf23 = to_jxf23(sd);
++
+ 	dev_info(sd->dev, "jxf23: stream off\n");
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL)
++		cci_write(jxf23->regmap, CCI_REG8(0x12), 0x40, NULL);
+ 	pm_runtime_put_autosuspend(sd->dev);
+ 
+ 	return 0;
+@@ -770,7 +936,7 @@
+ 	v4l2_i2c_subdev_init(&jxf23->sd, client, &jxf23_subdev_ops);
+ 	jxf23->sd.internal_ops = &jxf23_subdev_internal_ops;
+ 
+-	ret = jxf23_check_hwcfg(dev);
++	ret = jxf23_check_hwcfg(dev, &jxf23->bus_type);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -780,7 +946,18 @@
+ 				     "failed to get xclk\n");
+ 
+ 	xclk_freq = clk_get_rate(jxf23->xclk);
+-	if (xclk_freq != JXF23_XCLK_FREQ)
++	/*
++	 * The T31 module runs from 27 MHz. The T20 Wyze Cam 2 runs the
++	 * sensor from the 24 MHz cgu_cim clock. Accept either window.
++	 */
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL) {
++		if (xclk_freq < 24000000UL * 95 / 100 ||
++		    xclk_freq > 24000000UL * 105 / 100)
++			return dev_err_probe(dev, -EINVAL,
++					     "xclk frequency %lu Hz not supported\n",
++					     xclk_freq);
++	} else if (xclk_freq < JXF23_XCLK_FREQ * 95UL / 100 ||
++		   xclk_freq > JXF23_XCLK_FREQ * 105UL / 100)
+ 		return dev_err_probe(dev, -EINVAL,
+ 				     "xclk frequency %lu Hz not supported\n",
+ 				     xclk_freq);

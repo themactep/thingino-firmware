@@ -1,8 +1,8 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] t20: bring the recovered tx-isp driver up on kernel 7.2
+Subject: [PATCH] t20: bring the recovered tx-isp driver up on kernel 7.3
 
 The T20 driver is a recovered 3.10 OEM module. It builds against the
-7.2 kernel with the vendor-compatible register access unchanged and a
+7.3 kernel with the vendor-compatible register access unchanged and a
 set of API adaptations:
 
 - provide the vendor mach/jz_proc/soc headers and a small compat header
@@ -10,7 +10,7 @@ set of API adaptations:
 - register the T20 ISP platform devices from the module (CSI, VIC, core
   and the main tx-isp device) instead of the 3.10 board files;
 - use media_device_init() and drop the outer graph mutex that would
-  deadlock media_device_register_entity() on 7.2;
+  deadlock media_device_register_entity() on 7.3;
 - set video device caps and the vb2 queue lock, and adapt the queue to
   the modern dma-buf/vb2 API;
 - skip the legacy clkdev lookups; U-Boot programs the ISP and CSI clocks;

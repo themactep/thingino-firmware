@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: use strscpy for the driver strlcpy calls
+Subject: [PATCH] linux 7.3: use strscpy for the driver strlcpy calls
 
 strlcpy() was removed from the kernel. Use the kernel strscpy() on
 kernels that provide it and keep strlcpy() for the old 3.10 builds.

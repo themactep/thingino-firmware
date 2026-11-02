@@ -3,7 +3,7 @@ Subject: [PATCH] i2c: add the T20 I2C v12 controller driver
 
 The T20 I2C block differs enough from the JZ4780/X1000 paths that
 the mainline jz4780 driver only produces NACKs on the Wyze Cam 2
-sensor bus. Add the Ingenic i2c-v12-jz driver, adapted to the 7.2
+sensor bus. Add the Ingenic i2c-v12-jz driver, adapted to the 7.3
 APIs and DT probing, and use it for the T20 i2c node.
 
 The controller now probes at 0x10050000 and exposes the sensor at

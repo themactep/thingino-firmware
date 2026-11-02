@@ -1,5 +1,5 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] linux 7.2: sync the addr shadow before registration
+Subject: [PATCH] linux 7.3: sync the addr shadow before registration
 
 register_netdevice() checks dev_addr against dev_addr_shadow. The
 pre-register direct write leaves the shadow zeroed, so the check warns

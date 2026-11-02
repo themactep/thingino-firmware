@@ -130,10 +130,10 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# 7.2 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
+# 7.3.1 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
 ifeq ($(KERNEL_VERSION),)
 	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.2.11
+		KERNEL_VERSION := 7.3.1
 	else ifeq ($(KERNEL_VERSION_6),y)
 		KERNEL_VERSION := 6.12.112
 	else ifeq ($(KERNEL_VERSION_5),y)
@@ -143,7 +143,7 @@ ifeq ($(KERNEL_VERSION),)
 	else ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10.14
 	else
-		KERNEL_VERSION := 7.2.11
+		KERNEL_VERSION := 7.3.1
 	endif
 endif
 
@@ -156,9 +156,9 @@ endif
 #   5.15.170: one cumulative patch (official 5.15.170 -> Ingenic SDK tree)
 #            under package/all-patches/linux/5.15.170/ plus binary assets
 #            under package/linux/files/5.15.170/.
-#   7.2.11:  one cumulative patch (official 7.2.11 -> thingino) under
-#            package/all-patches/linux/7.2.11/.
-#            Pick the newest stable 7.2.y at
+#   7.3.1:  one cumulative patch (official 7.3.1 -> thingino) under
+#            package/all-patches/linux/7.3.1/.
+#            Pick the newest stable 7.3.y at
 #            https://www.kernel.org/pub/linux/kernel/v7.x/ then bump
 #            KERNEL_VERSION, the patch dir, and the kernel config dir.
 # 4.4.94 uses the tarball only for the families that have an ingenic-*-4.4.94
@@ -172,7 +172,7 @@ KERNEL_OFFICIAL_TARBALL := y
 endif
 else ifeq ($(KERNEL_VERSION),5.15.170)
 KERNEL_OFFICIAL_TARBALL := y
-else ifeq ($(KERNEL_VERSION),7.2.11)
+else ifeq ($(KERNEL_VERSION),7.3.1)
 KERNEL_OFFICIAL_TARBALL := y
 endif
 
@@ -228,7 +228,7 @@ KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 
 endif # custom git vs official kernel
 
-ifeq ($(KERNEL_VERSION),7.2.11)
+ifeq ($(KERNEL_VERSION),7.3.1)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -291,7 +291,7 @@ export SENSOR_4_MODEL
 
 # Shared per-sensor device-tree fragment. Only the mainline 7.x path
 # consumes these; vendor kernels keep the legacy sensor modules.
-ifeq ($(KERNEL_VERSION),7.2.11)
+ifeq ($(KERNEL_VERSION),7.3.1)
 ifneq ($(filter t20 t31,$(SOC_FAMILY)),)
 SENSOR_DTSI_FILE := $(wildcard $(BR2_EXTERNAL)/configs/sensors/$(SOC_FAMILY)/$(SENSOR_1_MODEL).dtsi)
 endif
@@ -623,7 +623,7 @@ endif
 # The bus number is kernel-specific: spi1.0 on the 5.15 vendor tree, spi0.0 on mainline 7.x.
 ifeq ($(KERNEL_VERSION),5.15.170)
 	UBOOT_FLASH_CONTROLLER := spi1.0
-else ifeq ($(KERNEL_VERSION),7.2.11)
+else ifeq ($(KERNEL_VERSION),7.3.1)
 	UBOOT_FLASH_CONTROLLER := spi0.0
 endif
 export UBOOT_FLASH_CONTROLLER

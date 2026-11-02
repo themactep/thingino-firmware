@@ -28,14 +28,14 @@ OPEN_TX_ISP_LICENSE = GPL-3.0
 # (0001 t20 sinfo publish, 0002 t23 G_INPUT gate, 0004 t31 5.15 compat), a
 # later implementation of it (0003 t23 frame wait, superseded there by
 # "succeed only when a frame is ready"), and its own fix for 0005's problem
-# (the kernel compat header supplies strlcpy()/strncpy() on 6.8+/7.2+). They
+# (the kernel compat header supplies strlcpy()/strncpy() on 6.8+/7.x). They
 # are renamed to *.patch.disabled rather than deleted so they can be restored
 # if the pin ever goes back to upstream.
 
 # Modern kernels (5.15 vendor, 7.x mainline): the ingenic-sdk is disabled (its
 # sensor/audio/AVPU modules are 4.4-only), so the open driver carries its own
 # sensors from sensor-src/<soc>/. 3.10/4.4 keep using the SDK sensor module.
-ifneq ($(filter 5.15.170 7.2.11,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
 OPEN_TX_ISP_DEPENDENCIES = linux
 ifeq ($(SOC_FAMILY),t20)
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/t20
@@ -70,7 +70,7 @@ endif
 
 # Add XBurst platform include paths for soc headers (the vendor trees carry
 # arch/mips/xburst; the mainline 7.x tree does not).
-ifneq ($(KERNEL_VERSION),7.2.11)
+ifneq ($(KERNEL_VERSION),7.3.1)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \
 	EXTRA_CFLAGS="-I$(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/include \
 	-I$(LINUX_DIR)/arch/mips/xburst/core/include \
@@ -83,7 +83,7 @@ endif
 # recreate the old paths as symlinks for the T20 build. Other families are
 # self-contained and do not reference external/.
 ifeq ($(SOC_FAMILY),t20)
-ifneq ($(filter 5.15.170 7.2.11,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
 # The pinned tree already carries the unmerged SDK layout under
 # external/ingenic-sdk; nothing to relink for the modern kernels.
 else
@@ -117,11 +117,11 @@ endif
 # mainline sensor driver in this tree is a register-level port from the
 # Ingenic vendor source and has not been tested on a camera.
 #
-# On the 7.2 mainline path the sensor drivers are built into the kernel (not
+# On the 7.3 mainline path the sensor drivers are built into the kernel (not
 # modules): tx-isp's V4L2 bridge attaches to the subdev that probed from DT,
 # and the vendor sensor module is neither built nor loaded. Enable only the
 # driver this camera uses; CONFIG_VIDEO_<MODEL> matches the driver symbol.
-ifeq ($(KERNEL_VERSION),7.2.11)
+ifeq ($(KERNEL_VERSION),7.3.1)
 OPEN_TX_ISP_MAINLINE_SENSORS = sc2336 gc2053 gc4653 imx307 gc2083 gc4023 \
 	imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
 	sc2336p sc301iot sc3235 sc3335 sc3336 sc3338 sc401ai sc4236 \
@@ -219,7 +219,7 @@ endif
 # 30-sensor and the ISP + sensor modules are never loaded at boot. The
 # streamer's HAL init then loops on IMP_ISP_Open forever and RTSP never comes
 # up. Install the same loaders the SDK path would have written.
-ifneq ($(filter 5.15.170 7.2.11,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
 ifeq ($(BR2_THINGINO_DEV_CAMERA),y)
 define OPEN_TX_ISP_INSTALL_MODULES_D
 	$(INSTALL) -d $(TARGET_DIR)/etc/modules.d

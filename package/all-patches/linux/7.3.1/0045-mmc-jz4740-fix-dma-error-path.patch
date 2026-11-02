@@ -14,6 +14,8 @@ invalid channels.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
+diff --git a/drivers/mmc/host/jz4740_mmc.c b/drivers/mmc/host/jz4740_mmc.c
+index cbcba6a..a9f44cf 100644
 --- a/drivers/mmc/host/jz4740_mmc.c
 +++ b/drivers/mmc/host/jz4740_mmc.c
 @@ -399,10 +399,11 @@ static void jz4740_mmc_post_request(struct mmc_host *mmc,
@@ -29,3 +31,4 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +			dmaengine_terminate_all(chan);
  	}
  }
+ 

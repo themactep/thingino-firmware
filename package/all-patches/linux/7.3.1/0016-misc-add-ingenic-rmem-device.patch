@@ -125,10 +125,11 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +MODULE_DESCRIPTION("Ingenic reserved memory device");
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -661,4 +661,13 @@
+@@ -585,5 +585,14 @@
  source "drivers/misc/keba/Kconfig"
  source "drivers/misc/amd-sbi/Kconfig"
  source "drivers/misc/rp1/Kconfig"
+ source "drivers/misc/issei/Kconfig"
 +
 +config RMEM
 +	bool "Ingenic reserved memory driver (rmem)"
@@ -141,8 +142,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  endmenu
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -75,3 +75,4 @@
+@@ -70,4 +70,5 @@
  obj-y				+= keba/
  obj-y				+= amd-sbi/
  obj-$(CONFIG_MISC_RP1)		+= rp1/
+ obj-$(CONFIG_INTEL_SSEI)	+= issei/
 +obj-$(CONFIG_RMEM)		+= rmem.o
