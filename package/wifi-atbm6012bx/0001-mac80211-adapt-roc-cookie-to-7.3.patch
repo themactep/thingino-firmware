@@ -1,0 +1,113 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mac80211: adapt the ROC cookie ABI to Linux 7.3
+
+Linux 7.3 changed the cfg80211 remain-on-channel and mgmt-tx
+callbacks to pass the cookie by value. cfg80211 now assigns it
+before the call, so copy it into the ROC bookkeeping instead of
+generating one in mac80211.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/hal_apollo/mac80211/cfg.c	2026-11-02 06:37:34.662985987 -0500
++++ b/hal_apollo/mac80211/cfg.c	2026-11-02 06:38:06.515555294 -0500
+@@ -3166,12 +3166,20 @@
+ 	 * cookie is either the roc cookie (for normal roc)
+ 	 * or the SKB (for mgmt TX)
+ 	 */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++	/* cfg80211 pre-assigns the cookie on 7.3. */
++	if (!txskb)
++		roc->cookie = *cookie;
++	else
++		roc->mgmt_tx_cookie = *cookie;
++#else
+ 	if (!txskb) {
+ 		roc->cookie = ieee80211_mgmt_tx_cookie(local);
+ 		*cookie = roc->cookie;
+ 	} else {
+ 		*cookie = (unsigned long)txskb;
+ 	}
++#endif
+ 	
+ 	work_on = ieee80211_work_busy(local);
+ 	/* if there's one pending or we're scanning, queue this one */
+@@ -3432,7 +3440,9 @@
+ 				       enum nl80211_channel_type channel_type,
+ 				       #endif
+ 				       unsigned int duration,
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,2,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++				       u64 cookie, const u8 *rx_addr)
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(7,2,0))
+ 				       u64 *cookie, const u8 *rx_addr)
+ #else
+ 				       u64 *cookie)
+@@ -3452,8 +3462,13 @@
+ 	int ret;
+ 
+ 	mutex_lock(&local->mtx);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++	ret = ieee80211_start_roc_work(local, dev, sdata, chan, channel_type,
++			       duration, &cookie, NULL);
++#else
+ 	ret = ieee80211_start_roc_work(local, dev, sdata, chan, channel_type,
+ 			       duration, cookie, NULL);
++#endif
+ 	mutex_unlock(&local->mtx);
+ 
+ 	return ret;
+@@ -3593,7 +3608,11 @@
+ #else
+ 			struct cfg80211_mgmt_tx_params *params,
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++			u64 cookie)
++#else
+ 			u64 *cookie)
++#endif
+ {
+ 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+ 	struct net_device *dev = wdev_to_ndev(wdev);
+@@ -3728,7 +3747,11 @@
+ 	ieee80211_parase_p2p_action_frame(sdata,skb,true);
+ #endif
+ 	if (!is_offchan) {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++		cookie = (unsigned long) skb;
++#else
+ 		*cookie = (unsigned long) skb;
++#endif
+ 		ieee80211_tx_skb(sdata, skb);
+ 		return 0;
+ 	}
+@@ -3737,8 +3760,13 @@
+ 
+ 	if (!wait)
+ 		wait = 100;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,3,0))
++	ret = ieee80211_start_roc_work(local, dev, sdata, chan, channel_type,
++			       wait, &cookie, skb);
++#else
+ 	ret = ieee80211_start_roc_work(local, dev, sdata, chan, channel_type,
+ 			       wait, cookie, skb);
++#endif
+ 	if (ret)
+ 		atbm_kfree_skb(skb);
+ 
+--- a/hal_apollo/mac80211/offchannel.c	2026-11-02 06:37:34.666187138 -0500
++++ b/hal_apollo/mac80211/offchannel.c	2026-11-02 06:38:06.515741612 -0500
+@@ -709,12 +709,12 @@
+ 	if (roc->frame) {
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+ 		cfg80211_mgmt_tx_status(roc->hw_roc_dev,
+-					(unsigned long)roc->frame,
++					roc->mgmt_tx_cookie,
+ 					roc->frame->data, roc->frame->len,
+ 					false, GFP_KERNEL);
+ #else
+ 		cfg80211_mgmt_tx_status(&roc->sdata->wdev,
+-					(unsigned long)roc->frame,
++					roc->mgmt_tx_cookie,
+ 					roc->frame->data, roc->frame->len,
+ 					false, GFP_KERNEL);
+ #endif
