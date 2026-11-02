@@ -1,7 +1,7 @@
 WIFI_ATBM6132CU_SITE_METHOD = git
-WIFI_ATBM6132CU_SITE = https://github.com/gtxaspec/atbm-wifi
-WIFI_ATBM6132CU_SITE_BRANCH = atbm-606x-c
-WIFI_ATBM6132CU_VERSION = 7f1ba356acbd8ae7d3caca371d45d96c42a3ad13
+WIFI_ATBM6132CU_SITE = https://github.com/themactep/atbm-wifi
+WIFI_ATBM6132CU_SITE_BRANCH = kernel-7.x-atbm6062s
+WIFI_ATBM6132CU_VERSION = be198b361c7f85efdd0e49a9208d6a5f8f724573
 
 WIFI_ATBM6132CU_LICENSE = GPL-2.0
 
@@ -28,7 +28,7 @@ endif
 endif
 
 WIFI_ATBM6132CU_MODULE_MAKE_OPTS = \
-	KERDIR=$(LINUX_DIR)
+	KDIR=$(LINUX_DIR)
 
 define WIFI_ATBM6132CU_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
@@ -57,13 +57,15 @@ define WIFI_ATBM6132CU_INSTALL_CONFIGS
 endef
 
 define WIFI_ATBM6132CU_INSTALL_FIRMWARE
-	$(INSTALL) -D -m 0644 $(@D)/firmware/$(ATBM6132CU_FIRMWARE) \
+	$(INSTALL) -D -m 0644 $(WIFI_ATBM6132CU_PKGDIR)/files/$(ATBM6132CU_FIRMWARE) \
 		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132CU_MODULE_NAME))_fw.bin
 endef
 
 define WIFI_ATBM6132CU_COPY_CONFIG
-	$(INSTALL) -D -m 0644 $(@D)/configs/$(WIFI_ATBM6132CU_CONFIG) \
+	$(INSTALL) -D -m 0644 $(WIFI_ATBM6132CU_PKGDIR)/files/$(WIFI_ATBM6132CU_CONFIG) \
 		$(@D)/.config
+	# The driver's Kbuild uses the raw Kconfig values; strip the quotes.
+	$(SED) 's/^\(CONFIG_[A-Za-z0-9_]*\)="\(.*\)"$$/\1=\2/' $(@D)/.config
 endef
 
 define WIFI_ATBM6132CU_COPY_CONFIG_BLE

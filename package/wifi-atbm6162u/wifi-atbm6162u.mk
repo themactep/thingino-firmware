@@ -1,7 +1,7 @@
 WIFI_ATBM6162U_SITE_METHOD = git
-WIFI_ATBM6162U_SITE = https://github.com/gtxaspec/atbm-wifi
-WIFI_ATBM6162U_SITE_BRANCH = atbm-606x-c
-WIFI_ATBM6162U_VERSION = 7f1ba356acbd8ae7d3caca371d45d96c42a3ad13
+WIFI_ATBM6162U_SITE = https://github.com/themactep/atbm-wifi
+WIFI_ATBM6162U_SITE_BRANCH = kernel-7.x-atbm6062s
+WIFI_ATBM6162U_VERSION = be198b361c7f85efdd0e49a9208d6a5f8f724573
 
 WIFI_ATBM6162U_LICENSE = GPL-2.0
 
@@ -24,21 +24,21 @@ ATBM6162U_MODULE_NAME = atbm6162u
 ATBM6162U_MODULE_OPTS = atbm_printk_mask=0
 
 WIFI_ATBM6162U_MODULE_MAKE_OPTS = \
-	KERDIR=$(LINUX_DIR)
+	KDIR=$(LINUX_DIR)
 
 define WIFI_ATBM6162U_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	# wext compat so the interface shows up in /proc/net/wireless, which the
+	# wifi init polls to detect when the driver has come up.
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS_EXT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	# atbm6162u is a self-contained backports package: it builds its OWN cfg80211
-	# (CONFIG_CPTCFG_CFG80211=y set in WIFI_ATBM6162U_COPY_CONFIG) and its own
-	# mac80211. The kernel's 4.4.94 cfg80211/mac80211 MUST be off: linking them
-	# against the driver's newer bundled headers is an ABI mismatch that
-	# corrupts kernel memory. See CPTCFG_CFG80211 help: "<5.7 -> open".
-	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
+	# The driver vendors its own mac80211 (hal_apollo/mac80211) and references
+	# no kernel mac80211 symbol, only cfg80211. Building the kernel's mac80211
+	# as well just wastes ~300K of the tiny kernel partition.
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
@@ -52,17 +52,18 @@ define WIFI_ATBM6162U_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb_ocea.bin \
+	$(INSTALL) -D -m 0644 $(WIFI_ATBM6162U_PKGDIR)/files/firmware_usb_ocea.bin \
 		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6162U_MODULE_NAME))_fw.bin
 endef
 
 WIFI_ATBM6162U_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6162U_INSTALL_CONFIGS
 
 define WIFI_ATBM6162U_COPY_CONFIG
-	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6162u.config \
+	$(INSTALL) -D -m 0644 $(WIFI_ATBM6162U_PKGDIR)/files/atbm6162u.config \
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_CPTCFG_CFG80211 is not set/CONFIG_CPTCFG_CFG80211=y\nCONFIG_CPTCFG_CFG80211_WEXT=y/' \
 		$(@D)/.config
+	$(SED) 's/^\(CONFIG_[A-Za-z0-9_]*\)="\(.*\)"$$/\1=\2/' $(@D)/.config
 endef
 
 WIFI_ATBM6162U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6162U_COPY_CONFIG
