@@ -1,7 +1,7 @@
 WIFI_ATBM6132S_SITE_METHOD = git
-WIFI_ATBM6132S_SITE = https://github.com/gtxaspec/atbm-wifi
-WIFI_ATBM6132S_SITE_BRANCH = master
-WIFI_ATBM6132S_VERSION = 380838e871c793ff4feb19bd584d9508b162b835
+WIFI_ATBM6132S_SITE = https://github.com/themactep/atbm-wifi
+WIFI_ATBM6132S_SITE_BRANCH = kernel-7.x
+WIFI_ATBM6132S_VERSION = e00219c277b967c8bce0ca422eaaf3a7a36274c1
 
 WIFI_ATBM6132S_LICENSE = GPL-2.0
 
@@ -36,17 +36,20 @@ define WIFI_ATBM6132S_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_mercurius_sdio.bin \
+	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_sdio_mercurius_wifi_bt_comb.bin \
 		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132S_MODULE_NAME))_fw.bin
 endef
 
 WIFI_ATBM6132S_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132S_INSTALL_CONFIGS
 
 define WIFI_ATBM6132S_COPY_CONFIG
-	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6132s.config \
+	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6132u.config \
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE is not set/CONFIG_ATBM_FUNC_P2P_ENABLE=y/' \
 		$(@D)/.config
+	$(SED) 's/^CONFIG_ATBM_MODULE_NAME=.*/CONFIG_ATBM_MODULE_NAME="atbm6132s"/' $(@D)/.config
+	$(SED) 's/^CONFIG_ATBM_USB_BUS=y/# CONFIG_ATBM_USB_BUS is not set/' $(@D)/.config
+	$(SED) 's/^# CONFIG_ATBM_SDIO_BUS is not set/CONFIG_ATBM_SDIO_BUS=y/' $(@D)/.config
 endef
 
 WIFI_ATBM6132S_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132S_COPY_CONFIG
