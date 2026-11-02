@@ -1,0 +1,19 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] hi3881: feed the driver flags into kbuild
+
+7.3 no longer consumes EXTRA_CFLAGS. Pass the host include
+paths and defines through ccflags-y/subdir-ccflags-y.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/Makefile	2026-11-02 13:24:01.857300552 -0500
++++ b/driver/Makefile	2026-11-02 13:24:01.877826805 -0500
+@@ -139,6 +139,8 @@
+ SRC_DIRS_FLASH = $(sort $(dir $(FLASH_COBJS)))
+ 
+ EXTRA_CFLAGS += $(HI1131_HOST_CFLAGS)
++ccflags-y += $(EXTRA_CFLAGS)
++subdir-ccflags-y += $(EXTRA_CFLAGS)
+ CROSS_COMPILE := $(CROSS_COMPILE)
+ KDIR := $(KDIR)
+ ARCH := arm
