@@ -1,0 +1,38 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8189es: feed the driver flags into kbuild
+
+Anchor the includes at PWD and pass EXTRA_CFLAGS through
+subdir-ccflags-y.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 13:17:26.387486811 -0500
++++ b/Makefile	2026-11-02 13:17:26.409012802 -0500
+@@ -20,7 +20,7 @@
+ EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
+ endif
+ 
+-EXTRA_CFLAGS += -I$(src)/include
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/include
+ EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+ EXTRA_LDFLAGS += --strip-debug
+ 
+@@ -250,10 +250,10 @@
+ 			hal/led/hal_$(HCI_NAME)_led.o
+ 
+ 
+-EXTRA_CFLAGS += -I$(src)/platform
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/platform
+ _PLATFORM_FILES := platform/platform_ops.o
+ 
+-EXTRA_CFLAGS += -I$(src)/hal/btc
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/hal/btc
+ 
+ ########### HAL_RTL8188E #################################
+ ifeq ($(CONFIG_RTL8188E), y)
+@@ -2362,3 +2362,5 @@
+ 	rm -fr .tmp_versions
+ endif
+ 
++
++subdir-ccflags-y += $(EXTRA_CFLAGS)

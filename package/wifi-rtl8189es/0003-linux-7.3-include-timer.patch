@@ -1,0 +1,17 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8188fu: include linux/timer.h
+
+The timer helpers are not pulled in transitively on 7.x.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h	2026-11-02 08:18:23.408248206 -0500
++++ b/include/osdep_service_linux.h	2026-11-02 08:18:23.424321310 -0500
+@@ -50,6 +50,7 @@
+ #include <linux/if_arp.h>
+ #include <linux/rtnetlink.h>
+ #include <linux/delay.h>
++#include <linux/timer.h>
+ #include <linux/interrupt.h>	/* for struct tasklet_struct */
+ #include <linux/ip.h>
+ #include <linux/kthread.h>
