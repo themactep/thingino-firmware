@@ -1,0 +1,65 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] aic8800: drop the removed module namespace and old action union
+
+Use the anonymous action union on 7.3 and remove the VFS
+MODULE_IMPORT_NS that no longer exists.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c	2026-11-02 13:21:34.567528219 -0500
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c	2026-11-02 13:21:34.592471871 -0500
+@@ -8574,9 +8574,6 @@
+ 
+ module_init(rwnx_mod_init);
+ module_exit(rwnx_mod_exit);
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+-#endif
+ MODULE_FIRMWARE(RWNX_CONFIG_FW_NAME);
+ 
+ MODULE_DESCRIPTION(RW_DRV_DESCRIPTION);
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_tdls.c	2026-11-02 13:21:34.569912566 -0500
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_tdls.c	2026-11-02 13:21:34.592598374 -0500
+@@ -97,6 +97,12 @@
+     return 0;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define AIC_ACTION(mgmt) ((mgmt)->u.action)
++#else
++#define AIC_ACTION(mgmt) ((mgmt)->u.action.u)
++#endif
++
+ static int
+ rwnx_prep_tdls_direct(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
+                       const u8 *peer, u8 action_code, u8 dialog_token,
+@@ -115,11 +121,11 @@
+ 
+     switch (action_code) {
+     case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
+-        skb_put(skb, 1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
++        skb_put(skb, 1 + sizeof(AIC_ACTION(mgmt).tdls_discover_resp));
+         mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
+-        mgmt->u.action.u.tdls_discover_resp.action_code = WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
+-        mgmt->u.action.u.tdls_discover_resp.dialog_token = dialog_token;
+-        mgmt->u.action.u.tdls_discover_resp.capability =
++        AIC_ACTION(mgmt).tdls_discover_resp.action_code = WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
++        AIC_ACTION(mgmt).tdls_discover_resp.dialog_token = dialog_token;
++        AIC_ACTION(mgmt).tdls_discover_resp.capability =
+             cpu_to_le16(rwnx_get_tdls_sta_capab(rwnx_vif, status_code));
+         break;
+     default:
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_events.h	2026-11-02 13:21:34.571735826 -0500
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_events.h	2026-11-02 13:21:34.592656836 -0500
+@@ -189,7 +189,11 @@
+         __entry->sta_idx = sta_idx;
+         __entry->frame_control = mgmt->frame_control;
+         __entry->action_cat = mgmt->u.action.category;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        __entry->action_type = mgmt->u.action.wme_action.action_code;
++#else
+         __entry->action_type = mgmt->u.action.u.wme_action.action_code;
++#endif
+         __entry->action_p2p = *((u8 *)&mgmt->u.action.category
+                                  + MGMT_ACTION_OUI_SUBTYPE_OFFSET);
+                    ),
