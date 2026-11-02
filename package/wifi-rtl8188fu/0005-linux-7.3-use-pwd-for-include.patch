@@ -1,0 +1,20 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8188fu: resolve includes from the module directory
+
+kbuild sets src relative to srctree for external modules, so
+-I$(src)/include points into the kernel tree. Prefer the PWD
+that the package build sets to the module directory.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 08:13:39.100295530 -0500
++++ b/Makefile	2026-11-02 08:13:39.116955065 -0500
+@@ -22,7 +22,7 @@
+ EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
+ endif
+ 
+-EXTRA_CFLAGS += -I$(src)/include
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/include
+ 
+ EXTRA_LDFLAGS += --strip-debug
+ 

@@ -1,0 +1,17 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8188fu: feed EXTRA_CFLAGS into kbuild
+
+EXTRA_CFLAGS is no longer consumed by the kernel build system.
+Pass it through subdir-ccflags-y so the driver's include paths
+and defines reach the subdirectory objects again.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 08:17:42.882850237 -0500
++++ b/Makefile	2026-11-02 08:17:42.884380109 -0500
+@@ -2503,3 +2503,5 @@
+ 	rm -fr .tmp_versions
+ endif
+ 
++
++subdir-ccflags-y += $(EXTRA_CFLAGS)
