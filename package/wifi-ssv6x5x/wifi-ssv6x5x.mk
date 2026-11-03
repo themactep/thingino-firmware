@@ -72,5 +72,15 @@ endef
 
 WIFI_SSV6X5X_PRE_CONFIGURE_HOOKS += WIFI_SSV6X5X_COPY_CONFIG
 
+# Pull in the 7.3 compatibility header before the driver's own includes.
+define WIFI_SSV6X5X_73_COMPAT_INCLUDE
+	for f in smac/init.c smac/regd.c smac/ap.c smac/hw_scan.c \
+		hwif/usb/usb.c hwif/sdio/sdio.c hwif/hal/hwif_hal.c hci/ssv_hci.c; do \
+		$(SED) '1i #include <ssv_73_compat.h>' $(@D)/$$f; \
+	done
+endef
+
+WIFI_SSV6X5X_POST_PATCH_HOOKS += WIFI_SSV6X5X_73_COMPAT_INCLUDE
+
 $(eval $(kernel-module))
 $(eval $(generic-package))

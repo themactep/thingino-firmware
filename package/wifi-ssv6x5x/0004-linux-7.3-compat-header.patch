@@ -1,0 +1,41 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6x5x: add the 7.3 compatibility header
+
+Define ssv_strncpy and MODULE_SUPPORTED_DEVICE for 7.3.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/include/ssv_73_compat.h b/include/ssv_73_compat.h
+new file mode 100644
+index 0000000..5f92eb8
+--- /dev/null
++++ b/include/ssv_73_compat.h
+@@ -0,0 +1,28 @@
++/* Linux 7.3 compatibility helpers for the SSV6xxx driver. */
++#ifndef _SSV_73_COMPAT_H_
++#define _SSV_73_COMPAT_H_
++
++#include <linux/version.h>
++#include <linux/types.h>
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#ifndef MODULE_SUPPORTED_DEVICE
++#define MODULE_SUPPORTED_DEVICE(x)
++#endif
++#endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *ssv_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy ssv_strncpy
++#endif
++
++#endif
