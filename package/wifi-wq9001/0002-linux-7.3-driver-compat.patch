@@ -1,0 +1,622 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] wq9001: port the driver to Linux 7.3
+
+Guard the private ifreq definitions, use the 7.3 cfg80211
+signatures and wrappers, fix timers, netif_rx, access_ok,
+pid, strncpy/strlcpy and the inline crypto helper.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/Makefile b/Makefile
+index 8baf0e8..eb47d1d 100755
+--- a/Makefile
++++ b/Makefile
+@@ -65,6 +65,10 @@ subdir-ccflags-y +=  -I$(DRV_PATH)/wdrv -I$(DRV_PATH)/wdrv/mwl  -I$(DRV_PATH)/os
+ 
+ ccflags-y += -DWQ_DEBUG
+ ccflags-y += -Wno-error=missing-prototypes
++ccflags-y += -Wno-error=implicit-fallthrough
++ccflags-y += -Wno-error=array-parameter
++ccflags-y += -Wno-error=misleading-indentation
++ccflags-y += -Wno-error=discarded-qualifiers
+ #ccflags-y += -DWQ_SIM_HOST_ONLY
+ #ccflags-y += -DWQ_BUS_TEST
+ ccflags-y += -DWQ_FW_DL
+diff --git a/oss/_if.h b/oss/_if.h
+index 89c744f..539e809 100644
+--- a/oss/_if.h
++++ b/oss/_if.h
+@@ -1,6 +1,8 @@
+ #ifndef __IF_H
+ #define __IF_H
+-#if LINUX_VERSION_CODE == KERNEL_VERSION(3,0,8)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/if.h>
++#elif LINUX_VERSION_CODE == KERNEL_VERSION(3,0,8)
+ #include <linux/if.h>
+ #endif
+ #define IFNAMSIZ            16
+@@ -56,7 +58,7 @@
+ #define IFF_DYING       0x200000        /* (n) interface is winding down */
+ #define IFF_RENAMING    0x400000        /* (n) interface is being renamed */
+ 
+-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,0,8)
++#if LINUX_VERSION_CODE > KERNEL_VERSION(3,0,8) && LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ #define IFF_RUNNING         IFF_DRV_RUNNING
+ #endif
+ #define IFF_OACTIVE         IFF_DRV_OACTIVE
+@@ -80,7 +82,7 @@ struct ifreq_buffer {
+     size_t  length;
+     void    *buffer;
+ };
+-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,0,8)
++#if LINUX_VERSION_CODE > KERNEL_VERSION(3,0,8) && LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ struct ifreq {
+     char ifr_name[IFNAMSIZ];
+     union {
+@@ -119,6 +121,8 @@ struct ifreq {
+ #define ifr_vlan_pcp    ifr_ifru.ifru_vlan_pcp  /* VLAN priority */
+ #define ifr_lan_pcp     ifr_ifru.ifru_vlan_pcp  /* VLAN priority */
+ };
++#else
++#define ifr_index       ifr_ifindex
+ #endif
+ 
+ union ifreq_union {
+diff --git a/oss/net_if.c b/oss/net_if.c
+index 3ba27cf..359d771 100644
+--- a/oss/net_if.c
++++ b/oss/net_if.c
+@@ -1,4 +1,16 @@
+ #include "oss.h"
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *wq_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy wq_strncpy
++#endif
+ 
+ void net_if_link_state_change(struct ifnet *ifp, int link_state)
+ {
+@@ -204,7 +216,9 @@ int net_if_ioctl(struct ifnet *ifp, unsigned int cmd, caddr_t data)
+         case SIOCGIFFLAGS:
+             temp_flags = ifp->if_flags | ifp->if_drv_flags;
+             ifr->ifr_flags = temp_flags & 0xffff;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+             ifr->ifr_flagshigh = temp_flags >> 16;
++#endif
+             break;
+ 
+         case SIOCGIFMTU:
+@@ -212,8 +226,12 @@ int net_if_ioctl(struct ifnet *ifp, unsigned int cmd, caddr_t data)
+             break;
+ 
+         case SIOCSIFFLAGS:
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++            new_flags = ifr->ifr_flags & 0xffff;
++#else
+             new_flags = (ifr->ifr_flags & 0xffff) |
+                         (ifr->ifr_flagshigh << 16);
++#endif
+             if (ifp->if_flags & IFF_UP && (new_flags & IFF_UP) == 0)
+                 net_if_down(ifp);
+             else if (new_flags & IFF_UP && (ifp->if_flags & IFF_UP) == 0)
+diff --git a/wdrv/driver_main.c b/wdrv/driver_main.c
+index 3e34607..7f6819c 100755
+--- a/wdrv/driver_main.c
++++ b/wdrv/driver_main.c
+@@ -1,4 +1,17 @@
+ #include "oss.h"
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *wq_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy wq_strncpy
++#endif
+ #include "if_hawk_port.h"
+ #include <net80211/ieee80211_var.h>
+ #include <linux/nl80211.h>
+diff --git a/wdrv/wuqi_cfg80211_port.h b/wdrv/wuqi_cfg80211_port.h
+index e20a5ad..c2a1c40 100755
+--- a/wdrv/wuqi_cfg80211_port.h
++++ b/wdrv/wuqi_cfg80211_port.h
+@@ -111,7 +111,9 @@ struct wuqi_ac_txq_params
+ struct log_2_file {
+     struct file* fp1;
+     struct file* fp2;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
+     mm_segment_t old_fs;
++#endif
+     char write_flag;
+     char write_to_fp2_flag;
+ };
+diff --git a/wifi_drv.c b/wifi_drv.c
+index d17a3ee..78876c0 100755
+--- a/wifi_drv.c
++++ b/wifi_drv.c
+@@ -1,5 +1,18 @@
++#include <linux/version.h>
+ #include <linux/module.h>
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *wq_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy wq_strncpy
++#endif
+ #include <net/cfg80211.h> 
+ #include <linux/skbuff.h>
+ 
+@@ -454,7 +467,11 @@ int wuqi_new_sta_notify(void *vap_ctx_param, char *mac, char *ies, int ies_len)
+     sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
+ #endif
+ 
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    cfg80211_new_sta(vif_ctx->ndev->ieee80211_ptr, mac, &sinfo, WQ_MEM_GFP);
++#else
+     cfg80211_new_sta(vif_ctx->ndev,mac, &sinfo, WQ_MEM_GFP);
++#endif
+ 
+     return 0;
+ }
+@@ -464,7 +481,11 @@ int wuqi_del_sta_notify(void *vap_ctx_param, char *mac)
+     struct wuqi_vif_context *vif_ctx = (struct wuqi_vif_context *)vap_ctx_param;
+     iot_printf("%s:%d\n",__func__,__LINE__);
+ 
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    cfg80211_del_sta(vif_ctx->ndev->ieee80211_ptr, mac, WQ_MEM_GFP);
++#else
+     cfg80211_del_sta(vif_ctx->ndev, mac, WQ_MEM_GFP);
++#endif
+     return 0;
+ }
+ 
+@@ -596,7 +617,9 @@ void update_bss_info(void *vif_ctx_cxt, char *bssid, char *ie, int ie_len, int c
+     struct cfg80211_bss *bss = NULL;
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
+         struct cfg80211_inform_bss data = {
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+         .scan_width = NL80211_BSS_CHAN_WIDTH_20,
++#endif
+         .signal = signal*100,
+     };
+ #endif
+@@ -791,7 +814,11 @@ void wq_net_if_input(void *vap_ctx_param, struct sk_buff *skb, uint8_t rssi, uin
+ 		    vif_ctx->ndev->stats.rx_bytes += (skb->len - 14);//payload only
+ 
+ 			skb->protocol = eth_type_trans(skb, skb->dev);
++			#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
++			netif_rx(skb);
++#else
+ 			netif_rx_ni(skb);
++#endif
+ 		}
+ 		else
+ 		{
+@@ -1512,9 +1539,15 @@ static s32 wuqi_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *nd
+ 
+ static int wuqi_cfg80211_set_bitrate(struct wiphy *wiphy,
+         struct net_device *dev,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        unsigned int link_id,
++#endif
+         const u8 *addr,
+         const struct cfg80211_bitrate_mask *mask)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)link_id;
++#endif
+     //for debug purpose only
+     iot_printf("wuqi_cfg80211_set_bitrate legacy=0x%x\n", mask->control[NL80211_BAND_2GHZ].legacy);
+ 
+@@ -1603,7 +1636,12 @@ wuqi_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
+ static int
+ wuqi_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+-        struct cfg80211_mgmt_tx_params *params, u64 *cookie)
++        struct cfg80211_mgmt_tx_params *params,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        u64 cookie)
++#else
++        u64 *cookie)
++#endif
+ #elif ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0)))
+ static int
+ wuqi_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -1643,10 +1681,19 @@ wuqi_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+ }
+ 
+     static s32
+-wuqi_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
++wuqi_cfg80211_add_key(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev, int link_id,
++#else
++        struct net_device *ndev,
++#endif
+         u8 key_idx, bool pairwise, const u8 *mac_addr,
+         struct key_params *params)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct net_device *ndev = wdev->netdev;
++    (void)link_id;
++#endif
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(ndev)->vif_ctx;
+ 
+     iot_printf("%s, key_idx:%d, pairwise:%d, mac_addr:%pM\n",
+@@ -1658,18 +1705,39 @@ wuqi_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
+ }
+ 
+ static s32
+-wuqi_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx, bool pairwise, const u8 *mac_addr)
++wuqi_cfg80211_del_key(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev, int link_id,
++#else
++        struct net_device *ndev,
++#endif
++        u8 key_idx, bool pairwise, const u8 *mac_addr)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct net_device *ndev = wdev->netdev;
++    (void)link_id;
++#endif
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(ndev)->vif_ctx;
+     return wuqi_del_key(vif_ctx->vap,key_idx,pairwise,mac_addr);
+ }
+ 
+ static s32
+-wuqi_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx,
++wuqi_cfg80211_get_key(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev, int link_id,
++#else
++        struct net_device *ndev,
++#endif
++        u8 key_idx,
+         bool pairwise, const u8 *mac_addr, void *cookie,
+         void (*callback)(void *cookie,
+             struct key_params *params))
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct net_device *ndev = wdev->netdev;
++    (void)link_id;
++    (void)ndev;
++#endif
+     //TODO:To be implemented
+     iot_printf("%s, key_idx:%d, pairwise:%d, To be implemented\n",
+             __func__,key_idx,pairwise);
+@@ -1678,7 +1746,11 @@ wuqi_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx,
+ }
+ 
+ static s32
+-wuqi_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx, bool unicast, bool multicast)
++wuqi_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
++        int link_id,
++#endif
++        u8 key_idx, bool unicast, bool multicast)
+ {
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(ndev)->vif_ctx;
+     iot_printf("%s, key_idx:%d unicast:%d,multicast:%d\n",
+@@ -1690,7 +1762,12 @@ wuqi_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev, u
+ 
+ static s32
+ wuqi_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
+-        struct net_device *ndev, u8 key_idx)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev, int link_id,
++#else
++        struct net_device *ndev,
++#endif
++        u8 key_idx)
+ {
+     iot_printf("%s,key_idx:%d, Not supported \n", __func__, key_idx);
+ 
+@@ -1703,7 +1780,11 @@ void wq_wifi_dbg_set(u16 flag)
+ }
+ 
+ #ifndef WQ_BUS_TEST
+-static int wuqi_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
++static int wuqi_cfg80211_set_wiphy_params(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        int radio_idx,
++#endif
++        u32 changed)
+ {
+     //wifi ipc/usb dbg log display
+     if (changed & WIPHY_PARAM_COVERAGE_CLASS) {
+@@ -1803,9 +1884,17 @@ static int wuqi_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+ static int
+-wuqi_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
++wuqi_cfg80211_del_station(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev,
++#else
++        struct net_device *ndev,
++#endif
+         struct station_del_parameters *params)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct net_device *ndev = wdev->netdev;
++#endif
+     const u8* mac = params->mac;
+     int reason = params->reason_code;
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(ndev)->vif_ctx;
+@@ -1832,7 +1921,12 @@ wuqi_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
+ static int
+-wuqi_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
++wuqi_cfg80211_change_station(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev,
++#else
++        struct net_device *ndev,
++#endif
+         const u8 *mac, struct station_parameters *params)
+ #else
+ static int
+@@ -1840,6 +1934,9 @@ wuqi_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
+         u8 *mac, struct station_parameters *params)
+ #endif
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)wdev;
++#endif
+     //TODO:To be implemented
+     iot_printf("%s,To be implemented\n", __func__);
+ 
+@@ -1849,8 +1946,15 @@ wuqi_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0)
+ static s32
+ wuqi_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct cfg80211_ap_update *info)
++{
++    struct cfg80211_beacon_data *beacon = &info->beacon;
++    (void)beacon;
++#else
+         struct cfg80211_beacon_data *info)
+ {
++#endif
+     //TODO:To be implemented
+     iot_printf("%s,To be implemented\n", __func__);
+ 
+@@ -2021,7 +2125,11 @@ static s32 wuqi_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
+ #endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0)
+-static int wuqi_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
++static int wuqi_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
++        , unsigned int link_id
++#endif
++        )
+ {
+ 
+ 	struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(ndev)->vif_ctx;
+@@ -2083,13 +2191,21 @@ static int wuqi_cfg80211_set_txq_params(struct wiphy *wiphy,
+ }
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
+-int wuqi_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
++int wuqi_cfg80211_get_station(struct wiphy *wiphy,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        struct wireless_dev *wdev,
++#else
++        struct net_device *dev,
++#endif
+         const u8 *mac, struct station_info *sinfo)
+ #else
+ int wuqi_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+         u8 *mac, struct station_info *sinfo)
+ #endif
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct net_device *dev = wdev->netdev;
++#endif
+     struct wuqi_station_info sinfo_params;
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(dev)->vif_ctx;
+ 
+@@ -2121,8 +2237,14 @@ int wuqi_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+ int wuqi_cfg80211_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        unsigned int link_id,
++#endif
+         struct cfg80211_chan_def *chandef)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)link_id;
++#endif
+     struct wuqi_vif_context *vif_ctx = ndev_get_vif_context(wdev->netdev)->vif_ctx;
+     struct wuqi_chan_info channel_info;
+ 
+@@ -2204,6 +2326,15 @@ int wuqi_cfg80211_set_monitor_channel(struct wiphy *wiphy,
+ }
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++static int wuqi_wrap_monitor_channel(struct wiphy *wiphy, struct net_device *ndev,
++        struct cfg80211_chan_def *chandef)
++{
++    (void)ndev;
++    return wuqi_cfg80211_set_monitor_channel(wiphy, chandef);
++}
++#endif
++
+ /* Structure of functions for cfg80211 drivers */
+ static struct cfg80211_ops wuqi_cfg_ops = {
+     .add_virtual_intf = wuqi_cfg80211_add_iface,
+@@ -2238,8 +2369,12 @@ static struct cfg80211_ops wuqi_cfg_ops = {
+     .get_channel = wuqi_cfg80211_get_channel,
+ #endif
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_monitor_channel = wuqi_wrap_monitor_channel,
++#else
+     .set_monitor_channel = wuqi_cfg80211_set_monitor_channel,
+ #endif
++#endif
+ };
+ 
+ extern int net_if_output(void *vap, struct sk_buff *skb);
+@@ -4327,6 +4462,9 @@ int delete_space(char *src) {
+ int wq_mp_cali_free() {
+     int ret;
+     uint8_t cali[5];
++
++    (void)ret;
++    (void)cali;
+     char buf_line[50], buf_pn[50], buf_ver[50], buf_con[50];
+     struct file* fp_cali_efuse;
+     char *pos;
+@@ -4365,9 +4503,9 @@ int wq_mp_cali_free() {
+                     }
+                     if (!memcmp(buf_line, "$Content: ", strlen("$Content: "))) {
+                         if(strrchr(buf_line, '\n')) {
+-                            strlcpy(buf_con, &buf_line[strlen("$Content: ")], strlen(buf_line)-strlen("$Content: "));
++                            strscpy(buf_con, &buf_line[strlen("$Content: ")], strlen(buf_line)-strlen("$Content: "));
+                         }else{
+-                            strlcpy(buf_con, &buf_line[strlen("$Content: ")], strlen(buf_line)-strlen("$Content: ")+1);
++                            strscpy(buf_con, &buf_line[strlen("$Content: ")], strlen(buf_line)-strlen("$Content: ")+1);
+                         }
+                         buf_con[strlen(buf_con)] = '\0';
+                        // delete_space(buf_con);
+diff --git a/wproto/net80211/ieee80211_input.c b/wproto/net80211/ieee80211_input.c
+index 2713634..bf92f74 100755
+--- a/wproto/net80211/ieee80211_input.c
++++ b/wproto/net80211/ieee80211_input.c
+@@ -1085,7 +1085,7 @@ ieee80211_note_frame(const struct ieee80211vap *vap,
+     va_list ap;
+ 
+     /* no debug msg in isr */
+-    if (in_irq()) {
++    if (in_interrupt()) {
+         return;
+     }
+ 
+@@ -1107,7 +1107,7 @@ ieee80211_note_mac(const struct ieee80211vap *vap,
+     va_list ap;
+ 
+     /* no debug msg in isr */
+-    if (in_irq()) {
++    if (in_interrupt()) {
+         return;
+     }
+ 
+@@ -1155,7 +1155,7 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
+ 	va_list ap;
+ 
+     /* no debug msg in isr */
+-    if (in_irq()) {
++    if (in_interrupt()) {
+         return;
+     }
+ 
+@@ -1177,7 +1177,7 @@ ieee80211_discard_ie(const struct ieee80211vap *vap,
+ 	va_list ap;
+ 
+     /* no debug msg in isr */
+-    if (in_irq()) {
++    if (in_interrupt()) {
+         return;
+     }
+ 
+@@ -1201,7 +1201,7 @@ ieee80211_discard_mac(const struct ieee80211vap *vap,
+ 	va_list ap;
+ 
+     /* no debug msg in isr */
+-    if (in_irq()) {
++    if (in_interrupt()) {
+         return;
+     }
+ 
+diff --git a/wproto/net80211/ieee80211_output.c b/wproto/net80211/ieee80211_output.c
+index 3a31cad..c18091b 100755
+--- a/wproto/net80211/ieee80211_output.c
++++ b/wproto/net80211/ieee80211_output.c
+@@ -1359,7 +1359,7 @@ ieee80211_mbuf_adjust(struct ieee80211vap *vap, int hdrsize,
+  * If a unicast key is set we use that.  When no unicast key is set
+  * we fall back to the default transmit key.
+  */ 
+-__inline struct ieee80211_key *
++struct ieee80211_key *
+ ieee80211_crypto_getucastkey(struct ieee80211vap *vap,
+ 	struct ieee80211_node *ni)
+ {
+diff --git a/wproto/net80211/ieee80211_sim.c b/wproto/net80211/ieee80211_sim.c
+index 83069b0..8efec50 100755
+--- a/wproto/net80211/ieee80211_sim.c
++++ b/wproto/net80211/ieee80211_sim.c
+@@ -30,6 +30,11 @@
+  * IEEE 802.11 support (FreeBSD-specific code)
+  */
+ #include <net80211/ieee80211_var.h>
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define del_timer(t) timer_delete(t)
++#define del_timer_sync(t) timer_delete_sync(t)
++#endif
+ #include <net80211/ieee80211_input.h>
+ #include <net80211/ieee80211_extap.h>
+ 
+@@ -1889,7 +1894,11 @@ void callout_init_v2(struct osal_timer_t *osal_timer, timeout_t *func, void *arg
+ 
+ void timer_callback(struct timer_list *t)   
+ {
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    struct osal_timer_t *osal_timer = timer_container_of(osal_timer, t, timer);
++#else
+     struct osal_timer_t *osal_timer = from_timer(osal_timer, t, timer);
++#endif
+     //iot_printf("timer_callback %p\n", osal_timer);
+ 
+     if (!schedule_work(&osal_timer->ws_timer_work)) {
+@@ -1912,7 +1921,11 @@ void callout_init_v2(struct osal_timer_t *osal_timer, timeout_t *func, void *arg
+ void _callout_deinit_dbg(struct callout *timer, const char *function_name, int line_num)
+ {
+     cancel_work_sync(&timer->ws_timer_work);
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    timer_delete(&timer->timer);
++#else
+     del_timer(&timer->timer);
++#endif
+     del_timer_record(&timer->timer);
+ }
+ 
+@@ -1930,7 +1943,11 @@ int _callout_stop_v2_dbg(struct callout *c, const char *function_name, int line_
+     struct osal_timer_t *osal_timer=(struct osal_timer_t *)c;
+ 
+     cancel_work_sync(&osal_timer->ws_timer_work);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    timer_delete(&c->timer);
++#else
+     del_timer(&c->timer);
++#endif
+     del_timer_record(&c->timer);
+     return 0;
+ }
