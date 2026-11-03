@@ -1,0 +1,247 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ws73v100: adapt the platform and OAL layers to 7.3
+
+Port the remaining timer, inode time, uaccess, platform remove,
+Wi-Fi OAL file access, random MAC and netif helpers.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/platform/osal/linux/osal_timer.c
++++ b/driver/platform/osal/linux/osal_timer.c
+@@ -124,7 +124,11 @@
+     }
+ 
+     time_info = (struct timer_list_info *)timer->timer;
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    return timer_delete(&time_info->time_list);
++#else
+     return del_timer(&time_info->time_list);
++#endif
+ }
+ EXPORT_SYMBOL(osal_timer_stop);
+ 
+@@ -138,7 +142,11 @@
+     }
+ 
+     time_info = (struct timer_list_info *)timer->timer;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    timer_delete(&time_info->time_list);
++#else
+     del_timer(&time_info->time_list);
++#endif
+     kfree(time_info);
+     timer->timer = NULL;
+     return 0;
+--- a/driver/platform/cfg/ini.h
++++ b/driver/platform/cfg/ini.h
+@@ -82,7 +82,7 @@
+ #define INI_FILE_TIMESPEC_UNRECONFIG (0)
+ #define INI_FILE_TIMESPEC_RECONFIG   (BIT0)
+ #define INI_NVRAM_RECONFIG           (BIT1)
+-#define inf_file_get_ctime(file_dentry) ((file_dentry)->d_inode->i_ctime.tv_sec)
++#define inf_file_get_ctime(file_dentry) inode_get_ctime((file_dentry)->d_inode).tv_sec
+ 
+ /*
+  * 4 Message Header Definition
+--- a/driver/platform/osal/linux/osal_fileops.c
++++ b/driver/platform/osal/linux/osal_fileops.c
+@@ -12,7 +12,13 @@
+ 
+ char *g_klib_store_path = NULL;
+ 
+-static mm_segment_t os_get_fs(void)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++typedef int os_fs_t;
++#else
++typedef mm_segment_t os_fs_t;
++#endif
++
++static os_fs_t os_get_fs(void)
+ {
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     return get_fs();
+@@ -20,12 +26,12 @@
+ #ifdef CONFIG_SET_FS
+     return get_fs();
+ #else
+-    return force_uaccess_begin();
++    return 0;
+ #endif
+ #endif
+ }
+ 
+-static void os_set_fs(mm_segment_t fs)
++static void os_set_fs(os_fs_t fs)
+ {
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     set_fs(fs);
+@@ -33,7 +39,7 @@
+ #ifdef CONFIG_SET_FS
+     set_fs(fs);
+ #else
+-    force_uaccess_end(fs);
++    (void)fs;
+ #endif
+ #endif
+ }
+@@ -48,7 +54,7 @@
+ #ifdef CONFIG_SET_FS
+     os_set_fs(KERNEL_DS);
+ #else
+-    force_uaccess_begin();
++    /* no-op on 7.3 */
+ #endif
+ #endif
+ }
+@@ -69,7 +75,7 @@
+ 
+ static int klib_fwrite(const char *buf, unsigned long size, struct file *filp)
+ {
+-    mm_segment_t old_fs;
++    os_fs_t old_fs;
+     int writelen;
+ 
+     if (filp == NULL) {
+@@ -91,7 +97,7 @@
+ 
+ static int klib_fread(char *buf, unsigned long size, struct file *filp)
+ {
+-    mm_segment_t old_fs;
++    os_fs_t old_fs;
+     int readlen;
+ 
+     if (filp == NULL) {
+@@ -217,6 +223,4 @@
+     return memcpy_s(path, path_size, g_klib_store_path, len);
+ }
+ EXPORT_SYMBOL(osal_klib_get_store_path);
+-#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE > KERNEL_VERSION(5, 10, 0))
+-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+-#endif
++
+--- a/driver/platform/drv/mac_addr/mac_addr.c
++++ b/driver/platform/drv/mac_addr/mac_addr.c
+@@ -170,7 +170,7 @@
+     long    tv_sec;         /* seconds */
+     long    tv_usec;        /* and microseconds */
+ };
+-static void random_ether_addr(osal_u8 *addr)
++static void eth_random_addr(osal_u8 *addr)
+ {
+     struct timeval tv1;
+     struct timeval tv2;
+@@ -209,7 +209,7 @@
+     } else if ((get_mac_from_efuse(&(g_mac_addr.ac_addr[0]), WLAN_MAC_ADDR_LEN) == OAL_SUCC) &&
+         (mac_addr_check(&g_mac_addr.ac_addr[0]) == OAL_SUCC)) {
+     } else {
+-        random_ether_addr(g_mac_addr.ac_addr);
++        eth_random_addr(g_mac_addr.ac_addr);
+         g_mac_addr.ac_addr[1] = RANDOM_DEFOURT_MAC1; /* 1 地址第2位 0x00     */
+         g_mac_addr.ac_addr[2] = RANDOM_DEFOURT_MAC2; /* 2 地址第3位 0x73 */
+         g_mac_addr.us_status = 0;
+--- a/driver/platform/pm/plat_pm_board.c
++++ b/driver/platform/pm/plat_pm_board.c
+@@ -635,12 +635,20 @@
+     return BOARD_FAIL;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
++static void pm_board_remove(struct platform_device *pdev)
++{
++    (void)pdev;
++    pm_board_gpio_deinit();
++}
++#else
+ static osal_s32 pm_board_remove(struct platform_device *pdev)
+ {
+     pm_board_gpio_deinit();
+ 
+     return BOARD_SUCC;
+ }
++#endif
+ 
+ #if defined(_PRE_OS_VERSION) && defined(_PRE_OS_VERSION_LINUX) && (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+ osal_bool g_pm_resume_flag = OSAL_FALSE;
+--- a/driver/wifi/inc/oal/linux/oal_kernel_file.h
++++ b/driver/wifi/inc/oal/linux/oal_kernel_file.h
+@@ -36,7 +36,11 @@
+ #define OAL_PRINT_FORMAT_LENGTH     200                     /* 打印格式字符串的最大长度 */
+ 
+ typedef struct file             oal_file;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++typedef int                     oal_mm_segment_t;
++#else
+ typedef mm_segment_t            oal_mm_segment_t;
++#endif
+ 
+ OAL_STATIC OAL_INLINE oal_mm_segment_t oal_get_fs(osal_void)
+ {
+@@ -46,7 +50,7 @@
+ #ifdef CONFIG_SET_FS
+     return get_fs();
+ #else
+-    return force_uaccess_begin();
++    return 0;
+ #endif
+ #endif
+ }
+@@ -59,7 +63,7 @@
+ #ifdef CONFIG_SET_FS
+     set_fs(fs);
+ #else
+-    force_uaccess_end(fs);
++    (void)fs;
+ #endif
+ #endif
+ }
+@@ -72,7 +76,7 @@
+ #ifdef CONFIG_SET_FS
+     oal_set_fs(KERNEL_DS);
+ #else
+-    force_uaccess_begin();
++    /* no-op on 7.3 */
+ #endif
+ #endif
+ }
+--- a/driver/wifi/inc/oal/oal_net.h
++++ b/driver/wifi/inc/oal/oal_net.h
+@@ -1631,4 +1631,10 @@
+ #endif
+ #endif
+ 
++static inline void oal_random_ether_addr(osal_u8 *mac, osal_u32 len)
++{
++    (void)len;
++    eth_random_addr(mac);
++}
++
+ #endif /* end of file */
+--- a/driver/wifi/hmac/hmac_main.c
++++ b/driver/wifi/hmac/hmac_main.c
+@@ -682,7 +682,7 @@
+         pst_netbuf = oal_netbuf_delist_nolock(&g_st_rxdata_thread_etc.rxdata_netbuf_head);
+         osal_spin_unlock(&g_st_rxdata_thread_etc.lock);
+         if (pst_netbuf != OAL_PTR_NULL) {
+-            oal_netif_rx_ni(pst_netbuf);
++            oal_netif_rx(pst_netbuf);
+         }
+     }
+     return OAL_SUCC;
+--- a/driver/wifi/forward/hmac_rx_data.c
++++ b/driver/wifi/forward/hmac_rx_data.c
+@@ -395,13 +395,13 @@
+ #endif
+ 
+ #ifdef _PRE_WLAN_DFT_STAT
+-        if (oal_netif_rx_ni(netbuf) == OAL_SUCC) {
++        if (oal_netif_rx(netbuf) == OAL_SUCC) {
+             hmac_pkts_rx_stat(hmac_vap->vap_id, 1, RX_D_SEND_LAN_SUCC);
+         } else {
+             hmac_pkts_rx_stat(hmac_vap->vap_id, 1, RX_D_SEND_LAN_FAIL);
+         }
+ #else
+-        (osal_void)oal_netif_rx_ni(netbuf);
++        (osal_void)oal_netif_rx(netbuf);
+ #endif
+ #if defined(_PRE_OS_VERSION_LINUX) && defined(_PRE_OS_VERSION) && (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+     }

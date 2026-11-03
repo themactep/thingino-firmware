@@ -21,6 +21,11 @@ define WIFI_WS73V100_CONFIGURE_OPTIONS
 		$(if $(BR2_PACKAGE_WIFI_WS73V100_SDIO), \
 			sed -i 's/^WSCFG_BUS_SDIO=.*/WSCFG_BUS_SDIO=y/' $(@D)/build/config/ws73_default.config && \
 			sed -i 's/^WSCFG_BUS_USB=.*/WSCFG_BUS_USB=n/' $(@D)/build/config/ws73_default.config))
+	# The local-log and socket diag transports use VFS helpers that
+	# are not available on 7.3. Keep the rest of the debug path.
+	sed -i 's/^WSCFG_PLAT_DIAG_LOG_OUT=.*/WSCFG_PLAT_DIAG_LOG_OUT=y/' $(@D)/build/config/ws73_default.config
+	sed -i 's/^CONFIG_DIAG_SUPPORT_SOCKET=.*/CONFIG_DIAG_SUPPORT_SOCKET=n/' $(@D)/build/config/ws73_default.config
+	sed -i 's/^CONFIG_DIAG_SUPPORT_LOCAL_LOG=.*/CONFIG_DIAG_SUPPORT_LOCAL_LOG=n/' $(@D)/build/config/ws73_default.config
 	# Configure firmware and config file paths
 	sed -i 's|^CONFIG_FIRMWARE_BIN_PATH=.*|CONFIG_FIRMWARE_BIN_PATH="/usr/lib/firmware/ws73.bin"|' $(@D)/build/config/ws73_default.config
 	sed -i 's|^CONFIG_FIRMWARE_WIFICALI_PATH=.*|CONFIG_FIRMWARE_WIFICALI_PATH="/usr/lib/firmware/wifi_cali.bin"|' $(@D)/build/config/ws73_default.config
