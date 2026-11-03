@@ -1,0 +1,428 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mt7601u: port the cfg80211 ops to Linux 7.3
+
+Add 7.3 wrapper ops for virtual interfaces, tx power, station
+and key management, ROC/mgmt-tx, beacon/AP and monitor channel,
+and fix the time, destructor, pid and access_ok call sites.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/ap/ap_mlme.c b/ap/ap_mlme.c
+index 4553550..ae29aed 100644
+--- a/ap/ap_mlme.c
++++ b/ap/ap_mlme.c
+@@ -26,7 +26,11 @@
+  */
+ 
+ #include "rt_config.h"
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
++#endif
+ 
+ 
+ #ifdef DOT11_N_SUPPORT
+diff --git a/include/os/rt_linux.h b/include/os/rt_linux.h
+index 2ad5b44..e46fa84 100644
+--- a/include/os/rt_linux.h
++++ b/include/os/rt_linux.h
+@@ -560,7 +560,11 @@ do { \
+ #define	THREAD_PID_INIT_VALUE	NULL
+ /* TODO: Use this IOCTL carefully when linux kernel version larger than 2.6.27, because the PID only correct when the user space task do this ioctl itself. */
+ /*#define RTMP_GET_OS_PID(_x, _y)    _x = get_task_pid(current, PIDTYPE_PID); */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
++#define RT_GET_OS_PID(_x, _y)		do{_x=(void*)(unsigned long)current->pid;}while(0)
++#else
+ #define RT_GET_OS_PID(_x, _y)		do{rcu_read_lock(); _x=(void*)current->pids[PIDTYPE_PID].pid; rcu_read_unlock();}while(0)
++#endif
+ #ifdef OS_ABL_FUNC_SUPPORT
+ #define RTMP_GET_OS_PID(_a, _b)			RtmpOsGetPid(&_a, _b)
+ #else
+diff --git a/os/linux/ap_ioctl.c b/os/linux/ap_ioctl.c
+index b2aad0d..7d48fce 100644
+--- a/os/linux/ap_ioctl.c
++++ b/os/linux/ap_ioctl.c
+@@ -25,12 +25,21 @@
+ */
+ #define RTMP_MODULE_OS
+ 
+-/*#include "rt_config.h" */
++/*#include "rt_config.h"
++ */
+ #include "rtmp_comm.h"
+ #include "rt_os_util.h"
+ #include "rt_os_net.h"
+ #include <linux/wireless.h>
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
++#define RTW_ACCESS_OK_R(ptr, len) access_ok(ptr, len)
++#define RTW_ACCESS_OK_W(ptr, len) access_ok(ptr, len)
++#else
++#define RTW_ACCESS_OK_R(ptr, len) access_ok(VERIFY_READ, ptr, len)
++#define RTW_ACCESS_OK_W(ptr, len) access_ok(VERIFY_WRITE, ptr, len)
++#endif
++
+ struct iw_priv_args ap_privtab[] = {
+ { RTPRIV_IOCTL_SET, 
+ /* 1024 --> 1024 + 512 */
+@@ -320,7 +329,7 @@ INT rt28xx_ap_ioctl(
+ 		case SIOCGIWPRIV:
+ 			if (wrqin->u.data.pointer) 
+ 			{
+-				if ( access_ok(VERIFY_WRITE, wrqin->u.data.pointer, sizeof(ap_privtab)) != TRUE)
++				if ( RTW_ACCESS_OK_W(wrqin->u.data.pointer, sizeof(ap_privtab)) != TRUE)
+ 					break;
+ 				if ((sizeof(ap_privtab) / sizeof(ap_privtab[0])) <= wrq->u.data.length)
+ 				{
+@@ -334,14 +343,14 @@ INT rt28xx_ap_ioctl(
+ 			break;
+ 		case RTPRIV_IOCTL_SET:
+ 			{
+-				if( access_ok(VERIFY_READ, wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
++				if( RTW_ACCESS_OK_R(wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
+ 					Status = RTMP_AP_IoctlHandle(pAd, wrq, CMD_RTPRIV_IOCTL_SET, 0, NULL, 0);
+ 			}
+ 			break;
+ 		    
+ 		case RTPRIV_IOCTL_SHOW:
+ 			{
+-				if( access_ok(VERIFY_READ, wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
++				if( RTW_ACCESS_OK_R(wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
+ 					Status = RTMP_AP_IoctlHandle(pAd, wrq, CMD_RTPRIV_IOCTL_SHOW, 0, NULL, 0);
+ 			}
+ 			break;	
+@@ -350,7 +359,7 @@ INT rt28xx_ap_ioctl(
+ #ifdef AR9_MAPI_SUPPORT
+ 		case RTPRIV_IOCTL_GET_AR9_SHOW:
+ 			{
+-				if( access_ok(VERIFY_READ, wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
++				if( RTW_ACCESS_OK_R(wrqin->u.data.pointer, wrqin->u.data.length) == TRUE)
+ 					Status = RTMP_AP_IoctlHandle(pAd, wrq, CMD_RTPRIV_IOCTL_GET_AR9_SHOW, 0, NULL, 0);
+ 			}	
+ 		    break;
+diff --git a/os/linux/cfg80211.c b/os/linux/cfg80211.c
+index 8141517..6aeac6c 100644
+--- a/os/linux/cfg80211.c
++++ b/os/linux/cfg80211.c
+@@ -3118,6 +3118,86 @@ const struct ieee80211_iface_combination *p_ra_iface_combinations_p2p = ra_iface
+ const INT ra_iface_combinations_p2p_num = ARRAY_SIZE(ra_iface_combinations_p2p_GO);
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++static int mt7601u_wrap_change_vif(struct wiphy *w, struct net_device *ndev,
++				   enum nl80211_iftype type, struct vif_params *params)
++{ return CFG80211_OpsVirtualInfChg(w, ndev, type, NULL, params); }
++
++static struct wireless_dev *mt7601u_wrap_add_vif(struct wiphy *w, const char *name,
++						 unsigned char name_assign_type,
++						 enum nl80211_iftype type,
++						 struct vif_params *params)
++{ return CFG80211_OpsVirtualInfAdd(w, name, name_assign_type, type, NULL, params); }
++
++static int mt7601u_wrap_tx_power_set(struct wiphy *w, struct wireless_dev *wdev,
++				     int radio_idx, enum nl80211_tx_power_setting type, int dbm)
++{ return CFG80211_OpsTxPwrSet(w, wdev, type, dbm); }
++
++static int mt7601u_wrap_tx_power_get(struct wiphy *w, struct wireless_dev *wdev,
++				     int radio_idx, unsigned int link_id, int *dbm)
++{ return CFG80211_OpsTxPwrGet(w, wdev, dbm); }
++
++static int mt7601u_wrap_wiphy_params(struct wiphy *w, int radio_idx, u32 changed)
++{ return CFG80211_OpsWiphyParamsSet(w, changed); }
++
++static int mt7601u_wrap_get_station(struct wiphy *w, struct wireless_dev *wdev,
++				    const u8 *mac, struct station_info *sinfo)
++{ return CFG80211_OpsStaGet(w, wdev->netdev, mac, sinfo); }
++
++static int mt7601u_wrap_dump_station(struct wiphy *w, struct wireless_dev *wdev,
++				     int idx, u8 *mac, struct station_info *sinfo)
++{ return CFG80211_OpsStaDump(w, wdev->netdev, idx, mac, sinfo); }
++
++static int mt7601u_wrap_key_add(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++				u8 key_idx, bool pairwise, const u8 *mac, struct key_params *params)
++{ return CFG80211_OpsKeyAdd(w, wdev->netdev, key_idx, pairwise, mac, params); }
++
++static int mt7601u_wrap_key_get(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++				u8 key_idx, bool pairwise, const u8 *mac, void *cookie,
++				void (*cb)(void *cookie, struct key_params *))
++{ return CFG80211_OpsKeyGet(w, wdev->netdev, key_idx, pairwise, mac, cookie, cb); }
++
++static int mt7601u_wrap_key_del(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++				u8 key_idx, bool pairwise, const u8 *mac)
++{ return CFG80211_OpsKeyDel(w, wdev->netdev, key_idx, pairwise, mac); }
++
++static int mt7601u_wrap_default_key(struct wiphy *w, struct net_device *ndev, int link_id,
++				    u8 key_idx, bool unicast, bool multicast)
++{ return CFG80211_OpsKeyDefaultSet(w, ndev, key_idx, unicast, multicast); }
++
++static int mt7601u_wrap_roc(struct wiphy *w, struct wireless_dev *wdev,
++			    struct ieee80211_channel *chan, unsigned int duration,
++			    u64 cookie, const u8 *rx_addr)
++{ u64 c = cookie; return CFG80211_OpsRemainOnChannel(w, wdev, chan, duration, &c); }
++
++static int mt7601u_wrap_mgmt_tx(struct wiphy *w, struct wireless_dev *wdev,
++				struct cfg80211_mgmt_tx_params *params, u64 cookie)
++{ u64 c = cookie; return CFG80211_OpsMgmtTx(w, wdev, params, &c); }
++
++static int mt7601u_wrap_change_beacon(struct wiphy *w, struct net_device *ndev,
++				      struct cfg80211_ap_update *info)
++{ return CFG80211_OpsChangeBeacon(w, ndev, &info->beacon); }
++
++static int mt7601u_wrap_stop_ap(struct wiphy *w, struct net_device *ndev, unsigned int link_id)
++{ return CFG80211_OpsStopAp(w, ndev); }
++
++static int mt7601u_wrap_monitor_channel(struct wiphy *w, struct net_device *ndev,
++					struct cfg80211_chan_def *chandef)
++{ return CFG80211_OpsMonitorChannelSet(w, chandef); }
++
++static int mt7601u_wrap_del_station(struct wiphy *w, struct wireless_dev *wdev,
++				    struct station_del_parameters *params)
++{ return CFG80211_OpsStaDel(w, wdev->netdev, params); }
++
++static int mt7601u_wrap_add_station(struct wiphy *w, struct wireless_dev *wdev,
++				    const u8 *mac, struct station_parameters *params)
++{ return CFG80211_OpsStaAdd(w, wdev->netdev, mac, params); }
++
++static int mt7601u_wrap_change_station(struct wiphy *w, struct wireless_dev *wdev,
++				       const u8 *mac, struct station_parameters *params)
++{ return CFG80211_OpsStaChg(w, wdev->netdev, mac, params); }
++#endif
++
+ struct cfg80211_ops CFG80211_Ops = {
+ #ifdef NEW_WOW_SUPPORT
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+@@ -3136,19 +3216,39 @@ struct cfg80211_ops CFG80211_Ops = {
+ 	/* set channel for a given wireless interface */
+ #else
+ 	.start_ap	= CFG80211_OpsStartAp,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.change_beacon	= mt7601u_wrap_change_beacon,
++#else
+ 	.change_beacon	= CFG80211_OpsChangeBeacon,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.stop_ap	= mt7601u_wrap_stop_ap,
++#else
+ 	.stop_ap	= CFG80211_OpsStopAp,
++#endif
+ #endif	/* LINUX_VERSION_CODE */
+ 
+ 	/* set channel for a given wireless interface */
+ #if (KERNEL_VERSION(3, 6, 0) <= LINUX_VERSION_CODE)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_monitor_channel	= mt7601u_wrap_monitor_channel,
++#else
+ 	.set_monitor_channel	= CFG80211_OpsMonitorChannelSet,
++#endif
+ #else
+ 	.set_channel	= CFG80211_OpsChannelSet,
+ #endif
+ 	/* change type/configuration of virtual interface */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.change_virtual_intf		= mt7601u_wrap_change_vif,
++#else
+ 	.change_virtual_intf		= CFG80211_OpsVirtualInfChg,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.add_virtual_intf           = mt7601u_wrap_add_vif,
++#else
+ 	.add_virtual_intf           = CFG80211_OpsVirtualInfAdd,
++#endif
+ 	.del_virtual_intf           = CFG80211_OpsVirtualInfDel,
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)) 
+ 	.start_p2p_device         = CFG80211_start_p2p_device,
+@@ -3174,25 +3274,61 @@ struct cfg80211_ops CFG80211_Ops = {
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32))
+ 	/* set the transmit power according to the parameters */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_tx_power				= mt7601u_wrap_tx_power_set,
++#else
+ 	.set_tx_power				= CFG80211_OpsTxPwrSet,
++#endif
+ 	/* store the current TX power into the dbm variable */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_tx_power				= mt7601u_wrap_tx_power_get,
++#else
+ 	.get_tx_power				= CFG80211_OpsTxPwrGet,
++#endif
+ 	/* configure WLAN power management */
+ 	.set_power_mgmt				= CFG80211_OpsPwrMgmt,
+ 	/* get station information for the station identified by @mac */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_station				= mt7601u_wrap_get_station,
++#else
+ 	.get_station				= CFG80211_OpsStaGet,
++#endif
+ 	/* dump station callback */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.dump_station				= mt7601u_wrap_dump_station,
++#else
+ 	.dump_station				= CFG80211_OpsStaDump,
++#endif
+ 	/* notify that wiphy parameters have changed */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_wiphy_params			= mt7601u_wrap_wiphy_params,
++#else
+ 	.set_wiphy_params			= CFG80211_OpsWiphyParamsSet,
++#endif
+ 	/* add a key with the given parameters */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.add_key					= mt7601u_wrap_key_add,
++#else
+ 	.add_key					= CFG80211_OpsKeyAdd,
++#endif
+ 	/* get information about the key with the given parameters */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_key					= mt7601u_wrap_key_get,
++#else
+ 	.get_key					= CFG80211_OpsKeyGet,
++#endif
+ 	/* remove a key given the @mac_addr */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.del_key					= mt7601u_wrap_key_del,
++#else
+ 	.del_key					= CFG80211_OpsKeyDel,
++#endif
+ 	/* set the default key on an interface */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_default_key			= mt7601u_wrap_default_key,
++#else
+ 	.set_default_key			= CFG80211_OpsKeyDefaultSet,
++#endif
+ 	/* connect to the ESS with the specified parameters */
+ 	.connect					= CFG80211_OpsConnect,
+ 	/* disconnect from the BSS/ESS */
+@@ -3221,14 +3357,22 @@ struct cfg80211_ops CFG80211_Ops = {
+ 		channel for the specified duration to complete an off-channel
+ 		operation (e.g., public action frame exchange).
+ 	*/
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.remain_on_channel			= mt7601u_wrap_roc,
++#else
+ 	.remain_on_channel			= CFG80211_OpsRemainOnChannel,
++#endif
+ 	/* cancel an on-going remain-on-channel operation */
+ 	.cancel_remain_on_channel	=  CFG80211_OpsCancelRemainOnChannel,
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37))
+ 	/* transmit an action frame */
+ 	.action						= NULL,
+ #else 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.mgmt_tx                    = mt7601u_wrap_mgmt_tx,
++#else
+ 	.mgmt_tx                    = CFG80211_OpsMgmtTx,
++#endif
+ #endif /* LINUX_VERSION_CODE */
+ #endif /* LINUX_VERSION_CODE */
+ 
+@@ -3244,7 +3388,9 @@ struct cfg80211_ops CFG80211_Ops = {
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+ 	/* notify driver that a management frame type was registered */
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ 	.mgmt_frame_register		= CFG80211_OpsMgmtFrameRegister,
++#endif
+ #endif /* LINUX_VERSION_CODE */
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+@@ -3254,9 +3400,21 @@ struct cfg80211_ops CFG80211_Ops = {
+ 	.get_antenna				= NULL,
+ #endif /* LINUX_VERSION_CODE */
+ 	.change_bss                             = CFG80211_OpsChangeBss,
+-	.del_station                            = CFG80211_OpsStaDel, 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.del_station                            = mt7601u_wrap_del_station,
++#else
++	.del_station                            = CFG80211_OpsStaDel,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.add_station                            = mt7601u_wrap_add_station,
++#else
+ 	.add_station                            = CFG80211_OpsStaAdd,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.change_station                         = mt7601u_wrap_change_station,
++#else
+ 	.change_station                         = CFG80211_OpsStaChg,
++#endif
+ //	.set_bitrate_mask                       = CFG80211_OpsBitrateSet,
+ };
+ 
+diff --git a/os/linux/cfg80211_inf.c b/os/linux/cfg80211_inf.c
+index 5530722..a97f60b 100644
+--- a/os/linux/cfg80211_inf.c
++++ b/os/linux/cfg80211_inf.c
+@@ -377,7 +377,11 @@ VOID RTMP_CFG80211_VirtualIF_Init(
+ 		DBGPRINT(RT_DEBUG_TRACE, ("Register CFG80211 I/F (%s)\n", RTMP_OS_NETDEV_GET_DEVNAME(new_dev_p)));
+ 	}	
+ 	
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
++	new_dev_p->priv_destructor = free_netdev;
++#else
+ 	new_dev_p->destructor =  free_netdev;
++#endif
+ 	RTMP_OS_NETDEV_SET_PRIV(new_dev_p, pAd);
+ 	pNetDevOps->needProtcted = TRUE;
+ 
+diff --git a/os/linux/cfg80211drv.c b/os/linux/cfg80211drv.c
+index 23bf801..2e619cd 100644
+--- a/os/linux/cfg80211drv.c
++++ b/os/linux/cfg80211drv.c
+@@ -656,9 +656,23 @@ BOOLEAN CFG80211DRV_PrintFrameType(
+ 			DBGPRINT(RT_DEBUG_TRACE, ("CFG80211_PKT: %s ProbeRsp Frame %d\n", preStr, pAd->LatchRfRegs.Channel));
+ 		        if (!mgmt->u.probe_resp.timestamp)
+         		{
+-                		struct timeval tv;
+-                		do_gettimeofday(&tv);
+-                		mgmt->u.probe_resp.timestamp = ((UINT64) tv.tv_sec * 1000000) + tv.tv_usec;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++                		struct timespec64 tv;
++                		ktime_get_real_ts64(&tv);
++                		mgmt->u.probe_resp.timestamp = ((UINT64) tv.tv_sec * 1000000) + (tv.tv_nsec / 1000);
++#else
++                	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	struct timespec64 tv;
++#else
++	struct timeval tv;
++#endif
++                	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	ktime_get_real_ts64(&tv);
++#else
++	do_gettimeofday(&tv);
++#endif
++                		mgmt->u.probe_resp.timestamp = ((UINT64) tv.tv_sec * 1000000) + (tv.tv_nsec / 1000);
++#endif
+         		}
+ 		}
+ 		else if (ieee80211_is_disassoc(mgmt->frame_control))
+@@ -4249,7 +4263,11 @@ BOOLEAN CFG80211_checkScanTable(
+ 	struct ieee80211_channel *chan;
+ 	UINT32 CenFreq;
+ 	UINT64 timestamp;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	struct timespec64 tv;
++#else
+ 	struct timeval tv;
++#endif
+ 	UCHAR *ie, ieLen = 0;
+ 	BOOLEAN isOk = FALSE;	
+ 	PBSS_ENTRY pBssEntry;
+@@ -4263,8 +4281,16 @@ BOOLEAN CFG80211_checkScanTable(
+         }
+ 
+ 	/* Fake TSF */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	ktime_get_real_ts64(&tv);
++#else
+ 	do_gettimeofday(&tv);
++#endif
++	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++	timestamp = ((UINT64)tv.tv_sec * 1000000) + (tv.tv_nsec / 1000);
++#else
+ 	timestamp = ((UINT64)tv.tv_sec * 1000000) + tv.tv_usec;
++#endif
+ 
+ 	bss = cfg80211_get_bss(pWiphy, NULL, pAd->ApCliMlmeAux.Bssid,
+ 			       pAd->ApCliMlmeAux.Ssid, pAd->ApCliMlmeAux.SsidLen, 
