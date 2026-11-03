@@ -405,7 +405,18 @@ start() {
 
 	echo -c 15 "Starting WPA Supplicant"
 
-	# Interface is not present
+	# USB WiFi modules enumerate asynchronously after module load, so
+	# the interface may legally not exist yet when this script runs at
+	# boot. Wait for it to appear before declaring it missing.
+	if ! iface_exists "$IFACE"; then
+		echo "Waiting for $IFACE to appear"
+		wait_i=0
+		while [ "$wait_i" -lt 30 ] && ! iface_exists "$IFACE"; do
+			sleep 1
+			wait_i=$((wait_i + 1))
+		done
+	fi
+
 	if iface_exists "$IFACE"; then
 		echo "Found $IFACE interface"
 	else
