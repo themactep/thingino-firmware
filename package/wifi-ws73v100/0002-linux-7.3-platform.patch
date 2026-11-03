@@ -1,0 +1,186 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ws73v100: adapt the platform build to Linux 7.3
+
+Feed the source include flags into kbuild, use the kernel
+stdarg/stddef headers, replace the removed uaccess helpers,,
+netif_rx_ni and random_ether_addr, and switch the firmware
+stat path to kern_path.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/platform/Makefile
++++ b/driver/platform/Makefile
+@@ -404,3 +404,6 @@
+ 	-find $(DFX_ZDIAG_ROMABLE_DIR) -type f -name "*.o.cmd" -exec rm -f {} \;
+ 	-find $(LIBC_SEC_DIR)/src/ -type f -name "*.o" -exec rm -f {} \;
+ 	-find $(LIBC_SEC_DIR)/src/ -type f -name "*.o.cmd" -exec rm -f {} \;
++
++ccflags-y += $(EXTRA_CFLAGS)
++subdir-ccflags-y += $(EXTRA_CFLAGS)
+--- a/driver/wifi/Makefile
++++ b/driver/wifi/Makefile
+@@ -505,3 +505,6 @@
+ endif
+ # end of ifneq ($(KERNELRELEASE),)
+ #===========================================================
++
++ccflags-y += $(EXTRA_CFLAGS)
++subdir-ccflags-y += $(EXTRA_CFLAGS)
+--- a/driver/platform/libc_sec/include/securec.h
++++ b/driver/platform/libc_sec/include/securec.h
+@@ -17,8 +17,12 @@
+ #endif
+ 
+ #if SECUREC_HAVE_STDARG_H
++#if defined(__KERNEL__)
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
+ #endif
++#endif
+ 
+ #ifndef SECUREC_HAVE_ERRNO_H
+ #define SECUREC_HAVE_ERRNO_H 1
+--- a/driver/platform/osal/include/soc_osal.h
++++ b/driver/platform/osal/include/soc_osal.h
+@@ -9,8 +9,12 @@
+ #define __SOC_OSAL_H__
+ 
+ #ifndef CONFIG_NON_OS
++#if defined(__KERNEL__)
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
+ #endif
++#endif
+ #include "td_type.h"
+ #include "osal_types.h"
+ #include "osal_list.h"
+--- a/driver/platform/inc/oal/linux/arch/oal_kernel_file.h
++++ b/driver/platform/inc/oal/linux/arch/oal_kernel_file.h
+@@ -25,7 +25,11 @@
+ #endif
+ 
+ typedef struct file     oal_file;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++typedef int             oal_mm_segment_t;
++#else
+ typedef mm_segment_t    oal_mm_segment_t;
++#endif
+ 
+ OAL_STATIC OAL_INLINE oal_mm_segment_t oal_get_fs(oal_void)
+ {
+@@ -35,7 +39,7 @@
+ #ifdef CONFIG_SET_FS
+     return get_fs();
+ #else
+-    return force_uaccess_begin();
++    return 0;
+ #endif
+ #endif
+ }
+@@ -48,7 +52,7 @@
+ #ifdef CONFIG_SET_FS
+     set_fs(fs);
+ #else
+-    force_uaccess_end(fs);
++    (void)fs;
+ #endif
+ #endif
+ }
+--- a/driver/platform/exce/plat_pm_dfr.c
++++ b/driver/platform/exce/plat_pm_dfr.c
+@@ -593,7 +593,7 @@
+ osal_s32 recv_device_mem_etc(os_kernel_file_stru *fp, osal_u8 *puc_data_buf, osal_s32 len)
+ {
+     osal_s32 l_ret = -OAL_FAIL;
+-    mm_segment_t fs;
++    oal_mm_segment_t fs;
+     osal_u8 retry = 3;
+     osal_s32 lenbuf = 0;
+ 
+@@ -775,7 +775,7 @@
+     osal_s32 ret = OAL_SUCC;
+ #if defined(LINUX_VERSION_CODE) && defined(KERNEL_VERSION) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+     struct path file_path;
+-    ret = user_path_at_empty(AT_FDCWD, file_name, LOOKUP_FOLLOW, &file_path, NULL);
++    ret = kern_path(file_name, LOOKUP_FOLLOW, &file_path);
+     if (ret != 0) {
+         return ret;
+     }
+--- a/driver/wifi/inc/oal/oal_net.h
++++ b/driver/wifi/inc/oal/oal_net.h
+@@ -1226,15 +1226,15 @@
+ }
+ 
+ #ifdef _PRE_SKB_TRACE
+-#define oal_netif_rx_ni(pst_netbuf)                 \
++#define oal_netif_rx(pst_netbuf)                 \
+ ({                                                  \
+     mem_trace_delete_node((osal_ulong)(pst_netbuf)); \
+-    netif_rx_ni(pst_netbuf);                        \
++    netif_rx(pst_netbuf);                        \
+ })
+ #else
+-static inline td_s32  oal_netif_rx_ni(oal_netbuf_stru *pst_netbuf)
++static inline td_s32  oal_netif_rx(oal_netbuf_stru *pst_netbuf)
+ {
+-    return netif_rx_ni(pst_netbuf);
++    return netif_rx(pst_netbuf);
+ }
+ #endif
+ 
+@@ -1585,18 +1585,18 @@
+ }
+ 
+ #ifdef _PRE_SKB_TRACE
+-#define oal_netif_rx_ni(pst_netbuf)                 \
++#define oal_netif_rx(pst_netbuf)                 \
+ ({                                                  \
+     mem_trace_delete_node((osal_ulong)(pst_netbuf)); \
+-    netif_rx_ni(pst_netbuf);                        \
++    netif_rx(pst_netbuf);                        \
+ })
+ #else
+-static inline osal_s32 oal_netif_rx_ni(oal_netbuf_stru *pst_netbuf)
++static inline osal_s32 oal_netif_rx(oal_netbuf_stru *pst_netbuf)
+ {
+ #if defined(_PRE_OS_VERSION_LITEOS) && defined(_PRE_OS_VERSION) && (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     return (osal_s32)hwal_netif_rx(pst_netbuf->dev, pst_netbuf);
+ #elif defined(_PRE_OS_VERSION_LINUX) && defined(_PRE_OS_VERSION) && (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+-    return netif_rx_ni(pst_netbuf);
++    return netif_rx(pst_netbuf);
+ #endif
+ }
+ #endif
+--- a/driver/wifi/inc/oal/oal_util_hcm.h
++++ b/driver/wifi/inc/oal/oal_util_hcm.h
+@@ -322,7 +322,7 @@
+     return s;
+ }
+ 
+-static inline void oal_random_ether_addr(osal_u8 *addr, osal_u8 len)
++static inline void oal_eth_random_addr(osal_u8 *addr, osal_u8 len)
+ {
+ #if defined(_PRE_OS_VERSION_LITEOS) && defined(_PRE_OS_VERSION) && (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     struct timeval tv1;
+@@ -348,7 +348,7 @@
+ #endif
+ #if defined(_PRE_OS_VERSION_LINUX) && defined(_PRE_OS_VERSION) && (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+     unref_param(len);
+-    random_ether_addr(addr);
++    eth_random_addr(addr);
+ #endif
+ }
+ 
+--- a/driver/wifi/common/customize_wifi.c
++++ b/driver/wifi/common/customize_wifi.c
+@@ -1026,7 +1026,7 @@
+ osal_s32 hwifi_get_mac_addr_etc(osal_u8 *buf)
+ {
+     // byshichongfu set random mac addr
+-    random_ether_addr(buf);
++    eth_random_addr(buf);
+     buf[1] = 0x11; /* mac_addr[1]固定为0x11 */
+     buf[2] = 0x03; /* mac_addr[2]固定为0x03 */
+ 
