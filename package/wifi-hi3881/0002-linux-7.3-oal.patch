@@ -1,0 +1,742 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] hi3881: adapt the OAL/WAL layers to Linux 7.3
+
+Use the real kernel version, update the timer/time/type
+interfaces, cfg80211 ops, SDIO detect, securec, WEXT,
+station/AP wrappers and the scheduler helper.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/driver/Makefile b/driver/Makefile
+index 89fd002..9e48023 100644
+--- a/driver/Makefile
++++ b/driver/Makefile
+@@ -141,7 +141,7 @@ SRC_DIRS_FLASH = $(sort $(dir $(FLASH_COBJS)))
+ EXTRA_CFLAGS += $(HI1131_HOST_CFLAGS)
+ ccflags-y += $(EXTRA_CFLAGS)
+ subdir-ccflags-y += $(EXTRA_CFLAGS)
+-CROSS_COMPILE := $(CROSS_COMPILE)
++subdir-CROSS_COMPILE := $(CROSS_COMPILE)
+ KDIR := $(KDIR)
+ ARCH := arm
+ 
+diff --git a/driver/include/hi_stdlib.h b/driver/include/hi_stdlib.h
+index 1ae69c8..21fa87c 100644
+--- a/driver/include/hi_stdlib.h
++++ b/driver/include/hi_stdlib.h
+@@ -291,7 +291,9 @@ extern int strncmp(const char *str1, const char *str2, size_t n);
+ #define UT_CONST
+ #endif
+ 
++#ifndef __KERNEL__
+ extern unsigned long strtoul(const char *nptr, char **endptr, int base);
++#endif
+ extern UT_CONST char *strstr(const char *str1, const char *str2);
+ extern UT_CONST char *strchr(const char *s, int c);
+ #if (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+diff --git a/driver/include/hi_types_base.h b/driver/include/hi_types_base.h
+index 8a0fc3a..c948a8e 100644
+--- a/driver/include/hi_types_base.h
++++ b/driver/include/hi_types_base.h
+@@ -108,7 +108,9 @@ typedef int                     hi_ssize_t;
+ typedef int                     hi_offset_t;
+ 
+ /* for 64bits platform, intptr_t/uintptr_t should be defined as 64bits length. */
++#ifndef __KERNEL__
+ typedef int                     intptr_t;
++#endif
+ 
+ #if defined(__LITEOS__)
+ typedef unsigned int            uintptr_t;
+diff --git a/driver/libsec/securec.h b/driver/libsec/securec.h
+index d1ea6cc..fed997d 100644
+--- a/driver/libsec/securec.h
++++ b/driver/libsec/securec.h
+@@ -18,8 +18,12 @@
+ #endif
+ 
+ #if SECUREC_HAVE_STDARG_H
++#if defined(__KERNEL__)
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
+ #endif
++#endif
+ 
+ #ifndef SECUREC_HAVE_ERRNO_H
+ #if SECUREC_IN_KERNEL
+diff --git a/driver/libsec/securectype.h b/driver/libsec/securectype.h
+index db4493c..ff97069 100644
+--- a/driver/libsec/securectype.h
++++ b/driver/libsec/securectype.h
+@@ -354,9 +354,13 @@
+ #endif
+ /* Some system may no stddef.h */
+ #if SECUREC_HAVE_STDDEF_H
++#if defined(__KERNEL__)
++#include <linux/stddef.h>
++#else
+ #include <stddef.h>
+ #endif
+ #endif
++#endif
+ 
+ /*
+  * Add  the -DSECUREC_SUPPORT_FORMAT_WARNING  compiler option to supoort  -Wformat.
+diff --git a/driver/mac/hmac/dmac_ext_if.h b/driver/mac/hmac/dmac_ext_if.h
+index 30241e7..e198e82 100644
+--- a/driver/mac/hmac/dmac_ext_if.h
++++ b/driver/mac/hmac/dmac_ext_if.h
+@@ -688,7 +688,7 @@ struct dmac_tx_ctl {
+ 
+     hi_u8                               alg_pktno;                     /* 算法用到的字段，唯一标示该报文 */
+ 
+-    struct timeval                      timestamp_us;                  /* 维测使用入TID队列时的时间戳 */
++    struct timespec64                   timestamp_us;                  /* 维测使用入TID队列时的时间戳 */
+ 
+     hi_u8                               tid                     : 4;
+     hi_u8                               tx_user_idx_bak         : 4;
+@@ -1023,7 +1023,7 @@ typedef struct {
+     hi_u8                               rsv[4];          /* 替换hal_tx_dscr_stru resv 4 byte */
+     hi_u16                              us_eapol_ts;     /* eapol帧时间戳 */
+     hi_u16                              us_mpdu_bytes;   /* mpdu字节数，维测用，不包括头尾，不包括snap，不包括padding */
+-    struct timeval                      timestamp_us;    /* 维测使用入TID队列时的时间戳 */
++    struct timespec64                   timestamp_us;    /* 维测使用入TID队列时的时间戳 */
+ 
+     hi_u32                              alg_pktno;       /* 算法用到的字段，唯一标示该报文 */
+     hi_u16                              us_seqnum;       /* 记录软件分配的seqnum */
+diff --git a/driver/oal/oal_cfg80211.c b/driver/oal/oal_cfg80211.c
+index cef917d..2ef554e 100644
+--- a/driver/oal/oal_cfg80211.c
++++ b/driver/oal/oal_cfg80211.c
+@@ -203,7 +203,7 @@ hi_u32  oal_cfg80211_del_sta(oal_net_device_stru *net_device,
+ {
+     hi_unref_param(addr_len);
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+-    cfg80211_del_sta(net_device, mac_addr, en_gfp);
++    cfg80211_del_sta(net_device->ieee80211_ptr, mac_addr, en_gfp);
+ #elif (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     cfg80211_del_sta(net_device, mac_addr, WLAN_MAC_ADDR_LEN);
+     hi_unref_param(en_gfp);
+@@ -222,7 +222,7 @@ hi_u32 oal_cfg80211_new_sta(oal_net_device_stru     *net_device,
+                             oal_gfp_enum_uint8      en_gfp)
+ {
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+-    cfg80211_new_sta(net_device, mac_addr, station_info, en_gfp);
++    cfg80211_new_sta(net_device->ieee80211_ptr, mac_addr, station_info, en_gfp);
+     hi_unref_param(addr_len);
+ #elif (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     cfg80211_new_sta(net_device, mac_addr, addr_len, station_info);
+diff --git a/driver/oal/oal_file.h b/driver/oal/oal_file.h
+index 583de74..4b094a2 100644
+--- a/driver/oal/oal_file.h
++++ b/driver/oal/oal_file.h
+@@ -13,6 +13,7 @@
+ *****************************************************************************/
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+ #include <linux/fs.h>
++#include "oal_util.h"
+ #elif (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+ #include <fs/fs.h>
+ #include <fcntl.h>
+@@ -124,15 +125,19 @@ static inline hi_u32 oal_file_write(const oal_file_stru *pst_file, const hi_char
+ {
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+     hi_u32 ul_ret;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     mm_segment_t fs;
+     fs = get_fs();
+     set_fs(KERNEL_DS);
++#endif
+ #if (LINUX_VERSION_CODE >= kernel_version(4, 14, 14))
+     ul_ret = kernel_write(pst_file->fp, pc_string, ul_length, &(pst_file->fp->f_pos));
+ #else
+     ul_ret = vfs_write(pst_file->fp, pc_string, ul_length, &(pst_file->fp->f_pos));
+ #endif
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     set_fs(fs);
++#endif
+     return ul_ret;
+ #elif (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     return (hi_u32)write(pst_file->fd, pc_string, ul_length);
+diff --git a/driver/oal/oal_kernel_file.h b/driver/oal/oal_kernel_file.h
+index 070aa8c..62fd819 100644
+--- a/driver/oal/oal_kernel_file.h
++++ b/driver/oal/oal_kernel_file.h
+@@ -11,6 +11,7 @@
+   1 其他头文件包含
+ *****************************************************************************/
+ #include <linux/kernel.h>
++#include <linux/version.h>
+ #include <linux/module.h>
+ #include <linux/fs.h>
+ #include <linux/string.h>
+@@ -52,7 +53,9 @@ extern "C" {
+ 
+ typedef struct file             oal_file;
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ typedef mm_segment_t            oal_mm_segment_t;
++#endif
+ typedef struct device_attribute     oal_device_attribute_stru;
+ typedef struct device               oal_device_stru;
+ #endif
+diff --git a/driver/oal/oal_net.h b/driver/oal/oal_net.h
+index 3f577af..ae609a9 100644
+--- a/driver/oal/oal_net.h
++++ b/driver/oal/oal_net.h
+@@ -2170,6 +2170,8 @@ static inline hi_u32  oal_netif_rx_ni(oal_netbuf_stru* netbuf)
+ {
+ #if (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     return hwal_netif_rx(netbuf->dev, netbuf);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
++    return netif_rx(netbuf);
+ #elif (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+     return netif_rx_ni(netbuf);
+ #endif
+@@ -2204,7 +2206,9 @@ static inline oal_sock_stru* oal_netlink_kernel_create(hi_void (*input)(oal_netb
+     memset_s(&cfg, sizeof(cfg), 0, sizeof(cfg));
+     cfg.groups = 0;
+     cfg.input = input;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+     cfg.cb_mutex = NULL;
++#endif
+ 
+     return netlink_kernel_create(&init_net, NETLINK_DEV_ERROR, &cfg);
+ }
+diff --git a/driver/oal/oal_sdio_host.c b/driver/oal/oal_sdio_host.c
+index d06bdc3..b134824 100644
+--- a/driver/oal/oal_sdio_host.c
++++ b/driver/oal/oal_sdio_host.c
+@@ -35,8 +35,14 @@
+ #endif
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/gpio.h>
++#include <linux/sched/clock.h>
++static inline void jzmmc_manual_detect(int a, int b) { (void)a; (void)b; }
++#else
+ #include <mach/jzmmc.h>
+ #include <soc/gpio.h>
++#endif
+ 
+ 
+ #ifdef __cplusplus
+@@ -416,7 +422,7 @@ hi_s32 oal_sdio_msg_irq(oal_channel_stru *hi_sdio)
+         bit = D2H_MSG_DEVICE_PANIC;
+         hi_sdio->msg[bit].count++;
+         hi_sdio->last_msg = bit;
+-        hi_sdio->msg[bit].cpu_time = cpu_clock(UINT_MAX);
++        hi_sdio->msg[bit].cpu_time = local_clock();
+         if (hi_sdio->msg[bit].msg_rx) {
+             printk("device panic msg come, 0x%8x\n", msg);
+             hi_sdio->msg[bit].msg_rx(hi_sdio->msg[bit].data);
+@@ -430,7 +436,7 @@ hi_s32 oal_sdio_msg_irq(oal_channel_stru *hi_sdio)
+         }
+         hi_sdio->msg[bit].count++;
+         hi_sdio->last_msg = bit;
+-        hi_sdio->msg[bit].cpu_time = cpu_clock(UINT_MAX);
++        hi_sdio->msg[bit].cpu_time = local_clock();
+         if (hi_sdio->msg[bit].msg_rx) {
+             hi_sdio->msg[bit].msg_rx(hi_sdio->msg[bit].data);
+         }
+diff --git a/driver/oal/oal_thread.h b/driver/oal/oal_thread.h
+index d72fe71..5b6228c 100644
+--- a/driver/oal/oal_thread.h
++++ b/driver/oal/oal_thread.h
+@@ -8,6 +8,21 @@
+ #ifndef __OAL_LINUX_THREAD_H__
+ #define __OAL_LINUX_THREAD_H__
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
++static inline hi_s32 oal_sched_setscheduler(struct task_struct *p, int policy, struct sched_param *param)
++{
++    (void)policy;
++    (void)param;
++    sched_set_fifo(p);
++    return 0;
++}
++#else
++static inline hi_s32 oal_sched_setscheduler(struct task_struct *p, int policy, struct sched_param *param)
++{
++    return sched_setscheduler(p, policy, param);
++}
++#endif
++
+ /*****************************************************************************
+   1 其他头文件包含
+ *****************************************************************************/
+@@ -127,7 +142,7 @@ static inline oal_kthread_stru *oal_kthread_create(char *pc_thread_name, oal_thr
+     }
+ 
+     st_sched_param.sched_priority = thread_param->l_prio;
+-    uwRet = sched_setscheduler(kthread, thread_param->l_policy, &st_sched_param);
++    uwRet = oal_sched_setscheduler(kthread, thread_param->l_policy, &st_sched_param);
+     if (oal_unlikely(uwRet)) {
+         oal_io_print3("%s sched_setscheduler failed! ret =%d, prio=%d\n", \
+             pc_thread_name, uwRet, thread_param->l_prio);
+@@ -151,7 +166,7 @@ static inline hi_u32 oal_set_thread_property(oal_kthread_stru *pst_thread, oal_k
+     st_sched_param.sched_priority = thread_param->l_prio;
+     oal_io_print1("set thread scheduler policy %d\n", thread_param->l_policy);
+ 
+-    if (sched_setscheduler(pst_thread, thread_param->l_policy, &st_sched_param)) {
++    if (oal_sched_setscheduler(pst_thread, thread_param->l_policy, &st_sched_param)) {
+         oal_io_print1("[Error]set scheduler failed! %d\n", thread_param->l_policy);
+         return -OAL_EFAIL;
+     }
+diff --git a/driver/oal/oal_time.h b/driver/oal/oal_time.h
+index 8dee860..942407f 100644
+--- a/driver/oal/oal_time.h
++++ b/driver/oal/oal_time.h
+@@ -108,7 +108,11 @@ typedef union ktime oal_time_t_stru;
+ #endif
+ 
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++typedef struct timespec64 oal_timeval_stru;
++#else
+ typedef struct timeval oal_timeval_stru;
++#endif
+ typedef struct rtc_time oal_rtctime_stru;
+ 
+ /*****************************************************************************
+@@ -129,8 +133,13 @@ typedef struct rtc_time oal_rtctime_stru;
+ *****************************************************************************/
+ static inline hi_void  oal_time_get_stamp_us(oal_time_us_stru *pst_usec)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    struct timespec64 ts;
++    ktime_get_real_ts64(&ts);
++#else
+     struct timespec ts;
+     getnstimeofday(&ts);
++#endif
+     pst_usec->i_sec     = ts.tv_sec;
+     pst_usec->i_usec    = ts.tv_nsec / 1000; /* 1us 是 1000ns */
+ }
+@@ -165,6 +174,14 @@ static inline oal_time_t_stru oal_ktime_sub(const oal_time_t_stru lhs, const oal
+ *****************************************************************************/
+ static inline hi_u64 oal_get_time_stamp_from_timeval(hi_void)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    struct timespec64 tv;
++    hi_u64 curr_time;
++
++    ktime_get_real_ts64(&tv);
++    curr_time = tv.tv_nsec / 1000;
++    curr_time = curr_time + tv.tv_sec * 1000;
++#else
+     struct timeval tv;
+     hi_u64 curr_time;
+ 
+@@ -172,18 +189,27 @@ static inline hi_u64 oal_get_time_stamp_from_timeval(hi_void)
+     curr_time = tv.tv_usec;
+     do_div(curr_time, 1000);                    /* div 1000 */
+     curr_time = curr_time + tv.tv_sec * 1000;   /* mul 1000 */
++#endif
+ 
+     return curr_time;
+ }
+ 
+ static inline hi_void oal_do_gettimeofday(oal_timeval_stru *tv)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    ktime_get_real_ts64(tv);
++#else
+     do_gettimeofday(tv);
++#endif
+ }
+ 
+ static inline hi_void oal_rtc_time_to_tm(unsigned long time, oal_rtctime_stru *tm)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
++    rtc_time64_to_tm(time, tm);
++#else
+     rtc_time_to_tm(time, tm);
++#endif
+ }
+ 
+ /*****************************************************************************
+diff --git a/driver/oal/oal_timer.h b/driver/oal/oal_timer.h
+index 33dfb64..957ac6f 100644
+--- a/driver/oal/oal_timer.h
++++ b/driver/oal/oal_timer.h
+@@ -100,7 +100,9 @@ static inline hi_void  oal_timer_init(oal_timer_list_stru *pst_timer, unsigned l
+ *****************************************************************************/
+ static inline hi_s32  oal_timer_delete(oal_timer_list_stru *pst_timer)
+ {
+-#if (LINUX_VERSION_CODE >= kernel_version(4,14,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    return timer_delete(&(pst_timer->timer));
++#elif (LINUX_VERSION_CODE >= kernel_version(4,14,0))
+     return del_timer(&(pst_timer->timer));
+ #else
+     return del_timer(pst_timer);
+@@ -115,7 +117,9 @@ static inline hi_s32  oal_timer_delete(oal_timer_list_stru *pst_timer)
+ *****************************************************************************/
+ static inline hi_s32  oal_timer_delete_sync(oal_timer_list_stru *pst_timer)
+ {
+-#if (LINUX_VERSION_CODE >= kernel_version(4,14,0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    return timer_delete_sync(&(pst_timer->timer));
++#elif (LINUX_VERSION_CODE >= kernel_version(4,14,0))
+     return del_timer_sync(&(pst_timer->timer));
+ #else
+     return del_timer_sync(pst_timer);
+diff --git a/driver/oal/oal_util.c b/driver/oal/oal_util.c
+index 9201ccc..5d35ddc 100644
+--- a/driver/oal/oal_util.c
++++ b/driver/oal/oal_util.c
+@@ -218,7 +218,7 @@ hi_void oal_random_ether_addr(hi_u8* mac_addr, hi_u8 mac_addr_len)
+ hi_void oal_random_ether_addr(hi_u8* mac_addr, hi_u8 mac_addr_len)
+ {
+     hi_unref_param(mac_addr_len);
+-    random_ether_addr(mac_addr);
++    eth_random_addr(mac_addr);
+ }
+ #endif /* #if (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION) */
+ 
+diff --git a/driver/oal/oal_util.h b/driver/oal/oal_util.h
+index cb47fe6..5ac543f 100644
+--- a/driver/oal/oal_util.h
++++ b/driver/oal/oal_util.h
+@@ -8,10 +8,15 @@
+ #ifndef __OAL_UTIL_H__
+ #define __OAL_UTIL_H__
+ 
++#include <linux/version.h>
++
+ /*****************************************************************************
+   1 其他头文件包含
+ *****************************************************************************/
+ #include <linux/kernel.h>
++#ifndef kernel_version
++#define kernel_version(a,b,c) KERNEL_VERSION(a,b,c)
++#endif
+ #if (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+ #include <sys/time.h>
+ #include <string.h>
+@@ -114,8 +119,7 @@ static inline hi_char *hi_strrchr(const hi_char *file, hi_char c)
+ #define oal_abs_ab(a, b)                 ((a) >= 0 ? (b) : (-(b)))
+ #define oal_abs_sub(a, b)               (((a) > (b)) ? ((a) - (b)) : ((b) - (a)))
+ 
+-#define kernel_version(a, b, c)      (((a)<<16) | ((b)<<8) | (c))
+-#define LINUX_VERSION_CODE          kernel_version(3, 10, 0)
++#define kernel_version(a, b, c)      KERNEL_VERSION(a, b, c)
+ 
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+ /* Works only for digits and letters, but small and fast */
+@@ -653,7 +657,7 @@ static inline unsigned long oal_simple_strtoul(const hi_char *string, char **res
+ #if (_PRE_OS_VERSION_LITEOS == _PRE_OS_VERSION)
+     return strtoul(string, result, base);
+ #elif (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+-    return simple_strtoul(string, result, base);
++    return (unsigned long)oal_simple_strtoull(string, result, base);
+ #endif
+ }
+ 
+diff --git a/driver/oal/oal_wait.h b/driver/oal/oal_wait.h
+index 6d8f842..0e248cb 100644
+--- a/driver/oal/oal_wait.h
++++ b/driver/oal/oal_wait.h
+@@ -12,6 +12,7 @@
+   1 其他头文件包含
+ *****************************************************************************/
+ #include <linux/wait.h>
++#include "oal_util.h"
+ 
+ #ifdef __cplusplus
+ #if __cplusplus
+diff --git a/driver/oal/plat_pm_wlan.c b/driver/oal/plat_pm_wlan.c
+index c70b6de..66f0960 100644
+--- a/driver/oal/plat_pm_wlan.c
++++ b/driver/oal/plat_pm_wlan.c
+@@ -236,7 +236,7 @@ hi_s32 wlan_pm_close_done_callback(void *data)
+ 
+ hi_void wlan_pm_wkfail_send_sig(void)
+ {
+-    struct siginfo info = {0};
++    struct kernel_siginfo info = {0};
+     int ret;
+     if (g_wk_fail_process_pid <= 0) {
+         printk("wk fail process not register \n");
+diff --git a/driver/wal/wal_cfg80211.c b/driver/wal/wal_cfg80211.c
+index d233f1a..b4296bb 100644
+--- a/driver/wal/wal_cfg80211.c
++++ b/driver/wal/wal_cfg80211.c
+@@ -1380,7 +1380,7 @@ hi_u32 wal_cfg80211_add_virtual_intf_set_wireless_dev(oal_wireless_dev *wdev, ma
+ {
+     /* 对netdevice进行赋值 */
+     /* 对新创建的net_device 初始化对应参数 */
+-#if (_PRE_OS_VERSION == _PRE_OS_VERSION_LINUX)
++#if (_PRE_OS_VERSION == _PRE_OS_VERSION_LINUX) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
+     netdev->wireless_handlers = wal_get_g_iw_handler_def();
+ #endif
+     netdev->netdev_ops = wal_get_net_dev_ops();
+@@ -1682,9 +1682,15 @@ hi_void wal_cfg80211_mgmt_frame_register(struct wiphy *wiphy, struct wireless_de
+     return;
+ }
+ 
+-hi_s32 wal_cfg80211_set_bitrate_mask(struct wiphy *wiphy, oal_net_device_stru *netdev, const hi_u8 *peer,
+-    const struct cfg80211_bitrate_mask *mask)
++hi_s32 wal_cfg80211_set_bitrate_mask(struct wiphy *wiphy, oal_net_device_stru *netdev,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    unsigned int link_id,
++#endif
++    const hi_u8 *peer, const struct cfg80211_bitrate_mask *mask)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)link_id;
++#endif
+     return HI_SUCCESS;
+ }
+ 
+@@ -3795,9 +3801,9 @@ static hi_u32 wal_cfg80211_set_channel_info(oal_net_device_stru *netdev)
+     mac_cfg_channel_param_stru        channel_param = {0};
+     wlan_channel_bandwidth_enum_uint8 bandwidth;
+ 
+-    oal_ieee80211_channel *channel = netdev->ieee80211_ptr->preset_chandef.chan;
+-    hi_s32 l_bandwidth    = netdev->ieee80211_ptr->preset_chandef.width;
+-    hi_s32 l_center_freq1 = netdev->ieee80211_ptr->preset_chandef.center_freq1;
++    oal_ieee80211_channel *channel = netdev->ieee80211_ptr->u.ap.preset_chandef.chan;
++    hi_s32 l_bandwidth    = netdev->ieee80211_ptr->u.ap.preset_chandef.width;
++    hi_s32 l_center_freq1 = netdev->ieee80211_ptr->u.ap.preset_chandef.center_freq1;
+     hi_s32 l_channel      = channel->hw_value;
+ 
+     /* 判断信道在不在管制域内 */
+@@ -5119,36 +5125,153 @@ hi_void wal_cfg80211_reset_bands(hi_void)
+ 
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+ /* 不同操作系统函数指针结构体方式不同 */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++static hi_s32 wal_wrap_add_key(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++    u8 key_index, bool pairwise, const u8 *mac, struct key_params *params)
++{ (void)link_id; return wal_cfg80211_add_key(w, wdev->netdev, key_index, pairwise, mac, params); }
++
++static hi_s32 wal_wrap_get_key(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++    u8 key_index, bool pairwise, const u8 *mac, void *cookie,
++    void (*cb)(void *, struct key_params *))
++{ (void)link_id; return wal_cfg80211_get_key(w, wdev->netdev, key_index, pairwise, mac, cookie, cb); }
++
++static hi_s32 wal_wrap_del_key(struct wiphy *w, struct wireless_dev *wdev, int link_id,
++    u8 key_index, bool pairwise, const u8 *mac)
++{ (void)link_id; return wal_cfg80211_remove_key(w, wdev->netdev, key_index, pairwise, mac); }
++
++static hi_s32 wal_wrap_default_key(struct wiphy *w, struct net_device *ndev, int link_id,
++    u8 key_index, bool unicast, bool multicast)
++{ (void)link_id; return wal_cfg80211_set_default_key(w, ndev, key_index, unicast, multicast); }
++
++static hi_s32 wal_wrap_default_mgmt_key(struct wiphy *w, struct wireless_dev *wdev, int link_id, u8 key_index)
++{ (void)link_id; return wal_cfg80211_set_default_mgmt_key(w, wdev->netdev, key_index); }
++
++static hi_s32 wal_wrap_wiphy_params(struct wiphy *w, int radio_idx, u32 changed)
++{ (void)radio_idx; return wal_cfg80211_set_wiphy_params(w, changed); }
++
++static hi_s32 wal_wrap_change_beacon(struct wiphy *w, struct net_device *ndev, struct cfg80211_ap_update *info)
++{ return wal_cfg80211_change_beacon(w, ndev, &info->beacon); }
++
++static hi_s32 wal_wrap_stop_ap(struct wiphy *w, struct net_device *ndev, unsigned int link_id)
++{ (void)link_id; return wal_cfg80211_stop_ap(w, ndev); }
++
++static hi_s32 wal_wrap_add_station(struct wiphy *w, struct wireless_dev *wdev, const u8 *mac, struct station_parameters *params)
++{ return wal_cfg80211_add_station(w, wdev->netdev, mac, params); }
++
++static hi_s32 wal_wrap_del_station(struct wiphy *w, struct wireless_dev *wdev, struct station_del_parameters *params)
++{ return wal_cfg80211_del_station(w, wdev->netdev, params); }
++
++static hi_s32 wal_wrap_change_station(struct wiphy *w, struct wireless_dev *wdev, const u8 *mac, struct station_parameters *params)
++{ return wal_cfg80211_change_station(w, wdev->netdev, mac, params); }
++
++static hi_s32 wal_wrap_get_station(struct wiphy *w, struct wireless_dev *wdev, const u8 *mac, struct station_info *sinfo)
++{ return wal_cfg80211_get_station(w, wdev->netdev, mac, sinfo); }
++
++static hi_s32 wal_wrap_dump_station(struct wiphy *w, struct wireless_dev *wdev, int idx, u8 *mac, struct station_info *sinfo)
++{ return wal_cfg80211_dump_station(w, wdev->netdev, idx, mac, sinfo); }
++
++static hi_s32 wal_wrap_mgmt_tx(struct wiphy *w, struct wireless_dev *wdev, struct cfg80211_mgmt_tx_params *params, u64 cookie)
++{ u64 c = cookie; return wal_cfg80211_mgmt_tx(w, wdev, params, &c); }
++
++#ifdef _PRE_WLAN_FEATURE_P2P
++static hi_s32 wal_wrap_roc(struct wiphy *w, struct wireless_dev *wdev, struct ieee80211_channel *chan,
++    unsigned int duration, u64 cookie, const u8 *rx_addr)
++{ u64 c = cookie; (void)rx_addr; return wal_cfg80211_remain_on_channel(w, wdev, chan, duration, &c); }
++#endif
++#endif
++
+ static oal_cfg80211_ops_stru g_wal_cfg80211_ops =
+ {
+     .scan                     = wal_cfg80211_scan,
+     .connect                  = wal_cfg80211_connect,
+     .disconnect               = wal_cfg80211_disconnect,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .add_key                  = wal_wrap_add_key,
++#else
+     .add_key                  = wal_cfg80211_add_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .get_key                  = wal_wrap_get_key,
++#else
+     .get_key                  = wal_cfg80211_get_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .del_key                  = wal_wrap_del_key,
++#else
+     .del_key                  = wal_cfg80211_remove_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_default_key          = wal_wrap_default_key,
++#else
+     .set_default_key          = wal_cfg80211_set_default_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_default_mgmt_key     = wal_wrap_default_mgmt_key,
++#else
+     .set_default_mgmt_key     = wal_cfg80211_set_default_mgmt_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_wiphy_params         = wal_wrap_wiphy_params,
++#else
+     .set_wiphy_params         = wal_cfg80211_set_wiphy_params,
++#endif
+ /* Hi1131 修改AP 配置接口 */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .change_beacon            = wal_wrap_change_beacon,
++#else
+     .change_beacon            = wal_cfg80211_change_beacon,
++#endif
+     .start_ap                 = wal_cfg80211_start_ap,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .stop_ap                  = wal_wrap_stop_ap,
++#else
+     .stop_ap                  = wal_cfg80211_stop_ap,
++#endif
+     .change_bss               = wal_cfg80211_change_bss,
+     .sched_scan_start         = wal_cfg80211_sched_scan_start,
+     .sched_scan_stop          = wal_cfg80211_sched_scan_stop,
+     .change_virtual_intf      = wal_cfg80211_change_virtual_intf,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .add_station              = wal_wrap_add_station,
++#else
+     .add_station              = wal_cfg80211_add_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .del_station              = wal_wrap_del_station,
++#else
+     .del_station              = wal_cfg80211_del_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .change_station           = wal_wrap_change_station,
++#else
+     .change_station           = wal_cfg80211_change_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .get_station              = wal_wrap_get_station,
++#else
+     .get_station              = wal_cfg80211_get_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .dump_station             = wal_wrap_dump_station,
++#else
+     .dump_station             = wal_cfg80211_dump_station,
++#endif
+ #ifdef _PRE_WLAN_FEATURE_P2P
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .remain_on_channel        = wal_wrap_roc,
++#else
+     .remain_on_channel        = wal_cfg80211_remain_on_channel,
++#endif
+     .cancel_remain_on_channel = wal_cfg80211_cancel_remain_on_channel,
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .mgmt_tx                  = wal_wrap_mgmt_tx,
++#else
+     .mgmt_tx                  = wal_cfg80211_mgmt_tx,
++#endif
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+     .mgmt_frame_register      = wal_cfg80211_mgmt_frame_register,
++#endif
+     .set_bitrate_mask         = wal_cfg80211_set_bitrate_mask,
+     .add_virtual_intf         = wal_cfg80211_add_virtual_intf,
+     .del_virtual_intf         = wal_cfg80211_del_virtual_intf,
+diff --git a/driver/wal/wal_ioctl.c b/driver/wal/wal_ioctl.c
+index d266569..e78be2d 100644
+--- a/driver/wal/wal_ioctl.c
++++ b/driver/wal/wal_ioctl.c
+@@ -328,6 +328,14 @@ static const oal_iw_handler g_ast_iw_priv_handlers[] = {
+ /*****************************************************************************
+   无线配置iw_handler_def定义
+ *****************************************************************************/
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
++oal_iw_handler_def_stru g_iw_handler_def =
++{
++    .standard           = g_ast_iw_handlers,
++    .num_standard       = hi_array_size(g_ast_iw_handlers),
++    .get_wireless_stats = HI_NULL
++};
++#else
+ oal_iw_handler_def_stru g_iw_handler_def =
+ {
+     .standard           = g_ast_iw_handlers,
+@@ -339,6 +347,7 @@ oal_iw_handler_def_stru g_iw_handler_def =
+     .get_wireless_stats = HI_NULL
+ };
+ #endif
++#endif
+ 
+ /*****************************************************************************
+   协议模式字符串定义
+diff --git a/driver/wal/wal_net.c b/driver/wal/wal_net.c
+index 0519589..51b6fb9 100644
+--- a/driver/wal/wal_net.c
++++ b/driver/wal/wal_net.c
+@@ -2186,7 +2186,7 @@ hi_s32 wal_init_netdev(nl80211_iftype_uint8 type, oal_net_device_stru *netdev, o
+     hi_u8 ac_addr[ETHER_ADDR_LEN] = {0};
+ 
+     /* 对netdevice进行赋值 */
+-#if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
++#if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
+     netdev->wireless_handlers = wal_get_g_iw_handler_def();
+ #endif
+     netdev->netdev_ops        = wal_get_net_dev_ops();
+diff --git a/driver/wal/wal_regdb.c b/driver/wal/wal_regdb.c
+index 95fa957..c7bbc46 100644
+--- a/driver/wal/wal_regdb.c
++++ b/driver/wal/wal_regdb.c
+@@ -1743,7 +1743,7 @@ const oal_ieee80211_regdomain_stru* wal_regdb_find_db(const hi_char *pc_str)
+         return &g_default_regdom;
+     }
+ 
+-    for (l_db_idx = 0; l_db_idx < array_size(g_reg_regdb); l_db_idx++) {
++    for (l_db_idx = 0; l_db_idx < hi_array_size(g_reg_regdb); l_db_idx++) {
+         if ((pc_str[0] == g_reg_regdb[l_db_idx]->alpha2[0]) &&
+             (pc_str[1] == g_reg_regdb[l_db_idx]->alpha2[1])) {
+             return g_reg_regdb[l_db_idx];
+diff --git a/driver/wal/wal_scan.c b/driver/wal/wal_scan.c
+index 52d8bf8..e27f7d0 100644
+--- a/driver/wal/wal_scan.c
++++ b/driver/wal/wal_scan.c
+@@ -78,7 +78,11 @@ static hi_void  wal_inform_bss_frame(const oal_net_device_stru   *netdev,
+     oal_ieee80211_channel_stru   *ieee80211_channel = HI_NULL;
+ 
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    struct timespec64 ts;
++#else
+     struct timespec ts;
++#endif
+ #endif
+ 
+     if ((scanned_bss_info == HI_NULL) || (data == HI_NULL)) {
+@@ -101,7 +105,11 @@ static hi_void  wal_inform_bss_frame(const oal_net_device_stru   *netdev,
+ 
+ #if (_PRE_OS_VERSION_LINUX == _PRE_OS_VERSION)
+ /* 由于驱动缓存扫描结果，导致cts认证2次扫描的bss的timestamp时间一致(后一次没有扫描到) */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    ktime_get_boottime_ts64(&ts);
++#else
+     get_monotonic_boottime(&ts);
++#endif
+     scanned_bss_info->mgmt->u.probe_resp.timestamp = ((hi_u64)ts.tv_sec * 1000000) /* 1000000 时间戳单位转换为s */
+         + ts.tv_nsec / 1000; /* 1000 时间戳单位转换为s */
+ #endif
