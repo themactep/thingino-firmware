@@ -1,0 +1,28 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6158: anchor the build at the module directory
+
+Use M when kbuild drives the build, and feed EXTRA_CFLAGS
+into ccflags-y/subdir-ccflags-y.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile
++++ b/Makefile
+@@ -1,7 +1,7 @@
+ KMODULE_NAME = ssv6158
+ 
+ KSRC ?= $(HOME)/firmware/output/build/linux-custom
+-KBUILD_TOP ?= $(PWD)
++KBUILD_TOP ?= $(if $(M),$(M),$(PWD))
+ 
+ include $(KBUILD_TOP)/$(KMODULE_NAME).cfg
+ include $(KBUILD_TOP)/platform-config.mak
+@@ -14,6 +14,8 @@
+ BKP_CFG := $(shell cp $(KBUILD_TOP)/$(KMODULE_NAME)-wifi.cfg $(KBUILD_TOP)/image/$(KMODULE_NAME)-wifi.cfg)
+ 
+ EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include
++ccflags-y += $(EXTRA_CFLAGS)
++subdir-ccflags-y += $(EXTRA_CFLAGS)
+ 
+ DEF_PARSER_H = $(KBUILD_TOP)/include/ssv_conf_parser.h
+ $(shell env ccflags="$(ccflags-y)" $(KBUILD_TOP)/parser-conf.sh $(DEF_PARSER_H))

@@ -10,7 +10,8 @@ SSV6158_MODULE_NAME = ssv6158
 SSV6158_MODULE_OPTS = stacfgpath=/usr/share/wifi/ssv6x5x-wifi.cfg
 
 WIFI_SSV6158_MODULE_MAKE_OPTS = \
-	KSRC=$(LINUX_DIR)
+	KSRC=$(LINUX_DIR) \
+	KBUILD_TOP=$(@D)
 
 define WIFI_SSV6158_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
@@ -44,6 +45,16 @@ endef
 ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
 WIFI_SSV6158_PRE_CONFIGURE_HOOKS += WIFI_SSV6158_ENABLE_BLE_CONFIG
 endif
+
+# Pull in the 7.3 compatibility header before the driver's own includes.
+define WIFI_SSV6158_73_COMPAT_INCLUDE
+	for f in $(@D)/*.c $(@D)/smac/*.c $(@D)/hci/*.c $(@D)/ssvdevice/*.c \
+		$$(find $(@D)/hwif -name '*.c' 2>/dev/null); do \
+		$(SED) '1i #include <ssv_73_compat.h>' $$f; \
+	done
+endef
+
+WIFI_SSV6158_POST_PATCH_HOOKS += WIFI_SSV6158_73_COMPAT_INCLUDE
 
 $(eval $(kernel-module))
 $(eval $(generic-package))

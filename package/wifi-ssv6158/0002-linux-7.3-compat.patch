@@ -1,0 +1,68 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6158: add the 7.3 compatibility layer
+
+Disable the Android wakelock path and add a common header for
+strncpy and MODULE_SUPPORTED_DEVICE, plus warning flags.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/Makefile b/Makefile
+index 43dfdca..8c0a5db 100644
+--- a/Makefile
++++ b/Makefile
+@@ -16,6 +16,7 @@ BKP_CFG := $(shell cp $(KBUILD_TOP)/$(KMODULE_NAME)-wifi.cfg $(KBUILD_TOP)/image
+ EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include
+ ccflags-y += $(EXTRA_CFLAGS)
+ subdir-ccflags-y += $(EXTRA_CFLAGS)
++ccflags-y += -Wno-error=missing-prototypes -Wno-error=unused-variable -Wno-error=empty-body
+ 
+ DEF_PARSER_H = $(KBUILD_TOP)/include/ssv_conf_parser.h
+ $(shell env ccflags="$(ccflags-y)" $(KBUILD_TOP)/parser-conf.sh $(DEF_PARSER_H))
+diff --git a/include/ssv_73_compat.h b/include/ssv_73_compat.h
+new file mode 100644
+index 0000000..e19b2ef
+--- /dev/null
++++ b/include/ssv_73_compat.h
+@@ -0,0 +1,28 @@
++/* Linux 7.3 compatibility helpers for the SSV6158 driver. */
++#ifndef _SSV_73_COMPAT_H_
++#define _SSV_73_COMPAT_H_
++
++#include <linux/version.h>
++#include <linux/types.h>
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#ifndef MODULE_SUPPORTED_DEVICE
++#define MODULE_SUPPORTED_DEVICE(x)
++#endif
++#endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *ssv_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy ssv_strncpy
++#endif
++
++#endif
+diff --git a/ssv6158.cfg b/ssv6158.cfg
+index 355d3b9..f79f5dd 100644
+--- a/ssv6158.cfg
++++ b/ssv6158.cfg
+@@ -1,7 +1,8 @@
+ ############################################################
+ # A33
+ ############################################################
+-ccflags-y += -DCONFIG_SSV_SUPPORT_ANDROID
++# 7.3: Android wakelock support is not available
++#ccflags-y += -DCONFIG_SSV_SUPPORT_ANDROID
+ ccflags-y += -DCONFIG_FW_ALIGNMENT_CHECK
+ ccflags-y += -DCONFIG_PLATFORM_SDIO_OUTPUT_TIMING=3
+ #ccflags-y += -DKTHREAD_BIND

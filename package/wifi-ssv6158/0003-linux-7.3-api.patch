@@ -1,0 +1,1032 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ssv6158: adapt the mac80211 glue to Linux 7.3
+
+Port the mac80211 callbacks, timers, platform remove, beacon,
+efuse, asm, proc and const call sites, and drop exports of
+local symbols.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/Makefile b/Makefile
+index 8c0a5db..037f2d6 100644
+--- a/Makefile
++++ b/Makefile
+@@ -13,10 +13,10 @@ include $(KBUILD_TOP)/platform-config.mak
+ # Generate $(KMODULE_NAME)-wifi.cfg
+ BKP_CFG := $(shell cp $(KBUILD_TOP)/$(KMODULE_NAME)-wifi.cfg $(KBUILD_TOP)/image/$(KMODULE_NAME)-wifi.cfg)
+ 
+-EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include
++EXTRA_CFLAGS := -I$(KBUILD_TOP) -I$(KBUILD_TOP)/include -Wno-error=missing-prototypes -Wno-error=old-style-declaration
+ ccflags-y += $(EXTRA_CFLAGS)
+ subdir-ccflags-y += $(EXTRA_CFLAGS)
+-ccflags-y += -Wno-error=missing-prototypes -Wno-error=unused-variable -Wno-error=empty-body
++ccflags-y += -Wno-error=missing-prototypes -Wno-error=unused-variable -Wno-error=empty-body -Wno-error=header-guard -Wno-error=old-style-declaration
+ 
+ DEF_PARSER_H = $(KBUILD_TOP)/include/ssv_conf_parser.h
+ $(shell env ccflags="$(ccflags-y)" $(KBUILD_TOP)/parser-conf.sh $(DEF_PARSER_H))
+diff --git a/hci/ssv_hci.c b/hci/ssv_hci.c
+index 8585d8f..49b75ea 100644
+--- a/hci/ssv_hci.c
++++ b/hci/ssv_hci.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/hwif/hal/hwif_hal.c b/hwif/hal/hwif_hal.c
+index 77c852c..7210d94 100644
+--- a/hwif/hal/hwif_hal.c
++++ b/hwif/hal/hwif_hal.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm Semiconductor Ltd.
+  *
+diff --git a/hwif/hal/ssv6006c/ssv6006C_hwif.c b/hwif/hal/ssv6006c/ssv6006C_hwif.c
+index 1bd39fb..e7b7d84 100644
+--- a/hwif/hal/ssv6006c/ssv6006C_hwif.c
++++ b/hwif/hal/ssv6006c/ssv6006C_hwif.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm Semiconductor Ltd.
+  *
+diff --git a/hwif/hal/ssv6020/ssv6020_hwif.c b/hwif/hal/ssv6020/ssv6020_hwif.c
+index 5c466dc..6290178 100644
+--- a/hwif/hal/ssv6020/ssv6020_hwif.c
++++ b/hwif/hal/ssv6020/ssv6020_hwif.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm Semiconductor Ltd.
+  *
+diff --git a/hwif/sdio/sdio.c b/hwif/sdio/sdio.c
+index fa163eb..b830bde 100644
+--- a/hwif/sdio/sdio.c
++++ b/hwif/sdio/sdio.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/hwif/usb/usb.c b/hwif/usb/usb.c
+index 5dab036..6d11de0 100644
+--- a/hwif/usb/usb.c
++++ b/hwif/usb/usb.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/ap.c b/smac/ap.c
+index 25fd5d7..fc647e0 100644
+--- a/smac/ap.c
++++ b/smac/ap.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -224,7 +231,7 @@ void ssv6xxx_beacon_change(struct ssv_softc *sc, struct ieee80211_hw *hw, struct
+ 
+     do{
+ 	skb = ieee80211_beacon_get_tim(hw, vif,
+-			&tim_offset, &tim_length);
++			&tim_offset, &tim_length, 0);
+ 
+         if(skb == NULL){
+             printk("[Error]........skb is NULL\n");
+diff --git a/smac/bdev.c b/smac/bdev.c
+index 1d33258..8ca2f2e 100644
+--- a/smac/bdev.c
++++ b/smac/bdev.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/dev.c b/smac/dev.c
+index 56ce6b6..f5a1f65 100644
+--- a/smac/dev.c
++++ b/smac/dev.c
+@@ -1,3 +1,12 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++
++#include <linux/sched/clock.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -34,6 +43,11 @@
+ #include "lib.h"
+ #include "wow.h"
+ #include "dev.h"
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define SSV_VIF_ASSOC(v) ((v)->cfg.assoc)
++#else
++#define SSV_VIF_ASSOC(v) ((v)->bss_conf.assoc)
++#endif
+ #include "ap.h"
+ #include "init.h"
+ #include "p2p.h"
+@@ -124,7 +138,7 @@ void dbgprint(struct ssv_cmd_data *cmd_data, u32 log_ctrl, u32 log_id, const cha
+             log[log_len] = '\0';
+ 
+             /* add current time stamp */
+-            t = cpu_clock(UINT_MAX);
++            t = local_clock();
+             nanosec_rem = do_div(t, 1000000000);
+             sprintf(tbuf, "[%5lu.%06lu]", (unsigned long)t, nanosec_rem / 1000);
+             buf_len = sprintf(buf, "%s %s", tbuf, log);
+@@ -887,7 +901,7 @@ void ssvxxx_complete_tx_skb(struct ssv_softc *sc, struct ieee80211_tx_info *tx_i
+     tx_info->status.ack_signal = 100; /* ???? */
+     tx_info->status.rates[1].idx = -1;
+     _ssv6xxx_get_current_rate(sc, tx_info, skb);
+-    ieee80211_tx_status(sc->hw, skb);
++    ieee80211_tx_status_ni(sc->hw, skb);
+ }
+ 
+ static void ssv6xxx_setup_ampdu_session(void *priv, struct ieee80211_sta *sta, struct sk_buff *skb)
+@@ -908,7 +922,7 @@ static void ssv6xxx_setup_ampdu_session(void *priv, struct ieee80211_sta *sta, s
+     if (!ieee80211_is_data_qos(hdr->frame_control))
+         goto unlock;
+ 
+-    if ((sta->ht_cap.ht_supported == false) || (info->flags & IEEE80211_TX_CTL_AMPDU))
++    if ((sta->deflink.ht_cap.ht_supported == false) || (info->flags & IEEE80211_TX_CTL_AMPDU))
+         goto unlock;
+ 
+     if ((!(skb->protocol == cpu_to_be16(ETH_P_PAE))) &&
+@@ -916,7 +930,7 @@ static void ssv6xxx_setup_ampdu_session(void *priv, struct ieee80211_sta *sta, s
+ 
+ 
+         if (skb_get_queue_mapping(skb) != IEEE80211_AC_VO) { // Not VO AC
+-            if ((sta->ht_cap.ht_supported == true) &&
++            if ((sta->deflink.ht_cap.ht_supported == true) &&
+                     (ssv_sta_priv->ampdu_tid_state[tid_no] == SSV_AMPDU_1_3_TX_STOP)) {
+ 
+                 spin_lock_bh(&ssv_sta_priv->ampdu_ctrl_lock);
+@@ -1500,8 +1514,15 @@ static int ssv6200_start(struct ieee80211_hw *hw)
+ }
+ 
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++static void ssv6200_stop(struct ieee80211_hw *hw, bool suspend)
++#else
+ static void ssv6200_stop(struct ieee80211_hw *hw)
++#endif
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)suspend;
++#endif
+     struct ssv_softc *sc=hw->priv;
+ 
+     printk(KERN_INFO "%s(): sc->ps_status=%d\n", __FUNCTION__,sc->ps_status);
+@@ -1853,7 +1874,7 @@ static void ssv6200_remove_interface(struct ieee80211_hw *hw,
+         if (vif_idx == 0) { // check station and enable beacon filter for vif_idx 1
+             if (NULL != sc->vif_info[1].vif) {
+                 if ((NL80211_IFTYPE_STATION == (sc->vif_info[1].vif)->type) &&
+-                    (true == (sc->vif_info[1].vif)->bss_conf.assoc) &&
++                    (true == SSV_VIF_ASSOC(sc->vif_info[1].vif)) &&
+                     (false == (sc->vif_info[1].vif)->p2p)) {
+ 
+                     //enable filter for beacon and probe request
+@@ -1866,7 +1887,7 @@ static void ssv6200_remove_interface(struct ieee80211_hw *hw,
+         if (vif_idx == 1) { // check station and enable beacon filter for vif_idx 0
+             if (NULL != sc->vif_info[1].vif) {
+                 if ((NL80211_IFTYPE_STATION == (sc->vif_info[0].vif)->type) &&
+-                    (true == (sc->vif_info[0].vif)->bss_conf.assoc) &&
++                    (true == SSV_VIF_ASSOC(sc->vif_info[0].vif)) &&
+                     (false == (sc->vif_info[0].vif)->p2p)) {
+ 
+                     //enable filter for beacon and probe request
+@@ -1906,7 +1927,7 @@ bool ssv6200_not_dual_intf_on_line(struct ssv_softc *sc)
+             vif = sc->vif_info[i].vif;
+ 
+             if ((vif->type == NL80211_IFTYPE_STATION) || (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
+-                if (vif->bss_conf.assoc)
++                if (SSV_VIF_ASSOC(vif))
+                     assoc++;
+                 if (vif->p2p)
+                     p2p++;
+@@ -1932,7 +1953,7 @@ int ssvxxx_get_sta_assco_cnt(struct ssv_softc *sc)
+             vif = sc->vif_info[i].vif;
+ 
+             if ((vif->type == NL80211_IFTYPE_STATION) || (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
+-                if (vif->bss_conf.assoc)
++                if (SSV_VIF_ASSOC(vif))
+                     assoc++;
+             }
+         }
+@@ -1941,10 +1962,17 @@ int ssvxxx_get_sta_assco_cnt(struct ssv_softc *sc)
+     return assoc;
+ }
+ 
+-static int ssv6200_config(struct ieee80211_hw *hw, u32 changed)
++static int ssv6200_config(struct ieee80211_hw *hw,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        int radio_idx,
++#endif
++        u32 changed)
+ {
+     struct ssv_softc *sc=hw->priv;
+     int ret=0;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)radio_idx;
++#endif
+ 
+     //    printk("%s(): changed: 0x%08x\n", __FUNCTION__, changed);
+     mutex_lock(&sc->mutex);
+@@ -2174,6 +2202,7 @@ static void ssv6200_config_filter(struct ieee80211_hw *hw,
+         unsigned int *total_flags,
+         u64 multicast)
+ {
++    (void)changed_flags;
+     //    struct ssv_softc *sc=hw->priv;
+     //
+     //    printk("%s(): changed_flags: 0x%08x, total_flags: 0x%08x\n",
+@@ -2196,7 +2225,11 @@ static void ssv6200_config_filter(struct ieee80211_hw *hw,
+ 
+ static void ssv6200_bss_info_changed(struct ieee80211_hw *hw,
+         struct ieee80211_vif *vif, struct ieee80211_bss_conf *info,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        u64 changed)
++#else
+         u32 changed)
++#endif
+ {
+     struct ssv_vif_priv_data *priv_vif = (struct ssv_vif_priv_data *)vif->drv_priv;
+     struct ssv_softc *sc = hw->priv;
+@@ -2295,15 +2328,15 @@ static void ssv6200_bss_info_changed(struct ieee80211_hw *hw,
+             dual_if_vif_idx = 1;
+ 
+         if (changed & BSS_CHANGED_ASSOC) {
+-            sc->isAssoc = info->assoc;
++            sc->isAssoc = vif->cfg.assoc;
+             /* Send HostCmd to notify association status */
+-            ssv6xxx_interface_opertaion(sc, SSV6XXX_VIF_CMD_CHG, priv_vif->vif_idx, NULL, vif->type, false, info->assoc);
++            ssv6xxx_interface_opertaion(sc, SSV6XXX_VIF_CMD_CHG, priv_vif->vif_idx, NULL, vif->type, false, vif->cfg.assoc);
+ 
+             if (!sc->isAssoc) { // station mode disassociation
+ 
+                 if ((sc->vif_info[dual_if_vif_idx].vif == NULL) ||
+                         ((sc->vif_info[dual_if_vif_idx].vif != NULL) &&
+-                         (sc->vif_info[dual_if_vif_idx].vif->bss_conf.assoc == false))) {
++                         (sc->vif_info[dual_if_vif_idx].vif->cfg.assoc == false))) {
+                     sc->sc_flags |= SC_OP_STA_DEAUTH;
+                 } else {
+                     printk("STA HCI queue is NOT flushed due to dual VIF on.\n");
+@@ -2323,17 +2356,17 @@ static void ssv6200_bss_info_changed(struct ieee80211_hw *hw,
+             }
+             else{
+                 sc->channel_center_freq = curchan->center_freq;
+-                printk(KERN_INFO "!!info->aid = %d\n",info->aid);
++                printk(KERN_INFO "!!vif->cfg.aid = %d\n",vif->cfg.aid);
+                 for (i = 0; i < SSV_NUM_STA; i++) {
+                     if (sc->sta_info[i].s_flags & STA_FLAG_VALID) {
+                         if (vif == sc->sta_info[i].vif) {
+-                            sc->sta_info[i].aid = info->aid;
++                            sc->sta_info[i].aid = vif->cfg.aid;
+                             break;
+                         }
+                     }
+                 }
+ 
+-                sc->ps_aid = info->aid;
++                sc->ps_aid = vif->cfg.aid;
+ #ifdef SSV_SUPPORT_USB_LPM
+                 /*
+                    Enable LPM will frequently swicth LPM power state and generate latency.
+@@ -2431,27 +2464,27 @@ static int _ssv6200_sta_operation(struct ssv_softc *sc, struct ieee80211_sta *st
+     if(SSV6XXX_RC_CMD_INIT == ops)
+     {
+ #if 0 //debug
+-        printk(KERN_ERR "\n\nsta->supp_rates[%u] = 0x%08x\n", sband->band, sta->supp_rates[sband->band]);
++        printk(KERN_ERR "\n\nsta->deflink.supp_rates[%u] = 0x%08x\n", sband->band, sta->deflink.supp_rates[sband->band]);
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+         printk(KERN_ERR "sc->hw->conf.channel_type = 0x%02x\n", sc->hw->conf.channel_type);
+ #else
+         printk(KERN_ERR "cfg80211_get_chandef_type(&(sc->hw->conf.chandef)) = 0x%02x\n", cfg80211_get_chandef_type(&(sc->hw->conf.chandef)));
+ #endif
+-        printk(KERN_ERR "sta->ht_cap.cap = 0x%04x\n", sta->ht_cap.cap);
+-        printk(KERN_ERR "sta->ht_cap.mcs.rx_mask[0] = 0x%02x\n", sta->ht_cap.mcs.rx_mask[0]);
+-        printk(KERN_ERR "sta->ht_cap.mcs.rx_mask[1] = 0x%02x\n", sta->ht_cap.mcs.rx_mask[1]);
+-        printk(KERN_ERR "sta->ht_cap.mcs.rx_mask[2] = 0x%02x\n", sta->ht_cap.mcs.rx_mask[2]);
+-        printk(KERN_ERR "sta->ht_cap.mcs.rx_mask[3] = 0x%02x\n\n", sta->ht_cap.mcs.rx_mask[3]);
++        printk(KERN_ERR "sta->deflink.ht_cap.cap = 0x%04x\n", sta->deflink.ht_cap.cap);
++        printk(KERN_ERR "sta->deflink.ht_cap.mcs.rx_mask[0] = 0x%02x\n", sta->deflink.ht_cap.mcs.rx_mask[0]);
++        printk(KERN_ERR "sta->deflink.ht_cap.mcs.rx_mask[1] = 0x%02x\n", sta->deflink.ht_cap.mcs.rx_mask[1]);
++        printk(KERN_ERR "sta->deflink.ht_cap.mcs.rx_mask[2] = 0x%02x\n", sta->deflink.ht_cap.mcs.rx_mask[2]);
++        printk(KERN_ERR "sta->deflink.ht_cap.mcs.rx_mask[3] = 0x%02x\n\n", sta->deflink.ht_cap.mcs.rx_mask[3]);
+ #endif
+-        ptr->supp_rates = sta->supp_rates[sband->band];
++        ptr->supp_rates = sta->deflink.supp_rates[sband->band];
+         if(INDEX_80211_BAND_5GHZ == sband->band)
+         {
+             ptr->supp_rates = ptr->supp_rates << 4; //5G rate starts from 6Mbps.
+         }
+         ptr->rc_mask = (u16)sc->sh->cfg.rc_mask;
+-        ptr->ht_capabilities_info = sta->ht_cap.cap;
+-        memcpy((void *)&ptr->supported_mcs_set[0], (const void *)&sta->ht_cap.mcs, 16);
+-        ptr->ht_support = sta->ht_cap.ht_supported;
++        ptr->ht_capabilities_info = sta->deflink.ht_cap.cap;
++        memcpy((void *)&ptr->supported_mcs_set[0], (const void *)&sta->deflink.ht_cap.mcs, 16);
++        ptr->ht_support = sta->deflink.ht_cap.ht_supported;
+         ptr->short_preamble = (sc->sc_flags & SC_OP_SHORT_PREAMBLE)?1:0;
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+         ptr->rctype = sc->hw->conf.channel_type;
+@@ -2483,7 +2516,7 @@ static int ssv6200_sta_add(struct ieee80211_hw *hw,
+ 
+     printk("[I] %s(): vif[%d] ", __FUNCTION__, vif_priv->vif_idx);
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+-    chanctx_conf = vif->chanctx_conf;
++    chanctx_conf = vif->bss_conf.chanctx_conf;
+     if (chanctx_conf == NULL) {
+         WARN_ON(1);
+         return -EINVAL;
+@@ -2892,7 +2925,11 @@ static int ssv6200_conf_tx(struct ieee80211_hw *hw, u16 queue,
+         const struct ieee80211_tx_queue_params *params)
+ #else
+ static int ssv6200_conf_tx(struct ieee80211_hw *hw,
+-        struct ieee80211_vif *vif, u16 queue,
++        struct ieee80211_vif *vif,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        unsigned int link_id,
++#endif
++        u16 queue,
+         const struct ieee80211_tx_queue_params *params)
+ #endif
+ {
+@@ -3242,8 +3279,15 @@ static int ssv6200_set_bitrate_mask(struct ieee80211_hw *hw,
+     return 0;
+ }
+ 
+-static int ssv6200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
++static int ssv6200_set_rts_threshold(struct ieee80211_hw *hw,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++        int radio_idx,
++#endif
++        u32 value)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    (void)radio_idx;
++#endif
+     printk("%s(), rts threshold = %d\n", __FUNCTION__, value);
+     return 0;
+ }
+@@ -3387,8 +3431,13 @@ void ssv6200_tx_flow_control(struct ssv_softc *sc, bool fc_en, bool force_stop)
+ static u64 ssv6200_get_systime_us(void)
+ {
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
++    struct timespec64 ts;
++    ktime_get_boottime_ts64(&ts);
++#else
+     struct timespec ts;
+     get_monotonic_boottime(&ts);
++#endif
+     return ((u64)ts.tv_sec*1000000)+ts.tv_nsec/1000;
+ #else
+     struct timeval tv;
+@@ -3532,7 +3581,7 @@ static void ssv6xxx_proc_data_rx_skb (struct ssv_softc *sc, struct sk_buff *rx_s
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+-        if ((vif->type == NL80211_IFTYPE_STATION) && (vif->bss_conf.assoc == false)) {
++        if ((vif->type == NL80211_IFTYPE_STATION) && (SSV_VIF_ASSOC(vif) == false)) {
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+ 
+@@ -3575,7 +3624,7 @@ static void ssv6xxx_proc_data_rx_skb (struct ssv_softc *sc, struct sk_buff *rx_s
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+-        if ((vif->type == NL80211_IFTYPE_STATION) && (vif->bss_conf.assoc == false)) {
++        if ((vif->type == NL80211_IFTYPE_STATION) && (SSV_VIF_ASSOC(vif) == false)) {
+             up_read(&sc->sta_info_sem);/* END protect sta_info */
+             goto drop_rx;
+         }
+@@ -3773,7 +3822,7 @@ void ssv6xxx_beacon_miss_work(struct work_struct *work)
+ 
+         if ((sc->vif_info[i].vif->type == NL80211_IFTYPE_STATION) &&
+                 (sc->vif_info[i].vif->p2p == false) &&
+-                (sc->vif_info[i].vif->bss_conf.assoc == true))
++                (SSV_VIF_ASSOC(sc->vif_info[i].vif) == true))
+             break;
+     }
+     if (i == SSV6200_MAX_VIF)
+@@ -3878,7 +3927,7 @@ static void ssv6xxx_eapol_notify_process(struct ssv_softc *sc, u8 ack, u8 seq_no
+                     //tx_info->flags |= IEEE80211_TX_STAT_ACK;
+                     tx_info->status.ack_signal = 100; /* ???? */
+                     tx_info->status.rates[1].idx = -1;
+-                    ieee80211_tx_status(sc->hw, skb);
++                    ieee80211_tx_status_ni(sc->hw, skb);
+                #endif
+                 } else {
+                     hdr = (struct ieee80211_hdr *)skb->data;
+diff --git a/smac/efuse.c b/smac/efuse.c
+index 4bf34bd..197c5cd 100644
+--- a/smac/efuse.c
++++ b/smac/efuse.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -23,7 +30,9 @@
+ #include "efuse.h"
+ #include <hal.h>
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ mm_segment_t oldfs;
++#endif
+ struct file *openFile(char *path,int flag,int mode)
+ {
+     struct file *fp=NULL;
+@@ -51,8 +60,10 @@ int closeFile(struct file *fp)
+ 
+ void initKernelEnv(void)
+ {
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     oldfs = get_fs();
+     set_fs(KERNEL_DS);
++#endif
+ }
+ 
+ void parseMac(char* mac, u_int8_t addr[])
+@@ -83,7 +94,9 @@ static int readfile_mac(u8 *path,u8 *mac_addr)
+         }
+         else
+             printk("read file error %d=[%s]\n",ret,path);
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+         set_fs(oldfs);
++#endif
+         closeFile(fp);
+     }
+     else
+@@ -96,7 +109,9 @@ static int write_mac_to_file(u8 *mac_path,u8 *mac_addr)
+     char buf[128];
+     struct file *fp=NULL;
+     int ret=0,len;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+     mm_segment_t old_fs;
++#endif
+ 
+     fp=openFile(mac_path,O_WRONLY|O_CREAT,0640);
+     if (fp!=NULL)
+@@ -106,10 +121,14 @@ static int write_mac_to_file(u8 *mac_path,u8 *mac_addr)
+         sprintf(buf,"%x:%x:%x:%x:%x:%x",mac_addr[0],mac_addr[1],mac_addr[2],mac_addr[3],mac_addr[4],mac_addr[5]);
+         len = strlen(buf)+1;
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+         old_fs = get_fs();
+         set_fs(KERNEL_DS);
++#endif
+         fp->f_op->write(fp, (char *)buf, len, &fp->f_pos);
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+         set_fs(old_fs);
++#endif
+ 
+         closeFile(fp);
+     }
+diff --git a/smac/hal/ssv6006c/ssv6006_priv.h b/smac/hal/ssv6006c/ssv6006_priv.h
+index 1dd10fe..98f35db 100644
+--- a/smac/hal/ssv6006c/ssv6006_priv.h
++++ b/smac/hal/ssv6006c/ssv6006_priv.h
+@@ -22,7 +22,7 @@
+ #define REG32(_addr)    REG32_R(_addr)
+ #define REG32_W(_addr, _value)   do { SMAC_REG_WRITE(sh, _addr, _value); } while (0)
+ 
+-static void inline print_null(const char *fmt, ...)
++static inline void print_null(const char *fmt, ...)
+ {
+ }
+ // Macros for turismo common header
+diff --git a/smac/hw_scan.c b/smac/hw_scan.c
+index 95e819c..2b1bea7 100644
+--- a/smac/hw_scan.c
++++ b/smac/hw_scan.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -127,7 +134,7 @@ static void ssv6xxx_scan_state_decision(struct ssv_softc *sc, unsigned long *nex
+         return;
+     }
+ 
+-    associated = sc->scan_vif->bss_conf.assoc;
++    associated = sc->scan_vif->cfg.assoc;
+     if (associated)
+         next_scan_state = SSV_SCAN_SUSPEND;
+     else
+@@ -193,7 +200,7 @@ static void ssv6xxx_scan_state_resume(struct ssv_softc *sc, unsigned long *next_
+ #endif
+         *next_delay = msecs_to_jiffies(SSV_SCAN_PASSIVE_CHANNEL_TIME);
+     } else {
+-        if (sc->scan_vif->bss_conf.assoc) {
++        if (sc->scan_vif->cfg.assoc) {
+             *next_delay = msecs_to_jiffies(sc->sh->cfg.scan_oc_period);
+         } else {
+             *next_delay = msecs_to_jiffies(SSV_SCAN_NON_ASSOCIATION_TIME);
+@@ -282,7 +289,7 @@ int ssv6200_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ {
+     struct ssv_softc *sc = hw->priv;
+     struct ssv_vif_priv_data *vif_priv = (struct ssv_vif_priv_data *)vif->drv_priv;
+-	bool assoc = vif->bss_conf.assoc;
++	bool assoc = vif->cfg.assoc;
+     int i = 0;
+ 
+     mutex_lock(&sc->mutex);
+@@ -338,7 +345,7 @@ int ssv6200_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+         // find station wsid
+         for (i = 0; i < SSV_NUM_STA; i++) {
+             if (sc->sta_info[i].s_flags & STA_FLAG_VALID) {
+-                if (vif->bss_conf.aid == sc->sta_info[i].aid) {
++                if (vif->cfg.aid == sc->sta_info[i].aid) {
+                     sc->scan_wsid = i;
+                     break;
+                 }
+diff --git a/smac/init.c b/smac/init.c
+index c818941..8297fd2 100644
+--- a/smac/init.c
++++ b/smac/init.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -334,7 +341,11 @@ static void ssv6xxx_preload_sw_cipher(void)
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+ static inline void house_keeping_timer_hdl(struct timer_list *in_timer)
+ {
++	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	struct ssv_timer_list *ptimer = timer_container_of(ptimer, in_timer, timer);
++#else
+ 	struct ssv_timer_list *ptimer = from_timer(ptimer, in_timer, timer);
++#endif
+ 	ptimer->function((unsigned long)ptimer->arg);
+ }
+ #endif
+@@ -561,7 +572,11 @@ static int ssv6xxx_deinit_softc(struct ssv_softc *sc)
+ 
+     destroy_workqueue(sc->config_wq);
+     // remove house keeping
++    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    timer_delete_sync(&sc->house_keeping.timer);
++#else
+     del_timer_sync(&sc->house_keeping.timer);
++#endif
+     destroy_workqueue(sc->house_keeping_wq);
+     // remove tx done
+     destroy_workqueue(sc->tx_done_wq);
+@@ -1616,7 +1631,11 @@ static void ssv6xxx_stop_all_running_threads(struct ssv_softc *sc) {
+ 
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
++void ssv6xxx_dev_remove(struct platform_device *pdev)
++#else
+ int ssv6xxx_dev_remove(struct platform_device *pdev)
++#endif
+ {
+     struct ieee80211_hw *hw=dev_get_drvdata(&pdev->dev);
+     struct ssv_softc *sc=hw->priv;
+@@ -1634,7 +1653,9 @@ int ssv6xxx_dev_remove(struct platform_device *pdev)
+     printk("ieee80211_free_hw(): \n");
+     ieee80211_free_hw(hw);
+     pr_info("ssv6200: Driver unloaded\n");
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+     return 0;
++#endif
+ }
+ 
+ EXPORT_SYMBOL(ssv6xxx_dev_remove);
+@@ -1686,15 +1707,16 @@ static struct platform_driver ssv6xxx_driver =
+     }
+ };
+ 
+-static int device_match_by_alias(struct device *dev, void *data)
++static int device_match_by_alias(struct device *dev, const void *data)
+ {
+-	struct device_driver *driver = dev->driver;
++	const struct device_driver *driver = dev->driver;
+ 	struct _pattern {
+ 		char driver_name[32];
+ 		char device_name[32];
+-	} *pattern;
++	};
++	const struct _pattern *pattern;
+ 
+-	pattern = (struct _pattern *)data;
++	pattern = (const struct _pattern *)data;
+ 	if (!strcmp(driver->name, pattern->driver_name) && !strcmp(dev_name(dev), pattern->device_name))
+ 		return 1;
+     if (!strcmp(driver->name, pattern->driver_name) && !strcmp("", pattern->device_name))
+diff --git a/smac/kssvsmart.c b/smac/kssvsmart.c
+index 6fc4513..c5257a7 100644
+--- a/smac/kssvsmart.c
++++ b/smac/kssvsmart.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ #include <ssv6200.h>
+ #ifdef SSV_MAC80211
+ #include "ssv_mac80211.h"
+diff --git a/smac/lib.c b/smac/lib.c
+index 3910248..a3eeb5c 100644
+--- a/smac/lib.c
++++ b/smac/lib.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/p2p.c b/smac/p2p.c
+index bed4e75..006ca91 100644
+--- a/smac/p2p.c
++++ b/smac/p2p.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/regd.c b/smac/regd.c
+index 8a8b189..b463ccb 100644
+--- a/smac/regd.c
++++ b/smac/regd.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/ssv6xxx_debugfs.c b/smac/ssv6xxx_debugfs.c
+index 87d998d..7dec565 100644
+--- a/smac/ssv6xxx_debugfs.c
++++ b/smac/ssv6xxx_debugfs.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ 
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+diff --git a/smac/ssv_pm.c b/smac/ssv_pm.c
+index 8fbb084..d0ae77c 100644
+--- a/smac/ssv_pm.c
++++ b/smac/ssv_pm.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ #include <ssv6200.h>
+ #include "dev.h"
+ #include "init.h"
+diff --git a/smac/ssv_skb.c b/smac/ssv_skb.c
+index 312355a..421a735 100644
+--- a/smac/ssv_skb.c
++++ b/smac/ssv_skb.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/smac/ssv_wifi_ctl.c b/smac/ssv_wifi_ctl.c
+index a5d77d2..30896b7 100644
+--- a/smac/ssv_wifi_ctl.c
++++ b/smac/ssv_wifi_ctl.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <net/genetlink.h>
+diff --git a/smac/wow.c b/smac/wow.c
+index 18faa76..370b81b 100644
+--- a/smac/wow.c
++++ b/smac/wow.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/ssv6158-generic-wlan.c b/ssv6158-generic-wlan.c
+index ebde635..e608686 100644
+--- a/ssv6158-generic-wlan.c
++++ b/ssv6158-generic-wlan.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ #include <linux/version.h>
+ #include <linux/module.h>
+ #include <linux/vmalloc.h>
+@@ -105,8 +112,12 @@ static void generic_wifi_exit_module(void)
+     printk("%s: remove card, power off.\n", __FUNCTION__);
+ }
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ EXPORT_SYMBOL(generic_wifi_init_module);
++#endif
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ EXPORT_SYMBOL(generic_wifi_exit_module);
++#endif
+ 
+ #ifdef CONFIG_SSV6X5X //CONFIG_SSV6XXX=y
+ late_initcall(generic_wifi_init_module);
+diff --git a/ssvdevice/ssv_cmd.c b/ssvdevice/ssv_cmd.c
+index dbfec91..88a839a 100644
+--- a/ssvdevice/ssv_cmd.c
++++ b/ssvdevice/ssv_cmd.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+diff --git a/ssvdevice/ssvdevice.c b/ssvdevice/ssvdevice.c
+index 594aa47..80d06ec 100644
+--- a/ssvdevice/ssvdevice.c
++++ b/ssvdevice/ssvdevice.c
+@@ -1,3 +1,10 @@
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
++#include <ssv_73_compat.h>
+ /*
+  * Copyright (c) 2015 iComm-semi Ltd.
+  *
+@@ -32,7 +39,9 @@
+ #include "ssv_cfg.h"
+ 
+ #include <linux/fs.h>
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ #include <asm/segment.h>
++#endif
+ #include <asm/uaccess.h>
+ #include <linux/buffer_head.h>
+ #include <linux/ctype.h> /* for isalpha & isdigit */
+@@ -52,7 +61,9 @@ MODULE_DESCRIPTION("Shared library for SSV wireless LAN cards.");
+ MODULE_LICENSE("Dual BSD/GPL");
+ 
+ static char *stacfgpath = NULL;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ EXPORT_SYMBOL(stacfgpath);
++#endif
+ module_param(stacfgpath, charp, 0000);
+ MODULE_PARM_DESC(stacfgpath, "Get path of sta cfg");
+ 
+@@ -101,6 +112,10 @@ extern struct ssv6xxx_cfg ssv_cfg;
+     data = dp->data; })
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
++#define PDE_DATA(inode) pde_data(inode)
++#endif
++
+ static char *p2pStatus = "0";
+ 
+ static int ssv6xxx_p2p_open(struct inode *inode, struct file *filp)
+@@ -154,12 +169,20 @@ out:
+     return retval;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
++static struct proc_ops ssv6xxx_p2p_fops = {
++    .proc_open  = ssv6xxx_p2p_open,
++    .proc_read = ssv6xxx_p2p_read,
++    .proc_write  = ssv6xxx_p2p_write,
++};
++#else
+ static struct file_operations ssv6xxx_p2p_fops = {
+     .owner = THIS_MODULE,
+     .open  = ssv6xxx_p2p_open,
+     .read = ssv6xxx_p2p_read,
+     .write  = ssv6xxx_p2p_write,
+ };
++#endif
+ 
+ static int ssv6xxx_freq_open(struct inode *inode, struct file *filp)
+ {
+@@ -195,11 +218,18 @@ out:
+     return retval;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
++static struct proc_ops ssv6xxx_freq_fops = {
++    .proc_open  = ssv6xxx_freq_open,
++    .proc_read  = ssv6xxx_freq_read,
++};
++#else
+ static struct file_operations ssv6xxx_freq_fops = {
+     .owner = THIS_MODULE,
+     .open  = ssv6xxx_freq_open,
+     .read  = ssv6xxx_freq_read,
+ };
++#endif
+ 
+ static int ssv6xxx_cmd_file_open(struct inode *inode, struct file *filp)
+ {
+@@ -379,7 +409,9 @@ static void _import_default_cfg (char *stacfgpath)
+ {
+ 	struct file *fp = (struct file *) NULL;
+ 	char buf[MAX_CHARS_PER_LINE], cfg_cmd[32], cfg_value[32];
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t fs;
++#endif
+ 	size_t s, read_len = 0, is_cmd_support = 0;
+ 	printk("\n*** %s, %s ***\n\n", __func__, stacfgpath);
+ 
+@@ -411,14 +443,18 @@ static void _import_default_cfg (char *stacfgpath)
+ 	do {
+ 		memset(cfg_cmd, '\0', sizeof(cfg_cmd));
+ 		memset(cfg_value, '\0', sizeof(cfg_value));
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 		// Get current segment descriptor
+ 		fs = get_fs();
+ 		// Set segment descriptor associated to kernel space
+ 		set_fs(get_ds());
++#endif
+ 		// Read the file
+ 		read_len = read_line(fp, buf, MAX_CHARS_PER_LINE);
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 		// Restore segment descriptor
+ 		set_fs(fs);
++#endif
+ 		sscanf(buf, "%s = %s", cfg_cmd, cfg_value);
+ 		if (!ischar(cfg_cmd) || !ischar(cfg_value)) {
+ 			printk("ERORR invalid parameter: %s\n", buf);
+@@ -444,12 +480,20 @@ static void _import_default_cfg (char *stacfgpath)
+ 	filp_close(fp, NULL);
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
++static struct proc_ops ssv6xxx_cmd_fops = {
++    .proc_open  = ssv6xxx_cmd_file_open,
++    .proc_read  = ssv6xxx_cmd_file_read,
++    .proc_write = ssv6xxx_cmd_file_write,
++};
++#else
+ static struct file_operations ssv6xxx_cmd_fops = {
+     .owner = THIS_MODULE,
+     .open  = ssv6xxx_cmd_file_open,
+     .read  = ssv6xxx_cmd_file_read,
+     .write = ssv6xxx_cmd_file_write,
+ };
++#endif
+ 
+ static void *ssv6xxx_dbg_seq_start(struct seq_file *s, loff_t *pos)
+ {
+@@ -535,6 +579,14 @@ static int ssv6xxx_dbg_file_open(struct inode *inode, struct file *filp)
+ 	return ret;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
++static struct proc_ops ssv6xxx_dbg_fops = {
++	.proc_open    = ssv6xxx_dbg_file_open,
++	.proc_read    = seq_read,
++	.proc_lseek   = seq_lseek,
++	.proc_release = seq_release,
++};
++#else
+ static struct file_operations ssv6xxx_dbg_fops = {
+ 	.owner      = THIS_MODULE,
+ 	.open       = ssv6xxx_dbg_file_open,
+@@ -542,6 +594,7 @@ static struct file_operations ssv6xxx_dbg_fops = {
+ 	.llseek     = seq_lseek,
+ 	.release    = seq_release,
+ };
++#endif
+ 
+ int ssv_init_cli (const char *dev_name, struct ssv_cmd_data *cmd_data)
+ {
