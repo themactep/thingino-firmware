@@ -10,13 +10,13 @@ on:
         required: false
         default: 'ciao'
         options:
-          - ciao
+          - master
           - figata
           - master
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
-        required: false
+        required: true
         default: false
       tg_scratch:
         type: boolean
@@ -39,6 +39,7 @@ on:
         required: false
         default: false
       board_list:
+      default: 'tplink_tapo_c100_t31l_sc2336_rtl8188ftv'
         type: string
         description: 'Comma-separated list of boards to build (e.g. board1,board2)'
         required: false
