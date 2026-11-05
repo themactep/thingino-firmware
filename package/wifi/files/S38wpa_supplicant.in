@@ -42,40 +42,44 @@ WLANAP_IP=${WLANAP_CNET}.1
 
 hostname=$(hostname)
 
-# Determine the wireless mode
-if ! grep -q 'ssid=' $CONFIG >/dev/null; then
-	echo "WiFi network missing" >&2
-	mode="portal"
-elif ! grep -q 'psk=' $CONFIG >/dev/null; then
-	echo "WiFi password missing" >&2
-	mode="portal"
-elif grep -q 'mode=2' $CONFIG >/dev/null; then
-	mode="ap"
-else
-	mode="client"
-fi
+# Resolve the wireless mode and everything derived from it. Called from
+# start() after the SD-card credentials are written, and from stop() and
+# portal_confirmed, which run in their own process and need the same IFACE.
+determine_mode() {
+	if ! grep -q 'ssid=' $CONFIG >/dev/null; then
+		echo "WiFi network missing" >&2
+		mode="portal"
+	elif ! grep -q 'psk=' $CONFIG >/dev/null; then
+		echo "WiFi password missing" >&2
+		mode="portal"
+	elif grep -q 'mode=2' $CONFIG >/dev/null; then
+		mode="ap"
+	else
+		mode="client"
+	fi
 
-case "$mode" in
-	portal | ap)
-		IFACE="$AP_IFACE"
-		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
-		;;
-	*)
-		IFACE="$STA_IFACE"
-		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
-		;;
-esac
+	case "$mode" in
+		portal | ap)
+			IFACE="$AP_IFACE"
+			WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+			;;
+		*)
+			IFACE="$STA_IFACE"
+			WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+			;;
+	esac
 
-PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
-case "$WLAN_MODULE_NAME" in
-	atbm6461*)
-		DAEMON_ARGS="-D wext $DAEMON_ARGS"
-		;;
-esac
-if [ "true" = "${debug:-}" ]; then
-	DAEMON_ARGS="$DAEMON_ARGS -dd"
-fi
+	PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
+	DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
+	case "$WLAN_MODULE_NAME" in
+		atbm6461*)
+			DAEMON_ARGS="-D wext $DAEMON_ARGS"
+			;;
+	esac
+	if [ "true" = "${debug:-}" ]; then
+		DAEMON_ARGS="$DAEMON_ARGS -dd"
+	fi
+}
 
 credentials_from_card() {
 	# shellcheck disable=SC3043 # busybox ash supports local
@@ -400,8 +404,10 @@ stop_client() {
 }
 
 start() {
-	# Credential from SD card
+	# Credentials from the SD card can create the network block, so read them
+	# before the mode decides which interface to bring up.
 	credentials_from_card
+	determine_mode
 
 	echo -c 15 "Starting WPA Supplicant"
 
@@ -483,6 +489,8 @@ start() {
 }
 
 stop() {
+	determine_mode
+
 	echo -c 15 "Stopping WPA Supplicant"
 
 	case "$mode" in
@@ -504,6 +512,7 @@ case "$1" in
 		start
 		;;
 	portal_confirmed)
+		determine_mode
 		prescan_for_portal
 		prepare_portal
 		finish_portal
