@@ -10,16 +10,12 @@ jobs:
       - name: Stiahnutie kodu
         uses: actions/checkout@v4
 
-      - name: Instalacia buildroot zavislosti
+      - name: Spustenie oficialneho Thingino build skriptu
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libncurses5-dev rsync unzip bc findutils wget cpio
+          # Použijeme originálny vyhladzovací príkaz, ale obmedzíme ho len na tvoju konkrétnu dosku
+          ./w7n.sh tplink_tapo_c100_t31l_sc2336_rtl8188ftv
 
-      - name: Kompilacia Thingino firmveru
-        run: |
-          make tplink_tapo_c100_t31l_sc2336_rtl8188ftv
-
-      - name: Ulozenie hotoveho bin súboru
+      - name: Ulozenie hotovych binarnych suborov
         uses: actions/upload-artifact@v4
         with:
           name: tapo-c200-firmware
