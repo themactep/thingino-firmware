@@ -23,9 +23,9 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 
 ## P1 - Build performance
 
-- [ ] **O5** Stop evaluating `ROOTFS_DIRTY_INPUTS` (a `find` over the whole
+- [x] **O5** Stop evaluating `ROOTFS_DIRTY_INPUTS` (a `find` over the whole
   per-package tree) on every make invocation, including non-build targets.
-- [ ] **O6** Skip the unconditional `olddefconfig` in `defconfig` when
+- [x] **O6** Skip the unconditional `olddefconfig` in `defconfig` when
   `check-config` already reports the configuration is current.
 
 ## P2 - Duplication
@@ -70,3 +70,15 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   re-querying the network.
 - O4 done. `make help` and `AGENTS.md` now describe the incremental default and
   `cleanbuild` correctly.
+
+### Turn 2
+
+- O5 done. `ROOTFS_DIRTY_INPUTS` now scans Buildroot's
+  `.stamp_target_installed` files (one per package) instead of every file
+  under `per-package/*/target/`. Warm scan drops from 0.13 s to 0.009 s
+  (cold: ~0.9 s), and a touched install stamp is still detected as dirty.
+- O6 done. `defconfig` skips `olddefconfig` when `.config` has not been
+  rewritten since the last kconfig pass. The stamp is set by both
+  `force-config` and `defconfig`; `clean-config` removes it. An up-to-date
+  `make defconfig` drops from 1.57 s to 0.29 s while a touched `.config`
+  still triggers a rebuild.

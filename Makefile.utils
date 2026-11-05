@@ -191,15 +191,19 @@ $(KERNEL_BIN):
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) linux-rebuild)
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
-# Rootfs inputs that must trigger a rebuild when they change: per-package
-# install trees (what target-finalize merges) plus every overlay directory.
-# Evaluated once at parse time; a non-empty result forces the rootfs recipe.
+# Rootfs inputs that must trigger a rebuild when they change: every overlay
+# directory plus any package installed after the last rootfs build.
 ROOTFS_OVERLAY_INPUTS := $(BR2_EXTERNAL)/overlay \
 	$(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay) \
 	$(THINGINO_USER_OVERLAY_DIRS)
 
+# A package install after the last rootfs build is signalled by a newer
+# .stamp_target_installed in the Buildroot build tree.  Scanning the stamps
+# (one per package) is cheap; walking every per-package target file is not,
+# and this variable is expanded on every make invocation.
 ROOTFS_DIRTY_INPUTS := $(shell \
-	find $(OUTPUT_DIR)/per-package -path '*/target/*' -newer $(ROOTFS_BIN) -print -quit 2>/dev/null; \
+	find $(OUTPUT_DIR)/build -maxdepth 2 -name '.stamp_target_installed' \
+		-newer $(ROOTFS_BIN) -print -quit 2>/dev/null; \
 	find $(ROOTFS_OVERLAY_INPUTS) -newer $(ROOTFS_BIN) -print -quit 2>/dev/null)
 
 # rebuild rootfs (depends on kernel to ensure proper build order)

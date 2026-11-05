@@ -1,6 +1,6 @@
 clean-config:
 	@$(TEAL) "$@"
-	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original $(CONFIG_STAMP)
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config

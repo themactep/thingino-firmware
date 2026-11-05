@@ -195,6 +195,8 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
+# Marks the last successful olddefconfig run; see the defconfig target.
+CONFIG_STAMP = $(OUTPUT_DIR)/.config.stamp
 CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 CONFIG_INPUT_FILES += $(THINGINO_USER_FRAGMENT_FILES)
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
@@ -369,6 +371,7 @@ endif
 	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	@touch $(CONFIG_STAMP)
 	# Create dependency tracking file
 	@echo "# Configuration dependency tracking file" > $(CONFIG_DEPS_FILE)
 	@echo "# Generated on $$(date)" >> $(CONFIG_DEPS_FILE)
@@ -379,11 +382,19 @@ endif
 		fi; \
 	done
 
-# Configure buildroot for a particular board
+# Configure buildroot for a particular board.
+# check-config regenerates and runs olddefconfig when an input changed.
+# Otherwise only re-run the kconfig pass when .config was rewritten
+# (menuconfig, saveconfig, manual edit) or the output tree is incomplete.
 defconfig: check-config
 	@$(TEAL) "$@"
-	# Ensure buildroot is properly configured
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	@if [ ! -f "$(CONFIG_STAMP)" ] || [ ! -f "$(OUTPUT_DIR)/Makefile" ] || \
+	    [ "$(OUTPUT_DIR)/.config" -nt "$(CONFIG_STAMP)" ]; then \
+		$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig; \
+		touch "$(CONFIG_STAMP)"; \
+	else \
+		echo "Buildroot configuration is up to date"; \
+	fi
 
 # Lint every tracked shell script with shellcheck
 shellcheck:
