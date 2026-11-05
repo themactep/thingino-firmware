@@ -156,8 +156,10 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 - [x] **O17** Add a GC8613 mainline V4L2 driver for kernel 7.3.1, its
   Kconfig/Makefile entries, T41 DT fragments for GC8613 and GC4023, the
   kopt media/sensor fixup, and the marmot duplicate-extclk DTS fix.
-- [ ] **O18** Finish the Noorio T110 (GC4023) full build after the host
-  toolchain bootstrap and validate its DTB and streamer.
+- [~] **O18** Finish the Noorio T110 (GC4023) full build after the host
+  toolchain bootstrap and validate its DTB and streamer. The driver now
+  compiles against the T41 7.3.1 config and the gc4023 fragment injects
+  into `marmot.dts` to produce a `camera@29` node.
 - [ ] **O19** Add a GC8613 gain model to the T41 open-TX-ISP bridge if T41
   open-ISP is enabled on kernel 7 (the T41 bridge currently has no per-sensor
   gain table; the T31 bridge does).
@@ -177,7 +179,8 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   driver from `thingino-kopt` for T41 on 7.3.1.
 - Fixed the T41 compile blocker separately: `0125` drops the duplicate
   `extclk` node from `marmot.dts` that DTC rejected.
-- O18 remains open: the T110 full build was interrupted while bootstrapping
+- O18 in progress: the T110 full build was interrupted while bootstrapping
   the host GCC, so its kernel directory has not been produced yet. The
-  gc4023 driver and its Kconfig entry already exist; the T41 fragment and
-  kopt wiring mirror the verified gc8613 path.
+  gc4023 driver compiles against the T41 7.3.1 config, and the T41 gc4023
+  fragment injects into `marmot.dts` and builds a `camera@29` DTB node.
+  The remaining work is the full image build once the toolchain is ready.
