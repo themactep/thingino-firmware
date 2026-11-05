@@ -57,7 +57,7 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 - [x] **O14** (not planned) Keep `configs/cameras-test`; it has an active use.
 - [x] **O15** Local housekeeping only: `git gc` dropped the stray
   `tmp_pack_*` file and consolidated the packs (not a repository change).
-- [ ] **O16** Migrate the two `configs/cameras-exp` defconfigs that still use
+- [x] **O16** Migrate the two `configs/cameras-exp` defconfigs that still use
   the removed `BR2_SOC_INGENIC_*` symbols to `BR2_INGENIC_SOC_MODEL`.
 
 ## Progress log
@@ -143,3 +143,10 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 - New O16: two `configs/cameras-exp` defconfigs still set the removed
   `BR2_SOC_INGENIC_T23N` / `BR2_SOC_INGENIC_T31N` symbols and therefore set
   no model. Flagged for a separate fix.
+
+### Turn 7
+
+- O16 done. Replaced `BR2_SOC_INGENIC_T23N` / `BR2_SOC_INGENIC_T31N` in the
+  two `configs/cameras-exp` defconfigs with `BR2_INGENIC_SOC_MODEL="t23n"` /
+  `"t31n"` and re-sorted them. `show-vars` now resolves t23 / 64 MB and
+  t31 / 64 MB respectively; no legacy symbols remain under `configs/`.
