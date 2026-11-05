@@ -1,0 +1,74 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] video: keep the substream wakeup when a client attaches
+
+The VideoWorker wait used a one-shot snapshot of the client flags, so a
+video_consumer_add() between the check and the wait could be lost.  The
+substream encoder then stayed paused while an HTTP fMP4 client waited for
+frames, and the browser preview only got the cached init segment.
+
+Re-evaluate the wake condition in the condition-variable predicate.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/src/video/VideoWorker.cpp b/src/video/VideoWorker.cpp
+index b406eb0..dd0e91f 100644
+--- a/src/video/VideoWorker.cpp
++++ b/src/video/VideoWorker.cpp
+@@ -1343,25 +1343,26 @@ void VideoWorker::run() {
+ 
+       std::unique_lock<std::mutex> lock_stream{mutex_main};
+       global_video[encChn]->active = false;
+-      // Also check prebuffer_active to prevent sleeping when prebuffer needs
+-      // frames
++      // Re-evaluated on every notification. A bare wait() loses the wakeup
++      // from video_consumer_add() if it lands between this check and the wait:
++      // the substream encoder then stays paused while an HTTP fMP4 client waits
++      // for frames, so the client only ever gets the cached init segment and
++      // the browser preview stalls, drifts and resyncs forever.
++      auto wake = [&]() -> bool {
++        return global_video[encChn]->onDataCallback != nullptr ||
++               global_video[encChn]->hasDataCallback.load(
++                   std::memory_order_relaxed) ||
++               global_restart_video || global_video[encChn]->run_for_jpeg ||
++               global_video[encChn]->bootstrap_requested.load(
++                   std::memory_order_relaxed) ||
++               global_force_video_active ||
+ #ifdef PREBUFFER_ENABLED
+-      bool prebuffer_active_inner =
+-          global_video[encChn]->prebuffer &&
+-          global_video[encChn]->prebuffer->isEnabled();
+-#else
+-      bool prebuffer_active_inner = false;
++               (global_video[encChn]->prebuffer &&
++                global_video[encChn]->prebuffer->isEnabled()) ||
+ #endif
+-      bool bootstrap_requested_inner =
+-          global_video[encChn]->bootstrap_requested.load(
+-              std::memory_order_relaxed);
+-      bool video_clients =
+-          global_video[encChn]->hasDataCallback.load(std::memory_order_relaxed);
+-      while (global_video[encChn]->onDataCallback == nullptr &&
+-             !video_clients &&
+-             !global_restart_video && !global_video[encChn]->run_for_jpeg &&
+-             !bootstrap_requested_inner && !global_force_video_active &&
+-             !prebuffer_active_inner) {
++               false;
++      };
++      while (!wake()) {
+         // Pause the idle substream so an unwatched channel doesn't burn
+         // scaler + encoder cycles. ch0 stays up: it feeds the JPEG preview.
+         if (encChn > 0 && !global_video[encChn]->encoder_paused) {
+@@ -1371,12 +1372,7 @@ void VideoWorker::run() {
+           global_video[encChn]->encoder_paused = true;
+           LOG_INFO("stream" << encChn << ": encoder paused (idle)");
+         }
+-        global_video[encChn]->should_grab_frames.wait(lock_stream);
+-        video_clients =
+-            global_video[encChn]->hasDataCallback.load(std::memory_order_relaxed);
+-        bootstrap_requested_inner =
+-            global_video[encChn]->bootstrap_requested.load(
+-                std::memory_order_relaxed);
++        global_video[encChn]->should_grab_frames.wait(lock_stream, wake);
+       }
+ 
+       if (global_video[encChn]->encoder_paused) {

@@ -1,0 +1,53 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] recording: emit tfdt from accumulated durations
+
+The encoder PTS jitters (a 10 fps substream off a 15 fps source steps
+66/134 ms), so using the raw PTS as tfdt while the sample duration is the
+previous delta makes consecutive one-sample fragments overlap or leave
+gaps.  MSE discards the overlapping fragments, leaving a sparse buffer.
+
+Track a running sum of emitted sample durations and use that as tfdt, so
+every fragment is contiguous.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/src/recording/MP4Muxer_simple.cpp b/src/recording/MP4Muxer_simple.cpp
+index a725eac..301ce44 100644
+--- a/src/recording/MP4Muxer_simple.cpp
++++ b/src/recording/MP4Muxer_simple.cpp
+@@ -56,6 +56,9 @@ struct TrackState {
+   std::vector<uint8_t> codec_config; // avcC or AudioSpecificConfig
+   uint64_t last_pts = 0;
+   bool have_last_pts = false;
++  // Running sum of emitted sample durations. Used as the fragment tfdt so the
++  // media timeline tiles exactly (see write_fragment).
++  uint64_t accum_ticks = 0;
+ };
+ 
+ class SimpleMP4Muxer : public MP4Muxer {
+@@ -606,6 +609,16 @@ private:
+     t.last_pts = pts;
+     t.have_last_pts = true;
+ 
++    // Emit tfdt from the accumulated durations, not the raw encoder PTS. The
++    // encoder PTS jitters (a 10 fps substream off a 15 fps source steps
++    // 66/134 ms), so using the raw PTS as tfdt while the sample duration is the
++    // *previous* delta makes consecutive one-sample fragments overlap or leave
++    // gaps. MSE discards the overlapping fragments (ffmpeg tolerates it),
++    // leaving a sparse buffer; a self-consistent accumulator keeps every
++    // fragment contiguous so MSE plays them.
++    const uint32_t tfdt_ticks = static_cast<uint32_t>(t.accum_ticks);
++    t.accum_ticks += sample_duration_ticks;
++
+     // moof
+     std::vector<uint8_t> moof;
+     {
+@@ -631,7 +644,7 @@ private:
+       std::vector<uint8_t> tfdt;
+       write_u8(tfdt, 0);
+       write_u24(tfdt, 0);
+-      write_u32(tfdt, static_cast<uint32_t>(pts));
++      write_u32(tfdt, tfdt_ticks);
+       write_box(traf, "tfdt", tfdt);
+ 
+       // trun (one sample)
