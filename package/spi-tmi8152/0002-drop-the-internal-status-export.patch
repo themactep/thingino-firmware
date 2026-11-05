@@ -1,0 +1,20 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] spi-tmi8152: drop the internal status export
+
+modpost rejects exporting a local symbol.  tmi8152_spi_status() is
+declared static in the shared header and is only used inside
+tmi8152_spi_dev.c, so remove the EXPORT_SYMBOL; the two SPI read/write
+helpers remain exported for the motor module.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/tmi8152_spi_dev.c
++++ b/tmi8152_spi_dev.c
+@@ -210,7 +210,6 @@
+ 
+     return ret;
+ }
+-EXPORT_SYMBOL(tmi8152_spi_status);
+ 
+ int tmi8152_spi_read(int addr, int *value)
+ {

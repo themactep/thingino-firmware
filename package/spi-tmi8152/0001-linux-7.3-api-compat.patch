@@ -1,0 +1,143 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] spi-tmi8152: build on Linux 7.3
+
+The TMI8152 SPI module uses APIs removed or changed in modern kernels:
+
+  - spi_busnum_to_master() is gone; find the controller on spi_bus_type
+    and use it with spi_new_device().
+  - struct spi_master is now struct spi_controller.
+  - the SPI remove callback returns void since 5.18.
+  - class_create() takes only the name since 6.4.
+
+Guard the changes by kernel version so the 3.10/4.4 builds keep the old
+paths.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/tmi8152_spi_dev.c
++++ b/tmi8152_spi_dev.c
+@@ -1,4 +1,5 @@
+ #include <linux/module.h>
++#include <linux/version.h>
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/delay.h>
+@@ -22,6 +23,29 @@
+ 
+ static char dev_buff[1];
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
++typedef struct spi_controller tmi8152_spi_controller_t;
++#else
++typedef struct spi_master tmi8152_spi_controller_t;
++#endif
++
++static tmi8152_spi_controller_t *tmi8152_get_controller(unsigned int bus_num)
++{
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
++    char name[16];
++    struct device *dev;
++
++    snprintf(name, sizeof(name), "spi%u", bus_num);
++    dev = bus_find_device_by_name(&spi_bus_type, NULL, name);
++    if (!dev)
++        return NULL;
++
++    return container_of(dev, struct spi_controller, dev);
++#else
++    return spi_busnum_to_master(bus_num);
++#endif
++}
++
+ 
+ static int tmi8152_cdev_open(struct inode *inode, struct file *fd)
+ {
+@@ -295,10 +319,16 @@
+     return 0;
+ }
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
++static void tmi8152_spi_remove(struct spi_device *spi)
++{
++}
++#else
+ static int tmi8152_spi_remove(struct spi_device *spi)
+ {
+     return 0;
+ }
++#endif
+ 
+ static struct spi_device_id sdev_id_table[] = {
+     {
+@@ -331,7 +361,7 @@
+ 
+ int __init tmi8152_mod_init(void)
+ {
+-    struct spi_master *spi_master_tmi8152;
++    tmi8152_spi_controller_t *spi_master_tmi8152;
+     struct device *dev;
+     int ret;
+ 
+@@ -353,7 +383,7 @@
+         goto err_cdev_add;
+     }
+ 
+-    spi_master_tmi8152 = spi_busnum_to_master(board_info_tmi8152->bus_num);
++    spi_master_tmi8152 = tmi8152_get_controller(board_info_tmi8152->bus_num);
+     if (!spi_master_tmi8152) {
+         pr_err("Failed to get SPI master\n");
+         ret = -ENODEV;
+@@ -367,7 +397,11 @@
+         goto err_spi_device;
+     }
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
++    class_tmi8152 = class_create("tmi8152_ir_cut");
++#else
+     class_tmi8152 = class_create(THIS_MODULE, "tmi8152_ir_cut");
++#endif
+     if (IS_ERR(class_tmi8152)) {
+         pr_err("Failed to create class\n");
+         ret = PTR_ERR(class_tmi8152);
+--- a/tmi8152_spi_dev.h
++++ b/tmi8152_spi_dev.h
+@@ -2,6 +2,7 @@
+ #define __TMI8152_SPI_DEV_H__
+ 
+ #include <linux/mutex.h>
++#include <linux/version.h>
+ 
+ struct spi_device;
+ 
+@@ -21,7 +22,11 @@
+ static int set_ir_cut(int val);
+ static int tmi8152_spi_status(int status);
+ static int tmi8152_spi_probe(struct spi_device *spi);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
++static void tmi8152_spi_remove(struct spi_device *spi);
++#else
+ static int tmi8152_spi_remove(struct spi_device *spi);
++#endif
+ 
+ int __init tmi8152_mod_init(void);
+ void __exit tmi8152_mod_exit(void);
+--- a/motor.c
++++ b/motor.c
+@@ -1,4 +1,5 @@
+ #include <linux/module.h>
++#include <linux/version.h>
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+@@ -909,7 +910,11 @@
+ 	}
+ 
+ 	/* Create device class */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
++	motor_class = class_create("motor");
++#else
+ 	motor_class = class_create(THIS_MODULE, "motor");
++#endif
+ 	if (IS_ERR(motor_class)) {
+ 		pr_err("Failed to create class\n");
+ 		ret = PTR_ERR(motor_class);
