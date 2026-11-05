@@ -1,0 +1,24 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8192fs: guard the bridge-extension headers
+
+net/ipx.h and linux/atalk.h are gone in 7.3. They are only needed by
+the bridge extension, so include them under CONFIG_BR_EXT.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/core/rtw_br_ext.c
++++ b/core/rtw_br_ext.c
+@@ -17,11 +17,13 @@
+ #ifdef __KERNEL__
+ 	#include <linux/if_arp.h>
+ 	#include <net/ip.h>
++#ifdef CONFIG_BR_EXT
+ 	#include <net/ipx.h>
+ 	#include <linux/atalk.h>
+ 	#include <linux/udp.h>
+ 	#include <linux/if_pppox.h>
+ #endif
++#endif
+ 
+ #if 1	/* rtw_wifi_driver */
+ 	#include <drv_types.h>

@@ -1,0 +1,501 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] ws73v100: adapt the WAL cfg80211 ops to Linux 7.3
+
+Add 7.3 wrappers for the wireless_dev, link_id, radio_idx and
+scalar ROC/mgmt-tx cookie ABI, update the roam and station
+notification calls, and replace the removed VFS namespace and
+proc PDE helpers.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/wifi/wal/release/linux/wal_linux_cfg80211.c
++++ b/driver/wifi/wal/release/linux/wal_linux_cfg80211.c
+@@ -2489,8 +2489,12 @@
+ #ifdef CONTROLLER_CUSTOMIZATION
+     chan_def = &(netdev->ieee80211_ptr->u.ap.preset_chandef);
+ #else
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    chan_def = &(netdev->ieee80211_ptr->u.ap.preset_chandef);
++#else
+     chan_def = &(netdev->ieee80211_ptr->preset_chandef);
+ #endif
++#endif
+ 
+     /* 5G SoftAP暂时写死中心频率5210, 频宽80M(width 3), 待hostapd升级后删除 */
+     if (chan_def->chan->band == OAL_IEEE80211_BAND_5GHZ) {
+@@ -5755,18 +5759,177 @@
+ 
+ /* 不同操作系统函数指针结构体方式不同 */
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++OAL_STATIC osal_s32 uapi_cfg80211_add_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++    int link_id, u8 key_index, bool pairwise, const u8 *mac_addr, struct key_params *params)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_add_key(wiphy, wdev->netdev, link_id, key_index, pairwise, mac_addr, params);
++#else
++    (void)link_id;
++    return uapi_cfg80211_add_key(wiphy, wdev->netdev, key_index, pairwise, mac_addr, params);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_get_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++    int link_id, u8 key_index, bool pairwise, const u8 *mac_addr, void *cookie,
++    void (*callback)(void *cookie, struct key_params *params))
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_get_key(wiphy, wdev->netdev, link_id, key_index, pairwise, mac_addr, cookie, callback);
++#else
++    (void)link_id;
++    return uapi_cfg80211_get_key(wiphy, wdev->netdev, key_index, pairwise, mac_addr, cookie, callback);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_del_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++    int link_id, u8 key_index, bool pairwise, const u8 *mac_addr)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_remove_key(wiphy, wdev->netdev, link_id, key_index, pairwise, mac_addr);
++#else
++    (void)link_id;
++    return uapi_cfg80211_remove_key(wiphy, wdev->netdev, key_index, pairwise, mac_addr);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_set_default_key_7_3(struct wiphy *wiphy,
++    struct net_device *netdev, int link_id, u8 key_index, bool unicast, bool multicast)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_set_default_key(wiphy, netdev, link_id, key_index, unicast, multicast);
++#else
++    (void)link_id;
++    return uapi_cfg80211_set_default_key(wiphy, netdev, key_index, unicast, multicast);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_set_default_mgmt_key_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, int link_id, u8 key_index)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_set_default_mgmt_key_etc(wiphy, wdev->netdev, link_id, key_index);
++#else
++    (void)link_id;
++    return uapi_cfg80211_set_default_mgmt_key_etc(wiphy, wdev->netdev, key_index);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_set_wiphy_params_7_3(struct wiphy *wiphy, int radio_idx, u32 changed)
++{
++    (void)radio_idx;
++    return uapi_cfg80211_set_wiphy_params(wiphy, changed);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_change_beacon_7_3(struct wiphy *wiphy,
++    struct net_device *netdev, struct cfg80211_ap_update *info)
++{
++    return uapi_cfg80211_change_beacon(wiphy, netdev, &info->beacon);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_stop_ap_7_3(struct wiphy *wiphy,
++    struct net_device *netdev, unsigned int link_id)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_stop_ap(wiphy, netdev, link_id);
++#else
++    (void)link_id;
++    return uapi_cfg80211_stop_ap(wiphy, netdev);
++#endif
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_add_station_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, const u8 *mac, struct station_parameters *sta_parms)
++{
++    return uapi_cfg80211_add_station(wiphy, wdev->netdev, mac, sta_parms);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_del_station_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, struct station_del_parameters *params)
++{
++    return uapi_cfg80211_del_station(wiphy, wdev->netdev, params);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_change_station_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, const u8 *mac, struct station_parameters *sta_parms)
++{
++    return uapi_cfg80211_change_station(wiphy, wdev->netdev, mac, sta_parms);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_get_station_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, const u8 *mac, struct station_info *sta_info)
++{
++    return uapi_cfg80211_get_station(wiphy, wdev->netdev, mac, sta_info);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_dump_station_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, int int_index, u8 *mac, struct station_info *sta_info)
++{
++    return uapi_cfg80211_dump_station(wiphy, wdev->netdev, int_index, mac, sta_info);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_remain_on_channel_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, struct ieee80211_channel *chan, unsigned int duration,
++    u64 cookie, const u8 *rx_addr)
++{
++    u64 c = cookie;
++    (void)rx_addr;
++    return uapi_cfg80211_remain_on_channel(wiphy, wdev, chan, duration, &c);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_mgmt_tx_7_3(struct wiphy *wiphy,
++    struct wireless_dev *wdev, struct cfg80211_mgmt_tx_params *params, u64 cookie)
++{
++    u64 c = cookie;
++    return uapi_cfg80211_mgmt_tx(wiphy, wdev, params, &c);
++}
++
++OAL_STATIC osal_s32 uapi_cfg80211_set_bitrate_mask_7_3(struct wiphy *wiphy,
++    struct net_device *dev, unsigned int link_id, const u8 *peer,
++    const struct cfg80211_bitrate_mask *mask)
++{
++#ifdef CONTROLLER_CUSTOMIZATION
++    return uapi_cfg80211_set_bitrate_mask_etc(wiphy, dev, link_id, peer, mask);
++#else
++    (void)link_id;
++    return uapi_cfg80211_set_bitrate_mask_etc(wiphy, dev, peer, mask);
++#endif
++}
++#endif
++
+ OAL_STATIC oal_cfg80211_ops_stru  g_wal_cfg80211_ops = {
+     .scan                     = uapi_cfg80211_scan,
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))
+     .connect                  = uapi_cfg80211_connect,
+     .disconnect               = uapi_cfg80211_disconnect,
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .add_key                  = uapi_cfg80211_add_key_7_3,
++#else
+     .add_key                  = uapi_cfg80211_add_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .get_key                  = uapi_cfg80211_get_key_7_3,
++#else
+     .get_key                  = uapi_cfg80211_get_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .del_key                  = uapi_cfg80211_del_key_7_3,
++#else
+     .del_key                  = uapi_cfg80211_remove_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_default_key          = uapi_cfg80211_set_default_key_7_3,
++#else
+     .set_default_key          = uapi_cfg80211_set_default_key,
++#endif
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_default_mgmt_key     = uapi_cfg80211_set_default_mgmt_key_7_3,
++#else
+     .set_default_mgmt_key     = uapi_cfg80211_set_default_mgmt_key_etc,
++#endif
+ #else
+     .set_default_mgmt_key     = uapi_cfg80211_set_default_key,
+ #endif
+@@ -5774,16 +5937,28 @@
+     .set_channel              = uapi_cfg80211_set_channel,
+ #endif
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_wiphy_params         = uapi_cfg80211_set_wiphy_params_7_3,
++#else
+     .set_wiphy_params         = uapi_cfg80211_set_wiphy_params,
+ #endif
++#endif
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE <= KERNEL_VERSION(3,4,0))
+     .add_beacon               = uapi_cfg80211_add_beacon,
+     .set_beacon               = uapi_cfg80211_set_beacon,
+     .del_beacon               = uapi_cfg80211_del_beacon,
+ #else /* mp12 修改AP 配置接口 */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .change_beacon            = uapi_cfg80211_change_beacon_7_3,
++#else
+     .change_beacon            = uapi_cfg80211_change_beacon,
++#endif
+     .start_ap                 = uapi_cfg80211_start_ap,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .stop_ap                  = uapi_cfg80211_stop_ap_7_3,
++#else
+     .stop_ap                  = uapi_cfg80211_stop_ap,
++#endif
+     .change_bss               = uapi_cfg80211_change_bss,
+ #ifdef _PRE_WLAN_FEATURE_PNO_SCAN
+     .sched_scan_start         = uapi_cfg80211_sched_scan_start,
+@@ -5791,11 +5966,31 @@
+ #endif
+ #endif
+     .change_virtual_intf      = uapi_cfg80211_change_virtual_intf_etc,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .add_station              = uapi_cfg80211_add_station_7_3,
++#else
+     .add_station              = uapi_cfg80211_add_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .del_station              = uapi_cfg80211_del_station_7_3,
++#else
+     .del_station              = uapi_cfg80211_del_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .change_station           = uapi_cfg80211_change_station_7_3,
++#else
+     .change_station           = uapi_cfg80211_change_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .get_station              = uapi_cfg80211_get_station_7_3,
++#else
+     .get_station              = uapi_cfg80211_get_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .dump_station             = uapi_cfg80211_dump_station_7_3,
++#else
+     .dump_station             = uapi_cfg80211_dump_station,
++#endif
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+     .dump_survey              = uapi_cfg80211_dump_survey_etc,
+ #endif
+@@ -5804,14 +5999,26 @@
+     .set_pmksa                = uapi_cfg80211_set_pmksa,
+     .del_pmksa                = uapi_cfg80211_del_pmksa,
+     .flush_pmksa              = uapi_cfg80211_flush_pmksa,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .remain_on_channel        = uapi_cfg80211_remain_on_channel_7_3,
++#else
+     .remain_on_channel        = uapi_cfg80211_remain_on_channel,
++#endif
+     .cancel_remain_on_channel = uapi_cfg80211_cancel_remain_on_channel,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .mgmt_tx                  = uapi_cfg80211_mgmt_tx_7_3,
++#else
+     .mgmt_tx                  = uapi_cfg80211_mgmt_tx,
++#endif
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+     .mgmt_frame_register      = uapi_cfg80211_mgmt_frame_register_etc,
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    .set_bitrate_mask         = uapi_cfg80211_set_bitrate_mask_7_3,
++#else
+     .set_bitrate_mask         = uapi_cfg80211_set_bitrate_mask_etc,
+ #endif
++#endif
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 44))
+     .add_virtual_intf         = uapi_cfg80211_add_virtual_intf,
+     .del_virtual_intf         = uapi_cfg80211_del_virtual_intf,
+--- a/driver/wifi/oal/linux/oal_cfg80211.c
++++ b/driver/wifi/oal/linux/oal_cfg80211.c
+@@ -690,14 +690,19 @@
+ 
+ #else
+     struct cfg80211_roam_info info = {
+-        .channel = channel,
+-        .bss = NULL,
+-        .bssid = bssid,
+         .req_ie = req_ie,
+         .req_ie_len = req_ie_len,
+         .resp_ie = resp_ie,
+         .resp_ie_len = resp_ie_len,
+         };
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    info.links[0].channel = channel;
++    info.links[0].bssid = bssid;
++#else
++    info.channel = channel;
++    info.bss = NULL;
++    info.bssid = bssid;
++#endif
+     cfg80211_roamed(net_device, &info, gfp);
+     return OAL_ERR_CODE_CONFIG_UNSUPPORT;
+ #endif
+@@ -731,7 +736,11 @@
+ #endif
+ 
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    cfg80211_new_sta(net_device->ieee80211_ptr, mac_addr, station_info, gfp);
++#else
+     cfg80211_new_sta(net_device, mac_addr, station_info, gfp);
++#endif
+ 
+     return OAL_SUCC;
+ #else
+@@ -842,7 +851,11 @@
+ #endif
+ 
+ #if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    cfg80211_del_sta(net_device->ieee80211_ptr, mac_addr, gfp);
++#else
+     cfg80211_del_sta(net_device, mac_addr, gfp);
++#endif
+ 
+     return OAL_SUCC;
+ #else
+@@ -1008,7 +1021,9 @@
+ #ifdef CONTROLLER_CUSTOMIZATION
+     cfg80211_ch_switch_notify(pst_netdev, pst_chandef, 0, 0);
+ #else
+-#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
++#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    cfg80211_ch_switch_notify(pst_netdev, pst_chandef, 0);
++#elif defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+     cfg80211_ch_switch_notify(pst_netdev, pst_chandef);
+ #endif
+ #endif
+--- a/driver/wifi/wal/release/linux/wal_linux_util.c
++++ b/driver/wifi/wal/release/linux/wal_linux_util.c
+@@ -45,7 +45,7 @@
+ {
+     os_kernel_file_stru *fp = {0};
+     osal_s32 data_len;
+-    mm_segment_t fs;
++    oal_mm_segment_t fs;
+ 
+     memset_s(&fs, sizeof(fs), 0, sizeof(fs));
+     if (enable_value == 1) {
+@@ -73,7 +73,7 @@
+ static osal_void wal_wifi_external_record_to_file(osal_u8 *data, osal_u32 data_len)
+ {
+     os_kernel_file_stru *fp = {0};
+-    mm_segment_t fs;
++    oal_mm_segment_t fs;
+     loff_t pos;
+     static osal_s8 tmp_buf[WAL_FUNC_NAME_MAX_LEN] = {0};
+     static osal_s32 count = 1;
+@@ -542,7 +542,8 @@
+     /* 0 1 2 3 4 5 6 7 */
+     return stat[0] + stat[1] + stat[2] + stat[3] + stat[4] + stat[5] + stat[6] + stat[7];
+ }
+-#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0))
++#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0)) && \
++    (LINUX_VERSION_CODE < KERNEL_VERSION(7,3,0))
+ /* 内核升级后 对kernel_read 和 kernel_write 进行了限制 */
+ MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+ #endif
+--- a/driver/wifi/wal/release/linux/wal_linux_vap_proc.c
++++ b/driver/wifi/wal/release/linux/wal_linux_vap_proc.c
+@@ -14,9 +14,16 @@
+ #include "hmac_sniffer.h"
+ #endif
+ 
+-#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,59))
++#if defined(LINUX_VERSION_CODE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,59)) && \
++    (LINUX_VERSION_CODE < KERNEL_VERSION(7,3,0))
+ #include "../fs/proc/internal.h"
+ #endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define WAL_PROC_PDE_DATA(inode) pde_data(inode)
++#else
++#define WAL_PROC_PDE_DATA(inode) (PDE(inode)->data)
++#endif
+ #include "plat_firmware.h"
+ #include "oal_kernel_file.h"
+ 
+@@ -209,13 +216,12 @@
+ {
+     osal_s32 ret;
+     struct seq_file *seq_file;
+-    struct proc_dir_entry  *pde = PDE(inode);
+ 
+     ret = seq_open(filp, &wal_sta_info_seq_ops);
+     if (ret == OAL_SUCC) {
+         seq_file = (struct seq_file *)filp->private_data;
+ 
+-        seq_file->private = pde->data;
++        seq_file->private = WAL_PROC_PDE_DATA(inode);
+     }
+ 
+     return ret;
+@@ -586,8 +592,7 @@
+ OAL_STATIC osal_s32 wal_sta_info_proc_open(struct inode *inode, struct file *filp)
+ {
+     osal_s32               ret;
+-    struct proc_dir_entry  *pde = PDE(inode);
+-    ret = single_open(filp, wal_sta_info_seq_show_sec, pde->data);
++    ret = single_open(filp, wal_sta_info_seq_show_sec, WAL_PROC_PDE_DATA(inode));
+ 
+     return ret;
+ }
+@@ -595,8 +600,7 @@
+ OAL_STATIC osal_s32 wal_vap_info_proc_open(struct inode *inode, struct file *filp)
+ {
+     osal_s32               ret;
+-    struct proc_dir_entry  *pde = PDE(inode);
+-    ret = single_open(filp, wal_vap_info_seq_show_sec, pde->data);
++    ret = single_open(filp, wal_vap_info_seq_show_sec, WAL_PROC_PDE_DATA(inode));
+ 
+     return ret;
+ }
+@@ -631,8 +635,7 @@
+ OAL_STATIC osal_s32 wal_wifi_sniffer_proc_open(struct inode *inode, struct file *filp)
+ {
+     osal_s32               l_ret;
+-    struct proc_dir_entry  *pde = PDE(inode);
+-    l_ret = single_open(filp, wal_wifi_sniffer_seq_show_sec, pde->data);
++    l_ret = single_open(filp, wal_wifi_sniffer_seq_show_sec, WAL_PROC_PDE_DATA(inode));
+ 
+     return l_ret;
+ }
+@@ -872,7 +875,11 @@
+         return;
+     }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    proc_vapinfo = proc_create_data("ap_info", 420, proc_dir, &vap_info_proc_sec, hmac_vap);
++#else
+     proc_vapinfo = proc_create("ap_info", 420, proc_dir, &vap_info_proc_sec); /* mode 420 */
++#endif
+     if (OAL_PTR_NULL == proc_vapinfo) {
+         oam_warning_log1(0, OAM_SF_CFG, "vap_id[%d] wal_add_vap_proc_file: proc_create return null",
+                          hmac_vap->vap_id);
+@@ -880,7 +887,11 @@
+         return;
+     }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    proc_stainfo = proc_create_data("sta_info", 420, proc_dir, &sta_info_proc_sec, hmac_vap);
++#else
+     proc_stainfo = proc_create("sta_info", 420, proc_dir, &sta_info_proc_sec); /* mode 420 */
++#endif
+     if (OAL_PTR_NULL == proc_stainfo) {
+         oam_warning_log1(0, OAM_SF_CFG, "vap_id[%d] wal_add_vap_proc_file: proc_create return null",
+                          hmac_vap->vap_id);
+@@ -889,8 +900,10 @@
+         return;
+     }
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+     proc_vapinfo->data       = hmac_vap;
+     proc_stainfo->data       = hmac_vap;
++#endif
+ 
+     hmac_vap->proc_dir = proc_dir;
+ }
+--- a/driver/wifi/hmac/hmac_sigma_traffic_stat.c
++++ b/driver/wifi/hmac/hmac_sigma_traffic_stat.c
+@@ -12,7 +12,7 @@
+ #include "hmac_sigma_traffic_stat.h"
+ #include "oal_net.h"
+ #include "mac_frame.h"
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,59)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,59) && LINUX_VERSION_CODE < KERNEL_VERSION(7,3,0)
+ #include "../fs/proc/internal.h"
+ #endif
+ 
+@@ -211,6 +211,8 @@
+     struct proc_dir_entry  *pde = PDE(inode);
+ 
+     ret = single_open(filp, hmac_sigma_traffic_seq_show, pde->data);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++    ret = single_open(filp, hmac_sigma_traffic_seq_show, pde_data(inode));
+ #else
+     ret = single_open(filp, hmac_sigma_traffic_seq_show, PDE_DATA(inode));
+ #endif

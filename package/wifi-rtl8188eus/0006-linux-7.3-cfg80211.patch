@@ -1,0 +1,402 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8188eus: adapt the cfg80211 ops to Linux 7.3
+
+Add 7.3 wrappers for the wireless_dev, radio_idx, link_id and scalar
+ROC/mgmt-tx cookie ABI, update the station notifications, and replace
+strncpy.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/hal/hal_com.c
++++ b/hal/hal_com.c
+@@ -10736,7 +10736,7 @@
+ 		return _FALSE;
+ 
+ 	j = (*Start) - 2;
+-	strncpy((char *)Out, (const char *)(In + i), j - i + 1);
++	memcpy(Out, In + i, j - i + 1);
+ 
+ 	return _TRUE;
+ }
+--- a/hal/hal_com_phycfg.c
++++ b/hal/hal_com_phycfg.c
+@@ -4864,9 +4864,9 @@
+ 				if (strlen(szLine) < 10 || szLine[0] != '[')
+ 					continue;
+ 
+-				strncpy(band, szLine + 1, 2);
+-				strncpy(path, szLine + 5, 1);
+-				strncpy(sign, szLine + 8, 1);
++				memcpy(band, szLine + 1, 2);
++				memcpy(path, szLine + 5, 1);
++				memcpy(sign, szLine + 8, 1);
+ 
+ 				i = 10; /* szLine+10 */
+ 				if (!ParseQualifiedString(szLine, &i, rate, '[', ']')) {
+--- a/hal/phydm/phydm_debug.c
++++ b/hal/phydm/phydm_debug.c
+@@ -3550,8 +3550,8 @@
+ 		return;
+ 	}
+ 
+-	strncpy((char *)&dm->fw_debug_trace[dm->c2h_cmd_start],
+-		(char *)&cmd_buf[1], (cmd_len - 1));
++	memcpy(&dm->fw_debug_trace[dm->c2h_cmd_start],
++		&cmd_buf[1], (cmd_len - 1));
+ 	dm->c2h_cmd_start += (cmd_len - 1);
+ 	dm->fw_buff_is_enpty = false;
+ 
+--- a/core/rtw_debug.c
++++ b/core/rtw_debug.c
+@@ -6106,11 +6106,11 @@
+ 		if (_titlestring) {
+ 			if (sel == RTW_DBGDUMP) {
+ 				len = snprintf(str_val, sizeof(str_val), "%s", DRIVER_PREFIX);
+-				strncpy(p, str_val, len);
++				memcpy(p, str_val, len);
+ 				p += len;
+ 			}
+ 			len = snprintf(str_val, sizeof(str_val), "%s", _titlestring);
+-			strncpy(p, str_val, len);
++			memcpy(p, str_val, len);
+ 			p += len;
+ 		}
+ 		if (p != &str_out[0]) {
+@@ -6125,18 +6125,18 @@
+ 			p = &str_out[0];
+ 			if (sel == RTW_DBGDUMP) {
+ 				len = snprintf(str_val, sizeof(str_val), "%s", DRIVER_PREFIX);
+-				strncpy(p, str_val, len);
++				memcpy(p, str_val, len);
+ 				p += len;
+ 			}
+ 			if (_idx_show) {
+ 				len = snprintf(str_val, sizeof(str_val), "0x%03X: ", __i * RTW_BUFDUMP_BSIZE);
+-				strncpy(p, str_val, len);
++				memcpy(p, str_val, len);
+ 				p += len;
+ 			}
+ 			for (__j =0; __j < RTW_BUFDUMP_BSIZE; __j++) {
+ 				idx = __i * RTW_BUFDUMP_BSIZE + __j;
+ 				len = snprintf(str_val, sizeof(str_val), "%02X%s", ptr[idx], (((__j + 1) % 4) == 0) ? "  " : " ");
+-				strncpy(p, str_val, len);
++				memcpy(p, str_val, len);
+ 				p += len;
+ 			}
+ 			_RTW_STR_DUMP_SEL(sel, str_out);
+@@ -6146,18 +6146,18 @@
+ 		p = &str_out[0];
+ 		if ((sel == RTW_DBGDUMP) && remain_byte) {
+ 			len = snprintf(str_val, sizeof(str_val), "%s", DRIVER_PREFIX);
+-			strncpy(p, str_val, len);
++			memcpy(p, str_val, len);
+ 			p += len;
+ 		}
+ 		if (_idx_show && remain_byte) {
+ 			len = snprintf(str_val, sizeof(str_val), "0x%03X: ", block_num * RTW_BUFDUMP_BSIZE);
+-			strncpy(p, str_val, len);
++			memcpy(p, str_val, len);
+ 			p += len;
+ 		}
+ 		for (__i = 0; __i < remain_byte; __i++) {
+ 			idx = block_num * RTW_BUFDUMP_BSIZE + __i;
+ 			len = snprintf(str_val, sizeof(str_val), "%02X%s", ptr[idx], (((__i + 1) % 4) == 0) ? "  " : " ");
+-			strncpy(p, str_val, len);
++			memcpy(p, str_val, len);
+ 			p += len;
+ 		}
+ 		_RTW_STR_DUMP_SEL(sel, str_out);
+--- a/core/rtw_wlan_util.c
++++ b/core/rtw_wlan_util.c
+@@ -4147,7 +4147,8 @@
+ 		} else {
+ 			u8 hex;
+ 
+-			strncpy(member, input, len);
++			memset(member, 0, sizeof(member));
++			memcpy(member, input, min(len, strnlen(input, sizeof(member))));
+ 			if (!rtw_check_pattern_valid(member, sizeof(member))) {
+ 				RTW_INFO("%s:[ERROR] pattern is invalid!!\n",
+ 					 __func__);
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -1406,8 +1406,7 @@
+ 
+ 	RTW_PRINT(FUNC_ADPT_FMT" if%d mac_addr="MAC_FMT"\n"
+ 		, FUNC_ADPT_ARG(adapter), (adapter->iface_id + 1), MAC_ARG(dev->dev_addr));
+-	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+-	adapter->old_ifname[IFNAMSIZ - 1] = '\0';
++	strscpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+ 	rtw_adapter_proc_init(dev);
+ 
+ 	return 0;
+--- a/os_dep/linux/usb_intf.c
++++ b/os_dep/linux/usb_intf.c
+@@ -802,7 +802,7 @@
+ 		/* It is used to distinguish between normal and PC-side wifi dongle/module. */
+ 		if ((pdid->idVendor == vid) && (pdid->idProduct == pid) && (flags & SPEC_DEV_ID_ASSIGN_IFNAME)) {
+ 			extern char *ifname;
+-			strncpy(ifname, "wlan10", 6);
++			memcpy(ifname, "wlan10", 6);
+ 			/* RTW_INFO("%s()-%d: ifname=%s, vid=%04X, pid=%04X\n", __FUNCTION__, __LINE__, ifname, vid, pid); */
+ 		}
+ #endif /* RTK_DMP_PLATFORM */
+--- a/os_dep/linux/ioctl_cfg80211.c
++++ b/os_dep/linux/ioctl_cfg80211.c
+@@ -1753,7 +1753,7 @@
+ 		goto addkey_end;
+ 	}
+ 
+-	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
++	strscpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
+ 
+ 
+ 	if (!mac_addr || is_broadcast_ether_addr(mac_addr)
+@@ -4183,7 +4183,11 @@
+ 		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
+ 		sinfo.assoc_req_ies = pmgmt_frame + WLAN_HDR_A3_LEN + ie_offset;
+ 		sinfo.assoc_req_ies_len = frame_len - WLAN_HDR_A3_LEN - ie_offset;
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++		cfg80211_new_sta(ndev->ieee80211_ptr, get_addr2_ptr(pmgmt_frame), &sinfo, GFP_ATOMIC);
++#else
+ 		cfg80211_new_sta(ndev, get_addr2_ptr(pmgmt_frame), &sinfo, GFP_ATOMIC);
++#endif
+ 	}
+ #else /* defined(RTW_USE_CFG80211_STA_EVENT) */
+ 	channel = pmlmeext->cur_channel;
+@@ -4227,7 +4231,11 @@
+ 	RTW_INFO(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
+ 
+ #if defined(RTW_USE_CFG80211_STA_EVENT) || defined(COMPAT_KERNEL_RELEASE)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	cfg80211_del_sta(ndev->ieee80211_ptr, da, GFP_ATOMIC);
++#else
+ 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
++#endif
+ #else /* defined(RTW_USE_CFG80211_STA_EVENT) */
+ 	channel = pmlmeext->cur_channel;
+ 	freq = rtw_ch2freq(channel);
+@@ -4501,8 +4509,7 @@
+ #endif
+ 
+ 	mon_ndev->type = ARPHRD_IEEE80211_RADIOTAP;
+-	strncpy(mon_ndev->name, name, IFNAMSIZ);
+-	mon_ndev->name[IFNAMSIZ - 1] = 0;
++	strscpy(mon_ndev->name, name, IFNAMSIZ);
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
+ 	mon_ndev->name_assign_type = name_assign_type;
+ #endif
+@@ -9384,27 +9391,121 @@
+ }
+ #endif /* defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)) */
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++static int cfg80211_rtw_add_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int link_id, u8 key_index, bool pairwise, const u8 *mac_addr, struct key_params *params)
++{ return cfg80211_rtw_add_key(wiphy, wdev->netdev, link_id, key_index, pairwise, mac_addr, params); }
++
++static int cfg80211_rtw_get_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int link_id, u8 keyid, bool pairwise, const u8 *mac_addr, void *cookie,
++	void (*callback)(void *cookie, struct key_params *))
++{ return cfg80211_rtw_get_key(wiphy, wdev->netdev, link_id, keyid, pairwise, mac_addr, cookie, callback); }
++
++static int cfg80211_rtw_del_key_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int link_id, u8 key_index, bool pairwise, const u8 *mac_addr)
++{ return cfg80211_rtw_del_key(wiphy, wdev->netdev, link_id, key_index, pairwise, mac_addr); }
++
++static int cfg80211_rtw_set_default_mgmt_key_7_3(struct wiphy *wiphy,
++	struct wireless_dev *wdev, int link_id, u8 key_index)
++{ return cfg80211_rtw_set_default_mgmt_key(wiphy, wdev->netdev, link_id, key_index); }
++
++static int cfg80211_rtw_set_wiphy_params_7_3(struct wiphy *wiphy, int radio_idx, u32 changed)
++{ (void)radio_idx; return cfg80211_rtw_set_wiphy_params(wiphy, changed); }
++
++static int cfg80211_rtw_set_txpower_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int radio_idx, enum nl80211_tx_power_setting type, int mbm)
++{ (void)radio_idx; return cfg80211_rtw_set_txpower(wiphy, wdev, type, mbm); }
++
++static int cfg80211_rtw_get_txpower_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int radio_idx, unsigned int link_id, int *dbm)
++{ (void)radio_idx; (void)link_id; return cfg80211_rtw_get_txpower(wiphy, wdev, dbm); }
++
++static int cfg80211_rtw_get_station_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	const u8 *mac, struct station_info *sinfo)
++{ return cfg80211_rtw_get_station(wiphy, wdev->netdev, mac, sinfo); }
++
++static int cfg80211_rtw_add_station_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	const u8 *mac, struct station_parameters *params)
++{ return cfg80211_rtw_add_station(wiphy, wdev->netdev, mac, params); }
++
++static int cfg80211_rtw_del_station_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	struct station_del_parameters *params)
++{ return cfg80211_rtw_del_station(wiphy, wdev->netdev, params); }
++
++static int cfg80211_rtw_change_station_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	const u8 *mac, struct station_parameters *params)
++{ return cfg80211_rtw_change_station(wiphy, wdev->netdev, mac, params); }
++
++static int cfg80211_rtw_dump_station_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	int idx, u8 *mac, struct station_info *sinfo)
++{ return cfg80211_rtw_dump_station(wiphy, wdev->netdev, idx, mac, sinfo); }
++
++static int cfg80211_rtw_set_monitor_channel_7_3(struct wiphy *wiphy,
++	struct net_device *dev, struct cfg80211_chan_def *chandef)
++{ (void)dev; return cfg80211_rtw_set_monitor_channel(wiphy, chandef); }
++
++static s32 cfg80211_rtw_remain_on_channel_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	struct ieee80211_channel *channel, unsigned int duration, u64 cookie, const u8 *rx_addr)
++{ u64 c = cookie; (void)rx_addr; return cfg80211_rtw_remain_on_channel(wiphy, wdev, channel, duration, &c); }
++
++static int cfg80211_rtw_mgmt_tx_7_3(struct wiphy *wiphy, struct wireless_dev *wdev,
++	struct cfg80211_mgmt_tx_params *params, u64 cookie)
++{ u64 c = cookie; return cfg80211_rtw_mgmt_tx(wiphy, wdev, params, &c); }
++#endif
++
+ static struct cfg80211_ops rtw_cfg80211_ops = {
+ 	.change_virtual_intf = cfg80211_rtw_change_iface,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.add_key = cfg80211_rtw_add_key_7_3,
++#else
+ 	.add_key = cfg80211_rtw_add_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_key = cfg80211_rtw_get_key_7_3,
++#else
+ 	.get_key = cfg80211_rtw_get_key,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.del_key = cfg80211_rtw_del_key_7_3,
++#else
+ 	.del_key = cfg80211_rtw_del_key,
++#endif
+ 	.set_default_key = cfg80211_rtw_set_default_key,
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_default_mgmt_key = cfg80211_rtw_set_default_mgmt_key_7_3,
++#else
+ 	.set_default_mgmt_key = cfg80211_rtw_set_default_mgmt_key,
+ #endif
++#endif
+ #if defined(CONFIG_GTK_OL) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))
+ 	.set_rekey_data = cfg80211_rtw_set_rekey_data,
+ #endif /*CONFIG_GTK_OL*/
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_station = cfg80211_rtw_get_station_7_3,
++#else
+ 	.get_station = cfg80211_rtw_get_station,
++#endif
+ 	.scan = cfg80211_rtw_scan,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_wiphy_params = cfg80211_rtw_set_wiphy_params_7_3,
++#else
+ 	.set_wiphy_params = cfg80211_rtw_set_wiphy_params,
++#endif
+ 	.connect = cfg80211_rtw_connect,
+ 	.disconnect = cfg80211_rtw_disconnect,
+ 	.join_ibss = cfg80211_rtw_join_ibss,
+ 	.leave_ibss = cfg80211_rtw_leave_ibss,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_tx_power = cfg80211_rtw_set_txpower_7_3,
++#else
+ 	.set_tx_power = cfg80211_rtw_set_txpower,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.get_tx_power = cfg80211_rtw_get_txpower_7_3,
++#else
+ 	.get_tx_power = cfg80211_rtw_get_txpower,
++#endif
+ 	.set_power_mgmt = cfg80211_rtw_set_power_mgmt,
+ 	.set_pmksa = cfg80211_rtw_set_pmksa,
+ 	.del_pmksa = cfg80211_rtw_del_pmksa,
+@@ -9427,11 +9528,28 @@
+ #if CONFIG_RTW_MACADDR_ACL && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
+ 	.set_mac_acl = cfg80211_rtw_set_mac_acl,
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++
++	.add_station = cfg80211_rtw_add_station_7_3,
++#else
+ 
+ 	.add_station = cfg80211_rtw_add_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.del_station = cfg80211_rtw_del_station_7_3,
++#else
+ 	.del_station = cfg80211_rtw_del_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.change_station = cfg80211_rtw_change_station_7_3,
++#else
+ 	.change_station = cfg80211_rtw_change_station,
++#endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.dump_station = cfg80211_rtw_dump_station_7_3,
++#else
+ 	.dump_station = cfg80211_rtw_dump_station,
++#endif
+ 	.change_bss = cfg80211_rtw_change_bss,
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0))
+ 	.set_channel = cfg80211_rtw_set_channel,
+@@ -9457,11 +9575,19 @@
+ #endif
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.set_monitor_channel = cfg80211_rtw_set_monitor_channel_7_3,
++#else
+ 	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
+ #endif
++#endif
+ 
+ #ifdef CONFIG_P2P
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.remain_on_channel = cfg80211_rtw_remain_on_channel_7_3,
++#else
+ 	.remain_on_channel = cfg80211_rtw_remain_on_channel,
++#endif
+ 	.cancel_remain_on_channel = cfg80211_rtw_cancel_remain_on_channel,
+ 	#if defined(RTW_DEDICATED_P2P_DEVICE)
+ 	.start_p2p_device = cfg80211_rtw_start_p2p_device,
+@@ -9474,7 +9600,11 @@
+ #endif
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) || defined(COMPAT_KERNEL_RELEASE)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	.mgmt_tx = cfg80211_rtw_mgmt_tx_7_3,
++#else
+ 	.mgmt_tx = cfg80211_rtw_mgmt_tx,
++#endif
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+ 	.update_mgmt_frame_registrations = cfg80211_rtw_update_mgmt_frame_register,
+ #else
+--- a/os_dep/linux/ioctl_linux.c
++++ b/os_dep/linux/ioctl_linux.c
+@@ -3096,7 +3096,7 @@
+ 		goto exit;
+ 	}
+ 
+-	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
++	strscpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
+ 
+ 	if (pext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
+ 		param->u.crypt.set_tx = 1;
+@@ -5835,8 +5835,7 @@
+ #endif
+ 			reg_ifname = padapter->registrypriv.if2name;
+ 
+-		strncpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
+-		rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
++		strscpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
+ 	}
+ 
+ 	/* RTW_INFO("%s wrqu->data.length:%d\n", __FUNCTION__, wrqu->data.length); */
+@@ -5860,8 +5859,7 @@
+ 		/* rtw_ips_mode_req(&padapter->pwrctrlpriv, rereg_priv->old_ips_mode); */
+ 	}
+ 
+-	strncpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
+-	rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
++	strscpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
+ 
+ 	if (_rtw_memcmp(new_ifname, "disable%d", 9) == _TRUE) {
+ 

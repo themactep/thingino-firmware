@@ -1,0 +1,127 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8812au: replace strncpy for Linux 7.2+
+
+Linux 7.2 removed strncpy(). Use memcpy() for fixed-size copies and
+strscpy() for copies bounded by the destination buffer.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/core/rtw_wlan_util.c
++++ b/core/rtw_wlan_util.c
+@@ -4034,7 +4034,8 @@
+ 		} else {
+ 			u8 hex;
+ 
+-			strncpy(member, input, len);
++			memset(member, 0, sizeof(member));
++			memcpy(member, input, min(len, strnlen(input, sizeof(member))));
+ 			if (!rtw_check_pattern_valid(member, sizeof(member))) {
+ 				RTW_INFO("%s:[ERROR] pattern is invalid!!\n",
+ 					 __func__);
+--- a/hal/hal_com.c
++++ b/hal/hal_com.c
+@@ -10456,7 +10456,7 @@
+ 		return _FALSE;
+ 
+ 	j = (*Start) - 2;
+-	strncpy((char *)Out, (const char *)(In + i), j - i + 1);
++	memcpy(Out, In + i, j - i + 1);
+ 
+ 	return _TRUE;
+ }
+--- a/hal/phydm/phydm_debug.c
++++ b/hal/phydm/phydm_debug.c
+@@ -3109,7 +3109,7 @@
+ 		return;
+ 	}
+ 
+-	strncpy((char *)&(p_dm->fw_debug_trace[p_dm->c2h_cmd_start]), (char *)&cmd_buf[1], (cmd_len - 1));
++	memcpy(&(p_dm->fw_debug_trace[p_dm->c2h_cmd_start]), &cmd_buf[1], (cmd_len - 1));
+ 	p_dm->c2h_cmd_start += (cmd_len - 1);
+ 	p_dm->fw_buff_is_enpty = false;
+ 
+--- a/os_dep/linux/ioctl_cfg80211.c
++++ b/os_dep/linux/ioctl_cfg80211.c
+@@ -1727,7 +1727,7 @@
+ 		goto addkey_end;
+ 	}
+ 
+-	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
++	strscpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
+ 
+ 
+ 	if (!mac_addr || is_broadcast_ether_addr(mac_addr)) {
+@@ -4215,8 +4215,7 @@
+ #endif
+ 
+ 	mon_ndev->type = ARPHRD_IEEE80211_RADIOTAP;
+-	strncpy(mon_ndev->name, name, IFNAMSIZ);
+-	mon_ndev->name[IFNAMSIZ - 1] = 0;
++	strscpy(mon_ndev->name, name, IFNAMSIZ);
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12 ,0))
+ 	mon_ndev->needs_free_netdev = true;
+ #else
+--- a/os_dep/linux/ioctl_linux.c
++++ b/os_dep/linux/ioctl_linux.c
+@@ -3194,7 +3194,7 @@
+ 		goto exit;
+ 	}
+ 
+-	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
++	strscpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
+ 
+ 	if (pext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
+ 		param->u.crypt.set_tx = 1;
+@@ -5945,8 +5945,7 @@
+ #endif
+ 			reg_ifname = padapter->registrypriv.if2name;
+ 
+-		strncpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
+-		rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
++		strscpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
+ 	}
+ 
+ 	/* RTW_INFO("%s wrqu->data.length:%d\n", __FUNCTION__, wrqu->data.length); */
+@@ -5974,8 +5973,7 @@
+ 		/* rtw_ips_mode_req(&padapter->pwrctrlpriv, rereg_priv->old_ips_mode); */
+ 	}
+ 
+-	strncpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
+-	rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
++	strscpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
+ 
+ 	if (_rtw_memcmp(new_ifname, "disable%d", 9) == _TRUE) {
+ 
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -1340,8 +1340,7 @@
+ 
+ 	switch (state) {
+ 	case NETDEV_CHANGENAME:
+-		strncpy(adapter->old_ifname, ndev->name, IFNAMSIZ);
+-		adapter->old_ifname[IFNAMSIZ-1] = 0;
++		strscpy(adapter->old_ifname, ndev->name, IFNAMSIZ);
+ 		break;
+ 	}
+ 
+@@ -1368,8 +1367,7 @@
+ 
+ 	RTW_PRINT(FUNC_ADPT_FMT" if%d mac_addr="MAC_FMT"\n"
+ 		, FUNC_ADPT_ARG(adapter), (adapter->iface_id + 1), MAC_ARG(dev->dev_addr));
+-	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+-	adapter->old_ifname[IFNAMSIZ - 1] = '\0';
++	strscpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+ 
+ 	return 0;
+ }
+--- a/os_dep/linux/usb_intf.c
++++ b/os_dep/linux/usb_intf.c
+@@ -824,7 +824,7 @@
+ 		/* It is used to distinguish between normal and PC-side wifi dongle/module. */
+ 		if ((pdid->idVendor == vid) && (pdid->idProduct == pid) && (flags & SPEC_DEV_ID_ASSIGN_IFNAME)) {
+ 			extern char *ifname;
+-			strncpy(ifname, "wlan10", 6);
++			memcpy(ifname, "wlan10", 6);
+ 			/* RTW_INFO("%s()-%d: ifname=%s, vid=%04X, pid=%04X\n", __FUNCTION__, __LINE__, ifname, vid, pid); */
+ 		}
+ #endif /* RTK_DMP_PLATFORM */

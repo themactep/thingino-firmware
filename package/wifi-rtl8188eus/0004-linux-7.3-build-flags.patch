@@ -1,0 +1,19 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8188eus: feed EXTRA_CFLAGS into kbuild
+
+Linux 7.3 no longer appends EXTRA_CFLAGS to the module cflags, so the
+include paths and defines have to go through ccflags-y.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile
++++ b/Makefile
+@@ -2053,6 +2053,8 @@
+ $(MODULE_NAME)-$(CONFIG_MP_INCLUDED)+= core/rtw_bt_mp.o
+ endif
+ 
++ccflags-y += $(EXTRA_CFLAGS)
++
+ obj-$(CONFIG_RTL8188EU) := $(MODULE_NAME).o
+ 
+ else

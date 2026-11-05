@@ -1,0 +1,124 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8192fs: fix the remaining 7.3 API uses
+
+Use pde_data(), drop the removed regulatory flag and replace the last
+strncpy() calls in the SDIO debug path.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/hal/hal_hci/hal_sdio.c
++++ b/hal/hal_hci/hal_sdio.c
+@@ -37,13 +37,13 @@
+ 		p = &str_out[0];
+ 		len = snprintf(str_val, sizeof(str_val),
+ 			       "0x%02x: ", index);
+-		strncpy(str_out, str_val, len);
++		memcpy(str_out, str_val, len);
+ 		p += len;
+ 
+ 		for (i = 0 ; i < 16 ; i++) {
+ 			len = snprintf(str_val, sizeof(str_val), "%02x ",
+ 				       rtw_read8(padapter, index + i));
+-			strncpy(p, str_val, len);
++			memcpy(p, str_val, len);
+ 			p += len;
+ 		}
+ 		RTW_INFO("%s\n", str_out);
+--- a/os_dep/linux/rtw_proc.c
++++ b/os_dep/linux/rtw_proc.c
+@@ -39,6 +39,12 @@
+ #define proc_get_parent_data(inode) PDE((inode))->parent->data
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#define RTW_PDE_DATA(inode) pde_data(inode)
++#else
++#define RTW_PDE_DATA(inode) PDE_DATA(inode)
++#endif
++
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24))
+ #define get_proc_net proc_net
+ #else
+@@ -247,7 +253,7 @@
+ static int rtw_drv_proc_open(struct inode *inode, struct file *file)
+ {
+ 	/* struct net_device *dev = proc_get_parent_data(inode); */
+-	ssize_t index = (ssize_t)PDE_DATA(inode);
++	ssize_t index = (ssize_t)RTW_PDE_DATA(inode);
+ 	const struct rtw_proc_hdl *hdl = drv_proc_hdls + index;
+ 	void *private = NULL;
+ 
+@@ -273,7 +279,7 @@
+ 
+ static ssize_t rtw_drv_proc_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(file_inode(file));
++	ssize_t index = (ssize_t)RTW_PDE_DATA(file_inode(file));
+ 	const struct rtw_proc_hdl *hdl = drv_proc_hdls + index;
+ 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *, void *) = hdl->write;
+ 
+@@ -5688,7 +5694,7 @@
+ 
+ static int rtw_adapter_proc_open(struct inode *inode, struct file *file)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(inode);
++	ssize_t index = (ssize_t)RTW_PDE_DATA(inode);
+ 	const struct rtw_proc_hdl *hdl = adapter_proc_hdls + index;
+ 	void *private = proc_get_parent_data(inode);
+ 
+@@ -5714,7 +5720,7 @@
+ 
+ static ssize_t rtw_adapter_proc_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(file_inode(file));
++	ssize_t index = (ssize_t)RTW_PDE_DATA(file_inode(file));
+ 	const struct rtw_proc_hdl *hdl = adapter_proc_hdls + index;
+ 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *, void *) = hdl->write;
+ 
+@@ -5877,7 +5883,7 @@
+ 
+ static int rtw_odm_proc_open(struct inode *inode, struct file *file)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(inode);
++	ssize_t index = (ssize_t)RTW_PDE_DATA(inode);
+ 	const struct rtw_proc_hdl *hdl = odm_proc_hdls + index;
+ 	void *private = proc_get_parent_data(inode);
+ 
+@@ -5903,7 +5909,7 @@
+ 
+ static ssize_t rtw_odm_proc_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(file_inode(file));
++	ssize_t index = (ssize_t)RTW_PDE_DATA(file_inode(file));
+ 	const struct rtw_proc_hdl *hdl = odm_proc_hdls + index;
+ 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *, void *) = hdl->write;
+ 
+@@ -6042,7 +6048,7 @@
+ 
+ static int rtw_mcc_proc_open(struct inode *inode, struct file *file)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(inode);
++	ssize_t index = (ssize_t)RTW_PDE_DATA(inode);
+ 	const struct rtw_proc_hdl *hdl = mcc_proc_hdls + index;
+ 	void *private = proc_get_parent_data(inode);
+ 
+@@ -6068,7 +6074,7 @@
+ 
+ static ssize_t rtw_mcc_proc_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+ {
+-	ssize_t index = (ssize_t)PDE_DATA(file_inode(file));
++	ssize_t index = (ssize_t)RTW_PDE_DATA(file_inode(file));
+ 	const struct rtw_proc_hdl *hdl = mcc_proc_hdls + index;
+ 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *, void *) = hdl->write;
+ 
+--- a/os_dep/linux/wifi_regd.c
++++ b/os_dep/linux/wifi_regd.c
+@@ -405,7 +405,7 @@
+ 	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
+ #endif
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ 	wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
+ #endif
+ 
