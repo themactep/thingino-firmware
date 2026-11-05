@@ -1,5 +1,6 @@
 WIFI_RTL8188EUS_SITE_METHOD = git
 WIFI_RTL8188EUS_SITE = https://github.com/aircrack-ng/rtl8188eus
+WIFI_RTL8188EUS_SITE_BRANCH = v5.3.9
 WIFI_RTL8188EUS_VERSION = af3bf004458f76b7aec33e9ba552cd382ed1f5c3
 
 WIFI_RTL8188EUS_LICENSE = GPL-2.0, proprietary (rtl8188fufw.bin firmware blob)
