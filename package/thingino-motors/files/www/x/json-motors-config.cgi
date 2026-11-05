@@ -120,6 +120,8 @@ handle_post() {
 	gpio_tilt_3=$POST_gpio_tilt_3
 	gpio_tilt_4=$POST_gpio_tilt_4
 	homing_value=${POST_homing:-false}
+	invert_x_value=${POST_invert_x:-false}
+	invert_y_value=${POST_invert_y:-false}
 	pos_0_x=$POST_pos_0_x
 	pos_0_y=$POST_pos_0_y
 	speed_pan_value=$POST_speed_pan
@@ -132,6 +134,8 @@ handle_post() {
 	steps_tilt_value=$POST_steps_tilt
 
 	[ "$homing_value" = "true" ] || homing_value="false"
+	[ "$invert_x_value" = "true" ] || invert_x_value="false"
+	[ "$invert_y_value" = "true" ] || invert_y_value="false"
 
 	is_spi_value=$(motors_get_field is_spi)
 
@@ -178,6 +182,8 @@ handle_post() {
 	motors_set_value motion_driver "$motion_driver_value"
 	motors_set_value preview_control_mode "$preview_control_mode_value"
 	motors_set_value homing "$homing_value"
+	motors_set_value invert_x "$invert_x_value"
+	motors_set_value invert_y "$invert_y_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
 		# The initial point is the first preset; create it (id 0, "Home")
