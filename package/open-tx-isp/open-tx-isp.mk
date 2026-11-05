@@ -123,7 +123,7 @@ endif
 # driver this camera uses; CONFIG_VIDEO_<MODEL> matches the driver symbol.
 ifeq ($(KERNEL_VERSION),7.3.1)
 OPEN_TX_ISP_MAINLINE_SENSORS = sc2336 gc2053 gc4653 imx307 gc2083 gc4023 \
-	imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
+	gc8613 imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
 	sc2336p sc301iot sc3235 sc3335 sc3336 sc3338 sc401ai sc4236 \
 	sc4336 sc4336p sc5235
 ifneq ($(SENSOR_1_MODEL),)

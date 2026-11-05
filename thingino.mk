@@ -292,7 +292,7 @@ export SENSOR_4_MODEL
 # Shared per-sensor device-tree fragment. Only the mainline 7.x path
 # consumes these; vendor kernels keep the legacy sensor modules.
 ifeq ($(KERNEL_VERSION),7.3.1)
-ifneq ($(filter t20 t31,$(SOC_FAMILY)),)
+ifneq ($(filter t20 t31 t41,$(SOC_FAMILY)),)
 SENSOR_DTSI_FILE := $(wildcard $(BR2_EXTERNAL)/configs/sensors/$(SOC_FAMILY)/$(SENSOR_1_MODEL).dtsi)
 endif
 endif

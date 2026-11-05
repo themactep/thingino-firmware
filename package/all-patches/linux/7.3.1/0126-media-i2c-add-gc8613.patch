@@ -1,0 +1,901 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the GalaxyCore GC8613 sensor driver
+
+Add a mainline V4L2 subdev driver for the GalaxyCore GC8613 4K sensor,
+ported from the Ingenic vendor sensor driver (sensor_gc8613_t41).  The
+driver exposes the controls the open-ISP V4L2 bridge needs and carries
+the vendor's log2-Q16 gain column in the gain table comments so the
+bridge LUT can be derived without the vendor source.
+
+WARNING: this driver has not been validated on hardware.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/gc8613.c
+@@ -0,0 +1,885 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * GalaxyCore GC8613 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_gc8613_t41).
++ *
++ * WARNING: this driver has not been validated on hardware.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define GC8613_CHIP_ID_H			0x86
++#define GC8613_CHIP_ID_L			0x13
++
++#define GC8613_REG_CHIP_ID_H			CCI_REG8(0x03f0)
++#define GC8613_REG_CHIP_ID_L			CCI_REG8(0x03f1)
++
++/* HTS is a 16-bit line length; VTS is a 14-bit frame length. */
++#define GC8613_REG_HTS				CCI_REG16(0x0342)
++#define GC8613_REG_VTS				CCI_REG16(0x0340)
++#define GC8613_REG_EXPOSURE			CCI_REG16(0x0202)
++
++#define GC8613_REG_GAIN_CTRL			CCI_REG8(0x031d)
++#define GC8613_REG_GAIN_614			CCI_REG8(0x0614)
++#define GC8613_REG_GAIN_615			CCI_REG8(0x0615)
++#define GC8613_REG_GAIN_225			CCI_REG8(0x0225)
++#define GC8613_REG_GAIN_1467			CCI_REG8(0x1467)
++#define GC8613_REG_GAIN_1468			CCI_REG8(0x1468)
++#define GC8613_REG_GAIN_1447			CCI_REG8(0x1447)
++
++/* External clock is 27 MHz. */
++#define GC8613_XCLK_FREQ			(27 * HZ_PER_MHZ)
++
++#define GC8613_NATIVE_WIDTH			3840U
++#define GC8613_NATIVE_HEIGHT			2160U
++
++/* 2 lanes, 1107 Mbit/s per lane (link frequency is half the bit rate). */
++#define GC8613_LINK_FREQ			553500000
++/* 3934 x 2250 pixels at 25 fps. */
++#define GC8613_PIXEL_RATE			221287500
++
++static const s64 gc8613_link_freqs[] = {
++	GC8613_LINK_FREQ,
++};
++
++#define GC8613_HTS_MIN				3840U
++#define GC8613_HTS_MAX				(2U * 0x0fff)
++#define GC8613_VTS_MAX				0x3fffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define GC8613_EXPOSURE_OFFSET			8
++
++struct gc8613_gain {
++	u8 reg_614;
++	u8 reg_615;
++	u8 reg_225;
++	u8 reg_1467;
++	u8 reg_1468;
++	u8 reg_1447;
++};
++
++static const struct gc8613_gain gc8613_gains[] = {
++	{ 0x0, 0x0, 0x0, 0xd, 0xd, 0x77 }, /* 0 */
++	{ 0x90, 0x2, 0x0, 0xe, 0xe, 0x77 }, /* 13726 */
++	{ 0x1, 0x0, 0x0, 0xe, 0xe, 0x77 }, /* 32233 */
++	{ 0x91, 0x2, 0x0, 0xf, 0xf, 0x77 }, /* 46808 */
++	{ 0x2, 0x0, 0x0, 0xf, 0xf, 0x77 }, /* 64046 */
++	{ 0x0, 0x0, 0x0, 0xd, 0xd, 0x75 }, /* 75349 */
++	{ 0x90, 0x2, 0x0, 0xd, 0xd, 0x75 }, /* 88967 */
++	{ 0x1, 0x0, 0x0, 0xe, 0xe, 0x75 }, /* 107731 */
++	{ 0x91, 0x2, 0x0, 0xe, 0xe, 0x75 }, /* 124574 */
++	{ 0x2, 0x0, 0x0, 0xf, 0xf, 0x75 }, /* 140885 */
++	{ 0x92, 0x2, 0x0, 0xf, 0xf, 0x75 }, /* 158178 */
++	{ 0x3, 0x0, 0x0, 0x10, 0x10, 0x75 }, /* 174907 */
++	{ 0x93, 0x2, 0x0, 0x10, 0x10, 0x75 }, /* 192261 */
++	{ 0x0, 0x0, 0x1, 0x11, 0x11, 0x75 }, /* 200230 */
++	{ 0x90, 0x2, 0x1, 0x12, 0x12, 0x75 }, /* 216516 */
++	{ 0x1, 0x0, 0x1, 0x13, 0x13, 0x75 }, /* 234943 */
++	{ 0x91, 0x2, 0x1, 0x14, 0x14, 0x75 }, /* 254951 */
++	{ 0x2, 0x0, 0x1, 0x15, 0x15, 0x75 }, /* 264333 */
++	{ 0x92, 0x2, 0x1, 0x16, 0x16, 0x75 }, /* 281526 */
++	{ 0x3, 0x0, 0x1, 0x17, 0x17, 0x75 }, /* 298237 */
++	{ 0x93, 0x2, 0x1, 0x18, 0x18, 0x75 }, /* 313457 */
++	{ 0x4, 0x0, 0x1, 0x19, 0x19, 0x75 }, /* 330767 */
++	{ 0x94, 0x2, 0x1, 0x1b, 0x1b, 0x75 }, /* 347287 */
++	{ 0x5, 0x0, 0x1, 0x1d, 0x1d, 0x75 }, /* 365304 */
++	{ 0x95, 0x2, 0x1, 0x1e, 0x1e, 0x75 }, /* 382780 */
++	{ 0x6, 0x0, 0x1, 0x20, 0x20, 0x75 }, /* 399272 */
++};
++
++struct gc8613_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	u32 hts_reg;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence gc8613_2160p25_regs[] = {
++	{ CCI_REG8(0x03fe), 0xf0 },
++	{ CCI_REG8(0x03fe), 0x00 },
++	{ CCI_REG8(0x03fe), 0x10 },
++	{ CCI_REG8(0x0a38), 0x01 },
++	{ CCI_REG8(0x0a20), 0x19 },
++	{ CCI_REG8(0x061b), 0x17 },
++	{ CCI_REG8(0x061c), 0x48 },
++	{ CCI_REG8(0x061d), 0x05 },
++	{ CCI_REG8(0x061e), 0x42 },
++	{ CCI_REG8(0x061f), 0x05 },
++	{ CCI_REG8(0x0a21), 0x10 },
++	{ CCI_REG8(0x0a31), 0x7b },
++	{ CCI_REG8(0x0a34), 0x40 },
++	{ CCI_REG8(0x0a35), 0x08 },
++	{ CCI_REG8(0x0a37), 0x43 },
++	{ CCI_REG8(0x0314), 0x70 },
++	{ CCI_REG8(0x0315), 0x00 },
++	{ CCI_REG8(0x031c), 0xce },
++	{ CCI_REG8(0x0219), 0x47 },
++	{ CCI_REG8(0x0342), 0x03 },
++	{ CCI_REG8(0x0343), 0x20 },
++	{ CCI_REG8(0x0259), 0x08 },
++	{ CCI_REG8(0x025a), 0x96 },
++	{ CCI_REG8(0x0340), 0x08 },
++	{ CCI_REG8(0x0341), 0xca },
++	{ CCI_REG8(0x0351), 0x00 },
++	{ CCI_REG8(0x0345), 0x02 },
++	{ CCI_REG8(0x0347), 0x02 },
++	{ CCI_REG8(0x0348), 0x0f },
++	{ CCI_REG8(0x0349), 0x18 },
++	{ CCI_REG8(0x034a), 0x08 },
++	{ CCI_REG8(0x034b), 0x88 },
++	{ CCI_REG8(0x034f), 0xf0 },
++	{ CCI_REG8(0x0094), 0x0f },
++	{ CCI_REG8(0x0095), 0x00 },
++	{ CCI_REG8(0x0096), 0x08 },
++	{ CCI_REG8(0x0097), 0x70 },
++	{ CCI_REG8(0x0099), 0x0c },
++	{ CCI_REG8(0x009b), 0x0c },
++	{ CCI_REG8(0x060c), 0x06 },
++	{ CCI_REG8(0x060e), 0x20 },
++	{ CCI_REG8(0x060f), 0x0f },
++	{ CCI_REG8(0x070c), 0x06 },
++	{ CCI_REG8(0x070e), 0x20 },
++	{ CCI_REG8(0x070f), 0x0f },
++	{ CCI_REG8(0x0087), 0x50 },
++	{ CCI_REG8(0x0907), 0xd5 },
++	{ CCI_REG8(0x0909), 0x06 },
++	{ CCI_REG8(0x0902), 0x0b },
++	{ CCI_REG8(0x0904), 0x08 },
++	{ CCI_REG8(0x0908), 0x08 },
++	{ CCI_REG8(0x0903), 0xc5 },
++	{ CCI_REG8(0x090c), 0x09 },
++	{ CCI_REG8(0x0905), 0x10 },
++	{ CCI_REG8(0x0906), 0x00 },
++	{ CCI_REG8(0x072a), 0x58 },
++	{ CCI_REG8(0x0724), 0x2b },
++	{ CCI_REG8(0x0727), 0x2b },
++	{ CCI_REG8(0x072b), 0x18 },
++	{ CCI_REG8(0x073e), 0x40 },
++	{ CCI_REG8(0x0078), 0x88 },
++	{ CCI_REG8(0x0618), 0x01 },
++	{ CCI_REG8(0x1466), 0x12 },
++	{ CCI_REG8(0x1468), 0x10 },
++	{ CCI_REG8(0x1467), 0x10 },
++	{ CCI_REG8(0x0709), 0x40 },
++	{ CCI_REG8(0x0719), 0x40 },
++	{ CCI_REG8(0x1469), 0x80 },
++	{ CCI_REG8(0x146a), 0xc0 },
++	{ CCI_REG8(0x146b), 0x03 },
++	{ CCI_REG8(0x1480), 0x02 },
++	{ CCI_REG8(0x1481), 0x80 },
++	{ CCI_REG8(0x1484), 0x08 },
++	{ CCI_REG8(0x1485), 0xc0 },
++	{ CCI_REG8(0x1430), 0x80 },
++	{ CCI_REG8(0x1407), 0x10 },
++	{ CCI_REG8(0x1408), 0x16 },
++	{ CCI_REG8(0x1409), 0x03 },
++	{ CCI_REG8(0x1434), 0x04 },
++	{ CCI_REG8(0x1447), 0x75 },
++	{ CCI_REG8(0x1470), 0x10 },
++	{ CCI_REG8(0x1471), 0x13 },
++	{ CCI_REG8(0x1438), 0x00 },
++	{ CCI_REG8(0x143a), 0x00 },
++	{ CCI_REG8(0x024b), 0x03 },
++	{ CCI_REG8(0x0245), 0xc7 },
++	{ CCI_REG8(0x025b), 0x07 },
++	{ CCI_REG8(0x02bb), 0x77 },
++	{ CCI_REG8(0x0612), 0x01 },
++	{ CCI_REG8(0x0613), 0x24 },
++	{ CCI_REG8(0x0243), 0x06 },
++	{ CCI_REG8(0x0087), 0x53 },
++	{ CCI_REG8(0x0089), 0x02 },
++	{ CCI_REG8(0x0002), 0xeb },
++	{ CCI_REG8(0x005a), 0x0c },
++	{ CCI_REG8(0x0040), 0x83 },
++	{ CCI_REG8(0x0075), 0x54 },
++	{ CCI_REG8(0x0205), 0x0c },
++	{ CCI_REG8(0x0202), 0x01 },
++	{ CCI_REG8(0x0203), 0x27 },
++	{ CCI_REG8(0x061a), 0x02 },
++	{ CCI_REG8(0x03fe), 0x00 },
++	{ CCI_REG8(0x0106), 0x78 },
++	{ CCI_REG8(0x0136), 0x03 },
++	{ CCI_REG8(0x0181), 0x30 },
++	{ CCI_REG8(0x0185), 0x01 },
++	{ CCI_REG8(0x0180), 0x46 },
++	{ CCI_REG8(0x0106), 0x38 },
++	{ CCI_REG8(0x010d), 0xc0 },
++	{ CCI_REG8(0x010e), 0x12 },
++	{ CCI_REG8(0x0113), 0x02 },
++	{ CCI_REG8(0x0114), 0x01 },
++	{ CCI_REG8(0x0115), 0x12 },
++	{ CCI_REG8(0x0100), 0x09 },
++};
++
++static const struct gc8613_mode gc8613_modes[] = {
++	{
++		.width = GC8613_NATIVE_WIDTH,
++		.height = GC8613_NATIVE_HEIGHT,
++		.hblank = 3934 - GC8613_NATIVE_WIDTH,
++		.vblank = 2250 - GC8613_NATIVE_HEIGHT,
++		.hts_reg = 0x0320,
++		.regs = gc8613_2160p25_regs,
++		.regs_num = ARRAY_SIZE(gc8613_2160p25_regs),
++	},
++};
++
++struct gc8613_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++};
++
++struct gc8613 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct gc8613_ctrls ctrls;
++
++	const struct gc8613_mode *mode;
++};
++
++static inline struct gc8613 *to_gc8613(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct gc8613, sd);
++}
++
++static inline struct v4l2_subdev *gc8613_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct gc8613, ctrls.handler)->sd;
++}
++
++static void gc8613_fill_format(const struct gc8613_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int gc8613_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	gc8613_fill_format(&gc8613_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = gc8613_modes[0].width;
++	crop->height = gc8613_modes[0].height;
++
++	return 0;
++}
++
++static int gc8613_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++
++	return 0;
++}
++
++static int gc8613_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(gc8613_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
++		return -EINVAL;
++
++	fse->min_width = gc8613_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = gc8613_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int gc8613_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = GC8613_NATIVE_WIDTH;
++		sel->r.height = GC8613_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int gc8613_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct gc8613 *gc8613 = to_gc8613(sd);
++	const struct gc8613_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(gc8613_modes, ARRAY_SIZE(gc8613_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	gc8613_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		gc8613->mode = mode;
++		__v4l2_ctrl_s_ctrl(gc8613->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(gc8613->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void gc8613_exposure_update(struct gc8613 *gc8613)
++{
++	unsigned int exposure_max;
++
++	exposure_max = gc8613->ctrls.vblank->val + gc8613->mode->height -
++		       GC8613_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, GC8613_VTS_MAX - GC8613_EXPOSURE_OFFSET);
++
++	__v4l2_ctrl_modify_range(gc8613->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int gc8613_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct gc8613 *gc8613 = to_gc8613(gc8613_ctrl_to_sd(ctrl));
++
++	dev_dbg(gc8613->sd.dev, "gc8613: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		gc8613_exposure_update(gc8613);
++
++	if (!pm_runtime_get_if_in_use(gc8613->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(gc8613->regmap, GC8613_REG_EXPOSURE,
++				ctrl->val, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN: {
++		const struct gc8613_gain *gain = &gc8613_gains[ctrl->val];
++
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_CTRL,
++				0x2d, NULL);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_614,
++				gain->reg_614, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_615,
++				gain->reg_615, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_CTRL,
++				0x28, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_225,
++				gain->reg_225, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_1467,
++				gain->reg_1467, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_1468,
++				gain->reg_1468, &ret);
++		ret = cci_write(gc8613->regmap, GC8613_REG_GAIN_1447,
++				gain->reg_1447, &ret);
++		break;
++	}
++	case V4L2_CID_HBLANK:
++		ret = cci_write(gc8613->regmap, GC8613_REG_HTS,
++				gc8613->mode->hts_reg, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(gc8613->regmap, GC8613_REG_VTS,
++				ctrl->val + gc8613->mode->height, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(gc8613->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops gc8613_ctrl_ops = {
++	.s_ctrl = gc8613_set_ctrl,
++};
++
++static int gc8613_init_controls(struct gc8613 *gc8613)
++{
++	struct v4l2_ctrl_handler *hdl = &gc8613->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &gc8613_ctrl_ops;
++	unsigned int hblank_max = GC8613_HTS_MAX - GC8613_NATIVE_WIDTH;
++	unsigned int vblank_max = GC8613_VTS_MAX - GC8613_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	gc8613->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  GC8613_PIXEL_RATE, GC8613_PIXEL_RATE, 1,
++				  GC8613_PIXEL_RATE);
++
++	gc8613->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       gc8613_link_freqs);
++	if (gc8613->ctrls.link_freq)
++		gc8613->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	gc8613->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  gc8613_modes[0].vblank +
++				  gc8613_modes[0].height -
++				  GC8613_EXPOSURE_OFFSET, 1,
++				  gc8613_modes[0].vblank +
++				  gc8613_modes[0].height -
++				  GC8613_EXPOSURE_OFFSET);
++
++	gc8613->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(gc8613_gains) - 1, 1, 0);
++
++	gc8613->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  GC8613_HTS_MIN - GC8613_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  gc8613_modes[0].hblank);
++
++	gc8613->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  gc8613_modes[0].vblank, vblank_max, 1,
++				  gc8613_modes[0].vblank);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(gc8613->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	gc8613->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int gc8613_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == GC8613_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", GC8613_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int gc8613_power_on(struct device *dev)
++{
++	dev_dbg(dev, "gc8613: power on\n");
++	struct gc8613 *gc8613 = to_gc8613(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(gc8613->supplies),
++				    gc8613->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(gc8613->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(gc8613->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(gc8613->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(gc8613->supplies), gc8613->supplies);
++
++	return ret;
++}
++
++static int gc8613_power_off(struct device *dev)
++{
++	dev_dbg(dev, "gc8613: power off\n");
++	struct gc8613 *gc8613 = to_gc8613(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(gc8613->reset_gpio, 1);
++	gpiod_set_value_cansleep(gc8613->powerdown_gpio, 1);
++	clk_disable_unprepare(gc8613->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(gc8613->supplies), gc8613->supplies);
++
++	return 0;
++}
++
++static int gc8613_identify_module(struct gc8613 *gc8613)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(gc8613->regmap, GC8613_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(gc8613->regmap, GC8613_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != GC8613_CHIP_ID_H || id_l != GC8613_CHIP_ID_L) {
++		dev_err(gc8613->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, GC8613_CHIP_ID_H, GC8613_CHIP_ID_L);
++		return -EIO;
++	}
++
++	dev_info(gc8613->sd.dev, "gc8613: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
++	return 0;
++}
++
++static int gc8613_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct gc8613 *gc8613 = to_gc8613(sd);
++
++	dev_info(sd->dev, "gc8613: stream on\n");
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(gc8613->regmap, gc8613->mode->regs,
++			    gc8613->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&gc8613->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	/*
++	 * The legacy stream-on array is empty: the init sequence ends with
++	 * 0x0100 = 0x09, which starts streaming.
++	 */
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int gc8613_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	dev_info(sd->dev, "gc8613: stream off\n");
++	/* The legacy stream-off array is empty. */
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return 0;
++}
++
++static const struct v4l2_subdev_video_ops gc8613_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops gc8613_pad_ops = {
++	.enum_mbus_code = gc8613_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = gc8613_set_pad_format,
++	.get_selection = gc8613_get_selection,
++	.enum_frame_size = gc8613_enum_frame_size,
++	.enable_streams = gc8613_enable_streams,
++	.disable_streams = gc8613_disable_streams,
++};
++
++static const struct v4l2_subdev_ops gc8613_subdev_ops = {
++	.video = &gc8613_video_ops,
++	.pad = &gc8613_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops gc8613_subdev_internal_ops = {
++	.init_state = gc8613_init_state,
++};
++
++static const char * const gc8613_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int gc8613_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++
++	dev_info(dev, "gc8613: probe at i2c 0x%02x\n", client->addr);
++	struct gc8613 *gc8613;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	gc8613 = devm_kzalloc(dev, sizeof(*gc8613), GFP_KERNEL);
++	if (!gc8613)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&gc8613->sd, client, &gc8613_subdev_ops);
++	gc8613->sd.internal_ops = &gc8613_subdev_internal_ops;
++
++	ret = gc8613_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	gc8613->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(gc8613->xclk))
++		return dev_err_probe(dev, PTR_ERR(gc8613->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(gc8613->xclk);
++	if (xclk_freq != GC8613_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(gc8613->supplies); i++)
++		gc8613->supplies[i].supply = gc8613_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(gc8613->supplies),
++				      gc8613->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	gc8613->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(gc8613->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(gc8613->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	gc8613->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(gc8613->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(gc8613->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	gc8613->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(gc8613->regmap))
++		return dev_err_probe(dev, PTR_ERR(gc8613->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = gc8613_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = gc8613_identify_module(gc8613);
++	if (ret)
++		goto err_power_off;
++
++	gc8613->mode = &gc8613_modes[0];
++
++	ret = gc8613_init_controls(gc8613);
++	if (ret)
++		goto err_power_off;
++
++	gc8613->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	gc8613->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	gc8613->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&gc8613->sd.entity, 1, &gc8613->pad);
++	if (ret)
++		goto err_handler_free;
++
++	gc8613->sd.state_lock = gc8613->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&gc8613->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&gc8613->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&gc8613->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&gc8613->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&gc8613->ctrls.handler);
++err_power_off:
++	gc8613_power_off(dev);
++
++	return ret;
++}
++
++static void gc8613_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct gc8613 *gc8613 = to_gc8613(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&gc8613->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		gc8613_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id gc8613_dt_ids[] = {
++	{ .compatible = "galaxycore,gc8613" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, gc8613_dt_ids);
++
++static const struct i2c_device_id gc8613_id[] = {
++	{ .name = "gc8613" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, gc8613_id);
++
++static const struct dev_pm_ops gc8613_pm_ops = {
++	RUNTIME_PM_OPS(gc8613_power_off, gc8613_power_on, NULL)
++};
++
++static struct i2c_driver gc8613_i2c_driver = {
++	.driver = {
++		.name = "gc8613",
++		.of_match_table = gc8613_dt_ids,
++		.pm = pm_ptr(&gc8613_pm_ops),
++	},
++	.probe = gc8613_probe,
++	.remove = gc8613_remove,
++	.id_table = gc8613_id,
++};
++
++module_i2c_driver(gc8613_i2c_driver);
++
++MODULE_DESCRIPTION("GalaxyCore GC8613 sensor driver");
++MODULE_LICENSE("GPL");

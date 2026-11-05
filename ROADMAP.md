@@ -150,3 +150,34 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   two `configs/cameras-exp` defconfigs with `BR2_INGENIC_SOC_MODEL="t23n"` /
   `"t31n"` and re-sorted them. `show-vars` now resolves t23 / 64 MB and
   t31 / 64 MB respectively; no legacy symbols remain under `configs/`.
+
+## P4 - Sensor support (T41)
+
+- [x] **O17** Add a GC8613 mainline V4L2 driver for kernel 7.3.1, its
+  Kconfig/Makefile entries, T41 DT fragments for GC8613 and GC4023, the
+  kopt media/sensor fixup, and the marmot duplicate-extclk DTS fix.
+- [ ] **O18** Finish the Noorio T110 (GC4023) full build after the host
+  toolchain bootstrap and validate its DTB and streamer.
+- [ ] **O19** Add a GC8613 gain model to the T41 open-TX-ISP bridge if T41
+  open-ISP is enabled on kernel 7 (the T41 bridge currently has no per-sensor
+  gain table; the T31 bridge does).
+
+### Turn 8
+
+- O17 done. The T120 profile builds end to end on 7.3.1:
+  `CONFIG_VIDEO_GC8613=y`, `drivers/media/i2c/gc8613.o` linked, and the
+  injected `camera@31` / `galaxycore,gc8613` node is present in
+  `marmot.dtb`.
+- The GC8613 driver is a register-level port of the T41 vendor source
+  (`sensor_gc8613_t41`): 3840x2160 @ 25 fps, 2-lane MIPI, the vendor
+  log2-Q16 gain column preserved in the gain table comments. It is not
+  hardware-validated.
+- Added `configs/sensors/t41/gc8613.dtsi` and `gc4023.dtsi`, extended the
+  sensor-DTSI injection to `t41`, and enabled the named `CONFIG_VIDEO_*`
+  driver from `thingino-kopt` for T41 on 7.3.1.
+- Fixed the T41 compile blocker separately: `0125` drops the duplicate
+  `extclk` node from `marmot.dts` that DTC rejected.
+- O18 remains open: the T110 full build was interrupted while bootstrapping
+  the host GCC, so its kernel directory has not been produced yet. The
+  gc4023 driver and its Kconfig entry already exist; the T41 fragment and
+  kopt wiring mirror the verified gc8613 path.

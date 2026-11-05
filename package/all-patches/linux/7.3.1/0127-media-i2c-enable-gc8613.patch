@@ -1,0 +1,38 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: enable the GalaxyCore GC8613 driver
+
+Add the Kconfig and Makefile entries for the GC8613 mainline V4L2
+subdev driver.  The driver is selected per camera from the sensor name,
+like the other Thingino sensor ports.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -1086,6 +1086,16 @@
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called sc5235.
+ 
++config VIDEO_GC8613
++	select V4L2_CCI_I2C
++	tristate "GalaxyCore GC8613 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the GalaxyCore GC8613
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called gc8613.
++
+ config VIDEO_T4KA3
+ 	tristate "Toshiba T4KA3 sensor support"
+ 	depends on ACPI || COMPILE_TEST
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -168,6 +168,7 @@
+ obj-$(CONFIG_VIDEO_SC4336) += sc4336.o
+ obj-$(CONFIG_VIDEO_SC4336P) += sc4336p.o
+ obj-$(CONFIG_VIDEO_SC5235) += sc5235.o
++obj-$(CONFIG_VIDEO_GC8613) += gc8613.o
+ obj-$(CONFIG_VIDEO_T4KA3) += t4ka3.o
+ obj-$(CONFIG_VIDEO_TC358743) += tc358743.o
+ obj-$(CONFIG_VIDEO_TC358746) += tc358746.o

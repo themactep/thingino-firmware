@@ -782,6 +782,25 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MOTORS
 endef
 endif
 
+# Mainline V4L2 sensors on the 7.x T41 tree: open-TX-ISP does not cover
+# T41 on 7.x yet, so enable the media stack and the one driver the camera
+# names. The driver is carried as a kernel patch, like the T31 ports.
+ifeq ($(KERNEL_VERSION),7.3.1)
+ifneq ($(filter t41,$(SOC_FAMILY)),)
+ifneq ($(SENSOR_1_MODEL),)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SENSOR
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_SUPPORT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_CAMERA_SUPPORT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_CONTROLLER)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_DEV)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_V4L2)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_V4L2_SUBDEV_API)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_$(shell echo $(SENSOR_1_MODEL) | tr a-z A-Z))
+endef
+endif
+endif
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -794,6 +813,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SDCARD_FS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MOTORS)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SENSOR)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_1BIT)

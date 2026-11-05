@@ -1,0 +1,28 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: marmot: drop the duplicate ext clock
+
+Commit 0124 renamed the oscillator node in both t41.dtsi and marmot.dts
+to /ext but kept the extclk label on both.  DTC aborts the marmot build
+with a duplicate_label error:
+
+  marmot.dts:219.17-221.4: ERROR (duplicate_label): /extclk:
+  Duplicate label 'extclk' on /extclk and /ext
+
+The SoC tree already describes the 24 MHz oscillator, so the board copy
+is redundant.  Remove it and let the label from t41.dtsi stand.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/marmot.dts
++++ b/arch/mips/boot/dts/ingenic/marmot.dts
+@@ -216,10 +216,6 @@
+ 
+ / {
+ 
+-	extclk: ext {
+-		clock-frequency = <24000000>;
+-	};
+-
+ 	gpio_keys: gpio_keys {
+ 		compatible = "gpio-keys";
+ 

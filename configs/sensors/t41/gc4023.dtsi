@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * GalaxyCore GC4023 wiring shared by T41 boards.
+ *
+ * Board differences (reset GPIO, rail enables, a non-standard bus/address or
+ * lane count) belong in the camera .dtsi as &sensor or &sensor_ep overrides.
+ */
+
+#include <dt-bindings/clock/ingenic,t41-cgu.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	sensor_iovdd: sensor-iovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-iovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	sensor_avdd: sensor-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	sensor_dvdd: sensor-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+};
+
+&i2c0 {
+	sensor: camera@29 {
+		compatible = "galaxycore,gc4023";
+		reg = <0x29>;
+
+		clocks = <&clock T41_CLK_CIM>;
+		clock-names = "xclk";
+		assigned-clocks = <&clock T41_CLK_CIM>;
+		assigned-clock-rates = <27000000>;
+
+		iovdd-supply = <&sensor_iovdd>;
+		avdd-supply = <&sensor_avdd>;
+		dvdd-supply = <&sensor_dvdd>;
+
+		reset-gpios = <&gpc 27 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+
+		port {
+			sensor_ep: endpoint {
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <432000000>;
+			};
+		};
+	};
+};
