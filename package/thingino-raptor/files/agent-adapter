@@ -1730,14 +1730,21 @@ agent_print_osd_setting() {
 # A single `raptorctl config set` on a missing [osd.<name>] section creates it
 # with that one key only, and an element section without its type, template
 # or position scrambles the OSD regions on T20. Write the whole default
-# section first (values from raptor's stock raptor.conf).
+# section first (values from raptor's stock raptor.conf), and repair a section
+# that exists but is missing any of those keys.
 agent_osd_ensure_section() {
 	section=$1
 	case "$section" in
-		osd.timestamp | osd.uptime | osd.camera | osd.logo) ;;
+		osd.timestamp | osd.uptime | osd.camera) required='type template position' ;;
+		osd.logo) required='type path width height position' ;;
 		*) return 0 ;;
 	esac
-	raptorctl config get "$section" 2>/dev/null | grep -q '^type = ' && return 0
+	section_dump=$(raptorctl config get "$section" 2>/dev/null || true)
+	complete=1
+	for key in $required; do
+		printf '%s\n' "$section_dump" | grep -q "^[[:space:]]*${key}[[:space:]]*=" || complete=0
+	done
+	[ "$complete" = 1 ] && return 0
 	case "$section" in
 		osd.timestamp)
 			set -- type text visible false template %time% position top_left align left max_chars 22
