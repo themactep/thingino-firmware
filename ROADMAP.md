@@ -34,11 +34,14 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   `scripts/update_packages.py` and retire the older hyphenated script.
 - [x] **O8** Retire `scripts/rtsp-stress-test.rb`; the docs and CI use the
   shell implementation.
-- [ ] **O9** Extract the shared RTSP backchannel probe logic used by
-  `backchannel-probe.py`, `rtsp-backchannel-probe.py`, and
-  `backchannel-test.py`.
-- [ ] **O10** Consolidate the three divergent `send2common` copies and the
-  related `ha-common`.
+- [x] **O9** Extract the shared RTSP DESCRIBE/digest logic used by
+  `backchannel-probe.py` and `rtsp-backchannel-probe.py` into
+  `scripts/rtsp_probe.py`. `backchannel-test.py` keeps its own Basic-auth
+  response parser; it is a different tool.
+- [x] **O10** Keep the three `send2common` copies separate. Each is installed
+  as `/usr/share/send2common` by exactly one streamer package, and snapshot /
+  clip access differs per streamer. The reason is documented in each file so
+  it is not "deduplicated" later.
 - [ ] **O11** Deduplicate firmware blobs repeated across package `files/`
   directories (wifi firmware, Ingenic tools, logos).
 
@@ -95,3 +98,13 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   from verified tarball downloads, not typed by hand.
 - O8 done. Removed `scripts/rtsp-stress-test.rb`; it was last touched in
   May and the maintained shell implementation superseded it in October.
+
+### Turn 4
+
+- O9 done. Added `scripts/rtsp_probe.py` and moved the duplicated
+  `recv_response`, digest challenge, authorization, and DESCRIBE code out of
+  both probe scripts. `backchannel-test.py` is unchanged: it speaks Basic
+  auth and uses a different response parser for its RTP send path.
+- O10 closed as not-a-defect. The `send2common` files are per-streamer
+  variants installed exclusively by the selected streamer package; snapshot
+  and clip access differ. Each copy now says so at the top.

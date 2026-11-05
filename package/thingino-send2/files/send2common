@@ -18,7 +18,9 @@ _cleanup() {
 		done < "$GARBAGE_FILE"
 		rm -f -- "$GARBAGE_FILE"
 	fi
-	GARBAGE=""
+# Per-streamer variant: only the selected streamer's package installs this
+# file as /usr/share/send2common; snapshot/clip access differs by streamer.
+GARBAGE=""
 }
 
 thingino_send2_wait_stable_file() {
