@@ -1,0 +1,48 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: tolerate the missing legacy crop ioctls
+
+fs_set_format() uses the legacy VIDIOC_CROPCAP/S_CROP pair to program
+the frame-source crop.  Kernel 7.x no longer exposes the crop ioctl ops,
+so CROPCAP returns -ENOTTY and EnableChn failed at "set format failed"
+before TRY_FMT/SET_FMT ran.
+
+Treat a missing crop interface as "use the driver's default crop" and
+continue.  The rectangle is only applied when CROPCAP is available and
+validates it; otherwise the frame-source stays at its open() default
+(full frame).
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/src/kernel_interface.c
++++ b/src/kernel_interface.c
+@@ -387,10 +387,13 @@
+         memset(&cc, 0, sizeof(cc));
+         cc.type = 1;
+         if (ioctl(fd, VIDIOC_CROPCAP, &cc) < 0) {
+-            fprintf(stderr, "[KernelIF] T20 VIDIOC_CROPCAP failed: %s\n", strerror(errno));
+-            return -1;
+-        }
+-        if (crop.left < cc.bounds.left || crop.top < cc.bounds.top ||
++            /*
++             * 7.x dropped the legacy crop ioctls.  The crop is optional:
++             * continue with the driver's default (full frame) instead of
++             * failing the whole EnableChn before SET_FMT.
++             */
++            fprintf(stderr, "[KernelIF] T20 VIDIOC_CROPCAP unavailable: %s\n", strerror(errno));
++        } else if (crop.left < cc.bounds.left || crop.top < cc.bounds.top ||
+             crop.left + crop.width > cc.bounds.left + cc.bounds.width ||
+             crop.top + crop.height > cc.bounds.top + cc.bounds.height) {
+             fprintf(stderr,
+@@ -401,10 +404,8 @@
+             return -1;
+         }
+     }
+-    if (ioctl(fd, VIDIOC_SET_CROP, &crop) < 0) {
+-        fprintf(stderr, "[KernelIF] T20 VIDIOC_S_CROP failed: %s\n", strerror(errno));
+-        return -1;
+-    }
++    if (fmt->crop_enable && ioctl(fd, VIDIOC_SET_CROP, &crop) < 0)
++        fprintf(stderr, "[KernelIF] T20 VIDIOC_S_CROP unavailable: %s\n", strerror(errno));
+     /* The driver answers GET_SCALERCAP with EPERM for a channel without a
+      * usable scaler (ISP bypass, YUV sensors, an FR channel) and would then
+      * reject SET_SCALER.  The OEM T20 EnableChn skips SET_SCALER when
