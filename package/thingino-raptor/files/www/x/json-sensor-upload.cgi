@@ -9,7 +9,11 @@ SENSOR_IQ_PATH="/etc/sensor"
 SENSOR_IQ_UPLOAD_PATH="/opt/sensor"
 SENSOR_MODEL=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null || cat /proc/jz/sensor/name 2>/dev/null)
 SOC_MODEL=$(soc -f 2>/dev/null)
-SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
+# The SDK for T10/T20/T30 names the IQ file without the SoC (see ingenic-sdk.mk).
+case "$SOC_MODEL" in
+	t10 | t20 | t30) SENSOR_IQ_FILE="${SENSOR_MODEL}.bin" ;;
+	*) SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin" ;;
+esac
 UPLOADED_SENSOR_IQ_FILE="${SENSOR_IQ_UPLOAD_PATH}/uploaded.bin"
 
 send_redirect() {
