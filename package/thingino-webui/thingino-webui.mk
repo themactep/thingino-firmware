@@ -341,28 +341,37 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/wifi-scan.cgi \
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 
-	# Paranoid mode: install local vendor assets (CDN rewriting happens in
-	# finalize hook so plugin pages installed later are also processed)
-	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
-		rm -rf "$(TARGET_DIR)/var/www/a/vendor"; \
+	# Bundle local vendor assets. Default installs the reduced offline set so
+	# the full UI works in AP mode / without an uplink; paranoid mode installs
+	# the full set (Bootstrap + icons + Montserrat + Chart.js). The CDN -> local
+	# rewriting happens in the rootfs pre-hook so plugin and streamer pages
+	# installed later are processed too.
+	@rm -rf "$(TARGET_DIR)/var/www/a/vendor"; \
+	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		cp -r "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" "$(TARGET_DIR)/var/www/a/"; \
-		printf 'thingino-webui: paranoid mode — vendor files staged\n'; \
+		printf 'thingino-webui: paranoid mode - full vendor files staged\n'; \
+	else \
+		cp -r "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor-lite" "$(TARGET_DIR)/var/www/a/vendor"; \
+		printf 'thingino-webui: reduced offline vendor files staged\n'; \
 	fi
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
 endef
 
-# Paranoid mode CDN → local rewriting — runs as a rootfs pre-hook (not a
-# per-package finalize hook) so it runs AFTER the finalize hooks of streamer
-# packages (timps, raptor) that install their own HTML overlays.  Plugin
-# assembly (ASSEMBLE_PLUGINS) has also already run by this point.
-define THINGINO_WEBUI_PARANOID_REWRITE
+# CDN → local rewriting — runs as a rootfs pre-hook (not a per-package finalize
+# hook) so it runs AFTER the finalize hooks of streamer packages (timps, raptor)
+# that install their own HTML overlays.  Plugin assembly (ASSEMBLE_PLUGINS) has
+# also already run by this point.  Paranoid mode rewrites to the full local set,
+# the default to the reduced offline set.
+define THINGINO_WEBUI_OFFLINE_REWRITE
 	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
+	else \
+		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_offline_assets.py" "$(TARGET_DIR)/var/www" || true; \
 	fi
 endef
-ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_OFFLINE_REWRITE
 
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and re-applies
