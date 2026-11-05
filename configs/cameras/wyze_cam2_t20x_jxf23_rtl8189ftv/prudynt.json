@@ -1,6 +1,11 @@
 {
   "audio": {
-    "mic_hq": false
+    "mic_enabled": false,
+    "mic_hq": false,
+    "spk_enabled": false
+  },
+  "sensor": {
+    "model": "jxf23"
   },
   "stream0": {
     "fps": 20
