@@ -5,7 +5,7 @@ Thingino builds one of three package profiles, chosen by a Kconfig choice:
 | Variant | Kconfig symbol | Contents |
 | --- | --- | --- |
 | Full (default) | `BR2_PACKAGE_THINGINO_VARIANT_FULL` | Everything Thingino ships today. |
-| 8 MB flash | `BR2_PACKAGE_THINGINO_VARIANT_FLASH8` | Full trimmed to fit an 8 MB SPI NOR chip. |
+| 8 MB flash | `BR2_PACKAGE_THINGINO_VARIANT_LIGHT` | Full trimmed to fit an 8 MB SPI NOR chip. |
 | Minimal | `BR2_PACKAGE_THINGINO_VARIANT_MINIMAL` | Kernel, shell, SSH only. Fast incremental dev builds. |
 
 Full is the choice default, so a camera that does not set a variant builds
@@ -23,7 +23,7 @@ Set the symbol in any of the three configuration layers:
 
 ```kconfig
 # 8 MB image on an 8 MB chip
-BR2_PACKAGE_THINGINO_VARIANT_FLASH8=y
+BR2_PACKAGE_THINGINO_VARIANT_LIGHT=y
 
 # development image
 BR2_PACKAGE_THINGINO_VARIANT_MINIMAL=y

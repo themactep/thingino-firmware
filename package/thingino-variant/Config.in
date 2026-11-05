@@ -11,7 +11,6 @@ config BR2_PACKAGE_THINGINO_VARIANT_APPS
 	select BR2_PACKAGE_MDNSD_MQUERY
 	select BR2_PACKAGE_THINGINO_DIAG
 	select BR2_PACKAGE_THINGINO_GPIO
-	select BR2_PACKAGE_THINGINO_ISP_INSPECTOR
 	select BR2_PACKAGE_THINGINO_SYSTEM
 	select BR2_PACKAGE_THINGINO_SYSUPGRADE
 
@@ -20,12 +19,15 @@ config BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA
 	bool
 	select BR2_PACKAGE_THINGINO_AGENT
 	select BR2_PACKAGE_THINGINO_HA
+	select BR2_PACKAGE_THINGINO_ISP_INSPECTOR
 	# legacy 2.0.x mosquitto is preferred over 2.1.2 due to smaller size
 	select BR2_PACKAGE_THINGINO_MOSQUITTO_20X
+	select BR2_PACKAGE_THINGINO_VPN
+	select BR2_THINGINO_PACKAGES
 
 choice
 	prompt "Firmware variant"
-	default BR2_PACKAGE_THINGINO_VARIANT_FULL
+	default BR2_PACKAGE_THINGINO_VARIANT_LIGHT
 	help
 	  Select the firmware package profile. Full is the standard
 	  image. 8 MB trims the app layer to fit an 8 MB SPI NOR chip.
@@ -40,8 +42,8 @@ config BR2_PACKAGE_THINGINO_VARIANT_FULL
 	help
 	  Everything Thingino ships today.
 
-config BR2_PACKAGE_THINGINO_VARIANT_FLASH8
-	bool "8 MB flash"
+config BR2_PACKAGE_THINGINO_VARIANT_LIGHT
+	bool "Light (8 MB flash)"
 	select BR2_PACKAGE_THINGINO_VARIANT
 	select BR2_PACKAGE_THINGINO_VARIANT_APPS
 	help
