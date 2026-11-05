@@ -1,15 +1,8 @@
-proc: pass the Range request header to CGI as HTTP_RANGE
+proc: pass the X-API-Key request header to CGI as HTTP_X_API_KEY
 
 uhttpd exports only a fixed list of request headers to CGI scripts
-(proc_header_env) and serves no byte ranges itself (file.c answers every
-request with 200 and the whole file). A CGI that streams recordings from the
-SD card therefore cannot honour a player's Range request: Kodi, VLC and
-browsers treat the clip as unseekable, scrubbing is impossible, and every
-thumbnail or stream probe pulls the whole file. With HTTP_RANGE in the
-environment the CGI can answer 206 Partial Content itself.
-
-Adapted for branches without 0006 (X-API-Key): append the header after
-http_auth_pass instead of x_api_key.
+(proc_header_env). The web UI's auth.sh uses X-API-Key for key-based
+authentication, but using uhttpd this never reaches.
 
 diff --git a/proc.c b/proc.c
 --- a/proc.c
@@ -20,7 +13,7 @@ diff --git a/proc.c b/proc.c
  	__header(http_auth_user, http-auth-user) \
 -	__header(http_auth_pass, http-auth-pass)
 +	__header(http_auth_pass, http-auth-pass) \
-+	__header(range, range)
++	__header(x_api_key, x-api-key)
  
  #undef __header
  #define __header __enum_header
@@ -28,7 +21,7 @@ diff --git a/proc.c b/proc.c
  	{ "HTTP_X_HTTP_METHOD_OVERRIDE", HDR_x_http_method_override },
  	{ "HTTP_AUTH_USER", HDR_http_auth_user },
  	{ "HTTP_AUTH_PASS", HDR_http_auth_pass },
-+	{ "HTTP_RANGE", HDR_range },
++	{ "HTTP_X_API_KEY", HDR_x_api_key },
  	{ "CONTENT_TYPE", HDR_content_type },
  	{ "CONTENT_LENGTH", HDR_content_length },
  };
