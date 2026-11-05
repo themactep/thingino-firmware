@@ -91,6 +91,21 @@
   const ELEMENTS = ["usertext", "uptime", "logo"];
   const elementField = (key, field) =>
     document.getElementById("osd_" + key + "_" + field);
+  const loadedElements = {};
+
+  function readElement(key) {
+    const enabled = elementField(key, "enabled");
+    const format = elementField(key, "format");
+    const position = elementField(key, "position");
+    const maxChars = elementField(key, "max_chars");
+    const max = maxChars ? Number(maxChars.value) : NaN;
+    return {
+      enabled: enabled ? !!enabled.checked : null,
+      format: format ? format.value.trim() : null,
+      position: position ? position.value.trim() : null,
+      max_chars: Number.isFinite(max) && max > 0 ? max : null,
+    };
+  }
 
   async function loadElements(helper, osd) {
     for (const key of ELEMENTS) {
@@ -115,6 +130,7 @@
         console.warn("Failed to load " + key + " max chars", err);
       }
     }
+    for (const key of ELEMENTS) loadedElements[key] = readElement(key);
   }
 
   // Sequential on purpose: the first write to a missing [osd.<name>] section
@@ -132,21 +148,32 @@
     }
   }
 
+  // Only changed fields are written, so saving the timestamp form does not
+  // create sections for the elements left untouched.
   async function saveElements(helper) {
     for (const key of ELEMENTS) {
+      const before = loadedElements[key];
+      const now = readElement(key);
       const leaves = [];
-      const enabled = elementField(key, "enabled");
-      const format = elementField(key, "format");
-      const position = elementField(key, "position");
-      const maxChars = elementField(key, "max_chars");
-      if (enabled) leaves.push(["enabled", "enabled", !!enabled.checked]);
-      if (format && format.value.trim())
-        leaves.push(["format", "format", format.value.trim()]);
-      if (position && position.value.trim())
-        leaves.push(["position", "position", position.value.trim()]);
-      if (maxChars && Number(maxChars.value) > 0)
-        leaves.push(["max-chars", "max_chars", Number(maxChars.value)]);
+      if (before) {
+        if (now.enabled !== before.enabled)
+          leaves.push(["enabled", "enabled", now.enabled]);
+        if (now.format && now.format !== before.format)
+          leaves.push(["format", "format", now.format]);
+        if (now.position && now.position !== before.position)
+          leaves.push(["position", "position", now.position]);
+        if (now.max_chars && now.max_chars !== before.max_chars)
+          leaves.push(["max-chars", "max_chars", now.max_chars]);
+      } else {
+        if (now.enabled !== null)
+          leaves.push(["enabled", "enabled", now.enabled]);
+        if (now.format) leaves.push(["format", "format", now.format]);
+        if (now.position) leaves.push(["position", "position", now.position]);
+        if (now.max_chars)
+          leaves.push(["max-chars", "max_chars", now.max_chars]);
+      }
       await patchLeaves(helper, key + "/", leaves);
+      loadedElements[key] = now;
     }
   }
 
@@ -246,7 +273,6 @@
       await patchLeaves(helper, "time/", time);
 
       await saveElements(helper);
-      if (helper.saveConfig) await helper.saveConfig();
       showAlert(
         "success",
         "OSD configuration saved. Reboot the camera to apply it.",
