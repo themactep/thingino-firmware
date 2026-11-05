@@ -1,8 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091
-# timps replacement for the SSE heartbeat CGI (same name, same URL).
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 

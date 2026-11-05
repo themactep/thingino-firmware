@@ -22,11 +22,7 @@ _cleanup() {
 }
 
 copy_photo() {
-	# Use existing photo from motion if available
 	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
-		# Create atomically (mktemp, not "mktemp -u") so cp can't follow a symlink
-		# pre-planted at a predictable name in the sticky /tmp; pin to /tmp so a
-		# hostile TMPDIR can't redirect it.
 		local tmpfile
 		tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
 		cp "$MOTION_PHOTO_FILE" "$tmpfile"
@@ -35,8 +31,6 @@ copy_photo() {
 		return
 	fi
 
-	# Pull a still from timps's local HTTP server. Loopback connections skip
-	# auth (see httpd.c), so no token is needed here.
 	local tmpfile
 	tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
 	curl --silent "http://127.0.0.1:8880/snapshot.jpg?chn=0" >"$tmpfile"
@@ -45,9 +39,7 @@ copy_photo() {
 }
 
 copy_video() {
-	# Use existing video from motion if available
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
-		# Create atomically (see copy_photo): cp target must not be a planted symlink.
 		local tmpfile
 		tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
 		cp "$MOTION_VIDEO_FILE" "$tmpfile"
@@ -56,10 +48,8 @@ copy_video() {
 		return
 	fi
 
-	# On-demand fMP4 clip via /control (record.clip). Loopback skips auth; the
-	# request blocks server-side until the file is written.
-	# Clip target must NOT pre-exist (O_EXCL); name only, pinned to /tmp.
 	local tmpfile
+	# name only: the clip target must not pre-exist (O_EXCL)
 	tmpfile="$(mktemp -u /tmp/send2_clip.XXXXXX)"
 	local duration=${SEND2_CLIP_SECS:-6}
 

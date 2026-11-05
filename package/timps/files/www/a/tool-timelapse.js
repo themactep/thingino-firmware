@@ -1,4 +1,3 @@
-// tool-timelapse.js - timelapse settings tab of timelapse-player.html.
 (function () {
   "use strict";
 
@@ -10,7 +9,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // field id -> {key, type}. type: bool | int | str
   var FIELDS = [
     { id: "tl_enabled",  key: "enabled",    type: "bool" },
     { id: "tl_dir",      key: "dir",        type: "str"  },
@@ -20,9 +18,6 @@
     { id: "tl_keepdays", key: "keep_days",  type: "int"  },
   ];
 
-  // reverse of FIELDS (timps "timelapse.<key>" -> page field id), so another
-  // open tab/client changing a setting shows up here live instead of only on
-  // next reload.
   var REVERSE = {};
   FIELDS.forEach(function (f) { REVERSE["timelapse." + f.key] = f.id; });
 
@@ -87,8 +82,6 @@
     if (ev) ev.preventDefault();
     if (saveBtn) saveBtn.disabled = true;
     window.timpsApi.set({ timelapse: collect() }).then(function (r) {
-      // corrected (clamped) values go straight back into their fields from
-      // the "applied" echo - no follow-up GET on the happy path
       var corr = r && r.corrections;
       if (corr) Object.keys(corr).forEach(function (k) {
         var id = REVERSE[k];
@@ -124,7 +117,6 @@
     if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
     var el = id ? $(id) : null;
-    // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
     applyKV(id, data.value);
   }

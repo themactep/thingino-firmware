@@ -1,10 +1,9 @@
-// streamer-osd.js - overlay page, both streams behind tabs.
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-overlays") return;
 
-  var MAX_OSD = 8; // MS_MAX_OSD
+  var MAX_OSD = 8;
   var NAME = { 0: "main stream", 1: "substream" };
   var POS_NAME = { tl: "top left", tc: "top", tr: "top right", ml: "left", mc: "centre",
     mr: "right", bl: "bottom left", bc: "bottom", br: "bottom right" };
@@ -12,23 +11,21 @@
 
   var S = 0;
   var capsOsd = [];
-  var items = { 0: {}, 1: {} };       // GET osd0/osd1 per slot
-  var bootEnabled = { 0: {}, 1: {} }; // slots that had a region at startup
+  var items = { 0: {}, 1: {} };
+  var bootEnabled = { 0: {}, 1: {} };
   var dims = { 0: { w: 1920, h: 1080 }, 1: { w: 640, h: 360 } };
-  var shown = {};                     // slots listed for S
+  var frames = {};
+  var shown = {};
   var openItem = -1;
   var linked = false;
   var dragging = false;
-  var reloadLater = false;            // config changed while the user was typing
+  var reloadLater = false;
 
   function $id(id) { return document.getElementById(id); }
   function ui() { return window.timpsUi; }
   function toast(t, m, ms) { ui().toast(t, m, ms); }
   function num(v, d) { var n = parseInt(v, 10); return isNaN(n) ? d : n; }
 
-  // ---- conversions -----------------------------------------------------
-
-  // timps "0xAARRGGBB" <-> {color:"#rrggbb", alpha}
   function fromColor(v) {
     var n = parseInt(String(v), 16);
     if (isNaN(n)) return { color: "#ffffff", alpha: 255 };
@@ -41,7 +38,6 @@
     return "0x" + a.toString(16).padStart(2, "0").toUpperCase() + rgb[1].toUpperCase();
   }
 
-  // timps x/y: 0 = centred, >0 from left/top, <0 from right/bottom
   function anchorOf(it) {
     var x = num(it.x, 0), y = num(it.y, 0);
     return (y === 0 ? "m" : y > 0 ? "t" : "b") + (x === 0 ? "c" : x > 0 ? "l" : "r");
@@ -56,8 +52,6 @@
     if (leaf === "enabled" || leaf === "x" || leaf === "y") return true;
     return capsOsd.indexOf(leaf) >= 0;
   }
-
-  // ---- post ------------------------------------------------------------
 
   function scaled(leaves, from, to) {
     var out = {}, ky = dims[to].h / dims[from].h, kx = dims[to].w / dims[from].w;
@@ -83,7 +77,6 @@
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // write leaves to slot i on S (and, linked, scaled onto the other stream)
   function push(i, leaves, opts) {
     opts = opts || {};
     var body = {}, targets = linked ? [S, 1 - S] : [S];
@@ -106,8 +99,6 @@
     }, function (err) { toast("danger", "Failed to apply setting: " + (err.message || err)); });
   }
 
-  // ---- preview boxes ---------------------------------------------------
-
   var measureCtx = null;
   function expand(t) {
     var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
@@ -124,7 +115,6 @@
       .replace(/\{([a-z0-9_]+)\}/gi, function (m, k) { return ph[k.replace(/\d+$/, "")] || "xxxx"; });
   }
 
-  // the TTF timps rendered with (osd.font_path at streamer start), fetched from the camera
   var osdFont = "sans-serif", fontPath = "";
   function useFont(path) {
     var m = /^\/usr\/share\/fonts\/([A-Za-z0-9._-]+)$/.exec(path || "");
@@ -138,7 +128,6 @@
     }, function () { osdFont = "sans-serif"; });
   }
 
-  // same geometry as msttf_render(): em = font_size, pad on every side, even width
   function boxSize(it) {
     if (it.type === "logo") return { w: 100, h: 30, pad: 0 };
     var fs = Math.min(512, Math.max(8, num(it.font_size, 16)));
@@ -152,7 +141,6 @@
     return { w: (w + 1) & ~1, h: fs + 2 * pad, pad: pad };
   }
 
-  // region placed like resolve_pos(), the frame drawn around the text (region minus pad)
   function placeBox(el, it) {
     var W = dims[S].w, H = dims[S].h, a = anchorOf(it), sz = boxSize(it);
     var ox = Math.abs(num(it.x, 0)), oy = Math.abs(num(it.y, 0));
@@ -172,7 +160,7 @@
     host.innerHTML = "";
     Object.keys(shown).forEach(function (k) {
       var i = +k, it = items[S][i];
-      if (!it || !Number(it.enabled)) return;
+      if (!it || !Number(it.enabled) || noLogo(it)) return;
       var b = document.createElement("div");
       b.className = "tv-box" + (i === openItem ? " sel" : "");
       b.title = it.type === "logo" ? "logo" : it.text;
@@ -221,6 +209,7 @@
     if (!d) return;
     e.preventDefault();
     var it = items[S][openItem], a = anchorOf(it), step = e.shiftKey ? 10 : 1;
+    if (noLogo(it)) return;
     var x = num(it.x, 0), y = num(it.y, 0);
     if (d[0]) {
       if (a[1] === "c") { lockHint("x"); return; }
@@ -235,11 +224,12 @@
     push(openItem, { x: x, y: y }, { debounce: true, quiet: true });
   }
 
-  // ---- list + editor ---------------------------------------------------
+  function noLogo(it) { return it.type === "logo" && frames[S] && frames[S].path === "sw"; }
 
   function status(i) {
     var it = items[S][i] || {};
     if (!Number(it.enabled)) return '<span class="badge text-bg-secondary">Off</span>';
+    if (noLogo(it)) return '<span class="badge text-bg-secondary">Not shown on a rotated stream</span>';
     return bootEnabled[S][i] ? '<span class="badge text-bg-success">Live</span>'
       : '<span class="badge text-bg-warning">Needs restart</span>';
   }
@@ -298,7 +288,8 @@
     h += '<div class="d-flex flex-wrap align-items-center gap-2 mt-2"><span class="tv-cfg me-auto">' + cfgText(i, it) +
       '</span><button type="button" class="btn btn-sm btn-outline-danger e-remove"><i class="bi bi-trash me-1"></i>Remove</button></div>';
     if (it.type === "logo")
-      h += '<p class="form-text mb-0">The logo image is set in the streamer configuration file.</p>';
+      h += '<p class="form-text mb-0">The logo image is set in the streamer configuration file.' +
+        (noLogo(it) ? " Logos are not drawn on a software-rotated stream." : "") + "</p>";
     return h;
   }
 
@@ -370,6 +361,7 @@
         ib.innerHTML = editorHtml(i, it);
         w.appendChild(ib);
         wireEditor(ib, i);
+        if (noLogo(it)) Array.prototype.forEach.call(ib.querySelectorAll("input,select,button"), function (e) { e.disabled = true; });
       }
       w.querySelector(".tv-ih").addEventListener("click", function (e) {
         if (e.target.closest(".form-check")) return;
@@ -377,6 +369,7 @@
         render();
         if (openItem >= 0) $id("frame").focus({ preventScroll: true });
       });
+      if (noLogo(it)) w.querySelector(".e-en").disabled = true;
       w.querySelector(".e-en").addEventListener("change", function () { push(i, { enabled: this.checked ? 1 : 0 }); });
       host.appendChild(w);
     });
@@ -393,8 +386,6 @@
       : "Editing the <b>" + NAME[S] + "</b> only. Switch on to edit both streams together.";
   }
 
-  // ---- load ------------------------------------------------------------
-
   function inUse(it) {
     return it && (Number(it.enabled) || (it.text && String(it.text).length) || it.type === "logo");
   }
@@ -405,6 +396,7 @@
     for (var i = 0; i < MAX_OSD; i++) if (inUse(items[S][i])) shown[i] = true;
     if (!shown[openItem]) openItem = -1;
     renderLink();
+    ui().setFrame(frames[S]);
     render();
   }
 
@@ -428,8 +420,9 @@
       [0, 1].forEach(function (s) {
         var set = json["osd" + s] || {};
         var v = json.video && json.video[s];
-        if (v && v.width) dims[s] = { w: +v.width, h: +v.height };
-        ui().setTabSummary(s, v && v.width ? v.width + "×" + v.height : "");
+        var f = frames[s] = ui().frame(v);
+        if (f.w) dims[s] = { w: f.w, h: f.h };
+        ui().setTabSummary(s, f.w ? f.w + "×" + f.h + (f.path !== "off" ? " · " + f.rot + "°" : "") : "");
         for (var i = 0; i < MAX_OSD; i++) {
           items[s][i] = set[String(i)] || {};
           if (first) bootEnabled[s][i] = !!Number(items[s][i].enabled);
@@ -466,7 +459,6 @@
       ui().markPending((r && r.deferred_keys) || ["osd.font_path"]);
     }, function (e) { ui().toast("danger", "Font: " + (e.message || e)); });
   }
-  // select box: every font in FONT_DIR, current = osd.font_path; an upload lands in default.ttf
   function fontList(j, uploaded) {
     var sel = $id("osd-font-sel");
     if (!sel || !j.fonts) return;
@@ -495,7 +487,6 @@
     try { linked = localStorage.getItem("timps-osd-link") === "1"; } catch (e) {}
     S = ui().initTabs(function (s) { selectStream(s); });
     ui().uploadCard($id("osd-font"), "font", "OSD font", fontList);
-    // any streamer restart (restart bar or outside): new font/boot state
     document.addEventListener("timps-back", function () { load(true); });
     renderLink();
 
@@ -513,7 +504,7 @@
     });
     $id("osd-add-item").addEventListener("click", function () {
       for (var i = 0; i < MAX_OSD; i++) {
-        if (shown[i]) continue;
+        if (shown[i] || noLogo(items[S][i] || {})) continue;
         shown[i] = true;
         openItem = i;
         var it = items[S][i];

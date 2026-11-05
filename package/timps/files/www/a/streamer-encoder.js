@@ -1,18 +1,16 @@
-// streamer-encoder.js - video encoder page, both streams behind tabs.
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-video") return;
 
-  var idx = 0;      // stream shown in the form
-  var last = null;  // last GET /control
-  var stats = null; // last "stats" event
+  var idx = 0;
+  var last = null;
+  var stats = null;
   var videoLive = null;
   var curMode = "";
-  var rotPred = [0, 0]; // per stream: code the next start would refuse the rotation with
+  var rotPred = [0, 0];
   var ROT_KEYS = ["rotation", "width", "height", "fps", "enabled"];
 
-  // form field suffix (id "v-<suffix>") -> timps video.* key + value type
   var FIELD_MAP = {
     width: { key: "width", type: "int" },
     height: { key: "height", type: "int" },
@@ -41,7 +39,7 @@
     min_qp: {},
     quality_lvl: { modes: ["VBR", "SMART"], classicOnly: true, name: "Quality level" },
     change_pos: { modes: ["VBR", "SMART"], classicOnly: true, name: "Change position" },
-    i_bias_lvl: { name: "I-frame bias" },   // classic yes, T31/C100 via QpIPDelta, T40/T41 no
+    i_bias_lvl: { name: "I-frame bias" },
     fluc_lvl: { codecs: ["H265"], classicOnly: true, name: "Fluctuation level" },
   };
   var CLASSIC_FAMS = ["t10", "t20", "t21", "t23", "t30"];
@@ -86,8 +84,6 @@
       " · " + v.fps + " fps";
   }
 
-  // ---- save -------------------------------------------------------------
-
   function verdict(r, key) {
     var full = "video" + idx + "." + key;
     var deferred = r && Array.isArray(r.deferred_keys)
@@ -112,7 +108,6 @@
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // "errors" of a POST reply: the rotation prediction goes to the note, the rest to a toast
   function noteErrors(r, s, key) {
     var E = window.timpsErrors, errs = (r && r.errors) || {};
     var rk = "video" + s + ".rotation", rest = {}, n = 0;
@@ -156,8 +151,6 @@
     return isNaN(n) ? undefined : n;
   }
 
-  // ---- fill -------------------------------------------------------------
-
   function populate(suffix, video) {
     var el = $id("v-" + suffix), map = FIELD_MAP[suffix];
     if (!el) return;
@@ -194,7 +187,6 @@
     });
   }
 
-  // rotation: only the values caps.rotation offers; rotation_state = why it runs unrotated now
   function renderRot() {
     var vals = last && last.caps && last.caps.rotation;
     var on = Array.isArray(vals) && vals.length > 1;
@@ -217,6 +209,36 @@
     }
     note.textContent = t.join(" ");
     note.hidden = !t.length;
+    var fx = on && E && E.rotFit ? E.rotFit(rotPred[idx] || st, v) : null;
+    if (fx) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-sm btn-outline-warning d-block mt-2 px-3 py-1";
+      b.textContent = "Use " + fx.width + "×" + fx.height + (fx.fps !== +v.fps ? " @ " + fx.fps + " fps" : "");
+      b.addEventListener("click", function () { applyFit(fx, b); });
+      note.appendChild(b);
+    }
+  }
+
+  function applyFit(fx, b) {
+    var s = idx, video = {};
+    video[s] = fx;
+    b.disabled = true;
+    window.timpsApi.set({ video: video }).then(function (r) {
+      if (s !== idx) return;
+      applyCorrections(r);
+      var keys = Object.keys(fx).map(function (k) { return "video" + s + "." + k; });
+      var def = r && Array.isArray(r.deferred_keys) ? keys.filter(function (k) { return r.deferred_keys.indexOf(k) >= 0; }) : keys;
+      if (def.length && (!r || r.changed !== 0)) ui().markPending(def);
+      noteErrors(r, s, "width");
+      if (last && last.video && last.video[s]) Object.keys(fx).forEach(function (k) { last.video[s][k] = fx[k]; });
+      ["width", "height", "fps"].forEach(function (k) { populate(k, fx); });
+      renderMeta();
+      renderRot();
+      if (!rotPred[s]) toast("success", "Saved. Restart the streamer to apply the rotation.");
+    }, function (err) {
+      b.disabled = false;
+      toast("danger", "Failed to save setting: " + (err.message || err));
+    });
   }
 
   function renderBadges() {
@@ -286,7 +308,6 @@
     });
   }
 
-  // hide rc fields that do nothing for this SoC/mode/codec, and say which
   function rcGate() {
     var fam = socFamily();
     var classic = fam ? CLASSIC_FAMS.indexOf(fam) >= 0 : null;
