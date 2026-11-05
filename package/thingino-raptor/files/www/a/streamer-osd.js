@@ -86,6 +86,102 @@
     alert(message);
   }
 
+  // Other OSD elements: [osd.camera] (agent "usertext"), [osd.uptime] and
+  // [osd.logo]. Each field is one agent setting leaf.
+  const ELEMENTS = ["usertext", "uptime", "logo"];
+  const elementField = (key, field) =>
+    document.getElementById("osd_" + key + "_" + field);
+
+  async function loadElements(helper, osd) {
+    for (const key of ELEMENTS) {
+      const cfg = osd[key] || {};
+      const enabled = elementField(key, "enabled");
+      const format = elementField(key, "format");
+      const position = elementField(key, "position");
+      if (enabled) enabled.checked = cfg.enabled === true;
+      if (format && cfg.format) format.value = cfg.format;
+      if (position && cfg.position) position.value = cfg.position;
+    }
+    for (const key of ["time", ...ELEMENTS]) {
+      const maxChars = elementField(key, "max_chars");
+      if (!maxChars) continue;
+      try {
+        const leaf = await helper.agentRequest(
+          "/api/v1/settings/streams/0/osd/" + key + "/max-chars",
+          { cache: "no-store" },
+        );
+        if (leaf && leaf.max_chars != null) maxChars.value = leaf.max_chars;
+      } catch (err) {
+        console.warn("Failed to load " + key + " max chars", err);
+      }
+    }
+  }
+
+  // Sequential on purpose: the first write to a missing [osd.<name>] section
+  // makes the adapter recreate it with several config writes.
+  async function patchLeaves(helper, prefix, leaves) {
+    for (const [path, field, value] of leaves) {
+      await helper.agentRequest(
+        "/api/v1/settings/streams/0/osd/" + prefix + path,
+        {
+          method: "PATCH",
+          body: { [field]: value },
+          cache: "no-store",
+        },
+      );
+    }
+  }
+
+  async function saveElements(helper) {
+    for (const key of ELEMENTS) {
+      const leaves = [];
+      const enabled = elementField(key, "enabled");
+      const format = elementField(key, "format");
+      const position = elementField(key, "position");
+      const maxChars = elementField(key, "max_chars");
+      if (enabled) leaves.push(["enabled", "enabled", !!enabled.checked]);
+      if (format && format.value.trim())
+        leaves.push(["format", "format", format.value.trim()]);
+      if (position && position.value.trim())
+        leaves.push(["position", "position", position.value.trim()]);
+      if (maxChars && Number(maxChars.value) > 0)
+        leaves.push(["max-chars", "max_chars", Number(maxChars.value)]);
+      await patchLeaves(helper, key + "/", leaves);
+    }
+  }
+
+  // Each position input holds the value; a select in front of it offers the
+  // named positions and reveals the input only for custom x,y coordinates.
+  function positionSelects() {
+    return document.querySelectorAll("select[data-position-for]");
+  }
+
+  function refreshPositionSelects() {
+    positionSelects().forEach((select) => {
+      const input = document.getElementById(select.dataset.positionFor);
+      const value = input.value.trim();
+      const named = [...select.options].some(
+        (o) => o.value === value && o.value !== "custom",
+      );
+      select.value = named ? value : value ? "custom" : "";
+      input.classList.toggle("d-none", select.value !== "custom");
+    });
+  }
+
+  positionSelects().forEach((select) => {
+    select.addEventListener("change", () => {
+      const input = document.getElementById(select.dataset.positionFor);
+      const custom = select.value === "custom";
+      input.classList.toggle("d-none", !custom);
+      if (custom) {
+        if (/^[a-z_]+$/.test(input.value)) input.value = "";
+        input.focus();
+      } else {
+        input.value = select.value;
+      }
+    });
+  });
+
   async function loadOsdConfig() {
     const helper = window.thinginoStreamer;
     if (!helper || !helper.agentRequest) return;
@@ -107,6 +203,8 @@
       updateSwatch(burninOutlineColor, swatchOutline);
       syncAlphaFromInput(burninFillColor, alphaFill);
       syncAlphaFromInput(burninOutlineColor, alphaOutline);
+      await loadElements(helper, osd);
+      refreshPositionSelects();
     } catch (err) {
       console.warn("Failed to load OSD config", err);
     }
@@ -114,7 +212,7 @@
 
   async function saveOsdConfig() {
     const helper = window.thinginoStreamer;
-    if (!helper || !helper.applyPayload) {
+    if (!helper || !helper.agentRequest) {
       showAlert("danger", "Streamer agent helper unavailable", 6000);
       return;
     }
@@ -126,30 +224,33 @@
 
     saveBtn.disabled = true;
     try {
-      const time = {
-        enabled: !!burninEnabled.checked,
-      };
-      if (burninFormat.value.trim()) time.format = burninFormat.value.trim();
-      if (burninPosition.value.trim())
-        time.position = burninPosition.value.trim();
-      if (burninFillColor.value.trim())
-        time.fill_color = burninFillColor.value.trim();
-      if (burninOutlineColor.value.trim())
-        time.stroke_color = burninOutlineColor.value.trim();
-
-      const osd = { enabled: !!burninEnabled.checked, time };
+      const enabled = !!burninEnabled.checked;
+      const osd = [["enabled", "enabled", enabled]];
       const fontSize = Number(burninFontSize.value);
-      if (Number.isFinite(fontSize) && fontSize > 0) {
-        osd.font_size = fontSize;
-      }
+      if (Number.isFinite(fontSize) && fontSize > 0)
+        osd.push(["font-size", "font_size", fontSize]);
+      await patchLeaves(helper, "", osd);
 
-      await helper.applyPayload({ stream0: { osd } });
+      const time = [["enabled", "enabled", enabled]];
+      const text = (input) => input.value.trim();
+      if (text(burninFormat))
+        time.push(["format", "format", text(burninFormat)]);
+      if (text(burninPosition))
+        time.push(["position", "position", text(burninPosition)]);
+      const timeMaxChars = Number(elementField("time", "max_chars").value);
+      if (timeMaxChars > 0) time.push(["max-chars", "max_chars", timeMaxChars]);
+      if (text(burninFillColor))
+        time.push(["fill-color", "fill_color", text(burninFillColor)]);
+      if (text(burninOutlineColor))
+        time.push(["stroke-color", "stroke_color", text(burninOutlineColor)]);
+      await patchLeaves(helper, "time/", time);
+
+      await saveElements(helper);
       if (helper.saveConfig) await helper.saveConfig();
       showAlert(
         "success",
-        (helper.saveSuccessMessage && helper.saveSuccessMessage()) ||
-          "OSD configuration saved",
-        4000,
+        "OSD configuration saved. Reboot the camera to apply it.",
+        6000,
       );
     } catch (err) {
       console.error("Failed to save OSD config", err);
