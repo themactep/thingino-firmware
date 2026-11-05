@@ -39,7 +39,7 @@ fi
 mkdir -p "${BR2_DL_DIR}"
 assets_file="$(mktemp)"
 trap 'rm -f "${assets_file}"' EXIT
-printf '%s\n' "${assets}" > "${assets_file}"
+printf '%s\n' "${assets}" >"${assets_file}"
 
 checked=0
 kept=0
@@ -65,6 +65,6 @@ while IFS='	' read -r name updated_at; do
 	echo "Removing stale bundle: ${name}"
 	rm -f "${dst}" "${stamp}"
 	removed=$((removed + 1))
-done < "${assets_file}"
+done <"${assets_file}"
 
 echo "Toolchain bundles checked: ${checked}, current: ${kept}, removed stale: ${removed}, missing locally: ${missing}"

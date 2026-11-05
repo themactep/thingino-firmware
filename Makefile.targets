@@ -385,24 +385,43 @@ defconfig: check-config
 	# Ensure buildroot is properly configured
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
-# Lint all shell scripts with shellcheck
+# Lint every tracked shell script with shellcheck
 shellcheck:
 	@if ! command -v shellcheck >/dev/null 2>&1; then \
 		echo "shellcheck is not installed. Run: apt install shellcheck"; \
 		exit 1; \
 	fi
 	@echo "Linting shell scripts..."
-	@find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
+	@files=$$(git -C $(BR2_EXTERNAL) ls-files '*.sh'); \
+	if [ -n "$$files" ]; then shellcheck -x $$files; fi
 	@echo "All shell scripts passed."
 
-# Full lint suite: shellcheck + do-not-edit + defconfig sort + plugin validation
-# + tz.json strings
-lint: shellcheck
+# Check /bin/sh formatting with the same rules as the pre-commit hook
+shfmt-check:
+	@if ! command -v shfmt >/dev/null 2>&1; then \
+		echo "shfmt is not installed. Run: go install mvdan.cc/sh/v3/cmd/shfmt@v3.13.1"; \
+		exit 1; \
+	fi
+	@echo "Checking /bin/sh formatting..."
+	@failed=0; \
+	for f in $$(git -C $(BR2_EXTERNAL) ls-files '*.sh'); do \
+		head -1 "$(BR2_EXTERNAL)/$$f" 2>/dev/null | grep -q '^#!/bin/sh' || continue; \
+		if ! shfmt -d -i 0 -ci "$(BR2_EXTERNAL)/$$f"; then failed=1; fi; \
+	done; \
+	if [ "$$failed" -eq 1 ]; then \
+		echo "Run 'shfmt -w -i 0 -ci <file>' to fix."; \
+		exit 1; \
+	fi
+	@echo "All /bin/sh scripts are shfmt-formatted."
+
+# Full lint suite: shellcheck + shfmt + do-not-edit + defconfig sort + plugin
+# validation + tz.json strings
+lint: shellcheck shfmt-check
 	@echo "Checking do-not-edit paths..."
 	@git diff --name-only --diff-filter=ACMR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
 	@echo "Checking defconfig sort order..."
 	@failed=0; \
-	for f in configs/cameras/*/"*_defconfig"; do \
+	for f in configs/cameras*/*/*_defconfig; do \
 		[ -f "$$f" ] || continue; \
 		cp "$$f" "$$f.lint.bak" || exit 1; \
 		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f" 2>/dev/null; \
@@ -425,7 +444,7 @@ lint: shellcheck
 
 # Sort all camera defconfigs
 sort-defconfigs:
-	@for f in configs/cameras/*/*_defconfig; do \
+	@for f in configs/cameras*/*/*_defconfig; do \
 		[ -f "$$f" ] || continue; \
 		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f"; \
 	done

@@ -315,10 +315,10 @@ help:
 	  make bootstrap      install system deps\n\
 	  make setup-hooks    configure local git hooks path (.githooks)\n\
 	  make update         update local repo and submodules\n\
-	  make                build from scratch (clean + parallel) [DEFAULT]\n\
+	  make                incremental parallel build [DEFAULT]\n\
 	  make dev            serial build for debugging compilation errors\n\
-	  make fast           fast incremental build (no clean)\n\
-	  make cleanbuild     same as 'make' (clean + parallel build)\n\
+	  make fast           alias for 'make'\n\
+	  make cleanbuild     clean build from scratch (distclean + parallel)\n\
 	  make build          serial build (no clean)\n\
 	  make pack           create firmware images\n\
 	  make build-info     generate post-build graphs and package analysis\n\
@@ -397,7 +397,7 @@ show-vars:
 	@echo "ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM = $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)";
 	@echo "ISP_MEMOPT = $(ISP_MEMOPT)";
 	@echo "KERNEL_BRANCH = $(KERNEL_BRANCH)";
-	@echo "KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)";
+	@echo "KERNEL_HASH = $(KERNEL_HASH)";
 	@echo "KERNEL_SITE = $(KERNEL_SITE)";
 	@echo "KERNEL_TARBALL_URL = $(KERNEL_TARBALL_URL)";
 	@echo "KERNEL_VERSION = $(KERNEL_VERSION)";

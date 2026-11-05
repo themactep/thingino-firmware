@@ -93,7 +93,7 @@ jobs:
       - name: Check defconfig sort order
         run: |
           failed=0
-          for f in configs/cameras/*/*_defconfig; do
+          for f in configs/cameras*/*/*_defconfig; do
             [ -f "$f" ] || continue
             cp "$f" "$f.lint.bak"
             scripts/sort_defconfig.py "$f" 2>/dev/null

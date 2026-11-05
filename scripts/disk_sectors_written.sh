@@ -8,7 +8,7 @@ set -u
 total=0
 devs=$(lsblk -d -n -o NAME,TYPE 2>/dev/null | awk '$2 == "disk" && $1 !~ /^(zram|ram|loop|nbd|pmem|fd|md)/ { print $1 }')
 for dev in $devs; do
-    sectors=$(awk -v d="$dev" '$3 == d { print $10 }' /proc/diskstats 2>/dev/null)
-    total=$((total + ${sectors:-0}))
+	sectors=$(awk -v d="$dev" '$3 == d { print $10 }' /proc/diskstats 2>/dev/null)
+	total=$((total + ${sectors:-0}))
 done
 printf '%s\n' "$total"

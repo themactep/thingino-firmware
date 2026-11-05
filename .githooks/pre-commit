@@ -37,7 +37,7 @@ defconfig_staged_files=$(
 	printf '%s\n' "$staged_files" | while IFS= read -r file; do
 		[ -n "$file" ] || continue
 		case "$file" in
-			configs/cameras/*defconfig* | configs/cameras-exp/*defconfig*)
+			configs/cameras*/*defconfig*)
 				printf '%s\n' "$file"
 				;;
 		esac

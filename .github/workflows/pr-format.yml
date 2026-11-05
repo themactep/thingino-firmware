@@ -173,7 +173,7 @@ jobs:
           while IFS= read -r file; do
             [ -f "$file" ] || continue
             case "$file" in
-              configs/cameras/*defconfig* | configs/cameras-exp/*defconfig*)
+              configs/cameras*/*defconfig*)
                 if ! scripts/sort_defconfig.py --check "$file"; then
                   failed=1
                 fi

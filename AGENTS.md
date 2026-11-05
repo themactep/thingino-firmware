@@ -21,8 +21,9 @@
 
 ```bash
 make update                     # pull + submodule update + Buildroot patches + toolchain bundles
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 make   # build (default = clean + parallel + pack)
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 make fast   # incremental (no clean)
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 make   # incremental parallel build + pack (default)
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 make fast   # alias for make
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 make cleanbuild  # distclean + parallel build + pack
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make dev    # serial build (noisy, for debugging)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make menuconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
