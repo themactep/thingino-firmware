@@ -224,7 +224,7 @@ $(shell \
 endef
 
 # Smart configuration check - only regenerate if needed
-check-config: buildroot/Makefile
+check-config: $(BUILDROOT_DIR)/Makefile
 	@$(TEAL) "$@"
 	@if [ "$(call config_needs_regen)" = "yes" ]; then \
 		echo "Configuration files have changed, regenerating .config"; \
@@ -234,7 +234,7 @@ check-config: buildroot/Makefile
 	fi
 
 # Force configuration regeneration
-force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep
+force-config: $(BUILDROOT_DIR)/Makefile $(OUTPUT_DIR)/.keep
 	@$(TEAL) "$@"
 	# delete older config
 	$(info * remove existing .config file)
