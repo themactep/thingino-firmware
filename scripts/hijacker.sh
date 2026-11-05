@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2086,SC2015
 # SC2086: binary filenames and hex values, no spaces or glob chars.
-# SC2015: A && B || C pattern in 'run' function is intentional —
+# SC2015: A && B || C pattern in 'run' function is intentional --
 #   the eval'd commands use '|| die' which calls exit, so C never
 #   runs when A succeeds.
 #

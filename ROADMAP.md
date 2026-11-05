@@ -42,13 +42,16 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   as `/usr/share/send2common` by exactly one streamer package, and snapshot /
   clip access differs per streamer. The reason is documented in each file so
   it is not "deduplicated" later.
-- [ ] **O11** Deduplicate firmware blobs repeated across package `files/`
-  directories (wifi firmware, Ingenic tools, logos).
+- [x] **O11** Remove the unused prebuilt `ingenic-tools-fpag` tree (the
+  U-Boot patch adds its sources, but `tools/Makefile` only builds
+  `ingenic-tools`). Keep the remaining intentional duplicates and add
+  `scripts/check-duplicate-files.sh` to `make lint` so they cannot drift.
 
 ## P3 - Hygiene
 
-- [ ] **O12** Remove non-ASCII characters from tracked `.sh` files (em dashes,
-  `✓`/`✗`, box drawing), per the repository's own rule.
+- [x] **O12** Remove non-ASCII characters from tracked `.sh` files (em dashes,
+  `✓`/`✗`, box drawing) and add `scripts/check-ascii.sh` to `make lint` so
+  they do not come back.
 - [ ] **O13** Fix stale `docs/ai/` references to scripts that no longer exist
   or moved.
 - [ ] **O14** Verify and retire `configs/cameras-test` if it is unused by any
@@ -108,3 +111,18 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 - O10 closed as not-a-defect. The `send2common` files are per-streamer
   variants installed exclusively by the selected streamer package; snapshot
   and clip access differ. Each copy now says so at the top.
+
+### Turn 5
+
+- O11 done as approved (options 1 and 4). Removed the unused prebuilt
+  `thingino-uboot/files/2013.07/tools/ingenic-tools-fpag/` tree (~1.3 MiB).
+  The large U-Boot patch still adds that directory's sources, but the
+  top-level `tools/Makefile` only builds `ingenic-tools`; the prebuilt
+  binaries were never used. Added `scripts/check-duplicate-files.sh`, which
+  keeps the nine intentionally duplicated wifi/Linux asset groups in sync.
+  A deliberate divergence is handled by editing the manifest, not by
+  silently changing one copy.
+- O12 done. Converted all 27 tracked `.sh` files to ASCII (2,545 characters:
+  box drawing, em/en dashes, bullets, arrows, status glyphs, emoji). Added
+  `scripts/check-ascii.sh` to `make lint` and the lint CI job. No runtime
+  firmware scripts were affected; all were host/build/docs tools.

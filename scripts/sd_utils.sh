@@ -124,9 +124,9 @@ show_device_info() {
     echo
     echo "=== Safety Check ==="
     if verify_device_ready "$device" 2>/dev/null; then
-        echo "✓ Device is safe for writing"
+        echo "[OK] Device is safe for writing"
     else
-        echo "✗ Device is NOT safe for writing"
+        echo "[FAIL] Device is NOT safe for writing"
     fi
 }
 

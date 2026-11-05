@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck disable=SC2034
-# list-spi-nor-chips.sh — Extract SPI NOR flash chip entries from a compiled U-Boot binary
+# list-spi-nor-chips.sh -- Extract SPI NOR flash chip entries from a compiled U-Boot binary
 #
 # Usage: ./list-spi-nor-chips.sh [u-boot-with-spl-lzma.bin | u-boot.bin | ...]
 #

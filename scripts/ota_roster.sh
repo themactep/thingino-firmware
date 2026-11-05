@@ -105,7 +105,7 @@ while IFS=, read -r col1 col2 col3 col4; do
 	log "===== $label ($camera @ $ip) ====="
 
 	if needs_build "$camera" "$group"; then
-		log "✓ Firmware is fresh; reusing existing image."
+		log "[OK] Firmware is fresh; reusing existing image."
 	else
 		build_status=$?
 		case $build_status in

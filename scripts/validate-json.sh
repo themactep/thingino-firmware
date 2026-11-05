@@ -42,18 +42,18 @@ validate_json() {
     local file="$1"
     
     if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
-        echo -e "${RED}✗ Invalid JSON:${NC} $file"
+        echo -e "${RED}[FAIL] Invalid JSON:${NC} $file"
         python3 -m json.tool "$file" 2>&1 | head -n 5
         
         if [ $FIX_MODE -eq 1 ]; then
             echo -e "${YELLOW}  Attempting to fix...${NC}"
             if python3 -c "from json_repair import repair_json; import sys, json; content = open('$file').read(); repaired = repair_json(content); print(json.dumps(json.loads(repaired), indent=2))" > "${file}.tmp" 2>/dev/null; then
                 mv "${file}.tmp" "$file"
-                echo -e "${GREEN}  ✓ Fixed${NC}"
+                echo -e "${GREEN}  [OK] Fixed${NC}"
                 return 0
             else
                 rm -f "${file}.tmp"
-                echo -e "${RED}  ✗ Unable to fix automatically${NC}"
+                echo -e "${RED}  [FAIL] Unable to fix automatically${NC}"
                 return 1
             fi
         fi

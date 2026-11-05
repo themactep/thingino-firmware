@@ -264,7 +264,7 @@ snmp_probe_quick() {
     fi
 }
 
-# ── mDNS discovery helpers ─────────────────────────────────────────────
+# -- mDNS discovery helpers ---------------------------------------------
 discover_mdns() {
     # Discover SNMP agents via mDNS (_snmp._udp).
     # Writes result files to $1 with prefix $2 (one per camera).
@@ -308,7 +308,7 @@ cmd_discover() {
     tmpdir=$(mktemp -d)
     trap "rm -rf $tmpdir" EXIT
 
-    # ── Try mDNS first ────────────────────────────────────────────────
+    # -- Try mDNS first ------------------------------------------------
     if command -v avahi-browse >/dev/null 2>&1; then
         echo "Scanning for SNMP agents via mDNS..."
         if discover_mdns "$tmpdir" "mdns-" 2>/dev/null; then
@@ -322,7 +322,7 @@ cmd_discover() {
         echo "Nothing found via mDNS."
     fi
 
-    # ── Fall back to network scan ─────────────────────────────────────
+    # -- Fall back to network scan -------------------------------------
     echo
     local tool=""
     if command -v arp-scan >/dev/null 2>&1; then

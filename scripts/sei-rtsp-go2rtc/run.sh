@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
 #=============================================================================
 # shellcheck disable=SC2155
-# sei-rtsp-go2rtc.sh — go2rtc-based SEI OSD overlay for Thingino cameras
+# sei-rtsp-go2rtc.sh -- go2rtc-based SEI OSD overlay for Thingino cameras
 #=============================================================================
 #
 # Pulls an RTSP stream from a Thingino camera, extracts SEI JSON metadata
-# from H.264 NAL units, and burns it as OSD text via ffmpeg drawtext —
+# from H.264 NAL units, and burns it as OSD text via ffmpeg drawtext --
 # all served through go2rtc for multi-protocol access (RTSP, WebRTC, MSE).
 #
 # Architecture:
 #                          rtsp://camera/stream
-#                     ┌──────────────────────────────┐
-#                     │                              │
-#              ┌──────▼──────┐              ┌────────▼──────────┐
-#              │ ffmpeg pipe │              │  ffmpeg overlay   │
-#              │ (raw H.264) │              │  drawtext +       │
-#              └──────┬──────┘              │  libx264 → mpegts │
-#                     │                     └────────┬──────────┘
-#              ┌──────▼──────┐                       │ pipe:1
-#              │ sei-extract │  /tmp/sei-osd/        │
-#              │ (Go, NAL    │─────────────────────► │ reload=1
-#              │  parser)    │  sei_osd_*.txt        │
-#              │             │  sei_positions.json   │
-#              │             │  sei_meta.json        │
-#              └─────────────┘                       │
-#                                          ┌─────────▼────────┐
-#                                          │     go2rtc       │
-#                                          │  /camera_raw     │
-#                                          │  /camera_osd     │
-#                                          │  Web UI :1984    │
-#                                          └──────────────────┘
+#                     +------------------------------+
+#                     |                              |
+#              +------v------+              +--------v----------+
+#              | ffmpeg pipe |              |  ffmpeg overlay   |
+#              | (raw H.264) |              |  drawtext +       |
+#              +------+------+              |  libx264 -> mpegts |
+#                     |                     +--------+----------+
+#              +------v------+                       | pipe:1
+#              | sei-extract |  /tmp/sei-osd/        |
+#              | (Go, NAL    |---------------------> | reload=1
+#              |  parser)    |  sei_osd_*.txt        |
+#              |             |  sei_positions.json   |
+#              |             |  sei_meta.json        |
+#              +-------------+                       |
+#                                          +---------v--------+
+#                                          |     go2rtc       |
+#                                          |  /camera_raw     |
+#                                          |  /camera_osd     |
+#                                          |  Web UI :1984    |
+#                                          +------------------+
 #
 # Usage:
 #   ./run.sh [OPTIONS] CAMERA_URL
@@ -53,9 +53,9 @@
 #   --dry-run              Print commands without executing
 #
 # Output:
-#   rtsp://<host>:8554/camera_raw   – passthrough (unless --no-passthrough)
-#   rtsp://<host>:8554/camera_osd   – stream with per-element OSD overlay
-#   http://<host>:1984              – go2rtc web UI
+#   rtsp://<host>:8554/camera_raw   - passthrough (unless --no-passthrough)
+#   rtsp://<host>:8554/camera_osd   - stream with per-element OSD overlay
+#   http://<host>:1984              - go2rtc web UI
 #
 # Requirements:
 #   - go2rtc (https://github.com/AlexxIT/go2rtc)
@@ -69,7 +69,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SEI_EXTRACT="${SCRIPT_DIR}/sei-extract-bin"
 
-# ── Defaults ──────────────────────────────────────────────────────────────────
+# -- Defaults ------------------------------------------------------------------
 
 RTSP_PORT=8554
 API_PORT=1984
@@ -88,7 +88,7 @@ NO_PASSTHROUGH=false
 OSD_DIR="/tmp/sei-osd"
 CAMERA_URL=""
 
-# ── Font detection ────────────────────────────────────────────────────────────
+# -- Font detection ------------------------------------------------------------
 
 find_font() {
     local preferred="$1"
@@ -117,7 +117,7 @@ find_font() {
     echo "Droid Sans"
 }
 
-# ── Build rotation prefix ─────────────────────────────────────────────────────
+# -- Build rotation prefix -----------------------------------------------------
 
 build_rotation_prefix() {
     case "$1" in
@@ -128,7 +128,7 @@ build_rotation_prefix() {
     esac
 }
 
-# ── Build filter for preset position mode ─────────────────────────────────────
+# -- Build filter for preset position mode -------------------------------------
 
 build_preset_filtergraph() {
     local font="$1" size="$2" border="$3" position="$4" max_elem="$5" osddir="$6"
@@ -163,7 +163,7 @@ build_preset_filtergraph() {
     echo "${filters[*]}"
 }
 
-# ── Build filter for auto mode (per-element SEI positions) ────────────────────
+# -- Build filter for auto mode (per-element SEI positions) --------------------
 
 build_auto_filtergraph() {
     local font="$1" size="$2" border="$3" pos_file="$4" osddir="$5"
@@ -200,14 +200,14 @@ build_auto_filtergraph() {
     echo "${filters[*]}"
 }
 
-# ── Build ffmpeg exec command for go2rtc ──────────────────────────────────────
+# -- Build ffmpeg exec command for go2rtc --------------------------------------
 
 build_exec_cmd() {
     local camera_url="$1" vf="$2"
     echo "exec:ffmpeg -hide_banner -loglevel error -fflags +discardcorrupt -rtsp_transport tcp -i ${camera_url} -vf ${vf} -c:v libx264 -preset ultrafast -tune zerolatency -crf 23 -c:a copy -f mpegts pipe:1"
 }
 
-# ── Parse arguments ───────────────────────────────────────────────────────────
+# -- Parse arguments -----------------------------------------------------------
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -247,7 +247,7 @@ parse_args() {
     fi
 }
 
-# ── Container engine detection ────────────────────────────────────────────────
+# -- Container engine detection ------------------------------------------------
 
 detect_container_engine() {
     if command -v podman >/dev/null 2>&1; then
@@ -259,7 +259,7 @@ detect_container_engine() {
     fi
 }
 
-# ── Validate dependencies ─────────────────────────────────────────────────────
+# -- Validate dependencies -----------------------------------------------------
 
 check_deps() {
     local missing=()
@@ -300,7 +300,7 @@ check_deps() {
     fi
 }
 
-# ── Config writer (callable multiple times) ──────────────────────────────────
+# -- Config writer (callable multiple times) ----------------------------------
 
 write_go2rtc_config() {
     local exec_cmd
@@ -338,7 +338,7 @@ ${streams_yaml}
 YAML
 }
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────
+# -- Cleanup -------------------------------------------------------------------
 
 cleanup() {
     echo ""
@@ -368,7 +368,7 @@ cleanup() {
     echo "Done."
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main ----------------------------------------------------------------------
 
 main() {
     parse_args "$@"
@@ -376,14 +376,14 @@ main() {
 
     FONT_PATH="$(find_font "$FONT_PATH")"
 
-    # ── Validate position mode ─────────────────────────────────────────────
+    # -- Validate position mode ---------------------------------------------
     local valid_positions="auto top-left top-center top-right middle-center bottom-left bottom-right"
     if ! echo "$valid_positions" | grep -qw "$POSITION"; then
         echo "ERROR: invalid position '$POSITION'. Valid: $valid_positions" >&2
         exit 1
     fi
 
-    # ── Dry-run ────────────────────────────────────────────────────────────
+    # -- Dry-run ------------------------------------------------------------
     if [[ "$DRY_RUN" == true ]]; then
         echo "=== Configuration ==="
         echo "  CAMERA_URL:    $CAMERA_URL"
@@ -416,9 +416,9 @@ main() {
         echo ""
         echo "=== go2rtc streams ==="
         if [[ "$NO_PASSTHROUGH" != true ]]; then
-            echo "  /camera_raw  → $CAMERA_URL"
+            echo "  /camera_raw  -> $CAMERA_URL"
         fi
-        echo "  /camera_osd  → exec:ffmpeg ... -vf <filter> ... -f mpegts pipe:1"
+        echo "  /camera_osd  -> exec:ffmpeg ... -vf <filter> ... -f mpegts pipe:1"
         echo ""
         echo "  Output: rtsp://<host>:${RTSP_PORT}/camera_osd"
         echo "  Web UI: http://<host>:${API_PORT}"
@@ -430,7 +430,7 @@ main() {
     echo "Position:  $POSITION"
     echo "Rotation:  $ROTATION (auto=$AUTO_ROTATE)"
 
-    # ── Start SEI extractor ────────────────────────────────────────────────
+    # -- Start SEI extractor ------------------------------------------------
     echo ""
     echo "=== Starting SEI extractor ==="
     mkdir -p "$OSD_DIR"
@@ -455,7 +455,7 @@ main() {
     SEI_FFMPEG_PID=$!
     SEI_PID=$!
 
-    # ── Wait for first SEI and position data ───────────────────────────────
+    # -- Wait for first SEI and position data -------------------------------
     echo "Waiting for SEI metadata..."
     local waited=0
     local pos_file="${OSD_DIR}/sei_positions.json"
@@ -496,23 +496,23 @@ main() {
             y=$(jq -r ".[$ei].y" "$pos_file")
             x_expr=$(jq -r ".[$ei].x_expr" "$pos_file")
             y_expr=$(jq -r ".[$ei].y_expr" "$pos_file")
-            echo "  elem[$ei]: SEI($x,$y) → drawtext(x=$x_expr, y=$y_expr)"
+            echo "  elem[$ei]: SEI($x,$y) -> drawtext(x=$x_expr, y=$y_expr)"
         done
     elif [[ -f "${OSD_DIR}/sei_osd_0.txt" ]]; then
         echo "SEI data flowing."
     fi
 
-    # ── Auto-rotate from SEI metadata ────────────────────────────────────
+    # -- Auto-rotate from SEI metadata ------------------------------------
     if [[ "$AUTO_ROTATE" == true ]] && [[ -f "$meta_file" ]]; then
         local sei_rot
         sei_rot=$(jq -r '.rotation // 0' "$meta_file" 2>/dev/null || echo "0")
         if [[ "$sei_rot" != "0" ]] && [[ "$sei_rot" != "null" ]]; then
-            echo "Auto-rotate: SEI reports ${sei_rot}°"
+            echo "Auto-rotate: SEI reports ${sei_rot} deg"
             ROTATION="$sei_rot"
         fi
     fi
 
-    # ── Build filter graph ─────────────────────────────────────────────────
+    # -- Build filter graph -------------------------------------------------
     local vf
     local rot_prefix
     rot_prefix="$(build_rotation_prefix "$ROTATION")"
@@ -527,7 +527,7 @@ main() {
         echo "Filter: $vf"
     fi
 
-    # ── Generate go2rtc config ─────────────────────────────────────────────
+    # -- Generate go2rtc config ---------------------------------------------
     CONFIG_FILE="$(mktemp /tmp/sei-rtsp-go2rtc.XXXXXX.yaml)"
     write_go2rtc_config
 
@@ -536,14 +536,14 @@ main() {
         cat "$CONFIG_FILE"
     fi
 
-    # ── Start go2rtc ──────────────────────────────────────────────────────
+    # -- Start go2rtc ------------------------------------------------------
     echo ""
     echo "=== Starting go2rtc ==="
 
     trap cleanup EXIT INT TERM
 
     if command -v go2rtc >/dev/null 2>&1; then
-        # ── Native binary ──────────────────────────────────────────────────
+        # -- Native binary --------------------------------------------------
         echo "Using local go2rtc binary"
         local timeout_cmd=()
         if [[ -n "$TIMEOUT" ]]; then
@@ -553,7 +553,7 @@ main() {
         GO2RTC_PID=$!
         local wait_pid="$GO2RTC_PID"
     else
-        # ── Container (podman/docker) ──────────────────────────────────────
+        # -- Container (podman/docker) --------------------------------------
         CONTAINER_ENGINE="$(detect_container_engine)"
         GO2RTC_CONTAINER="thingino-sei-go2rtc"
 
@@ -575,7 +575,7 @@ main() {
             font_dir="$(dirname "$FONT_PATH")"
             font_mounts+=(-v "${font_dir}:${font_dir}:ro")
         elif [[ -n "$user_font" ]]; then
-            # User-specified fontconfig name — trust them
+            # User-specified fontconfig name -- trust them
             FONT_PATH="$user_font"
         else
             # Default: use container's built-in Droid Sans (file path avoids

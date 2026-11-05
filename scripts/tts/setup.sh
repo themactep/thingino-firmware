@@ -1,5 +1,5 @@
 #!/bin/bash
-# Thingino TTS — one-time setup script
+# Thingino TTS -- one-time setup script
 # Downloads Kokoro-82M model + voices from HuggingFace and creates the Python venv.
 # Run once on a new machine (or after a fresh clone). Safe to re-run.
 
@@ -12,7 +12,7 @@ VENV_DIR="$SCRIPT_DIR/.venv"
 echo "=== Thingino TTS Setup ==="
 echo ""
 
-# ── Python venv ──────────────────────────────────────────────────────────
+# -- Python venv ----------------------------------------------------------
 if [ -d "$VENV_DIR" ]; then
     echo "[1/3] Python venv already exists, skipping."
 else
@@ -23,7 +23,7 @@ else
     echo "       Done."
 fi
 
-# ── Model download ────────────────────────────────────────────────────────
+# -- Model download --------------------------------------------------------
 echo "[2/3] Checking Kokoro model..."
 mkdir -p "$MODEL_DIR/voices"
 
@@ -41,7 +41,7 @@ hf_hub_download('hexgrad/Kokoro-82M', 'kokoro-v1_0.pth', local_dir='$MODEL_DIR')
     echo "       Done."
 fi
 
-# ── Voices ────────────────────────────────────────────────────────────────
+# -- Voices ----------------------------------------------------------------
 echo "[3/3] Checking voices..."
 VOICES=(
     af_heart   # warm, natural (default)
@@ -72,7 +72,7 @@ hf_hub_download('hexgrad/Kokoro-82M', 'voices/${voice}.pt', local_dir='$MODEL_DI
     echo "       Done."
 fi
 
-# ── Verify ────────────────────────────────────────────────────────────────
+# -- Verify ----------------------------------------------------------------
 echo ""
 echo "=== Setup complete ==="
 echo ""

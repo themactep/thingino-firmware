@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch TTS generation — one phrase per line from stdin or file
+# Batch TTS generation -- one phrase per line from stdin or file
 # Usage:
 #   echo "Hello world" | scripts/tts/batch.sh
 #   scripts/tts/batch.sh phrases.txt

@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2329
 #
-# test-snmpd.sh — exercise mini-snmpd on a Thingino camera
+# test-snmpd.sh -- exercise mini-snmpd on a Thingino camera
 #
 # Usage:  ./test-snmpd.sh [host] [community]
 # Default: 192.168.88.127 public
@@ -52,9 +52,9 @@ check_val() {
     fi
 }
 
-# ── header ──────────────────────────────────────────────────────────
+# -- header ----------------------------------------------------------
 echo
-bold "=== mini-snmpd Test — $HOST ==="
+bold "=== mini-snmpd Test -- $HOST ==="
 printf '  %-48s  ' "Agent reachable"
 sysDescr=$("${SNMP[@]}" .1.3.6.1.2.1.1.1.0 2>/dev/null) || true
 if [ -n "$sysDescr" ] && ! echo "$sysDescr" | grep -qi "Timeout\|Error"; then
@@ -65,13 +65,13 @@ else
 fi
 echo
 
-# ── SNMPv2-MIB system group ─────────────────────────────────────────
-bold "── System (SNMPv2-MIB) ──"
+# -- SNMPv2-MIB system group -----------------------------------------
+bold "-- System (SNMPv2-MIB) --"
 check_val "sysDescr"         .1.3.6.1.2.1.1.1.0
 check_val "sysUpTime"        .1.3.6.1.2.1.1.3.0
 check_val "sysName"          .1.3.6.1.2.1.1.5.0
 
-# sysORTable — count implemented MIBs
+# sysORTable -- count implemented MIBs
 or_count=$("${WALK[@]}" .1.3.6.1.2.1.1.9.1.3 2>/dev/null | wc -l)
 TOTAL=$((TOTAL + 1))
 printf '  %-48s  ' "sysORTable MIB count"
@@ -84,8 +84,8 @@ else
 fi
 echo
 
-# ── IF-MIB ──────────────────────────────────────────────────────────
-bold "── Interfaces (IF-MIB) ──"
+# -- IF-MIB ----------------------------------------------------------
+bold "-- Interfaces (IF-MIB) --"
 check_val "ifNumber"         .1.3.6.1.2.1.2.1.0
 
 if_count=$("${SNMP[@]}" .1.3.6.1.2.1.2.1.0 2>/dev/null || echo 0)
@@ -98,8 +98,8 @@ for idx in $(seq 1 "$if_count"); do
 done
 echo
 
-# ── IP-MIB ─────────────────────────────────────────────────────────
-bold "── IP-MIB ──"
+# -- IP-MIB ---------------------------------------------------------
+bold "-- IP-MIB --"
 ip_count=$("${WALK[@]}" .1.3.6.1.2.1.4.34.1.3 2>/dev/null | wc -l)
 TOTAL=$((TOTAL + 1))
 printf '  %-48s  ' "ipAddressTable entries"
@@ -112,8 +112,8 @@ else
 fi
 echo
 
-# ── HOST-RESOURCES-MIB ─────────────────────────────────────────────
-bold "── Host Resources (HOST-RESOURCES-MIB) ──"
+# -- HOST-RESOURCES-MIB ---------------------------------------------
+bold "-- Host Resources (HOST-RESOURCES-MIB) --"
 check_val "hrMemorySize (KB)"        .1.3.6.1.2.1.25.2.2.0
 check_val "hrSystemNumUsers"         .1.3.6.1.2.1.25.1.5.0
 check_val "hrSystemProcesses"        .1.3.6.1.2.1.25.1.6.0
@@ -143,16 +143,16 @@ else
 fi
 echo
 
-# ── UCD-SNMP-MIB: memory ───────────────────────────────────────────
-bold "── Memory (UCD-SNMP-MIB) ──"
+# -- UCD-SNMP-MIB: memory -------------------------------------------
+bold "-- Memory (UCD-SNMP-MIB) --"
 check_val "memTotalReal"     .1.3.6.1.4.1.2021.4.5.0
 check_val "memAvailReal"     .1.3.6.1.4.1.2021.4.6.0
 check_val "memBuffer"        .1.3.6.1.4.1.2021.4.14.0
 check_val "memCached"        .1.3.6.1.4.1.2021.4.15.0
 echo
 
-# ── UCD-SNMP-MIB: disks ────────────────────────────────────────────
-bold "── Disks (UCD-SNMP-MIB dskTable) ──"
+# -- UCD-SNMP-MIB: disks --------------------------------------------
+bold "-- Disks (UCD-SNMP-MIB dskTable) --"
 dsk_count=$("${WALK[@]}" .1.3.6.1.4.1.2021.9.1.2 2>/dev/null | wc -l)
 TOTAL=$((TOTAL + 1))
 printf '  %-48s  ' "dskTable entries"
@@ -171,8 +171,8 @@ for idx in $(seq 1 "$dsk_count"); do
 done
 echo
 
-# ── UCD-SNMP-MIB: load ─────────────────────────────────────────────
-bold "── CPU Load (UCD-SNMP-MIB laTable) ──"
+# -- UCD-SNMP-MIB: load ---------------------------------------------
+bold "-- CPU Load (UCD-SNMP-MIB laTable) --"
 la_count=$("${WALK[@]}" .1.3.6.1.4.1.2021.10.1.3 2>/dev/null | wc -l)
 TOTAL=$((TOTAL + 1))
 printf '  %-48s  ' "laTable entries (1/5/15min)"
@@ -191,24 +191,24 @@ else
 fi
 echo
 
-# ── UCD-SNMP-MIB: system stats ─────────────────────────────────────
-bold "── CPU Stats (UCD-SNMP-MIB systemStats) ──"
+# -- UCD-SNMP-MIB: system stats -------------------------------------
+bold "-- CPU Stats (UCD-SNMP-MIB systemStats) --"
 check_val "ssCpuUser (%)"   .1.3.6.1.4.1.2021.11.50.0
 check_val "ssCpuSystem (%)" .1.3.6.1.4.1.2021.11.52.0
 check_val "ssCpuIdle (%)"   .1.3.6.1.4.1.2021.11.53.0
 echo
 
-# ── Agent's own SNMP counters ──────────────────────────────────────
-bold "── SNMP Agent Counters ──"
+# -- Agent's own SNMP counters --------------------------------------
+bold "-- SNMP Agent Counters --"
 check_val "snmpInPkts"           .1.3.6.1.2.1.11.1.0
 check_val "snmpSilentDrops"      .1.3.6.1.2.1.11.30.0
 echo
 
-# ── Full walk stats ────────────────────────────────────────────────
+# -- Full walk stats ------------------------------------------------
 oid_total=$("${WALK[@]}" .1 2>/dev/null | wc -l)
 echo "  Total OIDs served: $oid_total"
 
-# ── Summary ─────────────────────────────────────────────────────────
+# -- Summary ---------------------------------------------------------
 echo
 bold "=== RESULTS ==="
 printf '  %d/%d passed  ' "$PASS" "$TOTAL"

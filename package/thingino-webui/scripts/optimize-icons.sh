@@ -55,7 +55,7 @@ python3 -m fontTools.subset "$TMPDIR/full.woff2" \
   --output-file="$VENDOR_DIR/fonts/bootstrap-icons.woff2" \
   --flavor=woff2 --no-hinting --drop-tables='' --layout-features='' 2>&1 \
   | grep -v '^$' || true
-echo "  $(wc -c < "$TMPDIR/full.woff2") → $(wc -c < "$VENDOR_DIR/fonts/bootstrap-icons.woff2") bytes"
+echo "  $(wc -c < "$TMPDIR/full.woff2") -> $(wc -c < "$VENDOR_DIR/fonts/bootstrap-icons.woff2") bytes"
 
 echo "=== Generating subset CSS ==="
 python3 << PYEOF
@@ -77,7 +77,7 @@ for icon in icons:
         rules.append(m.group(0))
 
 subset = f"""/*!
- * Bootstrap Icons v$ICONS_VER — subset ({len(rules)} icons used by Thingino WebUI)
+ * Bootstrap Icons v$ICONS_VER -- subset ({len(rules)} icons used by Thingino WebUI)
  * Licensed under MIT
  */
 {fontface}

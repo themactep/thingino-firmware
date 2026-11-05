@@ -447,6 +447,10 @@ lint: shellcheck shfmt-check
 		exit 1; \
 	fi
 	@echo "All defconfigs sorted."
+	@echo "Checking shell script encoding..."
+	@$(BR2_EXTERNAL)/scripts/check-ascii.sh
+	@echo "Checking intentionally duplicated files..."
+	@$(BR2_EXTERNAL)/scripts/check-duplicate-files.sh
 	@echo "Validating webui plugins..."
 	@$(BR2_EXTERNAL)/scripts/check-plugins.sh
 	@echo "Checking release package hashes..."

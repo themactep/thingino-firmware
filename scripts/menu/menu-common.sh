@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by menu scripts — no shebang needed.
+# Sourced by menu scripts -- no shebang needed.
 UI=dialog
 GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)

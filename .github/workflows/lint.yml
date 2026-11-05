@@ -108,6 +108,12 @@ jobs:
             exit 1
           fi
 
+      - name: Check shell script encoding
+        run: scripts/check-ascii.sh
+
+      - name: Check intentionally duplicated files
+        run: scripts/check-duplicate-files.sh
+
       - name: Validate webui plugins
         run: scripts/check-plugins.sh
 

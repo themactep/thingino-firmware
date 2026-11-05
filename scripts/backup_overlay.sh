@@ -62,7 +62,7 @@ fi
 # Step 4: Verify the tarball
 if [ ! -s "$TARBALL_PATH" ]; then
 	rm -f "$TARBALL_PATH"
-	die "Backup tarball is empty — /overlay may be inaccessible on the device"
+	die "Backup tarball is empty -- /overlay may be inaccessible on the device"
 fi
 
 if ! gzip -t "$TARBALL_PATH" 2>/dev/null; then

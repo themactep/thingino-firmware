@@ -36,7 +36,7 @@ fetch event.wsdl   "https://www.onvif.org/ver10/events/wsdl/event.wsdl"
 echo "=== Media1 (ver10/media) ==="
 fetch media.wsdl   "https://www.onvif.org/ver10/media/wsdl/media.wsdl"
 
-echo "=== Media2 (ver20/media) — saved as media2.wsdl ==="
+echo "=== Media2 (ver20/media) -- saved as media2.wsdl ==="
 fetch media2.wsdl  "https://www.onvif.org/ver20/media/wsdl/media.wsdl"
 
 echo "=== PTZ (ver20/ptz) ==="
@@ -48,7 +48,7 @@ fetch imaging.wsdl "https://www.onvif.org/ver20/imaging/wsdl/imaging.wsdl"
 echo "=== Analytics (ver20/analytics) ==="
 fetch analytics.wsdl "https://www.onvif.org/ver20/analytics/wsdl/analytics.wsdl"
 
-echo "=== DeviceIO — not served by onvif.org directly; from GitHub ==="
+echo "=== DeviceIO -- not served by onvif.org directly; from GitHub ==="
 fetch deviceio.wsdl \
     "https://raw.githubusercontent.com/onvif/specs/master/wsdl/ver10/deviceio.wsdl"
 

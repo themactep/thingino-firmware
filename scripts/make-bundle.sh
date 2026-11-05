@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck disable=SC2012
-# make-bundle.sh — Produce a .tgz (Thingino Package Bundle) from a built package.
+# make-bundle.sh -- Produce a .tgz (Thingino Package Bundle) from a built package.
 #
 # Usage:
 #   ./scripts/make-bundle.sh <package> <camera> <output-dir>

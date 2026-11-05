@@ -4,8 +4,8 @@
 # Usage:
 #   ./scripts/go2rtc.sh [CAMERA_IP] [STREAM]
 #
-#   CAMERA_IP  – camera IP address (default: 192.168.88.31)
-#   STREAM     – RTSP path (default: ch0), also accepts full rtsp:// URL
+#   CAMERA_IP  - camera IP address (default: 192.168.88.31)
+#   STREAM     - RTSP path (default: ch0), also accepts full rtsp:// URL
 #
 # Examples:
 #   ./scripts/go2rtc.sh                      # connect to 192.168.88.31/ch0
@@ -13,8 +13,8 @@
 #   ./scripts/go2rtc.sh 192.168.88.31 ch1    # connect to ch1 (sub stream)
 #
 # Environment:
-#   CAMERA_USER, CAMERA_PASS  – RTSP credentials (default: thingino / thingino)
-#   GO2RTC_PORT               – HTTP API + Web UI port (default: 1984)
+#   CAMERA_USER, CAMERA_PASS  - RTSP credentials (default: thingino / thingino)
+#   GO2RTC_PORT               - HTTP API + Web UI port (default: 1984)
 
 set -euo pipefail
 

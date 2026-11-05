@@ -197,9 +197,9 @@ show_manual() {
 	echo "The comprehensive remote debugging manual is available as a separate document:"
 	echo
 	printf "${YELLOW}Markdown Documentation:${NC}\n"
-	echo "  • Source: package/prudynt-t/files/REMOTE_DEBUGGING_MANUAL.md"
-	echo "  • GitHub: https://github.com/themactep/thingino-firmware"
-	echo "  • Local: Check your thingino-firmware source directory"
+	echo "  - Source: package/prudynt-t/files/REMOTE_DEBUGGING_MANUAL.md"
+	echo "  - GitHub: https://github.com/themactep/thingino-firmware"
+	echo "  - Local: Check your thingino-firmware source directory"
 	echo
 	printf "${GREEN}QUICK REFERENCE${NC}\n"
 	echo
@@ -228,23 +228,23 @@ show_manual() {
 	printf "${GREEN}TROUBLESHOOTING${NC}\n"
 	echo
 	printf "${YELLOW}Connection Issues:${NC}\n"
-	echo "  • Check: ping CAMERA_IP"
-	echo "  • Test port: telnet CAMERA_IP 2345"
-	echo "  • Verify gdbserver is running on camera"
+	echo "  - Check: ping CAMERA_IP"
+	echo "  - Test port: telnet CAMERA_IP 2345"
+	echo "  - Verify gdbserver is running on camera"
 	echo
 	printf "${YELLOW}Symbol Issues:${NC}\n"
-	echo "  • Verify debug binary: file /nfs/camera_name/usr/bin/prudynt-debug"
-	echo "  • Load symbols: (gdb) symbol-file /nfs/camera_name/usr/lib/debug/usr/bin/prudynt.debug"
+	echo "  - Verify debug binary: file /nfs/camera_name/usr/bin/prudynt-debug"
+	echo "  - Load symbols: (gdb) symbol-file /nfs/camera_name/usr/lib/debug/usr/bin/prudynt.debug"
 	echo
 	printf "${GREEN}FOR COMPLETE DOCUMENTATION${NC}\n"
 	echo "Please refer to the full REMOTE_DEBUGGING_MANUAL.md for:"
-	echo "  • Detailed setup instructions"
-	echo "  • Advanced debugging techniques"
-	echo "  • Memory debugging methods"
-	echo "  • Multi-process debugging"
-	echo "  • Core dump analysis"
-	echo "  • Performance optimization"
-	echo "  • Safety considerations"
+	echo "  - Detailed setup instructions"
+	echo "  - Advanced debugging techniques"
+	echo "  - Memory debugging methods"
+	echo "  - Multi-process debugging"
+	echo "  - Core dump analysis"
+	echo "  - Performance optimization"
+	echo "  - Safety considerations"
 	echo
 	printf "${BLUE}=== END OF QUICK REFERENCE ===${NC}\n"
 }

@@ -70,7 +70,7 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
     if [ -n "$PODMAN_MACHINE" ]; then
         CURRENT_MEM=$(podman machine inspect "$PODMAN_MACHINE" --format "{{.Resources.Memory}}" 2>/dev/null)
         if [ -n "$CURRENT_MEM" ] && [ "$CURRENT_MEM" -lt "$PODMAN_MIN_MEMORY_MB" ]; then
-            print_info "Podman machine memory is ${CURRENT_MEM} MiB — increasing to ${PODMAN_MIN_MEMORY_MB} MiB to prevent OOM crashes..."
+            print_info "Podman machine memory is ${CURRENT_MEM} MiB -- increasing to ${PODMAN_MIN_MEMORY_MB} MiB to prevent OOM crashes..."
             if podman machine set --memory "$PODMAN_MIN_MEMORY_MB" "$PODMAN_MACHINE" 2>/dev/null; then
                 print_success "Podman machine memory updated to ${PODMAN_MIN_MEMORY_MB} MiB"
             else

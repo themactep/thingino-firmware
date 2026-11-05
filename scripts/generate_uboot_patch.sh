@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2155
 #
-# generate_uboot_patch.sh — regenerate u-boot thingino patches
+# generate_uboot_patch.sh -- regenerate u-boot thingino patches
 #
 # Maintains a shallow clone of https://github.com/themactep/u-boot in
 # overrides/u-boot/ (repurposable for local development via local.mk) and

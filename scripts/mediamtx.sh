@@ -4,18 +4,18 @@
 # Usage:
 #   ./scripts/mediamtx.sh [CAMERA_IP] [STREAM]
 #
-#   CAMERA_IP  – camera IP address (default: 192.168.88.31)
-#   STREAM     – RTSP path (default: ch0), also accepts full rtsp:// URL
+#   CAMERA_IP  - camera IP address (default: 192.168.88.31)
+#   STREAM     - RTSP path (default: ch0), also accepts full rtsp:// URL
 #
 # Examples:
 #   ./scripts/mediamtx.sh                      # proxy 192.168.88.31/ch0
 #   ./scripts/mediamtx.sh 192.168.88.30 ch1    # proxy ch1 sub stream
 #
 # Environment:
-#   CAMERA_USER, CAMERA_PASS  – RTSP credentials (default: thingino / thingino)
-#   MEDIAMTX_API_PORT         – API + metrics port (default: 9997)
-#   MEDIAMTX_RTSP_PORT        – RTSP listen port (default: 8554)
-#   MEDIAMTX_WEBRTC_PORT      – WebRTC port (default: 8889)
+#   CAMERA_USER, CAMERA_PASS  - RTSP credentials (default: thingino / thingino)
+#   MEDIAMTX_API_PORT         - API + metrics port (default: 9997)
+#   MEDIAMTX_RTSP_PORT        - RTSP listen port (default: 8554)
+#   MEDIAMTX_WEBRTC_PORT      - WebRTC port (default: 8889)
 
 set -euo pipefail
 

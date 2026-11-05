@@ -166,7 +166,7 @@ start_server() {
     # Verify container is running
     if $CONTAINER_CMD ps --filter "name=$CONTAINER_NAME" --format "{{.Names}}" 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
         echo ""
-        echo "✅ TFTP server started successfully!"
+        echo "[OK] TFTP server started successfully!"
         echo "  Container:  $CONTAINER_NAME"
         echo "  ID:         $(echo $container_id | cut -c1-12)"
         echo "  Port:       $TFTP_PORT/udp"
@@ -178,7 +178,7 @@ start_server() {
         echo "Use '$0 status' for detailed status"
         return 0
     else
-        echo "❌ Error: Container started but is not running" >&2
+        echo "[ERROR] Error: Container started but is not running" >&2
         echo "Run '$0 logs' to see what went wrong" >&2
         rm -f "$STATE_FILE"
         return 1

@@ -18,7 +18,7 @@ npm install bootstrap@5.3.8 --save 2>/dev/null
 
 BOOTSTRAP_DIR="$BUILD_DIR/node_modules/bootstrap"
 
-# ── CSS: Purge unused styles ──────────────────────────────────────────────
+# -- CSS: Purge unused styles ----------------------------------------------
 echo "=== Purging Bootstrap CSS ==="
 
 cat > "$BUILD_DIR/purgecss.config.mjs" << 'PCEOF'
@@ -40,14 +40,14 @@ PCEOF
 WWW_DIR="$WWW_DIR" BOOTSTRAP_DIR="$BOOTSTRAP_DIR" \
   npx purgecss --config "$BUILD_DIR/purgecss.config.mjs" --output "$VENDOR_DIR/bootstrap.min.css" 2>&1
 
-echo "  $(wc -c < "$BOOTSTRAP_DIR/dist/css/bootstrap.min.css") → $(wc -c < "$VENDOR_DIR/bootstrap.min.css") bytes"
+echo "  $(wc -c < "$BOOTSTRAP_DIR/dist/css/bootstrap.min.css") -> $(wc -c < "$VENDOR_DIR/bootstrap.min.css") bytes"
 
-# ── JS: Copy the standard bundle (custom bundling is fragile) ──────────
+# -- JS: Copy the standard bundle (custom bundling is fragile) ----------
 echo "=== Installing Bootstrap JS (standard bundle) ==="
 cp "$BOOTSTRAP_DIR/dist/js/bootstrap.bundle.min.js" "$VENDOR_DIR/bootstrap.bundle.min.js"
 echo "  $(wc -c < "$BOOTSTRAP_DIR/dist/js/bootstrap.bundle.min.js") bytes (unchanged)"
 
-# ── Final stats ────────────────────────────────────────────────────────────
+# -- Final stats ------------------------------------------------------------
 echo ""
 echo "=== Vendor directory ==="
 du -sh "$VENDOR_DIR"

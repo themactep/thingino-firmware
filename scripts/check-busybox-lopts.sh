@@ -32,7 +32,7 @@ fi
 FOUND=0
 
 # ---------------------------------------------------------------------------
-# start-stop-daemon — long options disabled in our busybox config
+# start-stop-daemon -- long options disabled in our busybox config
 # ---------------------------------------------------------------------------
 SSD_LONG_OPTS="start|stop|background|make-pidfile|pidfile|exec|test|quiet|oknodo|verbose|nicelevel|user|name|signal|chuid|chdir|startas|output|remove-pidfile"
 
