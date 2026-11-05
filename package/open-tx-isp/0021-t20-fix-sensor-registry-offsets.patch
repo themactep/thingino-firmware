@@ -1,0 +1,62 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: derive the sensor registry offsets from the live struct
+
+The T20 registry adapter still carries the offsets recovered from the
+3.10 tx-isp-sinfo.o image.  The driver is now built from source against
+5.15/7.x, where struct v4l2_subdev is larger: attr sits at 0x158, not
+0x1c0, and the old width/height/fps offsets land inside v4l2_subdev and
+the DVP bus union.
+
+The flat /proc/jz/sensor/width and height therefore read zero while the
+sensor is bound.  A streamer that resolves its stream geometry from
+procfs gets 0x0 and IMPFramesource divides by a zero frame size.
+
+Compute every offset with offsetof() from the structures the driver is
+built with, as the T31 adapter already does, so the registry follows the
+kernel layout.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/tx_isp_t20_sinfo.c
++++ b/driver/t20/tx_isp_t20_sinfo.c
+@@ -10,17 +10,31 @@
+ #include <linux/errno.h>
+ 
+ #include "../include/tx_isp/tx_isp_sinfo.h"
++#include "tx-isp-common.h"
++
++/*
++ * The registry reads the recovered driver's own structures, so derive the
++ * offsets from them instead of carrying the 3.10 vendor object's numbers.
++ * On 5.15/7.x those numbers point into v4l2_subdev and the DVP bus union,
++ * so width/height read zero and the streamer sees a 0x0 sensor.
++ */
++#define T20_SENSOR_VIDEO_OFFSET(member) \
++	(offsetof(struct tx_isp_sensor, video) + \
++	 offsetof(struct tx_isp_video_in, member))
+ 
+-/* Offsets are from the T20 3.10.14 tx-isp-sinfo.o instruction stream. */
+ static const struct tx_isp_sinfo_config tx_isp_sinfo_config = {
+-	.client_offset = 0x094,
+-	.attr_offset = 0x1c0,
+-	.width_offset = 0x190,
+-	.height_offset = 0x194,
+-	.fps_offset = 0x1cc,
+-	.adapter_nr_offset = 0x0e0,
+-	.attr_name_offset = 0,
+-	.attr_chip_id_offset = 4,
++	.client_offset = offsetof(struct tx_isp_sensor, sd) +
++			 offsetof(struct v4l2_subdev, dev_priv),
++	.attr_offset = T20_SENSOR_VIDEO_OFFSET(attr),
++	.width_offset = T20_SENSOR_VIDEO_OFFSET(mbus) +
++			offsetof(struct v4l2_mbus_framefmt, width),
++	.height_offset = T20_SENSOR_VIDEO_OFFSET(mbus) +
++			 offsetof(struct v4l2_mbus_framefmt, height),
++	.fps_offset = T20_SENSOR_VIDEO_OFFSET(fps),
++	.adapter_nr_offset = offsetof(struct i2c_adapter, nr),
++	.attr_name_offset = offsetof(struct tx_isp_sensor_attribute, name),
++	.attr_chip_id_offset =
++		offsetof(struct tx_isp_sensor_attribute, chip_id),
+ };
+ 
+ #include "../common/tx_isp_sinfo.c"

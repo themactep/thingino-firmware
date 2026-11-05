@@ -1,0 +1,99 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: publish the sensor min/max fps range
+
+The T20 registry only exposed the point fps value.  The flat
+/proc/jz/sensor/max_fps stayed empty because the common registry gates
+min_fps/max_fps on TX_ISP_SINFO_EXTENDED_ATTRS, which T20 does not use.
+
+Add a separate FPS_RANGE flag so an adapter can expose just the fps
+range without claiming the wiring attributes.  Use it on T20: max_fps
+comes from video.fps (25/1) and min_fps from the sensor index (0/1).
+
+This gives prudynt the max_fps it waits for, so it no longer times out
+and resolves the stream geometry on the first pass.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/include/tx_isp/tx_isp_sinfo.h
++++ b/driver/include/tx_isp/tx_isp_sinfo.h
+@@ -7,9 +7,10 @@
+ #define TX_ISP_SINFO_STATIC_METADATA	(1U << 0)
+ #define TX_ISP_SINFO_EXTENDED_ATTRS	(1U << 1)
+ #define TX_ISP_SINFO_REGINFO_WIRING	(1U << 2)
++#define TX_ISP_SINFO_FPS_RANGE		(1U << 3)
+ #define TX_ISP_SINFO_VALID_FLAGS \
+ 	(TX_ISP_SINFO_STATIC_METADATA | TX_ISP_SINFO_EXTENDED_ATTRS | \
+-	 TX_ISP_SINFO_REGINFO_WIRING)
++	 TX_ISP_SINFO_REGINFO_WIRING | TX_ISP_SINFO_FPS_RANGE)
+ 
+ /*
+  * Binary sensor modules pass private objects whose layouts differ by SoC.
+@@ -115,12 +116,15 @@
+ 			return TX_ISP_SINFO_CONFIG_BAD_ATTRIBUTE_OFFSETS;
+ 	}
+ 
+-	if (config_flags & TX_ISP_SINFO_EXTENDED_ATTRS) {
++	if (config_flags & (TX_ISP_SINFO_EXTENDED_ATTRS |
++			    TX_ISP_SINFO_FPS_RANGE)) {
+ 		offsets[0] = config->min_fps_offset;
+ 		offsets[1] = config->max_fps_offset;
+ 		if (!tx_isp_sinfo_offsets_are_u32_aligned(offsets, 2))
+ 			return TX_ISP_SINFO_CONFIG_BAD_EXTENDED_OFFSETS;
++	}
+ 
++	if (config_flags & TX_ISP_SINFO_EXTENDED_ATTRS) {
+ 		if (!(config_flags & (TX_ISP_SINFO_STATIC_METADATA |
+ 				      TX_ISP_SINFO_REGINFO_WIRING))) {
+ 			offsets[0] = config->attr_mclk_offset;
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -201,7 +201,9 @@
+ 	switch (key) {
+ 	case TX_ISP_SINFO_MIN_FPS:
+ 	case TX_ISP_SINFO_MAX_FPS:
+-		return config_flags & TX_ISP_SINFO_EXTENDED_ATTRS;
++		return config_flags &
++		       (TX_ISP_SINFO_EXTENDED_ATTRS |
++			TX_ISP_SINFO_FPS_RANGE);
+ 	case TX_ISP_SINFO_MCLK:
+ 	case TX_ISP_SINFO_BOOT:
+ 	case TX_ISP_SINFO_VIDEO_INTERFACE:
+@@ -462,7 +464,8 @@
+ 		break;
+ 	case TX_ISP_SINFO_MIN_FPS:
+ 		if (!(config_flags &
+-		      TX_ISP_SINFO_EXTENDED_ATTRS))
++		      (TX_ISP_SINFO_EXTENDED_ATTRS |
++		       TX_ISP_SINFO_FPS_RANGE)))
+ 			break;
+ 		if (slot->subdev) {
+ 			fps = tx_isp_sinfo_u32_at(
+@@ -476,7 +479,8 @@
+ 		break;
+ 	case TX_ISP_SINFO_MAX_FPS:
+ 		if (!(config_flags &
+-		      TX_ISP_SINFO_EXTENDED_ATTRS))
++		      (TX_ISP_SINFO_EXTENDED_ATTRS |
++		       TX_ISP_SINFO_FPS_RANGE)))
+ 			break;
+ 		if (slot->subdev) {
+ 			fps = tx_isp_sinfo_u32_at(
+--- a/driver/t20/tx_isp_t20_sinfo.c
++++ b/driver/t20/tx_isp_t20_sinfo.c
+@@ -23,6 +23,7 @@
+ 	 offsetof(struct tx_isp_video_in, member))
+ 
+ static const struct tx_isp_sinfo_config tx_isp_sinfo_config = {
++	.flags = TX_ISP_SINFO_FPS_RANGE,
+ 	.client_offset = offsetof(struct tx_isp_sensor, sd) +
+ 			 offsetof(struct v4l2_subdev, dev_priv),
+ 	.attr_offset = T20_SENSOR_VIDEO_OFFSET(attr),
+@@ -31,6 +32,8 @@
+ 	.height_offset = T20_SENSOR_VIDEO_OFFSET(mbus) +
+ 			 offsetof(struct v4l2_mbus_framefmt, height),
+ 	.fps_offset = T20_SENSOR_VIDEO_OFFSET(fps),
++	.min_fps_offset = offsetof(struct tx_isp_sensor, index),
++	.max_fps_offset = T20_SENSOR_VIDEO_OFFSET(fps),
+ 	.adapter_nr_offset = offsetof(struct i2c_adapter, nr),
+ 	.attr_name_offset = offsetof(struct tx_isp_sensor_attribute, name),
+ 	.attr_chip_id_offset =

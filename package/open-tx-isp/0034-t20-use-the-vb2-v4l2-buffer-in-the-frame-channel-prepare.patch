@@ -1,0 +1,29 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: use the vb2 buffer fields in the frame-channel prepare
+
+The driver's frame_channel_video_buffer.v4l2_buf copy is kzalloc'ed and
+never filled.  prepare therefore saw memory=0, fell into the "memory is
+invalid" branch and returned -EINVAL, so OpenIMP could not queue one
+USERPTR buffer:
+
+    [KernelIF] QBUF failed: idx=0 phys=0x6a00000 len=3133440 err=Invalid argument
+
+vb2 keeps the QBUF metadata in struct vb2_buffer on 7.x.  Copy index,
+memory and plane length from there at prepare time.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -137,6 +137,11 @@
+ 	void * addr = NULL;
+ 	int ret = ISP_SUCCESS;
+ 
++	/* vb2 keeps the QBUF metadata in vb; our copy is stale. */
++	buf->v4l2_buf.index = vb->index;
++	buf->v4l2_buf.memory = vb->memory;
++	buf->v4l2_buf.length = vb2_plane_size(vb, 0);
++
+ 	/* 目前是单plane操作 */
+ 	if (vb2_plane_size(vb, 0) < size) {
+ 		ISP_PRINT(ISP_ERROR_LEVEL,"Data will not fit into plane (%lu < %lu)\n",

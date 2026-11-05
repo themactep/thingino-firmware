@@ -1,0 +1,76 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: adapt the vendor dma-buf exporter to 7.3
+
+The recovered T20 videobuf code still uses the pre-5.x dma-buf ABI:
+the .kmap/.kmap_atomic exporter callbacks, direct vm_flags writes, and
+the four-argument dma_buf_export().
+
+Kernel 7.x removed the kmap callbacks in favour of .vmap/.vunmap with
+iosys_map, made vm_flags read-only outside vm_flags_set(), and takes a
+struct dma_buf_export_info. Map the whole buffer through .vmap and use
+the current helpers so the module builds on 7.3.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-videobuf.c
++++ b/driver/t20/sdk/source/tx-isp-videobuf.c
+@@ -88,19 +88,13 @@
+ {
+ }
+ 
+-static void *frame_channel_dmabuf_kmap(struct dma_buf *dma_buffer,
+-				       unsigned long page)
++static int frame_channel_dmabuf_vmap(struct dma_buf *dma_buffer,
++				    struct iosys_map *map)
+ {
+ 	struct vb2_dc_buf *buf = dma_buffer->priv;
+ 
+-	return buf->vaddr + page * PAGE_SIZE;
+-}
+-
+-static void *frame_channel_dmabuf_vmap(struct dma_buf *dma_buffer)
+-{
+-	struct vb2_dc_buf *buf = dma_buffer->priv;
+-
+-	return buf->vaddr;
++	iosys_map_set_vaddr(map, buf->vaddr);
++	return 0;
+ }
+ 
+ static int frame_channel_dmabuf_mmap(struct dma_buf *dma_buffer,
+@@ -113,8 +107,6 @@
+ 	.detach = frame_channel_dmabuf_detach,
+ 	.map_dma_buf = frame_channel_dmabuf_map,
+ 	.unmap_dma_buf = frame_channel_dmabuf_unmap,
+-	.kmap_atomic = frame_channel_dmabuf_kmap,
+-	.kmap = frame_channel_dmabuf_kmap,
+ 	.vmap = frame_channel_dmabuf_vmap,
+ 	.mmap = frame_channel_dmabuf_mmap,
+ 	.release = frame_channel_dmabuf_release,
+@@ -232,7 +224,7 @@
+ 		return ret;
+ 	}
+ #endif
+-	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
++	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
+ 	vma->vm_private_data	= &buf->handler;
+ 	vma->vm_ops		= &vb2_common_vm_ops;
+ 
+@@ -265,8 +257,15 @@
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct dma_buf *dma_buffer;
+ 
+-	dma_buffer = dma_buf_export(buf, &frame_channel_dmabuf_ops,
+-				    buf->size, O_RDWR);
++	{
++		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
++
++		exp_info.ops = &frame_channel_dmabuf_ops;
++		exp_info.size = buf->size;
++		exp_info.flags = O_RDWR;
++		exp_info.priv = buf;
++		dma_buffer = dma_buf_export(&exp_info);
++	}
+ 	if (IS_ERR(dma_buffer))
+ 		return NULL;
+ 

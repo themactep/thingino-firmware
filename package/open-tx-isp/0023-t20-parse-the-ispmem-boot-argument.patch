@@ -1,0 +1,70 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: parse the ispmem boot argument
+
+The open T20 driver kept the vendor's ispmem_base/ispmem_size globals
+but left tx_isp_t20_mem_init() empty.  The ISP therefore thought the
+carve-out was 0 bytes, disabled the temper (3DNR) and WDR buffers at
+1080p, and logged a 0 KB shortfall.
+
+The vendor kernel parsed "ispmem=<size>@<base>" with __setup(); this is
+a module now, so read /proc/cmdline at init and parse the same value.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/tx_isp_t20_compat.c
++++ b/driver/t20/tx_isp_t20_compat.c
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0
+ #include <linux/init.h>
+ #include <linux/export.h>
++#include <linux/fs.h>
+ #include <linux/kernel.h>
+ #include <linux/proc_fs.h>
+ #include <linux/string.h>
+@@ -18,8 +19,46 @@
+ 	return tx_isp_jz_root;
+ }
+ 
++/*
++ * The vendor kernel parsed "ispmem=<size>@<base>" with __setup().  This
++ * driver is a module now, so read the command line from procfs at init.
++ * The region lies outside mem= and is used for the ISP temper/WDR buffers;
++ * leaving it at 0 disables both and makes every shortfall report a 0 KB
++ * carve-out.
++ */
+ int __init tx_isp_t20_mem_init(void)
+ {
++	struct file *f;
++	char buf[512];
++	loff_t pos = 0;
++	ssize_t n;
++	char *p, *end;
++
++	f = filp_open("/proc/cmdline", O_RDONLY, 0);
++	if (IS_ERR(f)) {
++		pr_err("tx-isp: cannot read /proc/cmdline (%ld)\n",
++		       PTR_ERR(f));
++		return 0;
++	}
++	n = kernel_read(f, buf, sizeof(buf) - 1, &pos);
++	filp_close(f, NULL);
++	if (n <= 0)
++		return 0;
++	buf[n] = '\0';
++
++	p = strstr(buf, "ispmem=");
++	if (!p) {
++		pr_warn("tx-isp: no ispmem= in the kernel command line\n");
++		return 0;
++	}
++	p += strlen("ispmem=");
++
++	ispmem_size = memparse(p, &end);
++	if (*end == '@')
++		ispmem_base = memparse(end + 1, NULL);
++
++	pr_info("tx-isp: ispmem base=0x%lx size=%lu MiB\n",
++		ispmem_base, ispmem_size >> 20);
+ 	return 0;
+ }
+ 

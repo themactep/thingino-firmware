@@ -1,0 +1,51 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: adapt the frame-channel queue_setup to the 7.x vb2 ABI
+
+frame_channel_vb2_queue_setup() still had the old signature with the
+leading const struct v4l2_format *fmt and the trailing alloc_ctxs[]
+array.  Since 7.x the callback is
+
+    queue_setup(q, nbuffers, nplanes, sizes, alloc_devs)
+
+so the driver read sizes/alloc_ctxs from the wrong registers/stack slots:
+the 6th argument was caller stack garbage and alloc_ctxs[0] wrote
+vdev->vbm to a bogus address.  With the framesource now reaching buffer
+allocation this caused:
+
+    Unhandled kernel unaligned access, BadVA 0x1
+    epc frame_channel_vb2_queue_setup+0x20
+
+Match the 7.x signature and stop filling alloc_devs with the custom vbm
+pointer; the custom memops get it from vb2_get_drv_priv().
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -71,9 +71,9 @@
+ 	return 0;
+ }
+ 
+-static int frame_channel_vb2_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+-			unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
+-			void *alloc_ctxs[])
++static int frame_channel_vb2_queue_setup(struct vb2_queue *vq,
++			unsigned int *nbuffers, unsigned int *nplanes,
++			unsigned int sizes[], struct device *alloc_devs[])
+ {
+ 	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vq);
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+@@ -90,7 +90,12 @@
+ 
+ 	*nplanes = 1;
+ 	sizes[0] = size;
+-	alloc_ctxs[0] = vdev->vbm;
++	/*
++	 * The custom memops get vdev->vbm through vb2_get_drv_priv(); the
++	 * 7.x alloc_devs array is only used by the generic DMA memops.
++	 */
++	if (alloc_devs)
++		alloc_devs[0] = NULL;
+ 
+ //	printk("~~~~~~~~ %s[%d] size = %d ~~~~~~~~~~\n",__func__,__LINE__,size);
+ 	INIT_LIST_HEAD(&vdev->active_list);

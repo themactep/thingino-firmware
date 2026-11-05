@@ -1,0 +1,63 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: accept the vendor frame-channel ioctl ABI
+
+OpenIMP (and the stock T20 libimp) do not use the generic V4L2 S_FMT
+number on the frame channel.  They send the vendor ioctls, notably
+0xc07056c3 (SET_FMT with the 0x70-byte t20 format), 0x407056c4
+(GET_FMT) and 0x80045612/0x80045613 (STREAM_ON/OFF).  The scaler,
+bank/depth and listen-buffer numbers already match
+VIDIOC_DEFAULT_CMD_{SET_SCALER,SET_BANKS,LISTEN_BUF}.
+
+frame_channel_vidioc_default() returned -ISP_ERROR for SET_FMT, so
+OpenIMP's IMP_FrameSource_EnableChn() failed at "set format failed"
+before any buffer was queued.
+
+Translate the vendor numbers into the existing generic handlers.  The
+0x70-byte format begins with a normal struct v4l2_format; the T20 crop
+and scaler fields are programmed by the separate ioctls.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -827,6 +827,40 @@
+ 			ret = v4l2_subdev_call(vdev->parent, core, ioctl,
+ 					       cmd, arg);
+ 			break;
++		/*
++		 * T20 vendor frame-channel ABI used by OpenIMP/libimp.  The
++		 * stock T20 driver exposes these ioctl numbers instead of the
++		 * generic V4L2 ones; the 0x70-byte format starts with a normal
++		 * struct v4l2_format, followed by T20 crop/scaler fields that
++		 * are programmed through the separate ioctls below.
++		 */
++		case 0xc07056c3: { /* T20 VIDIOC_SET_FMT */
++			struct v4l2_format vf;
++
++			memset(&vf, 0, sizeof(vf));
++			memcpy(&vf, arg, sizeof(vf));
++			ret = frame_channel_vidioc_s_fmt_vid_cap(file, fh,
++								 &vf);
++			memcpy(arg, &vf, sizeof(vf));
++			break;
++		}
++		case 0x407056c4: { /* T20 VIDIOC_GET_FMT */
++			struct v4l2_format vf;
++
++			memset(&vf, 0, sizeof(vf));
++			ret = frame_channel_vidioc_g_fmt_vid_cap(file, fh,
++								 &vf);
++			memcpy(arg, &vf, sizeof(vf));
++			break;
++		}
++		case 0x80045612: /* T20 VIDIOC_STREAM_ON */
++			ret = frame_channel_vidioc_streamon(file, fh,
++					V4L2_BUF_TYPE_VIDEO_CAPTURE);
++			break;
++		case 0x80045613: /* T20 VIDIOC_STREAM_OFF */
++			ret = frame_channel_vidioc_streamoff(file, fh,
++					V4L2_BUF_TYPE_VIDEO_CAPTURE);
++			break;
+ 		default:
+ 			ret = -ISP_ERROR;
+ 			break;

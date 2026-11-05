@@ -1,0 +1,27 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: forward private ioctls from the frame channel to the core
+
+The vendor libimp issues VIDIOC_ISP_PRIVATE_IOCTL on the frame channel
+for the frame-source commands.  frame_channel_vidioc_default() only
+knew the VIDIOC_DEFAULT_CMD_* shorthand and returned -ISP_ERROR for the
+multiplexer, so the libimp closed the device and retried.
+
+Forward the multiplexer to the parent video-in subdev, which now passes
+it on to the ISP core.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -817,6 +817,11 @@
+ 		case VIDIOC_DEFAULT_CMD_LISTEN_BUF:
+ 			ret = frame_channel_listen_buffer(vdev, arg);
+ 			break;
++		case VIDIOC_ISP_PRIVATE_IOCTL:
++			/* Frame-source commands live in the ISP core. */
++			ret = v4l2_subdev_call(vdev->parent, core, ioctl,
++					       cmd, arg);
++			break;
+ 		default:
+ 			ret = -ISP_ERROR;
+ 			break;

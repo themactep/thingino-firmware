@@ -1,0 +1,79 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: use v4l2_fh in the frame channel
+
+Kernel 7.3 rejects a video open when the device does not set
+V4L2_FL_USES_V4L2_FH.  The image tuning device already switched to
+v4l2_fh; the frame channel still allocated its own private file handle,
+so opening /dev/video1 returned -ENODEV after the warning.
+
+Use v4l2_fh_open()/v4l2_fh_release() for the frame channel too.  Its
+private handle only carried an unused priority, so nothing else changes.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -15,6 +15,7 @@
+ #include <linux/delay.h>
+ #include <linux/syscalls.h>
+ #include <linux/fs.h>
++#include <media/v4l2-fh.h>
+ 
+ #include "tx-isp-frame-channel.h"
+ #include "tx-isp-videobuf.h"
+@@ -841,21 +842,18 @@
+ {
+ 	frame_chan_vdev_t *vdev = video_drvdata(file);
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+-	struct frame_channel_fh *fh;
+ 	struct isp_private_ioctl ioctl;
+ 	unsigned long flags;
++	int ret;
+ 
+ 	if(atomic_read(&vdev->state) != TX_ISP_STATE_STOP){
+ 		return -EBUSY;
+ 	}
+ 
+-	fh = (struct frame_channel_fh *)kzalloc(sizeof(*fh), GFP_KERNEL);
+-	if(NULL == fh)
+-		goto fh_alloc_fail;
+-	file->private_data = fh;
+-	/* Initialize priority of this instance to default priority */
+-	fh->prio = V4L2_PRIORITY_DEFAULT;
+-//	v4l2_prio_open(&camdev->prio, &fh->prio);
++	/* 7.3 requires every video device to use v4l2_fh. */
++	ret = v4l2_fh_open(file);
++	if (ret)
++		return ret;
+ 
+ 	/* reset some public parameters */
+ 	memset(&attr->crop, 0, sizeof(attr->crop));
+@@ -879,14 +877,11 @@
+ 	atomic_set(&vdev->state, TX_ISP_STATE_START);
+ 	spin_unlock_irqrestore(&vdev->slock, flags);
+ 	return ISP_SUCCESS;
+-fh_alloc_fail:
+-	return -ENOMEM;
+ }
+ 
+ static int frame_channel_v4l2_close(struct file *file)
+ {
+ 	frame_chan_vdev_t *vdev = video_drvdata(file);
+-	struct frame_channel_fh *fh = file->private_data;
+ 	unsigned long flags;
+ 	if(atomic_read(&vdev->state) == TX_ISP_STATE_RUN){
+ 		frame_channel_vidioc_streamoff(file, NULL, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+@@ -897,12 +892,7 @@
+ 		atomic_set(&vdev->state, TX_ISP_STATE_STOP);
+ 		spin_unlock_irqrestore(&vdev->slock, flags);
+ 	}
+-	/* Close the priority */
+-//	v4l2_prio_close(&camdev->prio, fh->prio);
+-	if(fh){
+-		kfree(fh);
+-		file->private_data = NULL;
+-	}
++	v4l2_fh_release(file);
+ 	return ISP_SUCCESS;
+ }
+ 

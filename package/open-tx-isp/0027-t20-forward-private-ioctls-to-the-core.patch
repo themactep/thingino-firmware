@@ -1,0 +1,36 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: forward private ioctls from the video-in to the core
+
+The vendor libimp sends the frame-source private commands
+(TX_ISP_PRIVATE_IOCTL_FRAME_CHAN_*) to the video-in device.  The
+video-in subdev only handled the standard input, sensor-register and
+stream ioctls; VIDIOC_ISP_PRIVATE_IOCTL fell through the default case,
+so IMP_FrameSource_EnableChn() failed with -1 before any frame-channel
+buffer was queued.
+
+Forward the private ioctl to the ISP core subdev, which already
+implements the FRAME_CHAN_* commands.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-video-in.c
++++ b/driver/t20/sdk/source/tx-isp-video-in.c
+@@ -520,6 +520,18 @@
+ 		case VIDIOC_STREAMOFF:
+ 			ret = subdev_core_ops_streamoff(vi, 0);
+ 			break;
++		case VIDIOC_ISP_PRIVATE_IOCTL:
++			/*
++			 * The vendor libimp sends the frame-source commands
++			 * (TX_ISP_PRIVATE_IOCTL_FRAME_CHAN_*) to this device.
++			 * They are implemented by the ISP core, not by the
++			 * video-in subdev, so pass them through.
++			 */
++			if (vi->p && vi->p->subdevs[TX_ISP_CORE_GRP_IDX])
++				ret = v4l2_subdev_call(
++					vi->p->subdevs[TX_ISP_CORE_GRP_IDX],
++					core, ioctl, cmd, arg);
++			break;
+ 		default:
+ 			break;
+ 	}

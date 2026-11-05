@@ -1,0 +1,259 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20: match the 7.x vb2 ABI and drain buffers on stop
+
+Since 5.11 the vb2 core prepends struct vb2_buffer *vb to the memops
+callbacks (and passes the alloc device instead of the driver's alloc
+context for alloc/get_userptr).  The T20 videobuf code kept the
+pre-5.11 prototypes, so every pointer argument was shifted by one:
+
+  - .vaddr received vb as its buf_priv and returned buf->vaddr read out
+    of the vb2_buffer, which at that offset is vb->index.  The rmem
+    guard therefore logged phys=0x0 / 0x1 for idx 0/1 instead of the
+    address userspace queued.
+  - .get_userptr received the alloc device as vaddr and the USERPTR
+    value as size, so the private buffer ended up with vaddr/paddr NULL.
+  - .alloc, .cookie and .get_dmabuf were shifted the same way.
+
+As a result OpenIMP's QBUF of phys=0x6a00000 was rejected with EINVAL
+because the guard saw index 0 outside rmem.
+
+Keep the old prototypes for the 3.10 build and use the 5.11+ ones on
+7.x.  In buffer_prepare read the USERPTR value straight from the plane
+(m.userptr), where vb2 stores what userspace queued.
+
+The cache sync after the queue check also passed a NULL device, which
+the vendor kernel tolerated.  7.x dereferences it in
+dma_sync_single_for_device(), so the first accepted USERPTR buffer
+oopsed inside QBUF and the camera rebooted under panic_on_oops.  Pass
+the buffer manager's platform device instead.
+
+Streaming exposed two vb2 bookkeeping bugs: buf_finish set the payload
+to the current format size, which can exceed the queued plane length
+and trips the vb2 warning; use the plane length.  stop_streaming
+returned without giving back the frames still on the active list, so
+vb2 warned about a buffer left active and leaked it on every idle
+stop; drain the list with VB2_BUF_STATE_ERROR.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t20/sdk/source/tx-isp-videobuf.c
++++ b/driver/t20/sdk/source/tx-isp-videobuf.c
+@@ -5,10 +5,22 @@
+ #include <linux/miscdevice.h>
+ #include <linux/scatterlist.h>
+ #include <linux/uaccess.h>
++#include <linux/version.h>
+ 
+ #include <media/videobuf2-memops.h>
+ #include "tx-isp-debug.h"
+ #include "tx-isp-videobuf.h"
++#include "tx-isp-frame-channel.h"
++
++/*
++ * Since 5.11 the vb2 core passes the buffer (and, for alloc/get_userptr, the
++ * alloc device) as the first callback arguments.  The T20 driver still builds
++ * against 3.10, where the driver-supplied alloc context took their place, so
++ * keep both callback prototypes.
++ */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
++#define FRAME_CHANNEL_VB2_MODERN 1
++#endif
+ 
+ #define TX_ISP_T20_GET_DMA_PHY \
+ 	_IOWR('q', 18, struct tx_isp_t20_dma_info)
+@@ -125,9 +137,18 @@
+ 	}
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_alloc(struct vb2_buffer *vb, struct device *dev,
++				     unsigned long size)
++{
++	struct vb2_dc_conf *conf =
++		(struct vb2_dc_conf *)((frame_chan_vdev_t *)
++			vb2_get_drv_priv(vb->vb2_queue))->vbm;
++#else
+ static void *frame_channel_vb2_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
+ {
+ 	struct vb2_dc_conf *conf = alloc_ctx;
++#endif
+ 	struct vb2_mmap_conf *mmap = &conf->mmap;
+ 	struct vb2_dc_buf *buf;
+ 
+@@ -167,14 +188,22 @@
+ 	return buf;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_cookie(struct vb2_buffer *vb, void *buf_priv)
++#else
+ static void *frame_channel_vb2_cookie(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 
+ 	return (void *)buf->paddr;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_vaddr(struct vb2_buffer *vb, void *buf_priv)
++#else
+ static void *frame_channel_vb2_vaddr(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	if (!buf)
+@@ -252,7 +281,13 @@
+ 	frame_channel_vb2_put(dma_buffer->priv);
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static struct dma_buf *frame_channel_vb2_get_dmabuf(struct vb2_buffer *vb,
++						    void *buf_priv,
++						    unsigned long flags)
++#else
+ static struct dma_buf *frame_channel_vb2_get_dmabuf(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct dma_buf *dma_buffer;
+@@ -274,8 +309,15 @@
+ 	return dma_buffer;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_get_userptr(struct vb2_buffer *vb,
++					   struct device *dev,
++					   unsigned long vaddr,
++					   unsigned long size)
++#else
+ static void *frame_channel_vb2_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 					unsigned long size, int write)
++#endif
+ {
+ 	struct vb2_dc_buf *buf;
+ 
+@@ -304,6 +346,10 @@
+ 	buf->paddr = paddr;
+ 	buf->vaddr = (void *)vaddr;
+ #endif
++	/*
++	 * libimp/OpenIMP queue frame buffers by physical rmem address, so the
++	 * USERPTR value is used as the DMA address as well as the CPU mapping.
++	 */
+ 	buf->size = size;
+ 	buf->paddr = (dma_addr_t)vaddr;
+ 	buf->vaddr = (void *)vaddr;
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -133,6 +133,8 @@
+ 	struct v4l2_buffer *v4l2_buf = &buf->v4l2_buf;
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+ 	struct v4l2_format *output = &attr->output;
++	/* vbm is the vb2_dc_conf; its dev is the ISP platform device. */
++	struct device *dev = ((struct vb2_dc_conf *)vdev->vbm)->dev;
+ 	unsigned long size = output->fmt.pix.sizeimage;
+ 	void * addr = NULL;
+ 	int ret = ISP_SUCCESS;
+@@ -149,12 +151,16 @@
+ 		return -EINVAL;
+ 	}
+ 	if(v4l2_buf->memory == V4L2_MEMORY_USERPTR){
+-		addr = vb2_plane_vaddr(vb, 0);
+ 		/*
+ 		 * USERPTR "addresses" are physical rmem addresses from
+-		 * libimp/OpenIMP (see tx_isp_guard.h). MMAP buffers come from
+-		 * the driver's own coherent pool and are not checked.
++		 * libimp/OpenIMP (see tx_isp_guard.h).  Read the value the
++		 * user queued from the plane instead of vb2_plane_vaddr():
++		 * the memops' vaddr callback is not involved in QBUF, and on
++		 * a stale callback ABI it returns unrelated buffer fields.
++		 * MMAP buffers come from the driver's own coherent pool and
++		 * are not checked.
+ 		 */
++		addr = (void *)(unsigned long)vb->planes[0].m.userptr;
+ 		if (tx_isp_qbuf_phys_check((u32)(uintptr_t)addr, size)) {
+ 			ret = tx_isp_qbuf_reject("tx-isp-t20", vdev->index,
+ 						 v4l2_buf->index,
+@@ -172,11 +178,17 @@
+ 
+ //	if(v4l2_buf->flags & TX_ISP_VIDEO_BUFFER_CACHE)
+ 	{
++		/*
++		 * 7.x dma_sync_single_for_device() dereferences the device
++		 * (dev_dma_skip_sync/dev_is_dma_coherent); a NULL device
++		 * faults.  The vendor code passed NULL to mean "plain cache
++		 * maintenance", which no longer holds.
++		 */
+ 		if(v4l2_buf->memory == V4L2_MEMORY_USERPTR){
+-			dma_sync_single_for_device(NULL, (dma_addr_t)addr, size, DMA_FROM_DEVICE);
++			dma_sync_single_for_device(dev, (dma_addr_t)addr, size, DMA_FROM_DEVICE);
+ //			dma_cache_sync(NULL, (void *)addr, size, DMA_FROM_DEVICE);
+ 		}else if(v4l2_buf->memory == V4L2_MEMORY_MMAP){
+-			dma_sync_single_for_device(NULL, (dma_addr_t)addr, size, DMA_FROM_DEVICE);
++			dma_sync_single_for_device(dev, (dma_addr_t)addr, size, DMA_FROM_DEVICE);
+ 		}else{
+ 			ISP_PRINT(ISP_ERROR_LEVEL,"%s[%d] memory is invalid!\n", __func__, __LINE__);
+ 			ret = -EINVAL;
+@@ -189,14 +201,12 @@
+ 
+ static int frame_channel_vb2_buffer_finish(struct vb2_buffer *vb)
+ {
+-	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vb->vb2_queue);
+-	struct frame_channel_video_buffer *buf =
+-		container_of(vb, struct frame_channel_video_buffer, vb);
+-	struct frame_channel_attribute *attr = &vdev->attr;
+-	struct v4l2_format *output = &attr->output;
+-	unsigned long size = output->fmt.pix.sizeimage;
+-
+-	vb2_set_plane_payload(&buf->vb, 0, size);
++	/*
++	 * The queued USERPTR length is the frame size.  The format can grow
++	 * after the buffer was queued, and vb2 warns when the payload exceeds
++	 * the plane length.
++	 */
++	vb2_set_plane_payload(vb, 0, vb2_plane_size(vb, 0));
+ 
+ 	return 0;
+ }
+@@ -251,9 +261,12 @@
+ {
+ 	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vq);
+ 	struct v4l2_subdev *parent = vdev->parent;
++	struct frame_channel_video_buffer *buf;
++	struct frame_channel_video_buffer *tmp;
+ 	struct isp_private_ioctl ioctl;
+-	int ret = ISP_SUCCESS;
+ 	unsigned long flags;
++	LIST_HEAD(done);
++	int ret = ISP_SUCCESS;
+ 
+ 	if(atomic_read(&vdev->state) == TX_ISP_STATE_RUN){
+ 		ioctl.dir = TX_ISP_PRIVATE_IOCTL_SET;
+@@ -266,11 +279,23 @@
+ 			spin_unlock_irqrestore(&vdev->slock, flags);
+ 		}
+ 		ISP_PRINT(ISP_INFO_LEVEL,"%s==========%d\n", __func__, __LINE__);
+-	}else if(atomic_read(&vdev->state) == TX_ISP_STATE_START){
+-		ret = ISP_SUCCESS;
+-	}else{
++	}else if(atomic_read(&vdev->state) != TX_ISP_STATE_START){
+ 		ret = -EINVAL;
+ 	}
++
++	/*
++	 * vb2 requires every buffer handed to the driver back before
++	 * stop_streaming() returns.  The ISP may not have completed the
++	 * frames still on the active list.
++	 */
++	spin_lock_irqsave(&vdev->slock, flags);
++	list_splice_init(&vdev->active_list, &done);
++	spin_unlock_irqrestore(&vdev->slock, flags);
++	list_for_each_entry_safe(buf, tmp, &done, entry){
++		list_del(&buf->entry);
++		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
++	}
++
+ 	return ret;
+ }
+ 
