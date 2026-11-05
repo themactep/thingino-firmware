@@ -1140,6 +1140,9 @@ static int main_loop(void) {
     int last_bright_pct = -1;
     daynight_mode_t last_logged_mode = MODE_UNKNOWN;
     int log_counter = 0;
+    int reassert_wait = 0;
+    int reassert_tries = 0;
+    daynight_mode_t reassert_mode = MODE_UNKNOWN;
 
     while (g_state.running && !g_terminate_flag) {
         /* Handle signals */
@@ -1178,6 +1181,37 @@ static int main_loop(void) {
             log_message(LOG_ERR, "Failed to read ISP data");
             usleep(g_config.sample_interval_ms * 1000);
             continue;
+        }
+
+        /* The ISP running mode lives in the streamer, which resets it to
+           day when it restarts while IR-cut and LEDs stay in night: color
+           under IR until the next transition. Re-apply the current mode
+           once when the ISP disagrees. If the ISP still disagrees, the
+           color command cannot reach it, so stop until it agrees again. */
+        if (g_state.current_mode != reassert_mode) {
+            reassert_mode = g_state.current_mode;
+            reassert_tries = 0;
+            reassert_wait = 10;
+        }
+        if (reassert_wait > 0) {
+            --reassert_wait;
+        } else if (g_config.controls_color && g_state.initial_mode_set &&
+                   g_state.current_mode != MODE_UNKNOWN && s.isp_mode[0] != '\0') {
+            bool isp_night = strcmp(s.isp_mode, "Night") == 0;
+            const char *want = g_state.current_mode == MODE_NIGHT ? "NIGHT" : "DAY";
+            if (isp_night == (g_state.current_mode == MODE_NIGHT)) {
+                reassert_tries = 0;
+            } else if (reassert_tries == 0) {
+                log_message(LOG_INFO, "ISP running mode is %s, re-applying %s",
+                            s.isp_mode, want);
+                apply_mode(g_state.current_mode);
+                reassert_tries = 1;
+                reassert_wait = 10;
+            } else if (reassert_tries == 1) {
+                log_message(LOG_WARNING, "ISP running mode is still %s after "
+                            "re-applying %s, not retrying", s.isp_mode, want);
+                reassert_tries = 2;
+            }
         }
 
         /* Re-detect platform if it changed (shouldn't, but be safe) */
