@@ -1,0 +1,209 @@
+diff --git a/src/config/JsonAPI.cpp b/src/config/JsonAPI.cpp
+index e2ad46f..0543b54 100644
+--- a/src/config/JsonAPI.cpp
++++ b/src/config/JsonAPI.cpp
+@@ -691,10 +691,15 @@ void handle_motion(JsonValue *obj, std::string &out, bool &sep) {
+   add_key(out, sep, "motion", "{");
+   bool s2 = false;
+   bool wrote = false;
+-  auto add_int = [&](const char *key, const char *path) {
++  auto add_int = [&](const char *key, const char *path,
++                     bool restart_video_on_change = false) {
+     if (JsonValue *v = obj_get(obj, key)) {
+-      if (v->type == JSON_NUMBER)
+-        cfg->set<int>(path, (int)v->value.number.integer);
++      if (v->type == JSON_NUMBER) {
++        int next = (int)v->value.number.integer;
++        if (restart_video_on_change && cfg->get<int>(path) != next)
++          global_restart_video = true;
++        cfg->set<int>(path, next);
++      }
+       add_key(out, s2, key);
+       add_num(out, cfg->get<int>(path));
+       wrote = true;
+@@ -731,7 +736,7 @@ void handle_motion(JsonValue *obj, std::string &out, bool &sep) {
+   add_int("init_time_s", "motion.init_time_s");
+   add_int("min_time_s", "motion.min_time_s");
+   add_int("ivs_polling_timeout_ms", "motion.ivs_polling_timeout_ms");
+-  add_int("sensitivity", "motion.sensitivity");
++  add_int("sensitivity", "motion.sensitivity", true);
+   add_int("skip_frame_count", "motion.skip_frame_count");
+   add_int("frame_width", "motion.frame_width");
+   add_int("frame_height", "motion.frame_height");
+diff --git a/src/isp/Motion.cpp b/src/isp/Motion.cpp
+index 638f0f1..0da088b 100644
+--- a/src/isp/Motion.cpp
++++ b/src/isp/Motion.cpp
+@@ -279,7 +279,13 @@ int Motion::init() {
+   if (hw_sensitivity > hw_max)
+     hw_sensitivity = hw_max;
+ 
+-  move_param.sense[0] = hw_sensitivity;
++  // Sensitivity is per ROI in the IVS move parameter. The burn-in exclusion
++  // may split the configured region into several strips, so apply the same
++  // value to every entry. Leaving the others at zero (the minimum) made the
++  // slider affect only the first strip.
++  for (int i = 0; i < IMP_IVS_MOVE_MAX_ROI_CNT; i++) {
++    move_param.sense[i] = hw_sensitivity;
++  }
+   move_param.skipFrameCnt = cfg->motion.skip_frame_count;
+ 
+   // Adjust motion frame dimensions for video rotation
+@@ -326,56 +332,65 @@ int Motion::init() {
+   // part inside the ROI matters, so clip the rectangle to the ROI and split
+   // that area into strips. Outside the ROI the configured bounds are kept.
+   if (cfg->osd.burnin.enabled) {
+-    int bscale = cfg->osd.burnin.scale > 0
+-                     ? cfg->osd.burnin.scale
+-                     : std::clamp(motion_width / 480, 1, 10);
+-    const int margin = 8;
+-    const int glyph_w = 5, glyph_h = 7;
+-    int cell = (glyph_w + 1) * bscale;            // glyph width + 1-col gap
+-    int pad = bscale * 2;
+-    int burnin_h = margin + glyph_h * bscale + pad * 2;
+-    int burnin_y = margin;
+-    // Estimate text width from format string: ~3 output chars per directive.
+-    int fmt_len = cfg->osd.burnin.format ? (int)strlen(cfg->osd.burnin.format) : 0;
+-    int est_chars = std::max(10, fmt_len * 3);    // floor of 10 chars
+-    int burnin_w = est_chars * cell + pad * 2 - bscale; // last char no gap
+-    int burnin_x = margin;
+-
+-    int r0x = cfg->motion.roi_0_x, r0y = cfg->motion.roi_0_y;
+-    int r1x = cfg->motion.roi_1_x, r1y = cfg->motion.roi_1_y;
+-    int bx0 = burnin_x, by0 = burnin_y;
+-    int bx1 = burnin_x + burnin_w, by1 = burnin_y + burnin_h;
+-
+-    // Clip the burn-in rectangle to the ROI.
+-    int ix0 = std::max(r0x, bx0), iy0 = std::max(r0y, by0);
+-    int ix1 = std::min(r1x, bx1), iy1 = std::min(r1y, by1);
+-
+-    int cnt = 0;
+-    auto addRoi = [&](int x0, int y0, int x1, int y1) {
+-      if (cnt >= IMP_IVS_MOVE_MAX_ROI_CNT || x0 >= x1 || y0 >= y1) return;
+-      move_param.roiRect[cnt].p0.x = x0;
+-      move_param.roiRect[cnt].p0.y = y0;
+-      move_param.roiRect[cnt].p1.x = x1 - 1;
+-      move_param.roiRect[cnt].p1.y = y1 - 1;
+-      cnt++;
+-    };
+-    if (ix0 < ix1 && iy0 < iy1) {
+-      // Up to four strips around the clipped rectangle.
+-      addRoi(r0x, r0y, r1x, iy0); // above
+-      addRoi(r0x, iy1, r1x, r1y); // below
+-      addRoi(r0x, iy0, ix0, iy1); // left
+-      addRoi(ix1, iy0, r1x, iy1); // right
++    int burnin_x = 8, burnin_y = 8, burnin_w = 0, burnin_h = 0;
++    bool have_burnin_rect = false;
++#ifdef OSD_BURN_TIMESTAMP
++    const int monitor = cfg->motion.monitor_stream;
++    if (monitor >= 0 && monitor < NUM_VIDEO_CHANNELS && global_video[monitor] &&
++        global_video[monitor]->imp_encoder &&
++        global_video[monitor]->imp_encoder->osd) {
++      // The OSD thread creates the burned-in region on its first tick, which
++      // can race with motion startup. Wait briefly for the real geometry.
++      for (int i = 0; i < 20; i++) {
++        if (global_video[monitor]->imp_encoder->osd->getBurninRect(
++                burnin_x, burnin_y, burnin_w, burnin_h)) {
++          have_burnin_rect = true;
++          break;
++        }
++        std::this_thread::sleep_for(std::chrono::milliseconds(100));
++      }
+     }
+-    if (cnt > 0) {
+-      move_param.roiRectCnt = cnt;
+-      LOG_INFO("Motion: burn-in exclusion active ("
+-               << burnin_w << "x" << burnin_h << " at " << burnin_x << ","
+-               << burnin_y << "), " << cnt << " ROI strips");
+-    } else if (ix0 < ix1 && iy0 < iy1) {
+-      // The ROI lies inside the timestamp area; keep it rather than leaving
+-      // the detector without a region.
+-      LOG_INFO("Motion: burn-in exclusion covers the configured ROI, keeping "
+-               "it");
++#endif
++    if (!have_burnin_rect) {
++      LOG_WARN("Motion: burn-in region unavailable; not excluding it");
++    } else {
++      int r0x = cfg->motion.roi_0_x, r0y = cfg->motion.roi_0_y;
++      int r1x = cfg->motion.roi_1_x, r1y = cfg->motion.roi_1_y;
++      int bx0 = burnin_x, by0 = burnin_y;
++      int bx1 = burnin_x + burnin_w, by1 = burnin_y + burnin_h;
++
++      // Clip the burn-in rectangle to the ROI.
++      int ix0 = std::max(r0x, bx0), iy0 = std::max(r0y, by0);
++      int ix1 = std::min(r1x, bx1), iy1 = std::min(r1y, by1);
++
++      int cnt = 0;
++      auto addRoi = [&](int x0, int y0, int x1, int y1) {
++        if (cnt >= IMP_IVS_MOVE_MAX_ROI_CNT || x0 >= x1 || y0 >= y1)
++          return;
++        move_param.roiRect[cnt].p0.x = x0;
++        move_param.roiRect[cnt].p0.y = y0;
++        move_param.roiRect[cnt].p1.x = x1 - 1;
++        move_param.roiRect[cnt].p1.y = y1 - 1;
++        cnt++;
++      };
++      if (ix0 < ix1 && iy0 < iy1) {
++        // Up to four strips around the clipped rectangle.
++        addRoi(r0x, r0y, r1x, iy0); // above
++        addRoi(r0x, iy1, r1x, r1y); // below
++        addRoi(r0x, iy0, ix0, iy1); // left
++        addRoi(ix1, iy0, r1x, iy1); // right
++      }
++      if (cnt > 0) {
++        move_param.roiRectCnt = cnt;
++        LOG_INFO("Motion: burn-in exclusion active ("
++                 << burnin_w << "x" << burnin_h << " at " << burnin_x << ","
++                 << burnin_y << "), " << cnt << " ROI strips");
++      } else if (ix0 < ix1 && iy0 < iy1) {
++        // The ROI lies inside the timestamp area; keep it rather than leaving
++        // the detector without a region.
++        LOG_INFO("Motion: burn-in exclusion covers the configured ROI, keeping "
++                 "it");
++      }
+     }
+   }
+ 
+diff --git a/src/video/OSD.cpp b/src/video/OSD.cpp
+index dcfc8bf..3125d46 100644
+--- a/src/video/OSD.cpp
++++ b/src/video/OSD.cpp
+@@ -729,6 +729,20 @@ void OSD::renderTimestamp(const char *text) {
+ 
+ #endif // USE_OSD_FONT_LIBSCHRIFT
+ 
++bool OSD::getBurninRect(int &x, int &y, int &w, int &h) const {
++  if (!cfg || !cfg->osd.burnin.enabled)
++    return false;
++  if (cfg->osd.burnin.substream_disabled && is_substream_)
++    return false;
++  if (!ts_region_created_ || ts_width_ == 0 || ts_height_ == 0)
++    return false;
++  x = ts_margin_;
++  y = ts_margin_;
++  w = ts_width_;
++  h = ts_height_;
++  return true;
++}
++
+ void OSD::updateTimestampOverlay() {
+   char base[64];
+   const char *fmt = (cfg && cfg->osd.burnin.format && cfg->osd.burnin.format[0])
+diff --git a/src/video/OSD.hpp b/src/video/OSD.hpp
+index 3edd5d5..62c51e2 100644
+--- a/src/video/OSD.hpp
++++ b/src/video/OSD.hpp
+@@ -56,6 +56,13 @@ public:
+   std::string getSEIJson();
+   std::string getPlaintextInfo();
+ 
++#ifdef OSD_BURN_TIMESTAMP
++  // Return the rendered burn-in timestamp region in encoder pixels.
++  // Returns false when the timestamp is not drawn on this stream or the
++  // region has not been created yet.
++  bool getBurninRect(int &x, int &y, int &w, int &h) const;
++#endif
++
+   int startup_delay_ticks{0};
+   bool is_started = false;
+ 

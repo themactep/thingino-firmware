@@ -158,7 +158,7 @@
           <div class="card-body">
             <div id="ptz-preview-frame" class="position-relative mx-auto">
               <div id="frame" class="position-relative">
-                <video id="fmp4-video" class="w-100" autoplay muted playsinline disablepictureinpicture></video>
+                <video id="fmp4-video" class="w-100" autoplay muted playsinline disablepictureinpicture disableremoteplayback></video>
               </div>
             </div>
           </div>
@@ -183,8 +183,8 @@
             <div id="ptz-controls" hidden>
               <div class="text-muted small text-uppercase mb-2">Pan/Tilt</div>
               <div class="text-muted small mb-2">
-                Hold to move, release to stop. Shift-click for one fine step.
-                Shift + arrow keys jog; H home, S stop.
+                Hold to move; release to hold. Center returns to the middle.
+                Shift-click for one fine step. Shift + arrow keys jog; H home, S stop.
               </div>
 
               <div class="ptz-pad mb-3" role="group" aria-label="Jog pad">
@@ -192,17 +192,22 @@
                 <button type="button" data-dir="u" title="Up" aria-label="Up"><i class="bi bi-arrow-up"></i></button>
                 <button type="button" data-dir="ur" title="Up-right" aria-label="Up-right"><i class="bi bi-arrow-up-right"></i></button>
                 <button type="button" data-dir="l" title="Left" aria-label="Left"><i class="bi bi-arrow-left"></i></button>
-                <button type="button" class="ptz-center" data-dir="s" title="Stop" aria-label="Stop"><i class="bi bi-stop-fill"></i></button>
+                <button type="button" class="ptz-center" data-dir="s" title="Center" aria-label="Center"><i class="bi bi-bullseye"></i></button>
                 <button type="button" data-dir="r" title="Right" aria-label="Right"><i class="bi bi-arrow-right"></i></button>
                 <button type="button" data-dir="dl" title="Down-left" aria-label="Down-left"><i class="bi bi-arrow-down-left"></i></button>
                 <button type="button" data-dir="d" title="Down" aria-label="Down"><i class="bi bi-arrow-down"></i></button>
                 <button type="button" data-dir="dr" title="Down-right" aria-label="Down-right"><i class="bi bi-arrow-down-right"></i></button>
               </div>
 
-              <div class="ptz-step btn-group btn-group-sm w-100 mb-3" role="group" aria-label="Step size">
+              <div class="ptz-step btn-group btn-group-sm w-100 mb-2" role="group" aria-label="Step size">
                 <button type="button" class="btn btn-outline-secondary active" data-step="fine">Fine</button>
                 <button type="button" class="btn btn-outline-secondary" data-step="medium">Medium</button>
                 <button type="button" class="btn btn-outline-secondary" data-step="coarse">Coarse</button>
+              </div>
+
+              <div class="btn-group btn-group-sm w-100 mb-3" role="group" aria-label="Home and stop">
+                <button type="button" class="btn btn-outline-secondary" id="ptz-home" title="Reset homing">Home</button>
+                <button type="button" class="btn btn-outline-danger" id="ptz-stop">Stop</button>
               </div>
 
               <div class="text-muted small text-uppercase mb-2">Presets</div>
@@ -305,8 +310,12 @@
 
     function center() {
       var p = params || {};
-      var x = Math.round((Number(p.steps_pan) || 0) / 2);
-      var y = Math.round((Number(p.steps_tilt) || 0) / 2);
+      var x = Number(p.pos_0_x);
+      var y = Number(p.pos_0_y);
+      if (!(x > 0) || !(y > 0)) {
+        x = Math.round((Number(p.steps_pan) || 0) / 2);
+        y = Math.round((Number(p.steps_tilt) || 0) / 2);
+      }
       cmd("d=x&x=" + x + "&y=" + y);
     }
 
@@ -340,7 +349,7 @@
               el.setPointerCapture(ev.pointerId);
             }
             if (dir === "s") {
-              stop();
+              center();
               return;
             }
             el.classList.add("active");
@@ -358,7 +367,8 @@
           function release() {
             stopHold();
             el.classList.remove("active");
-            if (dir !== "s") stop();
+            // No stop: the TMI8152 stays in position mode and holds. The
+            // explicit Stop button still sends d=s.
           }
 
           el.addEventListener("pointerup", release);
