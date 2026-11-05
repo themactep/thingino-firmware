@@ -1,0 +1,18 @@
+config BR2_PACKAGE_THINGINO_SOC_VPU
+	bool "thingino-soc-vpu"
+	default y if BR2_PACKAGE_THINGINO_ISP_OPEN && BR2_THINGINO_DEV_CAMERA && BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_7
+	depends on BR2_SOC_FAMILY = "t20"
+	depends on KERNEL_VERSION_7
+	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
+	depends on BR2_THINGINO_DEV_CAMERA
+	help
+	  Vendor T20 soc_vpu (Helix) H.264/JPEG encoder driver.
+
+	  The modern kernels do not build the vendor SDK and the mainline
+	  tree has no soc_vpu driver, so nothing provides /dev/soc_vpu.  The
+	  vendored libimp's IMP_Encoder opens that node; without it the
+	  streamer faults after the ISP is up.
+
+	  This builds the T20 soc_vpu/jz_nvpu stack as a module and installs
+	  /etc/modules.d/10-soc-vpu.  Only meaningful for the open T20 7.x
+	  stack.

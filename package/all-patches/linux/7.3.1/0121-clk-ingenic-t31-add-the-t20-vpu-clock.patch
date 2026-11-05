@@ -1,0 +1,77 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] clk: ingenic: t31: add the T20 VPU clock
+
+The T20 has the older Helix VPU, clocked through VPUCDR at 0x30 and
+gated by CLKGR1 bit 0.  Register 0x30 is the T31's EL150CDR and bit 0
+is the T31 EL150 gate, so register the clock only for the T20, on a
+copy of the T31 table.  The bit numbers come from the 3.10 T20 clock
+table (clk_sources.c: VPU0 = GATE(32 + 0)).
+
+This gives the soc_vpu module a "vpu" clock it can set to 350 MHz and
+enable through the clock framework instead of poking the CPM directly.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/dt-bindings/clock/ingenic,t31-cgu.h
++++ b/include/dt-bindings/clock/ingenic,t31-cgu.h
+@@ -66,5 +66,6 @@
+ #define T31_CLK_EXCLK_DIV512	51
+ #define T31_CLK_RTC		52
+ #define T31_CLK_USBPHY		53
++#define T31_CLK_VPU		54
+ 
+ #endif /* __DT_BINDINGS_CLOCK_T31_CGU_H__ */
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -9,6 +9,7 @@
+ #include <linux/delay.h>
+ #include <linux/io.h>
+ #include <linux/of.h>
++#include <linux/slab.h>
+ 
+ #include <dt-bindings/clock/ingenic,t31-cgu.h>
+ 
+@@ -514,10 +515,41 @@
+ 
+ static void __init t31_cgu_init(struct device_node *np)
+ {
++	const struct ingenic_cgu_clk_info *clocks = t31_cgu_clocks;
++	struct ingenic_cgu_clk_info *t20_clocks;
++	unsigned int num_clocks = ARRAY_SIZE(t31_cgu_clocks);
+ 	int retval;
+ 
+-	cgu = ingenic_cgu_new(t31_cgu_clocks,
+-			      ARRAY_SIZE(t31_cgu_clocks), np);
++	/*
++	 * The T20 has the older Helix VPU behind VPUCDR (0x30) and the
++	 * CLKGR1 bit 0 gate.  Register 0x30 is the T31's EL150CDR and bit 0
++	 * is the T31 EL150 gate, so the clock only exists on the T20 and is
++	 * added to a copy of the table instead of the shared T31 one.
++	 */
++	if (of_device_is_compatible(of_root, "ingenic,t20")) {
++		t20_clocks = kcalloc(T31_CLK_VPU + 1, sizeof(*t20_clocks),
++				     GFP_KERNEL);
++		if (!t20_clocks) {
++			pr_err("%s: failed to allocate the T20 clock table\n",
++			       __func__);
++			return;
++		}
++
++		memcpy(t20_clocks, t31_cgu_clocks, sizeof(t31_cgu_clocks));
++		t20_clocks[T31_CLK_VPU] = (struct ingenic_cgu_clk_info) {
++			.name = "vpu",
++			.type = CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++			.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++				     T31_CLK_VPLL, -1 },
++			.mux = { CGU_REG_EL150CDR, 30, 2 },
++			.div = { CGU_REG_EL150CDR, 0, 1, 4, 29, 28, 27 },
++			.gate = { CGU_REG_CLKGR1, 0 },
++		};
++		clocks = t20_clocks;
++		num_clocks = T31_CLK_VPU + 1;
++	}
++
++	cgu = ingenic_cgu_new(clocks, num_clocks, np);
+ 	if (!cgu) {
+ 		pr_err("%s: failed to initialise CGU\n", __func__);
+ 		return;

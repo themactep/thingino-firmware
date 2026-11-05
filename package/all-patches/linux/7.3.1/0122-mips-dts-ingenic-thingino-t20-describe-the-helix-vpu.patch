@@ -1,0 +1,35 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: thingino-t20: describe the Helix VPU
+
+The generic T20 board copied the T31 AVPU node even though the T20 has
+the older Helix encoder at the same address and INTC line.  The node
+never bound, because the AVPU driver is T31-only, and it left the real
+VPU without a device.
+
+Replace it with the T20 VPU node, using the VPU clock added to the CGU
+driver.  No T20 board references the old `avpu` label.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/thingino-t20.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+@@ -26,15 +26,13 @@
+ 		reg = <0x0 0x8000000>;
+ 	};
+ 
+-	avpu: avpu@13200000 {
+-		compatible = "t31,avpu";
++	vpu: vpu@13200000 {
++		compatible = "ingenic,t20-vpu";
+ 		reg = <0x13200000 0x100000>;
+ 		interrupt-parent = <&intc>;
+ 		interrupts = <62>;
+-		clocks = <&cgu T31_CLK_EL150>,
+-			 <&cgu T31_CLK_AHB1>,
+-			 <&cgu T31_CLK_VPLL>;
+-		clock-names = "el150", "ahb1", "vpll";
++		clocks = <&cgu T31_CLK_VPU>;
++		clock-names = "vpu";
+ 		status = "okay";
+ 	};
+ 

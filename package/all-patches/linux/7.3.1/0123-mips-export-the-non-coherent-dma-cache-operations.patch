@@ -1,0 +1,25 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: export the non-coherent DMA cache operations
+
+The T20 soc_vpu driver is built as a module, but it needs the same MIPS
+cache maintenance the built-in vendor driver used: its ioctl ABI hands it
+a mix of user virtual and physical addresses that only the cache op
+helpers can flush by address.
+
+The symbols were arch-internal since the API stopped being exported.
+Export them again, GPL-only, with no other change.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/mm/cache.c
++++ b/arch/mips/mm/cache.c
+@@ -79,6 +79,9 @@
+ void (*_dma_cache_wback_inv)(unsigned long start, unsigned long size);
+ void (*_dma_cache_wback)(unsigned long start, unsigned long size);
+ void (*_dma_cache_inv)(unsigned long start, unsigned long size);
++EXPORT_SYMBOL_GPL(_dma_cache_wback_inv);
++EXPORT_SYMBOL_GPL(_dma_cache_wback);
++EXPORT_SYMBOL_GPL(_dma_cache_inv);
+ 
+ #endif /* CONFIG_DMA_NONCOHERENT */
+ 

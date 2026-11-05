@@ -1,0 +1,4 @@
+obj-m := soc-vpu.o
+soc-vpu-y := main.o soc_vpu.o jz_nvpu.o libdmmu.o
+
+ccflags-y += -Wno-error=incompatible-pointer-types -Wno-error=strict-prototypes
