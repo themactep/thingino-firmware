@@ -91,7 +91,8 @@ From the Buildroot MIPS configuration (`buildroot/arch/Config.in.mips`):
 - **GCC < 4.6**: Uses `-mno-fused-madd`
 - **GCC >= 4.6**: Uses `-ffp-contract=off`
 
-The thingino toolchain uses GCC 15, so the flag applied is `-ffp-contract=off`.
+The default thingino toolchain uses GCC 16 (GCC 14 and 15 are also
+selectable), so the flag applied is `-ffp-contract=off`.
 
 ## References
 

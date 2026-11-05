@@ -1,8 +1,13 @@
 # SoC Database System
 
-This directory contains a data-driven system for managing SoC parameters.
+> **Historical proposal - not implemented.** The `scripts/soc_database.txt`
+> and `scripts/get_soc_params.sh` files described below were never committed.
+> The current lookup is `Config.soc.in` plus `soc/<vendor>/*.mk`; see
+> `docs/ai/README.md`.
 
-## Files
+This proposal describes a data-driven system for managing SoC parameters.
+
+## Proposed files (not in the tree)
 
 - **soc_database.txt** - Central database of all SoC models and their parameters
 - **get_soc_params.sh** - Script to query the database

@@ -52,12 +52,13 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 - [x] **O12** Remove non-ASCII characters from tracked `.sh` files (em dashes,
   `✓`/`✗`, box drawing) and add `scripts/check-ascii.sh` to `make lint` so
   they do not come back.
-- [ ] **O13** Fix stale `docs/ai/` references to scripts that no longer exist
-  or moved.
-- [ ] **O14** Verify and retire `configs/cameras-test` if it is unused by any
-  `GROUP`, CI job, or documented workflow.
-- [ ] **O15** Local housekeeping only: run `git gc` to drop the stray
-  `tmp_pack_*` file and consolidate packs (not a repository change).
+- [x] **O13** Fix stale `docs/ai/` references to scripts that no longer exist
+  or moved; add an archive index and mark the unimplemented proposals.
+- [x] **O14** (not planned) Keep `configs/cameras-test`; it has an active use.
+- [x] **O15** Local housekeeping only: `git gc` dropped the stray
+  `tmp_pack_*` file and consolidated the packs (not a repository change).
+- [ ] **O16** Migrate the two `configs/cameras-exp` defconfigs that still use
+  the removed `BR2_SOC_INGENIC_*` symbols to `BR2_INGENIC_SOC_MODEL`.
 
 ## Progress log
 
@@ -126,3 +127,19 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   box drawing, em/en dashes, bullets, arrows, status glyphs, emoji). Added
   `scripts/check-ascii.sh` to `make lint` and the lint CI job. No runtime
   firmware scripts were affected; all were host/build/docs tools.
+
+### Turn 6
+
+- O13 done. Added `docs/ai/README.md` as an archive index and marked the
+  three never-implemented SOC database proposals as historical. Rewrote
+  `INGENIC_SOC_MODEL_IMPLEMENTATION.md` to describe the real
+  `soc/<vendor>/*.mk` lookup, fixed the `assemble_plugins.py` path in
+  `docs/dev/plugin-system.md`, and removed the stale legacy-variable promise
+  from the `BR2_INGENIC_SOC_MODEL` help text.
+- O14 closed as not planned: `configs/cameras-test` has an active use.
+- O15 done. `git gc` went from 23 packs and 22,371 loose objects to 2 packs
+  and 0 loose; removed the 5.2 MiB stale `tmp_pack_*`. Object storage fell
+  from about 1.08 GiB to 889 MiB.
+- New O16: two `configs/cameras-exp` defconfigs still set the removed
+  `BR2_SOC_INGENIC_T23N` / `BR2_SOC_INGENIC_T31N` symbols and therefore set
+  no model. Flagged for a separate fix.

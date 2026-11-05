@@ -106,7 +106,7 @@ The goal is to replace both patterns with a single convention that:
 ┌──────────────────────────────────────────────────┐
 │  Build-time assembly (thingino-webui finalize)     │
 │                                                    │
-│  scripts/assemble_plugins.py scans:                │
+│  assemble_plugins.py scans:                        │
 │    /var/www/a/plugins/*.webui.json                 │
 │                                                    │
 │  Produces:                                         │
@@ -452,7 +452,7 @@ error messages.
 
 - `make check-plugins` target that runs the assembly script in
   validation-only mode (no file writes) and reports all warnings/errors.
-- Shell-level validation in `scripts/assemble_plugins.py`: JSON schema
+- Shell-level validation in `package/thingino-webui/scripts/assemble_plugins.py`: JSON schema
   check, path existence check (does the declared script actually exist on
   disk?), cross-plugin conflict report.
 - Update `AGENTS.md` with a section on creating webui plugins.

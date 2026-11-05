@@ -1,10 +1,14 @@
 # SoC Parameter Database Solution - Implementation Summary
 
+> **Historical proposal - not implemented.** None of the `scripts/` files
+> listed here exist in the tree. The shipped implementation lives in
+> `Config.soc.in` and `soc/<vendor>/*.mk`; see `docs/ai/README.md`.
+
 ## Overview
 
 This solution replaces **390 lines** of repetitive `ifeq/else ifeq` statements in `thingino.mk` with a **data-driven approach** using a centralized database and lookup script.
 
-## Files Created
+## Proposed files (never committed)
 
 1. **scripts/soc_database.txt** - Central SoC parameter database (52 SoC models)
 2. **scripts/get_soc_params.sh** - Shell script to query the database

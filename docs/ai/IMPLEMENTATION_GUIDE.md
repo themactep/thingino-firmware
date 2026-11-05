@@ -1,10 +1,15 @@
 # SoC Database Implementation Guide
 
+> **Historical proposal - not implemented.** The `soc_database.txt`,
+> `get_soc_params.sh`, `validate_soc_database.sh`, and example makefile
+> described here were never committed. Current SoC lookup: `Config.soc.in`
+> plus `soc/<vendor>/*.mk`; see `docs/ai/README.md`.
+
 ## Quick Summary
 
 Replace **425 lines** of repetitive SoC configuration in `thingino.mk` with a **data-driven database system** that's easier to maintain and less error-prone.
 
-## What Was Created
+## What Was Proposed (never committed)
 
 ```
 scripts/
