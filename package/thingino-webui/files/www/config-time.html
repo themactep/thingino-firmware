@@ -50,6 +50,11 @@
                   <span class="hint text-secondary">Control string of the time zone selected above.</span>
                 </p>
                 <p class="form-switch">
+                  <input type="hidden" id="tz_override-false" name="tz_override" value="false">
+                  <input type="checkbox" id="tz_override" name="tz_override" value="true" role="switch" class="form-check-input">
+                  <label for="tz_override" class="form-check-label">Set zone string manually</label>
+                </p>
+                <p class="form-switch">
                   <input type="hidden" id="dhcp_ignore_timezone-false" name="dhcp_ignore_timezone" value="false">
                   <input type="checkbox" id="dhcp_ignore_timezone" name="dhcp_ignore_timezone" value="true" role="switch" class="form-check-input">
                   <label for="dhcp_ignore_timezone" class="form-check-label">Ignore time zone sent by DHCP</label>

@@ -18,6 +18,7 @@ usage() {
 	echo "  status                      print resolved state as key=value" >&2
 	echo "  refresh                     boot: re-resolve /etc/timezone to /etc/TZ" >&2
 	echo "  set-timezone <name> [--source user|dhcp]" >&2
+	echo "  set-timezone-raw <posix-tz>  store a raw TZ string, bypassing tz.json" >&2
 	echo "  set-ntp <srv>... [--source user|dhcp]" >&2
 	echo "  set-time <date>             manual clock hint, then NTP reconcile" >&2
 	echo "  pin-timezone                keep the current timezone, ignore DHCP" >&2
@@ -93,6 +94,13 @@ cmd_refresh() {
 
 	tz=$(resolve "$name")
 	if [ -z "$tz" ]; then
+		code=$(cat "$TZCODE_FILE" 2>/dev/null)
+		# A manual raw TZ override (set-timezone-raw) stores the same
+		# string in both files; a resolved zone always differs. Keep the
+		# override as-is instead of failing resolution.
+		if [ -n "$code" ] && [ "$code" = "$name" ]; then
+			return 0
+		fi
 		echo "timectl: timezone '$name' not found in $TZJSON_FILE" >&2
 		return 1
 	fi
@@ -148,6 +156,37 @@ cmd_set_timezone() {
 	echo "$tz" >"$TZCODE_FILE"
 	echo "$source" >"$TZ_SOURCE_FILE"
 	echo "timectl: timezone set to $name ($tz) [$source]" >&2
+}
+
+cmd_set_timezone_raw() {
+	posix="${1:-}"
+
+	if [ -z "$posix" ]; then
+		echo "timectl: set-timezone-raw requires a POSIX TZ string" >&2
+		return 1
+	fi
+
+	case "$posix" in
+		-*)
+			echo "timectl: invalid TZ string '$posix'" >&2
+			return 1
+			;;
+	esac
+
+	# Letters, digits, offset/DST punctuation, and the <> of quoted
+	# abbreviations only; anything else is refused.
+	if printf '%s' "$posix" | grep -q '[^A-Za-z0-9+:,./<>-]'; then
+		echo "timectl: refusing TZ string with unexpected characters" >&2
+		return 1
+	fi
+
+	# The raw string doubles as the timezone name: a name that fails to
+	# resolve against tz.json is left untouched by refresh, so the manual
+	# value survives reboots, and source "user" keeps DHCP away from it.
+	echo "$posix" >"$TZNAME_FILE"
+	echo "$posix" >"$TZCODE_FILE"
+	echo "user" >"$TZ_SOURCE_FILE"
+	echo "timectl: timezone set to raw TZ '$posix' [user]" >&2
 }
 
 cmd_set_ntp() {
@@ -224,6 +263,7 @@ cmd_pin_timezone() {
 		name="Etc/GMT"
 		echo "$name" >"$TZNAME_FILE"
 	fi
+
 	echo "user" >"$TZ_SOURCE_FILE"
 	echo "timectl: timezone pinned to $name [user]" >&2
 }
@@ -249,6 +289,10 @@ case "${1:-}" in
 	set-timezone)
 		shift
 		cmd_set_timezone "$@"
+		;;
+	set-timezone-raw)
+		shift
+		cmd_set_timezone_raw "$@"
 		;;
 	set-ntp)
 		shift

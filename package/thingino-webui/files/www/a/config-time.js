@@ -2,6 +2,7 @@
   const form = $("#timeForm");
   const tzNameInput = $("#tz_name");
   const tzDataInput = $("#tz_data");
+  const tzOverride = $("#tz_override");
   const ntpServer0 = $("#ntp_server_0");
   const ntpServer1 = $("#ntp_server_1");
   const ntpServer2 = $("#ntp_server_2");
@@ -59,6 +60,7 @@
   }
 
   function updateTimezone() {
+    if (tzOverride && tzOverride.checked) return;
     const tz = findTimezone(tzNameInput.value);
     tzDataInput.value = tz ? tz.v : "";
   }
@@ -114,6 +116,9 @@
       dhcpIgnoreTimezone.checked =
         data.dhcp_ignore_timezone === "true" ||
         data.dhcp_ignore_timezone === true;
+      tzOverride.checked =
+        data.tz_override === "true" || data.tz_override === true;
+      tzDataInput.readOnly = !tzOverride.checked;
       renderSyncStatus(decodeSyncStatus(data));
       updateTimezone();
     } catch (err) {
@@ -194,6 +199,7 @@
       action: "update",
       tz_name: tzNameInput.value.trim(),
       tz_data: tzDataInput.value.trim(),
+      tz_override: tzOverride.checked,
       ntp_server_0: ntpServer0.value.trim(),
       ntp_server_1: ntpServer1.value.trim(),
       ntp_server_2: ntpServer2.value.trim(),
@@ -205,6 +211,10 @@
 
   tzNameInput.addEventListener("change", updateTimezone);
   tzNameInput.addEventListener("input", updateTimezone);
+  tzOverride.addEventListener("change", () => {
+    tzDataInput.readOnly = !tzOverride.checked;
+    updateTimezone();
+  });
 
   $("#frombrowser").addEventListener("click", useBrowserTimezone);
   syncButton.addEventListener("click", syncTime);
