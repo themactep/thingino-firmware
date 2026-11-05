@@ -30,9 +30,9 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
 
 ## P2 - Duplication
 
-- [ ] **O7** Merge the `--check` mode of `scripts/update-packages.py` into
+- [x] **O7** Merge the `--check` mode of `scripts/update-packages.py` into
   `scripts/update_packages.py` and retire the older hyphenated script.
-- [ ] **O8** Retire `scripts/rtsp-stress-test.rb`; the docs and CI use the
+- [x] **O8** Retire `scripts/rtsp-stress-test.rb`; the docs and CI use the
   shell implementation.
 - [ ] **O9** Extract the shared RTSP backchannel probe logic used by
   `backchannel-probe.py`, `rtsp-backchannel-probe.py`, and
@@ -82,3 +82,16 @@ Status: `[ ]` planned, `[~]` in progress, `[x]` done.
   `force-config` and `defconfig`; `clean-config` removes it. An up-to-date
   `make defconfig` drops from 1.57 s to 0.29 s while a touched `.config`
   still triggers a rebuild.
+
+### Turn 3
+
+- O7 done. `scripts/update_packages.py --check` now verifies that every
+  `$(call github,...)` package records the current tarball name in its
+  `.hash` file, offline. The check is part of `make lint` and the lint CI
+  job. Retired the older `scripts/update-packages.py`.
+- The new check found and this turn fixes three real hash problems:
+  `scriba` had no entry for its current commit, and `thingino-sensor-info`
+  and `wifi-rtw-hostapd` had no `.hash` file at all. Hashes were computed
+  from verified tarball downloads, not typed by hand.
+- O8 done. Removed `scripts/rtsp-stress-test.rb`; it was last touched in
+  May and the maintained shell implementation superseded it in October.

@@ -1375,6 +1375,104 @@ def find_mk_from_host_config() -> List[Path]:
     return mk_files
 
 
+def collect_mk_files(patterns: List[str]) -> List[Path]:
+    """Return package .mk files matching the optional glob *patterns*."""
+    seen: set[Path] = set()
+    mk_files: List[Path] = []
+
+    def wanted(name: str) -> bool:
+        return not patterns or any(fnmatch.fnmatch(name, pat) for pat in patterns)
+
+    for mk_path in PACKAGE_DIR.rglob('*.mk'):
+        pkg_dir = mk_path.parent
+        if mk_path.name != f"{pkg_dir.name}.mk":
+            continue
+        if wanted(pkg_dir.name) and mk_path not in seen:
+            seen.add(mk_path)
+            mk_files.append(mk_path)
+
+    for mk in find_mk_from_host_config():
+        if mk not in seen and wanted(mk.parent.name):
+            seen.add(mk)
+            mk_files.append(mk)
+
+    return sorted(mk_files)
+
+
+def is_github_helper_package(mk_path: Path) -> bool:
+    """True when the package's primary _SITE uses the ``github`` helper."""
+    try:
+        text = mk_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+    sites = re.findall(
+        r'^[A-Z0-9_]+_SITE\s*[:+?]?=\s*(.+)$',
+        text,
+        re.MULTILINE,
+    )
+    return bool(sites) and sites[0].strip().startswith('$(call github,')
+
+
+def hash_tarball_names(hash_path: Path) -> List[str]:
+    """Return every tarball filename recorded in a .hash file."""
+    try:
+        text = hash_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return []
+    return re.findall(
+        r'^sha256\s+[a-f0-9]{64}\s+(\S+\.tar\.gz)\s*$',
+        text,
+        re.MULTILINE,
+    )
+
+
+def check_release_hashes(mk_files: List[Path]) -> int:
+    """
+    Verify that every ``$(call github,...)`` package records the tarball name
+    implied by its ``_VERSION`` in the matching .hash file.  Never downloads.
+    """
+    checked = 0
+    issues = 0
+    for mk_path in mk_files:
+        if not is_github_helper_package(mk_path):
+            continue
+        info = parse_mk_file_release(mk_path)
+        if info is None:
+            log_warn(f"Cannot parse release package: {mk_path.parent.name}")
+            issues += 1
+            continue
+
+        package_name, _repo_url, _tag_template, _current_tag, version, _branch = info
+        checked += 1
+        hash_path = mk_path.parent / f"{package_name}.hash"
+
+        if not hash_path.exists():
+            print(f"MISSING HASH: {package_name} (version={version})")
+            issues += 1
+            continue
+
+        tarballs = hash_tarball_names(hash_path)
+        if not tarballs:
+            print(f"NO TARBALL ENTRY: {package_name} ({hash_path.name})")
+            issues += 1
+            continue
+
+        expected = f"{package_name}-{version}.tar.gz"
+        if expected.lower() not in {t.lower() for t in tarballs}:
+            print(
+                f"MISMATCH: {package_name} - mk version={version}, "
+                f"no hash entry for {expected}"
+            )
+            issues += 1
+
+    print(f"\nChecked {checked} release package(s).")
+    if issues:
+        print(f"{issues} issue(s) found.")
+        return 1
+    print("All release packages OK.")
+    return 0
+
+
 def main() -> int:
     global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN, INFER_BRANCH
 
@@ -1382,6 +1480,7 @@ def main() -> int:
     parser.add_argument("patterns", nargs="*", help="Optional package name patterns (glob), e.g., wifi-* thingino-*")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Only check for updates; do not prompt or modify files")
+    parser.add_argument("--check", action="store_true", help="Verify release .hash tarball names against .mk versions, then exit")
     parser.add_argument(
         "--infer-branch",
         action="store_true",
@@ -1405,6 +1504,14 @@ def main() -> int:
         log_error(f"Package directory not found: {PACKAGE_DIR}")
         return 1
 
+    mk_files = collect_mk_files(args.patterns)
+    if args.patterns and not mk_files:
+        log_error(f"No packages matched patterns: {' '.join(args.patterns)}")
+        return 1
+
+    if args.check:
+        return check_release_hashes(mk_files)
+
     # Refuse to run on a dirty tree: the script edits .mk files and creates
     # commits, and an uncommitted change could be silently overwritten or
     # committed alongside ours.
@@ -1420,40 +1527,7 @@ def main() -> int:
                 print(f"  {line}", file=sys.stderr)
         return 1
 
-    # Find .mk files whose filename matches the package directory name
-    seen: set[Path] = set()
-    mk_files: List[Path] = []
-    if args.patterns:
-        # Filter packages by provided glob patterns against package directory names
-        for mk_path in PACKAGE_DIR.rglob('*.mk'):
-            pkg_dir = mk_path.parent
-            if mk_path.name != f"{pkg_dir.name}.mk":
-                continue
-            name = pkg_dir.name
-            if any(fnmatch.fnmatch(name, pat) for pat in args.patterns):
-                if mk_path not in seen:
-                    seen.add(mk_path)
-                    mk_files.append(mk_path)
-        if not mk_files:
-            log_error(f"No packages matched patterns: {' '.join(args.patterns)}")
-            return 1
-    else:
-        for mk_path in PACKAGE_DIR.rglob('*.mk'):
-            pkg_dir = mk_path.parent
-            if mk_path.name == f"{pkg_dir.name}.mk":
-                if mk_path not in seen:
-                    seen.add(mk_path)
-                    mk_files.append(mk_path)
-
-    # Additionally discover packages from Config.in.host source directives
-    host_mk = find_mk_from_host_config()
-    for mk in host_mk:
-        if mk not in seen:
-            seen.add(mk)
-            if not args.patterns or any(fnmatch.fnmatch(mk.parent.name, pat) for pat in args.patterns):
-                mk_files.append(mk)
-
-    for mk in sorted(mk_files):
+    for mk in mk_files:
         log_debug(f"Examining package: {mk.parent.name}")
         TOTAL_PACKAGES_SCANNED += 1
         process_package(mk)
