@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_LIBUBOX_VERSION = da2d205a5cf3e877c45a2eec488218cbaf452e7d
+THINGINO_LIBUBOX_VERSION = a396f38a8568a1d670c240465cd8d24fdfdf6463
 THINGINO_LIBUBOX_SITE = https://git.openwrt.org/project/libubox.git
 THINGINO_LIBUBOX_SITE_METHOD = git
 THINGINO_LIBUBOX_SITE_BRANCH = master
