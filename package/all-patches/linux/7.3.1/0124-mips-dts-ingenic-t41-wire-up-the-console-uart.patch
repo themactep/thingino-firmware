@@ -1,0 +1,128 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: wire up the console UART
+
+Thingino boots every camera with console=ttyS1, but the stock T41
+device trees leave the console unusable:
+
+  - The UART nodes carry no clocks, so 8250_of's clock lookup fails and
+    the port never registers, leaving no ttyS at all. The T41 CGU
+    exposes the per-UART gates, so describe them like the T40 and T31
+    boards do, with the fixed 24 MHz oscillator as the baud clock.
+
+  - The early console reads its frequency from the /ext node
+    (ingenic_early_console_setup_clock), but the oscillator node is
+    named extclk. Rename the node to ext in both the SoC and the marmot
+    leaf, keeping the extclk label.
+
+  - The trees alias the UARTs only as uartN, never as serialN, so
+    8250_of cannot map the console to ttyS1. Add the serial1 alias and
+    the marmot /chosen/stdout-path, as the T31 trees already do.
+
+Together these make console=ttyS1 attach to uart1 and let earlycon
+print before the 8250 driver probes.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -3,6 +3,7 @@
+ #include <dt-bindings/sound/ingenic-baic.h>
+ #include <dt-bindings/net/ingenic_gmac.h>
+ #include <dt-bindings/dma/ingenic-pdma.h>
++#include <dt-bindings/clock/ingenic,t41-cgu.h>
+ 
+ / {
+ 	#address-cells = <1>;
+@@ -16,6 +17,7 @@
+ 		vo   = &vo;
+ 		uart0 = &uart0;
+ 		uart1 = &uart1;
++		serial1 = &uart1;
+ 		uart2 = &uart2;
+ 		uart3 = &uart3;
+ 		uart4 = &uart4;
+@@ -87,7 +89,7 @@
+ 			<1 0x100>;
+ 	};
+ 
+-	extclk: extclk {
++	extclk: ext {
+ 		compatible = "ingenic,fixed-clock";
+ 		clock-output-names ="ext";
+ 		#clock-cells = <0>;
+@@ -249,6 +251,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART0>;
++			clocks = <&extclk>, <&clock T41_CLK_UART0>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart0_pc>;
+ 			status = "okay";
+@@ -260,6 +264,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART1>;
++			clocks = <&extclk>, <&clock T41_CLK_UART1>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart1_pb>;
+ 			status = "okay";
+@@ -271,6 +277,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART2>;
++			clocks = <&extclk>, <&clock T41_CLK_UART2>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart2_pd>;
+ 			status = "okay";
+@@ -282,6 +290,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART3>;
++			clocks = <&extclk>, <&clock T41_CLK_UART3>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart3_pd>;
+ 			status = "okay";
+@@ -293,6 +303,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART4>;
++			clocks = <&extclk>, <&clock T41_CLK_UART4>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart4_pb>;
+ 			status = "okay";
+@@ -304,6 +316,8 @@
+ 			reg-shift = <2>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_UART5>;
++			clocks = <&extclk>, <&clock T41_CLK_UART5>;
++			clock-names = "baud", "module";
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&uart5_pd>;
+ 			status = "okay";
+--- a/arch/mips/boot/dts/ingenic/marmot.dts
++++ b/arch/mips/boot/dts/ingenic/marmot.dts
+@@ -7,6 +7,10 @@
+ / {
+ 	compatible = "ingenic,marmot", "ingenic,t41";
+ 
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
+ 	mmc0_pwrseq: mmc0_pwrseq {
+ 		compatible = "mmc-pwrseq-simple";
+ 		reset-gpios = <&gpd 22 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+@@ -212,7 +216,7 @@
+ 
+ / {
+ 
+-	extclk: extclk {
++	extclk: ext {
+ 		clock-frequency = <24000000>;
+ 	};
+ 
