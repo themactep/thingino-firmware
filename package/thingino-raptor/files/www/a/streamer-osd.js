@@ -101,6 +101,8 @@
       if (enabled) enabled.checked = cfg.enabled === true;
       if (format && cfg.format) format.value = cfg.format;
       if (position && cfg.position) position.value = cfg.position;
+    }
+    for (const key of ["time", ...ELEMENTS]) {
       const maxChars = elementField(key, "max_chars");
       if (!maxChars) continue;
       try {
@@ -112,6 +114,21 @@
       } catch (err) {
         console.warn("Failed to load " + key + " max chars", err);
       }
+    }
+  }
+
+  // Sequential on purpose: the first write to a missing [osd.<name>] section
+  // makes the adapter recreate it with several config writes.
+  async function patchLeaves(helper, prefix, leaves) {
+    for (const [path, field, value] of leaves) {
+      await helper.agentRequest(
+        "/api/v1/settings/streams/0/osd/" + prefix + path,
+        {
+          method: "PATCH",
+          body: { [field]: value },
+          cache: "no-store",
+        },
+      );
     }
   }
 
@@ -129,12 +146,7 @@
         leaves.push(["position", "position", position.value.trim()]);
       if (maxChars && Number(maxChars.value) > 0)
         leaves.push(["max-chars", "max_chars", Number(maxChars.value)]);
-      for (const [path, field, value] of leaves) {
-        await helper.agentRequest(
-          "/api/v1/settings/streams/0/osd/" + key + "/" + path,
-          { method: "PATCH", body: { [field]: value }, cache: "no-store" },
-        );
-      }
+      await patchLeaves(helper, key + "/", leaves);
     }
   }
 
@@ -200,7 +212,7 @@
 
   async function saveOsdConfig() {
     const helper = window.thinginoStreamer;
-    if (!helper || !helper.applyPayload) {
+    if (!helper || !helper.agentRequest) {
       showAlert("danger", "Streamer agent helper unavailable", 6000);
       return;
     }
@@ -212,24 +224,27 @@
 
     saveBtn.disabled = true;
     try {
-      const time = {
-        enabled: !!burninEnabled.checked,
-      };
-      if (burninFormat.value.trim()) time.format = burninFormat.value.trim();
-      if (burninPosition.value.trim())
-        time.position = burninPosition.value.trim();
-      if (burninFillColor.value.trim())
-        time.fill_color = burninFillColor.value.trim();
-      if (burninOutlineColor.value.trim())
-        time.stroke_color = burninOutlineColor.value.trim();
-
-      const osd = { enabled: !!burninEnabled.checked, time };
+      const enabled = !!burninEnabled.checked;
+      const osd = [["enabled", "enabled", enabled]];
       const fontSize = Number(burninFontSize.value);
-      if (Number.isFinite(fontSize) && fontSize > 0) {
-        osd.font_size = fontSize;
-      }
+      if (Number.isFinite(fontSize) && fontSize > 0)
+        osd.push(["font-size", "font_size", fontSize]);
+      await patchLeaves(helper, "", osd);
 
-      await helper.applyPayload({ stream0: { osd } });
+      const time = [["enabled", "enabled", enabled]];
+      const text = (input) => input.value.trim();
+      if (text(burninFormat))
+        time.push(["format", "format", text(burninFormat)]);
+      if (text(burninPosition))
+        time.push(["position", "position", text(burninPosition)]);
+      const timeMaxChars = Number(elementField("time", "max_chars").value);
+      if (timeMaxChars > 0) time.push(["max-chars", "max_chars", timeMaxChars]);
+      if (text(burninFillColor))
+        time.push(["fill-color", "fill_color", text(burninFillColor)]);
+      if (text(burninOutlineColor))
+        time.push(["stroke-color", "stroke_color", text(burninOutlineColor)]);
+      await patchLeaves(helper, "time/", time);
+
       await saveElements(helper);
       if (helper.saveConfig) await helper.saveConfig();
       showAlert(
