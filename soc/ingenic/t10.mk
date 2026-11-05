@@ -11,6 +11,7 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 # what's different
 ifeq ($(SOC_MODEL),t10l)
 SOC_UBOOT     := isvp_t10l_sfcnor
+SOC_UBOOT_VARIANT := t10l
 else
 SOC_UBOOT     := isvp_t10n_sfcnor
 endif

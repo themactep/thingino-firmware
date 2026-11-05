@@ -14,6 +14,7 @@ SOC_UBOOT     := isvp_t32lq_sfcnor
 else ifeq ($(SOC_MODEL),t32nq)
 SOC_RAM_MB    := 128
 SOC_UBOOT     := isvp_t32nq_sfcnor
+SOC_UBOOT_VARIANT := t32nq
 else
 SOC_RAM_MB    := 128
 SOC_UBOOT     := isvp_t32vn_sfcnor
