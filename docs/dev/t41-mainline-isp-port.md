@@ -132,18 +132,29 @@ the clocks came from `of_clk_get_from_provider()` but are released with
 `tx_isp_sinfo_init()` `/proc/jz/sensor` failure (or the V4L2 init after
 it).
 
-Next steps:
+Procfs, after comparing with the T31 driver on the cinnado d1 and wyze
+cam 2 builds (`driver/t31/tx_isp_proc.c`):
 
-1. Register clkdev lookups for the vendor names (`gate_isp`, `gate_csi`,
-   `div_ispm`, `div_isps`, `div_ispa`, `gate_ivdc`, `div_ldc`,
-   `gate_ldc`) with `clkdev_create()`, then use plain `devm_clk_get()`.
-   This removes the `devm_clk_put` warnings and makes the lifecycle
-   correct.
-2. Find why `tx_isp_sinfo_init()` cannot create `/proc/jz/sensor`. The
-   compat `tx_isp_get_jz_proc_root()` and `jz_proc_mkdir()` are the
-   first suspects.
-3. Then the V4L2 init error (guard on `parent->driver` or a real failure)
-   and the sensor bridge (Phase 3).
+- The T31 driver creates `/proc/jz` once in `tx_isp_create_proc_entries`,
+  returns that entry from `tx_isp_get_jz_proc_root()`, and removes the
+  whole `/proc/jz` tree in `tx_isp_remove_proc_entries()`.
+- The T41 compat created `/proc/jz` lazily and never removed it, so a
+  failed load left it behind and the next load's `proc_mkdir("jz")`
+  returned NULL (the "cannot create /proc/jz/sensor" warning).
+- Fixed: `tx_isp_t41_proc_exit()` removes the root, and it is called from
+  both `init_module()` failure paths and `cleanup_module()`.
+
+Remaining, in order:
+
+1. The last insmod still returns `-EINVAL` and the current dmesg (after
+   clearing) only shows the `clk-devres.c:335` warnings; no V4L2 error
+   line. Trace the module init with a clean log buffer and confirm which
+   step returns the error (`tx_isp_init`, the main probe, or the V4L2
+   init).
+2. Register clkdev lookups for the vendor names and use plain
+   `devm_clk_get()`; this removes the `devm_clk_put` warnings and makes
+   the clock lifecycle correct.
+3. Then the sensor bridge (Phase 3) and capture (Phase 4).
 
 ## Validation
 
