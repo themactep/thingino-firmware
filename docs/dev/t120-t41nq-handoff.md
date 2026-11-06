@@ -3,7 +3,8 @@
 Date: 2026-11-06
 Branch: `feature/kernel-7` (HEAD `a5665a215`)
 Board: `noorio_t120_t41nq_gc8613_aic8800d`, 32 MB SFC NOR, 128 MB RAM
-Console: serial only — screen session `3040439` on `/dev/ttyUSB2` (attached); WiFi is disabled.
+Console: serial only — screen session on `/dev/ttyUSB2` (attached); WiFi is enabled
+and the AIC8800 RX crash is fixed (see `0004-fix-reorder-tid-out-of-bounds.patch`).
 
 ## What changed
 
@@ -96,12 +97,9 @@ Uncommitted:
     `base64 -d > /tmp/uImage`, `flashcp -v /tmp/uImage /dev/mtd3`, `reboot`.
   - Current `mtd3` kernel: `9f9d99f7…` (2,137,122 B; `CONFIG_VIDEO_GC8613=m`).
 - U-Boot 2026.10 was boot-tested with the full image via the SD autoupdate.
-- WiFi deliberately disabled to stop the AIC8800 oops:
-  `rmmod aic8800_fdrv aic_load_fw`,
-  `find /lib/modules -name 'aic8800_fdrv.ko' -delete` / `aic_load_fw.ko`,
-  `printf '#!/bin/sh\nexit 0\n' > /etc/init.d/S40network`,
-  `echo 1 > /sys/bus/usb/devices/1-1/remove`.
-  This is in the data overlay; a full-image flash restores it.
+- WiFi: the AIC8800 RX oops is fixed in `0004-fix-reorder-tid-out-of-bounds.patch`.
+  The earlier overlay disable (`S40network` stub, deleted modules) and
+  `1-1/remove` can be reverted; the fixed image restores them.
 - Module debug: `gc8613.ko` (16,592 B) uploaded to `/tmp`; `insmod` fails on
   `devm_cci_regmap_init_i2c`, `cci_multi_reg_write`, `cci_write`, `cci_read`.
 
@@ -118,10 +116,13 @@ Uncommitted:
    1-byte value), or switch to a plain `devm_regmap_init_i2c` with
    `reg_bits=16, val_bits=8, reg_format_endian=BIG`.
    Then the media graph / CIM / ISP path (`/dev/media*`, `/dev/video*`).
-3. **AIC8800 WiFi**: `aicwf_busrx_thr` oops (`BadVA fffffff6`, epc
-   `c014e8bc`) under sustained RX; it panics the board and drops every
-   OTA/scp. Needs the vendor driver/USB RX bug fixed; until then the WiFi
-   and the overlay disable stay.
+3. **AIC8800 WiFi**: FIXED. `aicwf_busrx_thr` oopsed with `BadVA
+   fffffff6` in `reord_rxframe_enqueue` because the per-station reorder
+   array held 8 TIDs while the QoS TID is masked to 0..15 and used as an
+   index. TID 8..15 walked into zeroed memory and dereferenced a NULL
+   list head. `0004-fix-reorder-tid-out-of-bounds.patch` sizes the array
+   for 16 TIDs and initializes/deinitializes all of them. Validated on
+   the T120 with a 100 MB HTTP download over wlan0: no oops, clean dmesg.
 4. **MMC**: the host probes (`ingenic-sdhci … Got CD GPIO`, `mmc0`) but no
    `/dev/mmcblk*`; verify the card is seated / CD GPB26 polarity.
 5. **Rootfs is tight**: 6,602,752 / 6,619,136 bytes (16 KiB free). Adding the
@@ -186,6 +187,21 @@ Next blocker for `/dev/video*` / `/dev/media*`:
   (`Config.in`), and there is no CIM/ISP driver in the 7.3.1 patch series.
   Bringing up video capture on T41 7.x needs that host driver ported/written.
 
+## AIC8800 WiFi fix (2026-11-06)
+
+Reproduced the `aicwf_busrx_thr` panic on the board (WiFi restored from
+the fixed modules, associated to `thingino`, 100 MB HTTP download):
+`BadVA fffffff6`, epc in `reord_rxframe_enqueue`, called from
+`reord_process_unit` -> `rwnx_rxdataind_aicwf` -> `aicwf_process_rxframes`
+-> `usb_busrx_thread`.
+
+The reorder array is `preorder_ctrl[8]`, but the TID is
+`skb->data[24] & 0x0F` (0..15) and is used directly as the index. TID
+8..15 reads past the array; the reorder list head is NULL and
+`reord_rxframe_enqueue()` dereferences it. Fix `0004` expands the array to
+16 and updates the init/deinit loops. Re-tested with the same 100 MB
+download: curl completed, no oops, empty dmesg.
+
 ## Risks / assumptions to revisit
 
 - The CIM parent/VPLL setup and the DT-applied `pinctrl-0` PA15 claim are
@@ -194,8 +210,9 @@ Next blocker for `/dev/video*` / `/dev/media*`:
   `sensor-info -r -1`. The datasheet pins were not measured.
 - The KOPT `=m` is a debug convenience; a normal release build must put the
   module in the rootfs or go back to `=y`.
-- The WiFi disable lives in the data overlay and in deleted module files;
-  a full-image flash or manual restore is required to bring it back.
+- The AIC8800 RX fix is in the image; the board's old data overlay still
+  carries the S40network stub and the deleted modules until the new image
+  is flashed or the overlay is restored.
 - The board is serial-only at the moment. Use a screen session on
   `/dev/ttyUSB2` at 115200; XMODEM (`rx` on the board, `sx` on the host) is the
   fastest transfer path.
