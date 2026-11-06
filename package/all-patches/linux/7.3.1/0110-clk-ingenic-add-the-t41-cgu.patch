@@ -315,7 +315,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		"cim", CGU_CLK_MUX | CGU_CLK_DIV,
 +		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
 +		.mux = { CGU_REG_CIMCDR, 30, 2 },
-+		.div = { CGU_REG_CIMCDR, 0, 1, 8, 28, 29, 27 },
++		.div = { CGU_REG_CIMCDR, 0, 1, 8, 29, 28, 27 },
 +	},
 +
 +	[T41_CLK_LCD] = {
