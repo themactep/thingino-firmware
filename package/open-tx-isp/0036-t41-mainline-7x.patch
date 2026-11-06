@@ -8,19 +8,18 @@ API to the mainline 7.x API:
 - use copy_from_kernel_nofault, i2c_new_client_device, kernel_read/write,
   kmalloc, timer_setup/timer_delete_sync, ioremap/iounmap
 - read platform_data through the struct, not the 4.4 +0x5c offset
+- read struct file private_data through the member, not the 4.4 +0x88
+  offset (the bogus pointer crashed tx_isp_open/rvd)
 - replace the raw 4.4 struct resource arrays with real resource structs
 - translate vendor IRQ numbers (hwirq + 8) through the core-intc domain
-- resolve the vendor clock names (gate_isp, gate_csi, div_ispm, ...) to
-  the mainline T41 CGU clocks by provider ID, and register clkdev
-  lookups so devm_clk_get()/devm_clk_put() have a symmetric lifecycle
-- create /proc/jz once and remove it on unload, like the T31 mainline
-  driver, so a failed load does not poison the next one
-- adapt the V4L2 frontend to the 7.x videobuf2 API, set device_caps, and
-  use VFL_TYPE_VIDEO; skip registration when the parent device has no
-  driver bound
-- add bring-up diagnostics around the subdev IRQ, clocks and V4L2 init
+- resolve the vendor clock names to the mainline T41 CGU clocks and
+  register clkdev lookups for a symmetric devm lifecycle
+- create /proc/jz once and remove it on unload
+- adapt the V4L2 frontend to the 7.x videobuf2 API, set device_caps,
+  and use VFL_TYPE_VIDEO
+- add bring-up diagnostics
 
-Load-tested on the T120; the main tx-isp probe succeeds.
+Load-tested on the T120; the main tx-isp probe and V4L2 registration work.
 ---
 diff --git a/driver/t41/Kbuild b/driver/t41/Kbuild
 index 12d65e6..5498071 100644
@@ -424,7 +423,7 @@ index 7c6c6e8..507fa16 100644
  	t41_pw_n = 0;
  	t41_pw_busy = 0;
 diff --git a/driver/t41/tx_isp_t41_recovered.c b/driver/t41/tx_isp_t41_recovered.c
-index 765a348..dcf559d 100644
+index 765a348..e60611f 100644
 --- a/driver/t41/tx_isp_t41_recovered.c
 +++ b/driver/t41/tx_isp_t41_recovered.c
 @@ -115,6 +115,8 @@
@@ -751,6 +750,24 @@ index 765a348..dcf559d 100644
      result = tx_isp_subdev_init(s2, s3, &ivdc_subdev_ops);
  
      if (result == 0) {
+@@ -25845,7 +25835,7 @@ long ivdc_misc_unlocked_ioctl(struct file *filp, unsigned int cmd,
+                                     sizeof(ivdc_mem_line)) ? -EFAULT : 0;
+     case 0x2000543dU:
+     case 0x2000543eU: {
+-        char *ivdc = *(char **)((char *)a0 + 0x88);
++        char *ivdc = (char *)((struct file *)a0)->private_data;
+         char *regs = t41_kernel_data_ptr(ivdc) ?
+             *(char **)(ivdc + 0x110) : NULL;
+ 
+@@ -28823,7 +28813,7 @@ int frame_channel_open(struct inode *inode, struct file *file)
+     uint32_t *ptr;
+     int32_t val;
+ 
+-    ptr = *(uint32_t **)((char *)file + 0x88);
++    ptr = (uint32_t *)file->private_data;
+ 
+     if (ptr == 0 || (uint32_t)ptr >= 0xfffff001)
+         return -22;
 @@ -32017,7 +32007,7 @@ frame_channel_unlocked_ioctl0xcf0:
  
  frame_channel_unlocked_ioctl0xd0c:
@@ -760,6 +777,69 @@ index 765a348..dcf559d 100644
      s1 = 0;
      s3 = s3;
      s5 = (uintptr_t)&LC79;
+@@ -33633,7 +33623,7 @@ int32_t tx_isp_open(int32_t arg1, void *arg2)
+ 
+ 	(void)arg1;
+ 	/* misc_open leaves the embedded miscdevice in file->private_data. */
+-	miscdev = *(char **)((char *)arg2 + 0x88);
++	miscdev = (char *)((struct file *)arg2)->private_data;
+ 	if (!miscdev)
+ 		return -ENODEV;
+ 	/* Waits for a last-close teardown that is still running. */
+@@ -36056,7 +36046,7 @@ int32_t tx_isp_release(uint32_t a0, uintptr_t a1)
+ 	unsigned int i;
+ 
+ 	(void)a0;
+-	miscdev = *(char **)((char *)a1 + 0x88);
++	miscdev = (char *)((struct file *)a1)->private_data;
+ 	if (!miscdev)
+ 		return -ENODEV;
+ 
+@@ -36960,7 +36950,7 @@ static int t41_ioctl_video_link_setup(uintptr_t file, uint32_t user_arg)
+         return 0;
+     }
+ 
+-    miscdev = t41_load_ptr(file, 136);
++    miscdev = (uintptr_t)((struct file *)file)->private_data;
+     if (!miscdev)
+         return -ENODEV;
+     graph = miscdev - 12;
+@@ -36982,7 +36972,7 @@ static int t41_ioctl_video_link_destroy(uintptr_t file, uint32_t user_arg)
+     link = direct_mode ? 3U : (unsigned int)input[1];
+     if (link >= 5)
+         return -EINVAL;
+-    miscdev = t41_load_ptr(file, 136);
++    miscdev = (uintptr_t)((struct file *)file)->private_data;
+     if (!miscdev)
+         return -ENODEV;
+     return tx_isp_video_link_destroy_isra_3(miscdev - 12, link);
+@@ -37116,7 +37106,7 @@ static int t41_ioctl_frame_drop(uintptr_t file, unsigned int command,
+     unsigned int i;
+     int ret = 0;
+ 
+-    if (!file || !user_arg || !t41_load_ptr(file, 136))
++    if (!file || !user_arg || !(uintptr_t)((struct file *)file)->private_data)
+         return -EINVAL;
+     if (private_copy_from_user(req, (const void __user *)(uintptr_t)user_arg,
+                                sizeof(req)))
+@@ -37157,7 +37147,7 @@ static int t41_ioctl_wdr_switch(uintptr_t file, bool enable, uint32_t user_arg)
+ {
+     uint32_t ch;
+ 
+-    if (!file || !user_arg || !t41_load_ptr(file, 136))
++    if (!file || !user_arg || !(uintptr_t)((struct file *)file)->private_data)
+         return -EINVAL;
+     if (private_copy_from_user(&ch, (const void __user *)(uintptr_t)user_arg,
+                                sizeof(ch)))
+@@ -37182,7 +37172,7 @@ static int t41_ioctl_sensor_register(uintptr_t file, bool write,
+     uintptr_t vin;
+     int ret;
+ 
+-    if (!file || !user_arg || !t41_load_ptr(file, 136))
++    if (!file || !user_arg || !(uintptr_t)((struct file *)file)->private_data)
+         return -EINVAL;
+     if (private_copy_from_user(req, (const void __user *)(uintptr_t)user_arg,
+                                sizeof(req)))
 @@ -40520,10 +40510,12 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
  	ret = tx_isp_request_irq((uintptr_t)pdev,
  				 (uintptr_t)((char *)sd + 0x84));
