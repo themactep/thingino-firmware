@@ -1,0 +1,55 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: wire up the I2C buses
+
+The I2C nodes use the vendor "ingenic,t41-i2c" compatible and carry no
+clock, so the mainline jz4780 driver never binds and /dev/i2c-0 never
+appears. The sensor helpers (and the GC8613) then have no bus.
+
+Match the T31/X1000 block the driver knows and attach the CGU gates.
+The marmot leaf already sets the pinctrl, clock frequency and per-bus
+status.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -337,30 +337,36 @@
+ 		};
+ 
+ 		i2c0: i2c@0x10050000 {
+-			compatible = "ingenic,t41-i2c";
++			compatible = "ingenic,t41-i2c", "ingenic,t31-i2c";
+ 			reg = <0x10050000 0x1000>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_I2C0>;
++			clocks = <&clock T41_CLK_I2C0>;
++			clock-names = "i2c";
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			status = "okay";
+ 		};
+ 
+ 		i2c1: i2c@0x10051000 {
+-			compatible = "ingenic,t41-i2c";
++			compatible = "ingenic,t41-i2c", "ingenic,t31-i2c";
+ 			reg = <0x10051000 0x1000>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_I2C1>;
++			clocks = <&clock T41_CLK_I2C1>;
++			clock-names = "i2c";
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			status = "okay";
+ 		};
+ 
+ 		i2c2: i2c@0x10052000 {
+-			compatible = "ingenic,t41-i2c";
++			compatible = "ingenic,t41-i2c", "ingenic,t31-i2c";
+ 			reg = <0x10052000 0x1000>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_I2C2>;
++			clocks = <&clock T41_CLK_I2C2>;
++			clock-names = "i2c";
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			status = "okay";
