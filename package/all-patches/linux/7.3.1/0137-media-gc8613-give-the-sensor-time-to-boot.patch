@@ -1,0 +1,20 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: gc8613: give the sensor time to boot
+
+The GC8613 does not answer on I2C 20 ms after reset release on the T41;
+the probe fails reading the chip ID with -EIO. Wait 100 ms before the
+first register access.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/gc8613.c
++++ b/drivers/media/i2c/gc8613.c
+@@ -604,7 +604,7 @@
+ 	/* The sensor needs MCLK while reset is released. */
+ 	gpiod_set_value_cansleep(gc8613->powerdown_gpio, 0);
+ 	gpiod_set_value_cansleep(gc8613->reset_gpio, 0);
+-	msleep(20);
++	msleep(100);
+ 
+ 	return 0;
+ 
