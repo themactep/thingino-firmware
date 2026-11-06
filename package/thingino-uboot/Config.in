@@ -6,6 +6,9 @@ choice
 	help
 	  Select the U-Boot version to build.
 
+config BR2_THINGINO_UBOOT_VERSION_2026_10
+	bool "2026.10 (buildroot)"
+
 config BR2_THINGINO_UBOOT_VERSION_2026_07
 	bool "2026.07 (buildroot)"
 
