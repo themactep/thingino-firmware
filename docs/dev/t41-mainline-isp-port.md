@@ -117,28 +117,33 @@ The module now loads and the recovered probe runs. Fixes found so far:
 Current state (last insmod):
 
 ```
-tx-isp: isp-m0 irq acquired
-tx-isp: isp-w02 irq acquired
-tx-isp: isp-w01 irq acquired
-<crash in tx_isp_csi_probe>
+@@@@ tx-isp-probe ok (version H20250310a) @@@@
+tx-isp-sinfo: initialized max_sensors=4
+tx-isp-sinfo: cannot create /proc/jz/sensor
+tx-isp-sinfo: exited
+insmod: can't insert ...: Invalid argument
 ```
 
-The core, VIC and CSI subdevs get their IRQs. The CSI then fails in the
-clock/setup path and the recovered error path dereferences the stale
-4.4-offset `platform_data` pointer (`s2`).
+The main tx-isp probe now succeeds. The subdevs get their IRQs and the
+vendor clock names resolve through `of_clk_get_from_provider()` against
+the T41 CGU. The clock cleanup then warns in `clk-devres.c:335` because
+the clocks came from `of_clk_get_from_provider()` but are released with
+`devm_clk_put()`. The module init still returns `-EINVAL`, now from the
+`tx_isp_sinfo_init()` `/proc/jz/sensor` failure (or the V4L2 init after
+it).
 
 Next steps:
 
-1. Replace the vendor clock names (`gate_isp`, `gate_csi`, `div_ispm`,
-   `div_isps`, `div_ispa`, `gate_ivdc`, `div_ldc`, `gate_ldc`) with clocks
-   from the mainline T41 CGU. There is no clkdev table for those names;
-   resolve by `of_clk_get(cgu_np, T41_CLK_*)` in
-   `private_devm_clk_get()`.
-2. Fix the remaining 4.4 `platform_data` reads at `+0x5c` in the VIC, CSI
-   and IVDC probes (the CSI error path is one).
-3. Give the CSI platform device its MIPI RX IRQ (hwirq 5) if the driver
-   needs it; today it requests none.
-4. Then the sensor bridge (Phase 3) and capture (Phase 4).
+1. Register clkdev lookups for the vendor names (`gate_isp`, `gate_csi`,
+   `div_ispm`, `div_isps`, `div_ispa`, `gate_ivdc`, `div_ldc`,
+   `gate_ldc`) with `clkdev_create()`, then use plain `devm_clk_get()`.
+   This removes the `devm_clk_put` warnings and makes the lifecycle
+   correct.
+2. Find why `tx_isp_sinfo_init()` cannot create `/proc/jz/sensor`. The
+   compat `tx_isp_get_jz_proc_root()` and `jz_proc_mkdir()` are the
+   first suspects.
+3. Then the V4L2 init error (guard on `parent->driver` or a real failure)
+   and the sensor bridge (Phase 3).
 
 ## Validation
 
