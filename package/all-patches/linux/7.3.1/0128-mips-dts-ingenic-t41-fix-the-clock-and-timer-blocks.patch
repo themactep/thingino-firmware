@@ -1,0 +1,185 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: fix the clock and timer blocks
+
+The stock T41 trees describe the vendor clock and timer blocks, none
+of which the 7.3.1 drivers bind:
+
+  - The fixed oscillators use "ingenic,fixed-clock", which has no
+    driver, so the CGU and every clock consumer (including uart1)
+    fail to get a clock.
+  - The CGU is "ingenic,t41-clocks" and names its second parent
+    rtc_ext, while the driver matches "ingenic,t41-cgu" and wants
+    "rtc".
+  - cpuintc is "ingenic,cpu-interrupt-controller", but the CPU IRQ
+    driver matches "mti,cpu-interrupt-controller". Without it the IRQ
+    tree is never built ("of_irq_init: children remain, but no
+    parents") and no timer or device interrupt can fire.
+  - The system OST is "ingenic,core-ost", not "ingenic,t41-ost".
+  - The TCU is the vendor "ingenic,tcu" with channel children. The
+    mainline driver needs "ingenic,t41-tcu"/"ingenic,jz4760-tcu" as a
+    simple-mfd with the TCU clocks and the watchdog and OST children.
+    Use the mainline TCU clock binding header, whose guard the vendor
+    header shadows.
+
+Use the same shapes the T41 camera board trees already carry so the
+generic marmot tree boots with a real clocksource and clockevent.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -1,5 +1,5 @@
+ #include <dt-bindings/interrupt-controller/t41-irq.h>
+-#include <dt-bindings/clock/ingenic-tcu.h>
++#include <dt-bindings/clock/ingenic,tcu.h>
+ #include <dt-bindings/sound/ingenic-baic.h>
+ #include <dt-bindings/net/ingenic_gmac.h>
+ #include <dt-bindings/dma/ingenic-pdma.h>
+@@ -59,7 +59,7 @@
+ 		#address-cells = <0>;
+ 		#interrupt-cells = <1>;
+ 		interrupt-controller;
+-		compatible = "ingenic,cpu-interrupt-controller";
++		compatible = "mti,cpu-interrupt-controller";
+ 
+ 	};
+ 
+@@ -78,38 +78,40 @@
+ 		interrupt-names ="intc";
+ 	};
+ 
+-	core_ost: core-ost@0x12000000 {
+-		compatible = "ingenic,core-ost";
+-		reg = <0x12000000 0x10000>, /*Global ost*/
+-		      <0x12100000 0x10000>; /*Core ost*/
++	core_ost: timer@0x12000000 {
++		compatible = "ingenic,t41-ost";
++		reg = <0x12000000 0x1000>, /*Global ost*/
++		      <0x12100000 0x1000>; /*Core ost*/
+ 		interrupt-parent = <&cpuintc>;
+ 		interrupt-names = "sys_ost";
+ 		interrupts = <CORE_SYS_OST_IRQ>;
+-		cpu-ost-map = 	<0 0x000>,
+-			<1 0x100>;
++
++		clocks = <&extclk>;
++		clock-names = "ost";
++
++		#clock-cells = <1>;
+ 	};
+ 
+ 	extclk: ext {
+-		compatible = "ingenic,fixed-clock";
++		compatible = "fixed-clock";
+ 		clock-output-names ="ext";
+ 		#clock-cells = <0>;
+ 		clock-frequency  = <24000000>;
+ 	};
+ 
+ 	rtcclk: rtcclk {
+-		compatible = "ingenic,fixed-clock";
+-		clock-output-names ="rtc_ext";
++		compatible = "fixed-clock";
++		clock-output-names ="rtc";
+ 		#clock-cells = <0>;
+ 		clock-frequency = <32768>;
+ 	};
+ 
+ 	clock: clock-controller@0x10000000 {
+-		compatible = "ingenic,t41-clocks";
++		compatible = "ingenic,t41-cgu";
+ 		reg = <0x10000000 0x100>;
+ 		clocks = <&extclk>, <&rtcclk>;
+-		clock-names = "ext", "rtc_ext";
++		clock-names = "ext", "rtc";
+ 		#clock-cells = <1>;
+-		little-endian;
+ 	};
+ 
+ 	aip: aip@0x12b00000 {
+@@ -127,53 +129,42 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <1>;
+ 		ranges = <>;
+-		tcu: tcu@0x10002000 {
+-			compatible = "ingenic,tcu";
+-			reg = <0x10002000 0x200>;
+-			interrupt-parent = <&core_intc>;
+-			interrupt-names = "tcu_int0";
+-			interrupts = <IRQ_TCU0>;
++		tcu: timer@0x10002000 {
++			compatible = "ingenic,t41-tcu", "ingenic,jz4760-tcu",
++				     "simple-mfd";
++			reg = <0x10002000 0x100>;
++			#address-cells = <1>;
++			#size-cells = <1>;
++			ranges = <0x00 0x10002000 0x100>;
++
++			#clock-cells = <1>;
++
++			clocks = <&clock T41_CLK_RTCLK>, <&clock T41_CLK_EXCLK>,
++				 <&clock T41_CLK_PCLK>, <&clock T41_CLK_TCU>;
++			clock-names = "rtc", "ext", "pclk", "tcu";
++
+ 			interrupt-controller;
+-			status = "okay";
++			#interrupt-cells = <1>;
+ 
+-			channel0: channel0 {
+-				compatible = "ingenic,tcu_chn0";
+-				ingenic,channel-info = <CHANNEL_INFO(0, TCU_MODE1, 0, 0)>;
+-			};
+-			channel1: channel1 {
+-				compatible = "ingenic,tcu_chn1";
+-				ingenic,channel-info = <CHANNEL_INFO(1, TCU_MODE2, 0, 0)>;
+-			};
+-			channel2: channel2 {
+-				compatible = "ingenic,tcu_chn2";
+-				ingenic,channel-info = <CHANNEL_INFO(2, TCU_MODE2, 0, 0)>;
+-			};
+-			channel3: channel3 {
+-				compatible = "ingenic,tcu_chn3";
+-				ingenic,channel-info = <CHANNEL_INFO(3, TCU_MODE1, 0, 0)>;
+-			};
+-			channel4: channel4 {
+-				compatible = "ingenic,tcu_chn4";
+-				ingenic,channel-info = <CHANNEL_INFO(4, TCU_MODE1, 0, 0)>;
+-			};
+-			channel5: channel5 {
+-				compatible = "ingenic,tcu_chn5";
+-				ingenic,channel-info = <CHANNEL_INFO(5, TCU_MODE1, 0, 0)>;
+-			};
+-			channel6: channel6 {
+-				compatible = "ingenic,tcu_chn6";
+-				ingenic,channel-info = <CHANNEL_INFO(6, TCU_MODE1, 0, 0)>;
+-			};
+-			channel7: channel7 {
+-				compatible = "ingenic,tcu_chn7";
+-				ingenic,channel-info = <CHANNEL_INFO(7, TCU_MODE1, 0, 0)>;
+-			};
+-			channel16: channel16 {
+-				compatible = "ingenic,watchdog";
+-				ingenic,channel-info = <CHANNEL_INFO(16, 0, 0, 0)>;
++			interrupt-parent = <&core_intc>;
++			interrupts = <IRQ_TCU0 IRQ_TCU1 IRQ_TCU2>;
++
++			watchdog: watchdog@0x0 {
++				compatible = "ingenic,t41-watchdog", "ingenic,jz4780-watchdog";
++				reg = <0x00 0x10>;
++				clocks = <&tcu TCU_CLK_WDT>;
++				clock-names = "wdt";
++			};
++
++			ost: timer@0xe0 {
++				compatible = "ingenic,jz4760b-ost";
++				reg = <0xe0 0x20>;
++				clocks = <&tcu TCU_CLK_OST>;
++				clock-names = "ost";
++
++				interrupts = <0x0f>;
+ 			};
+ 		};
+-
+ 		pinctrl: pinctrl@0x10010000 {
+ 			compatible = "ingenic,t41-pinctrl";
+ 			reg = <0x10010000 0x1000>;

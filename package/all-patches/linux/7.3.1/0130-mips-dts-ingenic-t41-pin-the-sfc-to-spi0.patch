@@ -1,0 +1,23 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: pin the SFC to SPI bus 0
+
+spi_register_controller() gives a controller without a "spi" alias the
+first bus number above the highest spiN alias. The T41 tree aliases its
+two SSI controllers as spi0 and spi1, so the SFC lands on spi2 and the
+U-Boot mtdparts=spi0.0 argument never attaches, leaving only the whole
+chip as mtdblock0 and no rootfs.
+
+Alias the SFC as spi0, which is what the mainline 7.x trees expect.
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -25,7 +25,7 @@
+ 		msc0 = &msc0;
+ 		msc1 = &msc1;
+ 		mac0 = &mac0;
+-		spi0 = &spi0;
++		spi0 = &sfc0;
+ 		spi1 = &spi1;
+ 		sfc0 = &sfc0;
+ 		sfc1 = &sfc1;

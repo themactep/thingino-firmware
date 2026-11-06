@@ -1,0 +1,44 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: bring up the SFC and SPI NOR
+
+The stock T41 tree names the flash controller "ingenic,sfc", which no
+mainline driver matches, and gives it no clock and no flash child. The
+7.3.1 spi-ingenic-sfc driver matches "ingenic,t41-sfc"/"ingenic,x2000-sfc",
+requires the "sfc" clock, and only creates an MTD device for a child
+SPI NOR node.
+
+Attach it to the CGU, describe the flash as jedec,spi-nor, and drop the
+vendor pinctrl state, which the mainline pinctrl driver cannot map;
+U-Boot has already muxed the SFC pins. The resulting controller gets
+bus number 0, so the U-Boot mtdparts=spi0.0 argument partitions it and
+mtdblock4 becomes the rootfs.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -429,13 +429,21 @@
+ 		};
+ 
+ 		sfc0: sfc0@0x13440000 {
+-			compatible = "ingenic,sfc";
++			compatible = "ingenic,t41-sfc", "ingenic,x2000-sfc";
+ 			reg = <0x13440000 0x10000>;
++			clocks = <&clock T41_CLK_SFC0>;
++			clock-names = "sfc";
++			#address-cells = <1>;
++			#size-cells = <0>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_SFC0>;
+-			pinctrl-names = "default";
+-			pinctrl-0 = <&sfc0_pa>;
+ 			status = "okay";
++
++			flash@0 {
++				compatible = "jedec,spi-nor";
++				reg = <0>;
++				spi-max-frequency = <25000000>;
++			};
+ 		};
+ 
+ 		sfc1: sfc1@0x13450000 {

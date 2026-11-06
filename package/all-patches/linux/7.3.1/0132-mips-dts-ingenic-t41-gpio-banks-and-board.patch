@@ -1,0 +1,185 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: convert the GPIO banks and wire the board
+
+The stock GPIO banks advertise the vendor three-cell form and carry no
+gpio-ranges, so every two-cell consumer logs
+"#gpio-cells = 3 found 2" and cannot resolve its GPIO. Convert the four
+banks to the mainline shape (two cells, gpio-ranges, reg offset) and
+widen the pinctrl window to the 0x4000 the four PAT banks span.
+
+Add the missing MSC0/MSC1 module clocks, without which sdhci-ingenic's
+clock lookup fails and no MMC host registers.
+
+Wire the generic marmot leaf to the board the stock firmware describes:
+SD power reset on GPB29, card-detect on GPB26, and enable the MMC pwrseq
+that was commented out. Drop the generic power-key node: the board dtsi
+now supplies the reset key on GPA30 with KEY_ENTER, which is what the
+button daemon maps.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -167,64 +167,60 @@
+ 		};
+ 		pinctrl: pinctrl@0x10010000 {
+ 			compatible = "ingenic,t41-pinctrl";
+-			reg = <0x10010000 0x1000>;
+-			ingenic,num-chips = <4>;
+-			ingenic,regs-offset = <0x100>;
++			reg = <0x10010000 0x4000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
+ 
+-			gpa: gpa {
++			gpa: gpio@0 {
++				compatible = "ingenic,t41-gpio";
++				reg = <0>;
+ 				gpio-controller;
+-				#gpio-cells = <3>;
+-				#ingenic,pincfg-cells = <3>;
+-				#ingenic,pinmux-cells = <2>;
+-				interrupts = <IRQ_GPIO0>;
+-				interrupt-parent = <&core_intc>;
++				gpio-ranges = <&pinctrl 0 0 32>;
++				#gpio-cells = <2>;
++
+ 				interrupt-controller;
+-				#interrupt-cells = <3>;
+-				ingenic,num-gpios = <32>;
+-				ingenic,pull-gpios-low = <0x55555555>;
+-				ingenic,pull-gpios-high = <0x55555555>;
++				#interrupt-cells = <2>;
++				interrupt-parent = <&core_intc>;
++				interrupts = <IRQ_GPIO0>;
+ 			};
+ 
+-			gpb: gpb {
++			gpb: gpio@1 {
++				compatible = "ingenic,t41-gpio";
++				reg = <1>;
+ 				gpio-controller;
+-				#gpio-cells = <3>;
+-				#ingenic,pincfg-cells = <3>;
+-				#ingenic,pinmux-cells = <2>;
+-				interrupts = <IRQ_GPIO1>;
+-				interrupt-parent = <&core_intc>;
++				gpio-ranges = <&pinctrl 0 32 32>;
++				#gpio-cells = <2>;
++
+ 				interrupt-controller;
+-				#interrupt-cells = <3>;
+-				ingenic,num-gpios = <32>;
+-				ingenic,pull-gpios-low = <0x55555555>;
+-				ingenic,pull-gpios-high = <0x55555555>;
++				#interrupt-cells = <2>;
++				interrupt-parent = <&core_intc>;
++				interrupts = <IRQ_GPIO1>;
+ 			};
+ 
+-			gpc: gpc {
++			gpc: gpio@2 {
++				compatible = "ingenic,t41-gpio";
++				reg = <2>;
+ 				gpio-controller;
+-				#gpio-cells = <3>;
+-				#ingenic,pincfg-cells = <3>;
+-				#ingenic,pinmux-cells = <2>;
+-				interrupts = <IRQ_GPIO2>;
+-				interrupt-parent = <&core_intc>;
++				gpio-ranges = <&pinctrl 0 64 32>;
++				#gpio-cells = <2>;
++
+ 				interrupt-controller;
+-				#interrupt-cells = <3>;
+-				ingenic,num-gpios = <32>;
+-				ingenic,pull-gpios-low = <0x55555555>;
+-				ingenic,pull-gpios-high = <0x55555555>;
++				#interrupt-cells = <2>;
++				interrupt-parent = <&core_intc>;
++				interrupts = <IRQ_GPIO2>;
+ 			};
+ 
+-			gpd: gpd {
++			gpd: gpio@3 {
++				compatible = "ingenic,t41-gpio";
++				reg = <3>;
+ 				gpio-controller;
+-				#gpio-cells = <3>;
+-				#ingenic,pincfg-cells = <3>;
+-				#ingenic,pinmux-cells = <2>;
+-				interrupts = <IRQ_GPIO3>;
+-				interrupt-parent = <&core_intc>;
++				gpio-ranges = <&pinctrl 0 96 32>;
++				#gpio-cells = <2>;
++
+ 				interrupt-controller;
+-				#interrupt-cells = <3>;
+-				ingenic,num-gpios = <32>;
+-				ingenic,pull-gpios-low = <0x55555555>;
+-				ingenic,pull-gpios-high = <0x55555555>;
++				#interrupt-cells = <2>;
++				interrupt-parent = <&core_intc>;
++				interrupts = <IRQ_GPIO3>;
+ 			};
+ 		};
+ 
+@@ -589,6 +585,7 @@
+ 			status = "okay";
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_MSC0>;
++			clocks = <&clock T41_CLK_MSC0>;
+ 			pinctrl-names ="default";
+ 			pinctrl-0 = <&msc0_4bit>;
+ 		};
+@@ -599,6 +596,7 @@
+ 			status = "okay";
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_MSC1>;
++			clocks = <&clock T41_CLK_MSC1>;
+ 			pinctrl-names ="default";
+ 			pinctrl-0 = <&msc1_4bit>;
+ 		};
+--- a/arch/mips/boot/dts/ingenic/marmot.dts
++++ b/arch/mips/boot/dts/ingenic/marmot.dts
+@@ -13,7 +13,7 @@
+ 
+ 	mmc0_pwrseq: mmc0_pwrseq {
+ 		compatible = "mmc-pwrseq-simple";
+-		reset-gpios = <&gpd 22 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
++		reset-gpios = <&gpb 29 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+ 	};
+ };
+ 
+@@ -106,13 +106,14 @@
+ 	bus-width = <4>;
+ 	voltage-ranges = <1800 3300>;
+ 	cd-inverted;
++	cd-gpios = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+ 
+ 	/* special property */
+ 	ingenic,wp-gpios = <0>;
+-	ingenic,cd-gpios = <&gpb 27 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
++	ingenic,cd-gpios = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+ 	ingenic,rst-gpios = <0>;
+ 	pinctrl-0 = <&msc0_pb>;
+-	//mmc-pwrseq = <&mmc0_pwrseq>;
++	mmc-pwrseq = <&mmc0_pwrseq>;
+ };
+ 
+ &msc1 {
+@@ -219,14 +220,6 @@
+ 	gpio_keys: gpio_keys {
+ 		compatible = "gpio-keys";
+ 
+-		power {
+-			label = "Power";
+-			linux,code = <KEY_POWER>;
+-			gpios = <&gpc 8 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+-			linux,input-type = <1>;
+-			gpio_key,wakeup = <1>;
+-			debounce-interval = <100>;
+-		};
+ 
+ 		bootsel0 {
+ 			label = "bootsel0";
