@@ -162,6 +162,24 @@ Remaining, in order:
    the clock lifecycle correct.
 3. Then the sensor bridge (Phase 3) and capture (Phase 4).
 
+## tx-isp open crash (2026-11-06)
+
+The RAPTOR image booted but `rvd` opening `/dev/tx-isp` panicked with
+`BadVA 000000c8` in `tx_isp_open`. The recovered open/ioctl/release/helpers
+read `file->private_data` at the 4.4 offset `+0x88`; the 7.x `struct file`
+layout differs, so the pointer was garbage (`misc=27ea0bf8`,
+`refs=3467476487`). They now use the `struct file` member. Same fix applied
+to `frame_channel_open`, `tx_isp_release` and the video-link ioctls.
+
+The camera config selects RAPTOR (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
+Both timpsd and RAPTOR's rvd open the vendor `/dev/tx-isp` ABI, so the
+streamer choice does not avoid the open; the open fix is the real one.
+
+The full OTA left a bad U-Boot env CRC. The built-in default env already
+carries the new layout (`6464k(rootfs),23552k(data)`), matching the RAPTOR
+image; `saveenv` restored it. Recovery used failsafe mode plus stubs for
+`S30raptor-sensor-wait`, `S31raptor`, `S32raptor-motion` and `S95timps`.
+
 ## Validation
 
 - Phases 1: object/module build with the 7.3.1 cross toolchain.
