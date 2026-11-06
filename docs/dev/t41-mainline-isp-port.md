@@ -96,6 +96,50 @@ Known gaps for the next phase:
 - rmmod/insmod repeatability, error paths, size in the rootfs, and only then
   AE/AWB/IQ tuning parity.
 
+## Phase 2 bring-up log (2026-11-06)
+
+The module now loads and the recovered probe runs. Fixes found so far:
+
+- `platform_data` was read at the 4.4 offset `+0x5c`; use
+  `pdev->dev.platform_data`.
+- The raw 4.4 `struct resource` blobs have `start, end, name`; 7.x has
+  `name, start, end`. Replaced with real `struct resource` arrays.
+- Vendor IRQ numbers are hwirq + 8 (VIC 30 -> 38, ISP 31 -> 39, IVDC 13 ->
+  21, LDC 35 -> 43). Added `tx_isp_t41_map_irq()`: find the
+  `ingenic,core-intc` domain and `irq_create_mapping(hwirq)`.
+- `v4l2_device_register()` panics when the platform device has no driver
+  bound (`dev->driver NULL`); the V4L2 init now refuses that case.
+- `CONFIG_VIDEOBUF2_DMA_CONTIG` has no prompt, so add
+  `CONFIG_VIDEOBUF2_DMA_CONTIG_THINGINO` (kernel patch 0139) as a selector.
+- The V4L2 frontend needs the 7.x `queue_setup` signature and
+  `alloc_devs[]`, not the old `alloc_ctx` API.
+
+Current state (last insmod):
+
+```
+tx-isp: isp-m0 irq acquired
+tx-isp: isp-w02 irq acquired
+tx-isp: isp-w01 irq acquired
+<crash in tx_isp_csi_probe>
+```
+
+The core, VIC and CSI subdevs get their IRQs. The CSI then fails in the
+clock/setup path and the recovered error path dereferences the stale
+4.4-offset `platform_data` pointer (`s2`).
+
+Next steps:
+
+1. Replace the vendor clock names (`gate_isp`, `gate_csi`, `div_ispm`,
+   `div_isps`, `div_ispa`, `gate_ivdc`, `div_ldc`, `gate_ldc`) with clocks
+   from the mainline T41 CGU. There is no clkdev table for those names;
+   resolve by `of_clk_get(cgu_np, T41_CLK_*)` in
+   `private_devm_clk_get()`.
+2. Fix the remaining 4.4 `platform_data` reads at `+0x5c` in the VIC, CSI
+   and IVDC probes (the CSI error path is one).
+3. Give the CSI platform device its MIPI RX IRQ (hwirq 5) if the driver
+   needs it; today it requests none.
+4. Then the sensor bridge (Phase 3) and capture (Phase 4).
+
 ## Validation
 
 - Phases 1: object/module build with the 7.3.1 cross toolchain.
