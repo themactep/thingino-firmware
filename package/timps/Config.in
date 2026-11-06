@@ -207,14 +207,6 @@ config BR2_PACKAGE_TIMPS_ROTATE
 	  Disabled by default: when off, no rotation code is compiled in
 	  (byte-identical build).
 
-config BR2_PACKAGE_TIMPS_SW_ROTATE
-	bool "Software 90/270 on T23 (obsolete)"
-	depends on BR2_PACKAGE_TIMPS_ROTATE
-	default n
-	help
-	  Obsolete since timps v1.11.2: T23 rotates through OpenIMP like
-	  T10/T20/T21. Kept so old configs still build; it has no effect.
-
 config BR2_PACKAGE_TIMPS_BACKCHANNEL
 	bool "ONVIF audio backchannel (client -> speaker)"
 	default n
