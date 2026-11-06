@@ -180,6 +180,30 @@ carries the new layout (`6464k(rootfs),23552k(data)`), matching the RAPTOR
 image; `saveenv` restored it. Recovery used failsafe mode plus stubs for
 `S30raptor-sensor-wait`, `S31raptor`, `S32raptor-motion` and `S95timps`.
 
+## Preview 502 and sensor registration (2026-11-06)
+
+The WebUI preview fails with `POST /x/webrtc-whip.cgi?stream=0 502`.
+`webrtc-whip.cgi` proxies to `https://127.0.0.1:8554/whip`; the 502
+means `rvd` is not listening. `rvd` exits during pipeline init:
+
+```
+rvd: sensor0: gc8613 i2c=0x31 bus=0 id=0 mclk=1 vin=0 boot=0
+rvd: IMP_ISP_AddSensor((IMPVI_NUM)0, ...) failed: -4095
+rvd: HAL init failed: -4095
+```
+
+The T41 `tx_isp_sensor_register_sensor` forwards
+`T41_EVENT_SENSOR_REGISTER` to the VIN subdev; no GC8613 vendor sensor
+is registered there. The mainline GC8613 subdev probes on I2C but is not
+part of the T41 vendor VIN, so `AddSensor` fails. This is Phase 3: port
+the T31 `tx_isp_v4l2_sensor.c` bridge or add a T41 vendor sensor module.
+`open-tx-isp` has no `sensor-src/t41` (only t21/t31); the T31
+`sensor-src/t31/gc2053.c` (2240 lines) is the vendor sensor template.
+
+The firmware itself is healthy: S31raptor loads the tx-isp module,
+`/dev/tx-isp` and `/dev/video0..2` exist, and the vendor open now
+returns `refs=0` / `VIN fallback ret=0` without a panic.
+
 ## Validation
 
 - Phases 1: object/module build with the 7.3.1 cross toolchain.
