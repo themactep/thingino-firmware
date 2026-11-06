@@ -162,6 +162,22 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 
 `scp -O` is required (dropbear server). Default password is set in the defconfig.
 
+## Serial console / file transfer
+
+Serial-only boards (e.g. the T41/T120 bring-up) have no network. Move files
+over the UART with XMODEM:
+
+1. Install `lrzsz` on the host (`sx`).
+2. Open the console: `screen /dev/ttyUSB2 115200`.
+3. On the camera: `cd /tmp && rx <file>`.
+4. From screen command mode (`Ctrl-a`, `:`), run `exec !! sx <local-file>`.
+
+`rx` on the camera is BusyBox XMODEM (128-byte blocks). Observed throughput
+is about 8 KB/s, so a 2 MB kernel takes roughly 4 minutes. When driving screen
+non-interactively, single-quote the `!!` (bash history expansion); the
+verified fallback is: start `rx`, quit screen, run
+`sx <file> < /dev/ttyUSB2 > /dev/ttyUSB2`, then reopen the console.
+
 ## Style / pre-commit
 
 - `package/thingino-webui/files/www/a/*.js` → formatted with **Prettier**.

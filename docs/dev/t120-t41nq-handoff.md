@@ -160,8 +160,10 @@ Evidence:
 Worktree changes made this session:
 
 - `configs/sensors/t41/gc8613.dtsi`: added the `pinctrl-0` above. Built into
-  `marmot.dtb` (verified with `dtc`). Not yet flashed: `mtd3` still runs
-  `9f9d99f7…` (old DTB without the pinctrl).
+  `marmot.dtb` (verified with `dtc`), flashed to `mtd3`, and booted:
+  `uImage` sha256 `7b184915…`, 2,137,069 B (built 2026-11-06 02:33).
+- Committed: `6c1228955` (sensor dtsi), `65400eac2` (0136/0137),
+  `61a67ec6c` (KOPT `=m`), `92142f3c6` (this handoff).
 
 Next blocker for `/dev/video*` / `/dev/media*`:
 
@@ -171,10 +173,13 @@ Next blocker for `/dev/video*` / `/dev/media*`:
   (`Config.in`), and there is no CIM/ISP driver in the 7.3.1 patch series.
   Bringing up video capture on T41 7.x needs that host driver ported/written.
 
-Board state: alive, console on `/dev/ttyUSB2`. `/tmp` has the clean module
-(`/tmp/gc8613clean.ko`, sha `cb5a3279…`), `v4l2-cci`, and `regmap-i2c`.
-Transfer with XMODEM (`rx` on the board, `sx` on the host) works and is much
-faster than the base64 paste.
+Board state: the new kernel booted, but the console now stops at a `login:`
+prompt and `root`/`root` (the configured password) is rejected — the running
+`/etc/shadow` from the data overlay likely differs from the rootfs image. The
+sensor module has not been reloaded since the boot, so the DT-applied `pinctrl`
+still needs one confirmed probe. The old `/tmp` modules are gone (tmpfs).
+Re-upload with XMODEM (`rx` on the board, `sx` on the host); see the AGENTS.md
+"Serial console / file transfer" section.
 
 ## Risks / assumptions to revisit
 
