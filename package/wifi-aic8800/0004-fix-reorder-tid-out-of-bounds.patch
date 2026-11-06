@@ -1,0 +1,50 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] aic8800: fix the RX reorder TID out-of-bounds
+
+The per-station reorder array has 8 entries, but the TID from the 802.11
+QoS control is masked to 0..15 and used directly as the array index:
+
+    tid = skb->data[24] & 0x0F;
+    ...
+    preorder_ctrl = &reord_info->preorder_ctrl[tid];
+
+For TID 8..15 this walks past the array into zeroed memory. The
+reorder list head is then NULL and reord_rxframe_enqueue() dereferences
+it, which is the BadVA fffffff6 panic in aicwf_busrx_thr under sustained
+RX.
+
+Size the array for all 16 TIDs and initialize/deinitialize all of them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_txrxif.h
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_txrxif.h
+@@ -173,7 +173,7 @@ struct reord_ctrl {
+ 
+ struct reord_ctrl_info {
+     u8 mac_addr[6];
+-    struct reord_ctrl preorder_ctrl[8];
++    struct reord_ctrl preorder_ctrl[16];
+     struct list_head list;
+ };
+ 
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_rx.c
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_rx.c
+@@ -1329,7 +1329,7 @@ struct reord_ctrl_info *reord_init_sta(st
+         return NULL;
+ 
+     memcpy(reord_info->mac_addr, mac_addr, ETH_ALEN);
+-    for (i=0; i < 8; i++) {
++    for (i=0; i < 16; i++) {
+         preorder_ctrl = &reord_info->preorder_ctrl[i];
+         preorder_ctrl->enable = true;
+         preorder_ctrl->ind_sn = 0xffff;
+@@ -1425,7 +1425,7 @@ void reord_deinit_sta(struct aicwf_rx_pri
+ 
+ 	AICWFDBG(LOGINFO, "%s\n", __func__);
+ 
+-    for (i=0; i < 8; i++) {
++    for (i=0; i < 16; i++) {
+         struct recv_msdu *req, *next;
+         preorder_ctrl = &reord_info->preorder_ctrl[i];
+ 		if(preorder_ctrl->enable){
