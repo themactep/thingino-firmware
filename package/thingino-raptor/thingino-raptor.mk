@@ -248,6 +248,13 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
+	# Photosensing page for ric; daynightd ships its own under the same name.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-photosensing.html \
+			$(TARGET_DIR)/var/www/config-photosensing.html; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/daynight-thresholds.js \
+			$(TARGET_DIR)/var/www/a/daynight-thresholds.js; \
+	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/microphone \

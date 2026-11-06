@@ -1835,6 +1835,48 @@ agent_set_osd_setting() {
 	agent_print_setting_update "$path" "$response_key" "$json_value"
 }
 
+# ric applies thresholds live but keeps them only in its in-memory config,
+# so each write is followed by a config save.
+agent_set_ric_setting() {
+	path=$1
+	body_file=$2
+	key=$(printf '%s' "${path#ric/}" | tr '-' '_')
+	raw_value=$(agent_setting_value "$body_file" "$key") || return 1
+	case "$key" in
+		trigger)
+			value=$(agent_unquote_string "$raw_value")
+			resp=$(agent_ctl ric set-trigger "$value" 2>/dev/null) || return 1
+			json_value=$(agent_json_string "$value")
+			;;
+		ir850 | ir940)
+			agent_validate_bool "$raw_value" || return 1
+			[ "$raw_value" = true ] && value=1 || value=0
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$raw_value
+			;;
+		night_luma | night_gain | day_gain_pct | night_threshold | day_threshold | hysteresis_sec | night_fps | probe_gain_pct | probe_holdoff_sec | photo_ev_night | photo_ev_deep | photo_ev_day | adc_night | adc_day)
+			agent_validate_int "$raw_value" || return 1
+			value=$raw_value
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$value
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+	case "$resp" in
+		*'"status":"ok"'*) ;;
+		*)
+			reason=$(printf '%s' "$resp" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+			echo "ric rejected $key: ${reason:-no reply}" >&2
+			return 1
+			;;
+	esac
+	agent_config_save
+	agent_print_setting_update "$path" "$key" "$json_value"
+}
+
 agent_print_storage_setting() {
 	path=$1
 	case "$path" in
@@ -1996,6 +2038,12 @@ agent_get_setting() {
 			;;
 		privacy/on-boot)
 			agent_print_setting_leaf on_boot "$(agent_json_value_or "$(agent_json_config_value "$THINGINO_CONFIG_FILE" privacy.on_boot)" false)"
+			;;
+		ric/settings)
+			agent_ctl ric get-thresholds 2>/dev/null || return 1
+			;;
+		ric/status)
+			agent_ctl ric status 2>/dev/null || return 1
 			;;
 		storage/*)
 			agent_print_storage_setting "$path"
@@ -2352,6 +2400,9 @@ agent_set_setting() {
 				return 1
 			}
 			agent_print_setting_update "$path" on_boot "$value"
+			;;
+		ric/*)
+			agent_set_ric_setting "$path" "$body_file"
 			;;
 		storage/*)
 			agent_set_storage_setting "$path" "$body_file"
