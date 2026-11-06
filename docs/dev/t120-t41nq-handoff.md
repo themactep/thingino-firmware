@@ -136,60 +136,62 @@ Uncommitted:
 
 ## Progress 2026-11-06 (session 2)
 
-Root cause of the GC8613 probe `-EIO` found and proven on hardware: the CIM
-MCLK was not reaching the sensor because **PA15 was never muxed to function 1**.
-`pinctrl-0` on the sensor node is the whole fix:
+The GC8613 probe had **two independent blockers**, both now fixed and
+boot-verified:
 
-```
-pinctrl-names = "default";
-pinctrl-0 = <&cim0_vic_mclk_pa>;
-```
+1. **PA15 was never muxed to the CIM MCLK function.** The sensor node now
+   claims it:
 
-Evidence:
+   ```
+   pinctrl-names = "default";
+   pinctrl-0 = <&cim0_vic_mclk_pa>;
+   ```
 
-- debugfs showed `pin 15 (PA15): (MUX UNCLAIMED)` before the fix.
-- `sensor-info` works only because it muxes PA15 to function 1
-  (`t41_mclk` = `{cdr_off 0x90, port A, pin 15, func 1}`).
-- With PA15 muxed (by `sensor-info` or by hand), the *unmodified* mainline
-  module probes cleanly with the boot clock value `CIMCDR = 0x8800002C`:
-  `gc8613: chip id 8613`. No driver-side clock workaround is needed; an
-  earlier `clk_set_rate()` experiment was reverted.
-- `GPIO92` (PC28) held high by `sensor-info` is not required for the probe
-  after PA15 is correct; the reset GPIO stays removed.
+2. **The T41 CIM divider never latched.** The T41 CGU patch described the
+   divider as `ce_bit = 28, busy_bit = 29`; the hardware uses CE 29 / BUSY 28
+   (same as the T31). With the bits swapped, `clk_set_rate()` wrote the
+   divider value but the CE strobe hit BUSY, so the MCLK stayed off. The
+   register read back as `CIMCDR = 0x80000027`, which looked correct, and that
+   masked the problem. A userspace CE strobe (set bit 29, wait, clear) made
+   the probe succeed immediately; the fix is
+   `0110-clk-ingenic-add-the-t41-cgu.patch`:
 
-Worktree changes made this session:
+   ```
+   -  .div = { CGU_REG_CIMCDR, 0, 1, 8, 28, 29, 27 },
+   +  .div = { CGU_REG_CIMCDR, 0, 1, 8, 29, 28, 27 },
+   ```
 
-- `configs/sensors/t41/gc8613.dtsi`: added the `pinctrl-0` above. Built into
-  `marmot.dtb` (verified with `dtc`), flashed to `mtd3`, and booted:
-  `uImage` sha256 `7b184915…`, 2,137,069 B (built 2026-11-06 02:33).
-- Committed: `6c1228955` (sensor dtsi), `65400eac2` (0136/0137),
-  `61a67ec6c` (KOPT `=m`), `92142f3c6` (this handoff).
+The reset GPIO is **not** needed: `sensor-info -r -1 probe` reads the chip ID
+fine, and `reset-gpios` is not present in the final sensor node. Driver-side
+`clk_set_rate()` and reset-pulse experiments were reverted.
+
+Final verified state (fresh boot, no manual devmem/GPIO):
+
+- `uImage` sha256 `1ea1fbc…`, 2,137,997 B (built 2026-11-06 03:38).
+- Loading `regmap-i2c`, `v4l2-cci` and `gc8613` gives
+  `gc8613: chip id 8613`.
+- `pin 15 (PA15): 0-0031 ... function cim group cim0-vic-mclk-pa`.
+- `cim 27000000` in `clk_summary`.
+
+The modules are not in the rootfs (KOPT `=m`, tight rootfs), so they are
+uploaded to `/tmp` over XMODEM; see the AGENTS.md "Serial console / file
+transfer" section. The console login is `root` / `987987` (the data overlay
+shadow differs from the rootfs image).
 
 Next blocker for `/dev/video*` / `/dev/media*`:
 
-- The sensor now probes as a V4L2 subdev, but there is no host driver binding
-  the T41 CIM/VIC/ISP (`isp@0x13300000`, compatible `ingenic,t41-isp`).
+- The sensor probes as a V4L2 subdev, but there is no host driver binding the
+  T41 CIM/VIC/ISP (`isp@0x13300000`, compatible `ingenic,t41-isp`).
   `package/open-tx-isp` is only enabled for T41 on `KERNEL_VERSION_4`
   (`Config.in`), and there is no CIM/ISP driver in the 7.3.1 patch series.
   Bringing up video capture on T41 7.x needs that host driver ported/written.
 
-Board state: the new kernel booted, but the console now stops at a `login:`
-prompt and `root`/`root` (the configured password) is rejected — the running
-`/etc/shadow` from the data overlay likely differs from the rootfs image. The
-sensor module has not been reloaded since the boot, so the DT-applied `pinctrl`
-still needs one confirmed probe. The old `/tmp` modules are gone (tmpfs).
-Re-upload with XMODEM (`rx` on the board, `sx` on the host); see the AGENTS.md
-"Serial console / file transfer" section.
-
 ## Risks / assumptions to revisit
 
-- The CIM parent/VPLL assumption is now verified: `clk_summary` reports
-  `cim 27000000` and the sensor probes. The `pinctrl-0` PA15 claim is proven
-  by hand on the old DTB; the rebuilt DTB still needs one boot to confirm the
-  DT-applied version.
-- Removing the sensor reset/PWDN GPIO assumes the stock/T110 wiring (sensor
-  reset/PWDN tied). It matched the stock module's no-op reset, but the sensor
-  datasheet pins were not measured.
+- The CIM parent/VPLL setup and the DT-applied `pinctrl-0` PA15 claim are
+  boot-verified (`cim 27000000`, PA15 claimed by `0-0031`).
+- The sensor reset/PWDN GPIO is not required: the chip ID reads with
+  `sensor-info -r -1`. The datasheet pins were not measured.
 - The KOPT `=m` is a debug convenience; a normal release build must put the
   module in the rootfs or go back to `=y`.
 - The WiFi disable lives in the data overlay and in deleted module files;
