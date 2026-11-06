@@ -9,13 +9,14 @@ API to the mainline 7.x API:
   kmalloc, timer_setup/timer_delete_sync, ioremap/iounmap
 - read platform_data through the struct, not the 4.4 +0x5c offset
 - replace the raw 4.4 struct resource arrays with real resource structs
-- translate the vendor IRQ numbers (hwirq + 8) to Linux virqs through the
-  T41 core-intc domain
+- translate vendor IRQ numbers (hwirq + 8) through the core-intc domain
+- resolve the vendor clock names (gate_isp, gate_csi, div_ispm, ...) to
+  the mainline T41 CGU clocks by provider ID
 - adapt the V4L2 frontend to the 7.x videobuf2 API and VFL_TYPE_VIDEO;
   skip registration when the parent device has no driver bound
 - add bring-up diagnostics around the subdev IRQ and memory setup
 
-Load-tested on the T120; the probe path is being brought up.
+Load-tested on the T120; the main tx-isp probe succeeds.
 ---
 diff --git a/driver/t41/Kbuild b/driver/t41/Kbuild
 index 12d65e6..5498071 100644
@@ -62,10 +63,10 @@ index ee04550..a475d59 100644
      s->saved.context.face_enabled = enabled; ret = 0;
 diff --git a/driver/t41/tx_isp_t41_compat.c b/driver/t41/tx_isp_t41_compat.c
 new file mode 100644
-index 0000000..b4a3a0a
+index 0000000..6bb68e0
 --- /dev/null
 +++ b/driver/t41/tx_isp_t41_compat.c
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,166 @@
 +/*
 + * Kernel 7.x compatibility implementations for the recovered T41 driver.
 + *
@@ -83,6 +84,51 @@ index 0000000..b4a3a0a
 +#include <linux/of.h>
 +#include <linux/of_irq.h>
 +#include <linux/irqdomain.h>
++#include <linux/clk.h>
++#include <linux/clk-provider.h>
++#include <dt-bindings/clock/ingenic,t41-cgu.h>
++
++struct clk *tx_isp_t41_get_clk(const char *name)
++{
++	static const struct {
++		const char *name;
++		unsigned int id;
++	} map[] = {
++		{ "gate_isp", T41_CLK_ISP },
++		{ "gate_csi", T41_CLK_CSI },
++		{ "div_ispm", T41_CLK_ISPM },
++		{ "div_isps", T41_CLK_ISPS },
++		{ "div_ispa", T41_CLK_ISPA },
++		{ "gate_ivdc", T41_CLK_IVDC },
++		{ "div_ldc", T41_CLK_LDC },
++		{ "gate_ldc", T41_CLK_LDC },
++		{ "gate_ispm", T41_CLK_ISPM },
++		{ "gate_isps", T41_CLK_ISPS },
++		{ "gate_ispa", T41_CLK_ISPA },
++	};
++	struct device_node *np;
++	struct clk *clk;
++	unsigned int i;
++
++	np = of_find_compatible_node(NULL, NULL, "ingenic,t41-cgu");
++	if (!np)
++		return ERR_PTR(-ENODEV);
++	for (i = 0; i < ARRAY_SIZE(map); i++) {
++		struct of_phandle_args args = {
++			.np = np,
++			.args_count = 1,
++			.args = { map[i].id },
++		};
++
++		if (!strcmp(name, map[i].name)) {
++			clk = of_clk_get_from_provider(&args);
++			of_node_put(np);
++			return clk;
++		}
++	}
++	of_node_put(np);
++	return ERR_PTR(-ENOENT);
++}
 +
 +unsigned int tx_isp_t41_map_irq(unsigned int vendor_irq)
 +{
@@ -341,7 +387,7 @@ index 7c6c6e8..507fa16 100644
  	t41_pw_n = 0;
  	t41_pw_busy = 0;
 diff --git a/driver/t41/tx_isp_t41_recovered.c b/driver/t41/tx_isp_t41_recovered.c
-index 765a348..369fb70 100644
+index 765a348..56dd337 100644
 --- a/driver/t41/tx_isp_t41_recovered.c
 +++ b/driver/t41/tx_isp_t41_recovered.c
 @@ -115,6 +115,8 @@
@@ -461,7 +507,26 @@ index 765a348..369fb70 100644
      *(const void **)((char *)vic_subdev_ops + 0x0) = (const void *)&vic_core_ops;
      *(const void **)((char *)vic_subdev_ops + 0x4) = (const void *)&vic_video_ops;
      *(const void **)((char *)vic_subdev_ops + 0xc) = (const void *)&vic_sensor_ops;
-@@ -6644,7 +6627,7 @@ int32_t private_log2_fixed_to_fixed_64(uint64_t val, int32_t in_fix_point,
+@@ -6287,9 +6270,17 @@ struct clk *private_clk_get(struct device *dev, const char *id)
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_00000000000001c8 origin=fragment_seed original=private_devm_clk_get */
++struct clk *tx_isp_t41_get_clk(const char *name);
++
+ struct clk *private_devm_clk_get(struct device *dev, const char *id)
+ {
+-    return devm_clk_get(dev, id);
++    struct clk *clk = devm_clk_get(dev, id);
++
++    if (!IS_ERR(clk))
++        return clk;
++    if (PTR_ERR(clk) == -ENOENT || PTR_ERR(clk) == -ENODEV)
++        return tx_isp_t41_get_clk(id);
++    return clk;
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_00000000000001d8 origin=fragment_seed original=private_clk_disable_unprepare */
+@@ -6644,7 +6635,7 @@ int32_t private_log2_fixed_to_fixed_64(uint64_t val, int32_t in_fix_point,
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000770 origin=model_output original=private_platform_driver_register */
  int private_platform_driver_register(void *drv)
  {
@@ -470,7 +535,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000784 origin=fragment_seed original=private_platform_driver_unregister */
-@@ -6749,13 +6732,13 @@ int32_t private_release_mem_region(resource_size_t start, resource_size_t len)
+@@ -6749,13 +6740,13 @@ int32_t private_release_mem_region(resource_size_t start, resource_size_t len)
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000848 origin=model_output original=private_ioremap */
  void __iomem *private_ioremap(phys_addr_t offset, unsigned long size)
  {
@@ -486,7 +551,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000868 origin=model_output original=private_request_threaded_irq */
-@@ -6874,7 +6857,7 @@ int private_i2c_register_driver(struct module *owner,
+@@ -6874,7 +6865,7 @@ int private_i2c_register_driver(struct module *owner,
  /* WHOLE_DRIVER_CANDIDATE fn_000000000000094c origin=fragment_seed original=private_i2c_new_device */
  struct i2c_client *private_i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
  {
@@ -495,7 +560,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_000000000000095c origin=fragment_seed original=private_i2c_unregister_device */
-@@ -7079,7 +7062,7 @@ void private_vfree(const void *addr)
+@@ -7079,7 +7070,7 @@ void private_vfree(const void *addr)
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000c24 origin=fragment_seed original=private_kmalloc */
  void *private_kmalloc(size_t size, gfp_t flags)
  {
@@ -504,7 +569,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000c34 origin=model_output original=private_kfree */
-@@ -7118,13 +7101,13 @@ int private_filp_close(struct file *filp, fl_owner_t id)
+@@ -7118,13 +7109,13 @@ int private_filp_close(struct file *filp, fl_owner_t id)
  ssize_t private_vfs_read(struct file *file, char __user *buf, size_t count,
                           loff_t *pos)
  {
@@ -520,7 +585,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d34 origin=fragment_seed original=private_vfs_llseek */
-@@ -7136,24 +7119,19 @@ loff_t private_vfs_llseek(struct file *file, loff_t offset, int whence)
+@@ -7136,24 +7127,19 @@ loff_t private_vfs_llseek(struct file *file, loff_t offset, int whence)
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d44 origin=fragment_seed original=private_get_fs */
  int64_t private_get_fs(uintptr_t a0)
  {
@@ -550,7 +615,7 @@ index 765a348..369fb70 100644
      return 0;
  }
  
-@@ -7439,15 +7417,7 @@ long private_wait_event_interruptible_timeout(wait_queue_head_t queue,
+@@ -7439,15 +7425,7 @@ long private_wait_event_interruptible_timeout(wait_queue_head_t queue,
  /* WHOLE_DRIVER_CANDIDATE fn_0000000000001048 origin=fragment_seed original=private_dma_sync_single_for_device */
  void private_dma_sync_single_for_device(struct device *dev, dma_addr_t addr, size_t size, enum dma_data_direction dir)
  {
@@ -567,7 +632,7 @@ index 765a348..369fb70 100644
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_000000000000108c origin=model_output original=private_dma_free_coherent */
-@@ -7602,9 +7572,14 @@ int32_t private_device_create(struct class *cls, struct device *parent,
+@@ -7602,9 +7580,14 @@ int32_t private_device_create(struct class *cls, struct device *parent,
      /* The recovered body passed its first argument as every parameter. */
      if (IS_ERR_OR_NULL(cls) || !fmt)
          return 0;
@@ -585,7 +650,12 @@ index 765a348..369fb70 100644
      return (int32_t)(uintptr_t)dev;
  }
  
-@@ -9646,6 +9621,7 @@ int tx_isp_vic_probe(struct platform_device *pdev)
+@@ -9642,10 +9625,11 @@ int tx_isp_vic_probe(struct platform_device *pdev)
+ 
+     memset(vic_dev, 0, 0x404);
+ 
+-    s2 = *(void **)((char *)pdev + 92);
++    s2 = pdev->dev.platform_data;
      ret = tx_isp_subdev_init(pdev, vic_dev, &vic_subdev_ops);
  
      if (ret != 0) {
@@ -593,7 +663,16 @@ index 765a348..369fb70 100644
          isp_printf(2, "[%s %d] Failed to init isp module(%d.%d)\n", "tx_isp_vic_probe");
          private_kfree(vic_dev);
          return -12;
-@@ -25602,6 +25578,8 @@ int32_t tx_isp_disable_irq(uintptr_t a0, uint32_t a1)
+@@ -15649,7 +15633,7 @@ int tx_isp_csi_probe(struct platform_device *pdev)
+     }
+ 
+     memset(v0, 0, 424);
+-    s2 = *(void **)((char *)s3 + 92);
++    s2 = ((struct platform_device *)s3)->dev.platform_data;
+     s1 = tx_isp_subdev_init((uint32_t *)s3, (uintptr_t)v0,
+                             &csi_subdev_ops);
+ 
+@@ -25602,6 +25586,8 @@ int32_t tx_isp_disable_irq(uintptr_t a0, uint32_t a1)
  }
  
  /* WHOLE_DRIVER_CANDIDATE fn_000000000000d76c origin=fragment_seed original=tx_isp_request_irq */
@@ -602,7 +681,7 @@ index 765a348..369fb70 100644
  int32_t tx_isp_request_irq(uintptr_t a0, uintptr_t a1)
  {
      struct platform_device *pdev = (struct platform_device *)a0;
-@@ -25620,12 +25598,14 @@ int32_t tx_isp_request_irq(uintptr_t a0, uintptr_t a1)
+@@ -25620,12 +25606,14 @@ int32_t tx_isp_request_irq(uintptr_t a0, uintptr_t a1)
  
          if (irq < 0)
              break;
@@ -617,7 +696,16 @@ index 765a348..369fb70 100644
              isp_printf(2, "%s[%d] request irq%d failed: %d\n",
                         "tx_isp_request_irq", 95, irq, ret);
              *(uint32_t *)(a1 + T41_IRQ_SLOT_IRQ_OFF +
-@@ -32017,7 +31997,7 @@ frame_channel_unlocked_ioctl0xcf0:
+@@ -25750,7 +25738,7 @@ int tx_isp_ivdc_probe(struct platform_device *pdev)
+     memset(v0, 0, 512);
+     s0 = v0;
+     s3 = (char *)s0 + 40;
+-    s4 = *(void **)((char *)s2 + 92);
++    s4 = ((struct platform_device *)s2)->dev.platform_data;
+     result = tx_isp_subdev_init(s2, s3, &ivdc_subdev_ops);
+ 
+     if (result == 0) {
+@@ -32017,7 +32005,7 @@ frame_channel_unlocked_ioctl0xcf0:
  
  frame_channel_unlocked_ioctl0xd0c:
      /* fragment 288: Arithmetic */
@@ -626,7 +714,7 @@ index 765a348..369fb70 100644
      s1 = 0;
      s3 = s3;
      s5 = (uintptr_t)&LC79;
-@@ -40520,10 +40500,12 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
+@@ -40520,10 +40508,12 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
  	ret = tx_isp_request_irq((uintptr_t)pdev,
  				 (uintptr_t)((char *)sd + 0x84));
  	if (ret) {
@@ -639,7 +727,7 @@ index 765a348..369fb70 100644
  
  	resources = pdev->num_resources;
  	if (resources > 3)
-@@ -40543,6 +40525,8 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
+@@ -40543,6 +40533,8 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
  		claimed = private_request_mem_region(res->start, size,
  						     dev_name(&pdev->dev));
  		if (!claimed) {
@@ -648,7 +736,7 @@ index 765a348..369fb70 100644
  			isp_printf(2, "[%s %d] Not enough memory for resources\n",
  				   "tx_isp_subdev_init", __LINE__);
  			ret = -EBUSY;
-@@ -40552,6 +40536,8 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
+@@ -40552,6 +40544,8 @@ int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops)
  
  		base = private_ioremap(claimed->start, resource_size(claimed));
  		if (!base) {
@@ -657,7 +745,7 @@ index 765a348..369fb70 100644
  			isp_printf(2, "[%s %d] Unable to ioremap registers\n",
  				   "tx_isp_subdev_init", __LINE__);
  			ret = -ENXIO;
-@@ -40824,7 +40810,7 @@ int tx_isp_probe(struct platform_device *pdev)
+@@ -40824,7 +40818,7 @@ int tx_isp_probe(struct platform_device *pdev)
  
      memset(v0, 0, 0x13c);
  
@@ -666,7 +754,7 @@ index 765a348..369fb70 100644
      void *s3 = (void *)((char *)v0 + 0x88);
  
      if (s2 == 0) {
-@@ -53744,7 +53730,7 @@ int32_t tisp_stream_on(uintptr_t a0)
+@@ -53744,7 +53738,7 @@ int32_t tisp_stream_on(uintptr_t a0)
  
      if (!a0)
          return -EINVAL;
@@ -675,7 +763,7 @@ index 765a348..369fb70 100644
                              sizeof(config));
      if (ret)
          return ret;
-@@ -56836,7 +56822,7 @@ int64_t tisp_event_push(uint32_t a0, uintptr_t a1)
+@@ -56836,7 +56830,7 @@ int64_t tisp_event_push(uint32_t a0, uintptr_t a1)
  
      if (a0 >= T41_TISP_EVENT_CHANNELS || !a1)
          return -EINVAL;
@@ -684,7 +772,7 @@ index 765a348..369fb70 100644
                              sizeof(source));
      if (ret)
          return ret;
-@@ -57817,7 +57803,7 @@ uint32_t tisp_ae_lib_div_64(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+@@ -57817,7 +57811,7 @@ uint32_t tisp_ae_lib_div_64(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
      if (v1 == 0) { goto tisp_ae_lib_div_640x38; }
  
      /* fragment 4: Branch */
@@ -693,7 +781,7 @@ index 765a348..369fb70 100644
      if (a1 != 0) { goto tisp_ae_lib_div_640x48; }
  
      /* fragment 5: Unknown */
-@@ -57849,7 +57835,8 @@ tisp_ae_lib_div_640x38:
+@@ -57849,7 +57843,8 @@ tisp_ae_lib_div_640x38:
  
  tisp_ae_lib_div_640x48:
      /* fragment 12: CallSetup */
@@ -703,7 +791,7 @@ index 765a348..369fb70 100644
  
      /* fragment 13: Branch */
      v0 = local_10;
-@@ -162608,7 +162595,8 @@ int64_t ae_process_kthread(void)
+@@ -162608,7 +162603,8 @@ int64_t ae_process_kthread(void)
      s0 = (unsigned int *)&private_kthread_should_stop;
      s1 = (uint32_t *)&private_wait_for_completion_timeout;
      s2 = (unsigned int *)&tisp_ae_process;
@@ -713,7 +801,7 @@ index 765a348..369fb70 100644
  
      /* fragment 2: CallSetup */
      s0 = s0;
-@@ -162839,7 +162827,7 @@ isp_save_cmd_set0x194:
+@@ -162839,7 +162835,7 @@ isp_save_cmd_set0x194:
      if (s0 != 0) { goto isp_save_cmd_set0x5cc; }
  
      /* fragment 28: CallSetup */
@@ -722,7 +810,7 @@ index 765a348..369fb70 100644
  
      /* fragment 29: CallSetup */
      local_10 = v0;
-@@ -162864,11 +162852,11 @@ isp_save_cmd_set0x1f0:
+@@ -162864,11 +162860,11 @@ isp_save_cmd_set0x1f0:
      if (v0 != 0) { goto isp_save_cmd_set0x5e8; }
  
      /* fragment 33: Arithmetic */
@@ -736,7 +824,7 @@ index 765a348..369fb70 100644
      goto isp_save_cmd_set0x26c;
  
  isp_save_cmd_set0x210:
-@@ -167544,7 +167532,8 @@ int32_t fs_work_kthread(void)
+@@ -167544,7 +167540,8 @@ int32_t fs_work_kthread(void)
      s0 = (unsigned int *)&private_kthread_should_stop;
      s1 = (uint32_t *)&private_wait_for_completion_timeout;
      s2 = (unsigned int *)&ispcore_irq_main_fs_work;
