@@ -188,6 +188,12 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/plugins/raptor.webui.json
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-privacy.html \
+		$(TARGET_DIR)/var/www/config-privacy.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/privacy-screen.js \
+		$(TARGET_DIR)/var/www/a/privacy-screen.js
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S33raptor-privacy \
+		$(TARGET_DIR)/etc/init.d/S33raptor-privacy
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-image.html \
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-main.html \
