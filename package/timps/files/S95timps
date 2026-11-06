@@ -20,14 +20,15 @@ ensure_tls_certs() {
 		*)
 			[ "$(conf_get rtsp.tls)" = "1" ] ||
 				case "$(conf_get webrtc.enabled)" in
-					1 | 2) ;;
+					"" | 1 | 2) ;;
 					*) return 0 ;;
 				esac
 			;;
 	esac
 	crt=$(conf_get http.tls_cert)
 	key=$(conf_get http.tls_key)
-	[ -n "$crt" ] && [ -n "$key" ] || return 0
+	crt=${crt:-/etc/ssl/certs/timps.crt}
+	key=${key:-/etc/ssl/private/timps.key}
 	[ -s "$crt" ] && [ -s "$key" ] && return 0
 
 	if [ "$crt" != "$UHTTPD_CRT" ] && [ "$key" != "$UHTTPD_KEY" ] &&

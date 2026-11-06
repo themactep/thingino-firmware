@@ -79,7 +79,7 @@
     });
   }
 
-  function roiOff() { return roiTier === "unsupported" || roiState === "rotated"; }
+  function roiOff() { return roiTier === "unsupported" || roiState === "rotated" || roiState === "fixqp"; }
   function drag(ev, n, mode, box) {
     if (roiOff()) return;
     ev.preventDefault(); ev.stopPropagation();
@@ -625,7 +625,8 @@
       rv = f.path === "off" ? 0 : cropRotView(window.thinginoUIConfig && window.thinginoUIConfig.device && window.thinginoUIConfig.device.soc, f.rot);
       if (rv !== orv) { shot = false; ed.width = 0; }
       var st = roiState === "h265" ? "This stream is H.265: ROI regions are ignored." :
-        roiState === "rotated" ? "This stream is rotated: the encoder ignores ROI regions, so they cannot be edited here." : "";
+        roiState === "rotated" ? "This stream is rotated: the encoder ignores ROI regions, so they cannot be edited here." :
+        roiState === "fixqp" ? "This stream uses FixQP: the encoder on this camera ignores ROI regions. Switch the rate control to CBR or VBR to use them." : "";
       note($("roi-note"), roiTier === "effective" ? "" : roiTier, st);
       var src = (j.roi && (j.roi[S] || j.roi[String(S)])) || {};
       regions = []; shown = {};
@@ -661,8 +662,12 @@
         "Only the " + zl.join(" and ") + " shows the crop; the others keep the full picture.";
       if (sw && zmax <= 1.005) zt = (zt ? zt + " " : "") + "Zoom is not possible with the current stream sizes" +
         (upPct === 0 ? " (this camera does not upscale)" : "") + ". Set the main stream below " + sw + "×" + sh + " on the Video page to crop.";
+      var rl = [];
+      if (Array.isArray(fc.restart)) fc.restart.forEach(function (r, i) { if (r) rl.push(i ? "substream" : "main stream"); });
+      var rt = rl.length ? "The " + rl.join(" and ") + " takes the new window only after restarting timps." : "";
       note($("crop-note"), cropTier === "effective" ? "" : cropTier,
-        [cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", zt].filter(Boolean).join(" "));
+        [fc.api === "autozoom" && cropTier !== "unsupported" ? "Crop runs through the ISP AutoZoom on this camera." : "",
+          cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", rt, zt].filter(Boolean).join(" "));
       slidersFromCrop();
       if (!cropValid() && sw) cropFromSliders();
       renderCrop(fc.state); watchWaiting(fc.state);

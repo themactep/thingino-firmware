@@ -110,6 +110,47 @@
     @media (min-width: 992px) { .st-tiles { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 768px) { .st-tiles { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 500px) { .st-metrics { grid-template-columns: 1fr 1fr; } }
+    .tp-banner { border-color: rgb(255 136 0 / .35); }
+    .tp-head { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin-bottom: .45rem; }
+    .tp-head > i { color: darkorange; font-size: 1.05rem; }
+    .tp-head b { font-weight: 500; }
+    .tp-legend { display: flex; gap: .8rem; margin-left: auto; font-size: .72rem; color: var(--bs-secondary-color); }
+    .tp-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+    .tp-lg { display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; }
+    .tp-lg.inj { border-radius: 50%; background: #ff8800; box-shadow: 0 0 0 3px rgb(255 136 0 / .25); }
+    .tp-lg.pass { background: rgb(255 136 0 / .18); border: 1px solid rgb(255 136 0 / .7); }
+    .tp-lg.skip { border: 1px dashed var(--bs-secondary-color); opacity: .6; }
+    .tp-pipe { display: flex; align-items: stretch; }
+    .tp-node { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .15rem .5rem;
+      padding: .4rem .55rem; border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg); transition: background .3s, border-color .3s, opacity .3s; }
+    .tp-node > i { font-size: 1.15rem; color: var(--bs-secondary-color); }
+    .tp-tx { min-width: 0; line-height: 1.15; }
+    .tp-tx b { display: block; font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .tp-tx small { display: block; font-size: .68rem; color: var(--bs-secondary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tp-two { grid-column: 1 / -1; display: flex; gap: .3rem; }
+    .tp-two .tp-btn { flex: 1 1 0; }
+    .tp-btn { grid-column: 1 / -1; padding: .1rem .4rem; font-size: .75rem; border: 1px solid var(--bs-border-color); color: var(--bs-body-color); }
+    .tp-btn:hover:not(:disabled) { border-color: #ff8800; color: #ff8800; }
+    .tp-btn:disabled { opacity: .4; border-style: dashed; }
+    .tp-btn.on, .tp-btn.on:hover { background: #ff8800; border-color: #ff8800; color: #fff; }
+    .tp-node.pass { background: rgb(255 136 0 / .08); border-color: rgb(255 136 0 / .6); }
+    .tp-node.pass > i { color: darkorange; }
+    .tp-node.skip { opacity: .5; border-style: dashed; }
+    .tp-node.inj { box-shadow: 0 0 0 2px rgb(255 136 0 / .35); }
+    .tp-arr { flex: 0 0 1.6rem; position: relative; align-self: center; height: 2px; background: var(--bs-border-color); }
+    .tp-arr::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: var(--bs-border-color); border-right: 0; }
+    .tp-arr.pass { background: #ff8800; }
+    .tp-arr.pass::after { border-left-color: #ff8800; }
+    .tp-arr.inj::before { content: ""; position: absolute; left: 50%; top: 50%; width: .62rem; height: .62rem; margin: -.31rem 0 0 -.31rem;
+      border-radius: 50%; background: #ff8800; box-shadow: 0 0 0 3px rgb(255 136 0 / .25); }
+    .tp-sub { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1rem; margin-top: .45rem; }
+    @media (max-width: 767.98px) {
+      .tp-legend { margin-left: 0; width: 100%; order: 3; }
+      .tp-pipe { flex-wrap: wrap; gap: .4rem; }
+      .tp-node { flex: 1 1 calc(50% - .2rem); }
+      .tp-arr { display: none; }
+    }
   </style>
 </head>
 
@@ -154,6 +195,9 @@
             <button type="button" class="btn btn-outline-secondary" id="ms-stats-toggle" title="Stream stats">
               <i class="bi bi-graph-up"></i>
             </button>
+            <button type="button" class="btn btn-outline-secondary" id="ms-tp-toggle" title="Test pattern" hidden>
+              <i class="bi bi-easel"></i>
+            </button>
             <button type="button" class="btn btn-outline-secondary" id="ms-connect" title="Connect/Disconnect stream">
               <i class="bi bi-play-circle"></i> Connect
             </button>
@@ -179,6 +223,42 @@
     </section>
 
     <section>
+      <div class="card mb-3 tp-banner" id="tp-panel" hidden>
+        <div class="card-body py-2 px-3">
+          <div class="tp-head">
+            <i class="bi bi-easel"></i><b>Test pattern</b><span class="st-chip" id="tp-chip">off</span>
+            <span class="tp-legend"><span><i class="tp-lg inj"></i>injected</span><span><i class="tp-lg pass"></i>passes</span><span><i class="tp-lg skip"></i>bypassed</span></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary tp-off" data-tp="0">Off</button>
+          </div>
+          <div class="tp-pipe" id="tp-btns">
+            <div class="tp-node" data-st="0"><i class="bi bi-camera"></i><div class="tp-tx"><b>Sensor</b><small>raw Bayer</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="4" id="tp-sensor" title="The sensor's own test pattern, through the whole ISP">Sensor pattern</button></div>
+            <div class="tp-arr" data-ar="0"></div>
+            <div class="tp-node" data-st="1"><i class="bi bi-sliders"></i><div class="tp-tx"><b>ISP</b><small>AE · AWB · scaler</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="5" id="tp-mid" title="A test picture inside the ISP, after sharpening: colour, scaler, encoder">Mid-ISP</button></div>
+            <div class="tp-arr" data-ar="1"></div>
+            <div class="tp-node" data-st="2"><i class="bi bi-film"></i><div class="tp-tx"><b>Encoder</b><small>H.264/H.265 · OSD</small></div>
+              <div class="tp-two"><button type="button" class="btn btn-sm tp-btn" data-tp="1" title="A still pattern replaces the ISP output: scaler, OSD, rotation, encoder">Still</button>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="2" title="A moving square and a frame counter: bitrate, GOP, smoothness, latency">Moving</button></div></div>
+            <div class="tp-arr" data-ar="2"></div>
+            <div class="tp-node" data-st="3"><i class="bi bi-person-walking"></i><div class="tp-tx"><b>IVS</b><small>motion detection</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="3" title="Scripted moving objects, each scored against the motion detection">Motion test</button></div>
+          </div>
+          <div class="tp-sub">
+            <div class="d-flex flex-wrap gap-3 small" id="tp-holds" hidden>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="tp-ae" checked><label class="form-check-label" for="tp-ae">Hold AE</label></div>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="tp-awb"><label class="form-check-label" for="tp-awb">Hold white balance</label></div>
+            </div>
+            <div class="small text-secondary" id="tp-note"></div>
+          </div>
+          <div class="st-tiles mt-2" id="tp-eval" hidden>
+            <div class="st-panel st-tile"><i class="bi bi-bullseye"></i><span class="v" id="tp-hits">–</span><span class="s">detected objects</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-eye-slash"></i><span class="v" id="tp-miss">–</span><span class="s">missed objects</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-exclamation-triangle"></i><span class="v" id="tp-fa">–</span><span class="s">false alarms</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-stopwatch"></i><span class="v" id="tp-lat">–</span><span class="s" id="tp-lat-s">detection delay</span></div>
+          </div>
+        </div>
+      </div>
       <div class="card mb-3" id="stats-card" style="display:none">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
@@ -506,6 +586,11 @@
           e.queue.textContent = "encoder queue " + es.left_pics;
           e.queue.title = formatBytes(es.left_stream_bytes) + " / " + es.left_stream_frames + " stream frame(s) unclaimed";
         } else e.queue.textContent = "";
+        if (es && es.encode_us_avg >= 0 && es.encode_us_max >= 0) {
+          e.queue.textContent += " · encode " + (es.encode_us_avg / 1000).toFixed(1) + " ms (max " +
+            (es.encode_us_max / 1000).toFixed(1) + ")";
+          e.queue.title = (e.queue.title ? e.queue.title + "; " : "") + es.idr + " keyframes since the stream started";
+        }
       });
       renderSystem(j.system);
     }
@@ -1968,6 +2053,7 @@
   })();
 </script>
 <script src="/a/preview-motion.js"></script>
+<script src="/a/preview-testpattern.js"></script>
 <script src="/a/preview-talk.js"></script>
 </body>
 </html>
