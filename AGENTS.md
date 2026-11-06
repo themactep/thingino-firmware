@@ -140,6 +140,12 @@ Three flash types are supported:
 
 Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
+The rootfs partition holds a read-only squashfs. It needs no free space or
+slack: a rootfs packed to (or just under) the partition size is normal, because
+all writable state lives in the data/overlay partition, not in the rootfs. Do
+not reject or "fix" an image just because the rootfs has almost no headroom;
+only the packed squashfs size versus the partition size matters.
+
 ## U-Boot
 
 Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
