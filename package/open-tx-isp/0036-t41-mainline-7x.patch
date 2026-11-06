@@ -1,0 +1,619 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: build the recovered ISP driver on Linux 7.x
+
+Port the recovered T41 driver and its V4L2 frontend from the vendor 4.4
+API to the mainline 7.x API:
+
+- add a T41 kernel-compat header (timeval, wait_queue_t, strlcpy,
+  PDE_DATA, set_fs/KERNEL_DS, do_gettimeofday, monotonic clock, div64)
+- add a compat object for the Ingenic SDK/proc/cache/DMA helpers
+- use copy_from_kernel_nofault, i2c_new_client_device, kernel_read/write,
+  kmalloc, timer_setup/timer_delete_sync, ioremap/iounmap
+- adapt the V4L2 frontend to the 7.x videobuf2 API and VFL_TYPE_VIDEO
+
+Build-tested for compile and link only; it has not been loaded or probed
+on hardware yet.
+---
+diff --git a/driver/t41/Kbuild b/driver/t41/Kbuild
+index 12d65e6..5498071 100644
+--- a/driver/t41/Kbuild
++++ b/driver/t41/Kbuild
+@@ -1,4 +1,5 @@
+ tx-isp-t41-objs := tx_isp_t41_recovered.o \
++		   tx_isp_t41_compat.o \
+ 		   tx_isp_t41_heapwatch.o \
+ 		   tx_isp_t41_daynight.o \
+ 		   tx_isp_t41_math.o \
+diff --git a/driver/t41/tx_isp_t41_adr_runtime.inc b/driver/t41/tx_isp_t41_adr_runtime.inc
+index ee04550..a475d59 100644
+--- a/driver/t41/tx_isp_t41_adr_runtime.inc
++++ b/driver/t41/tx_isp_t41_adr_runtime.inc
+@@ -306,7 +306,7 @@ static int t41_native_adr_gamma(unsigned int channel, const void *source)
+         if (!t41_kernel_data_ptr(params)) goto done;
+         source = params + 0x139c0;
+     }
+-    ret = probe_kernel_read(s->candidate.params + 0x766, source, 258);
++    ret = copy_from_kernel_nofault(s->candidate.params + 0x766, source, 258);
+     if (!ret) memcpy(s->saved.params + 0x766, s->candidate.params + 0x766, 258);
+ done:
+     mutex_unlock(&t41_adr_lock);
+@@ -341,7 +341,7 @@ static int t41_native_adr_set(unsigned int channel, const void *source)
+     s = t41_adr_object();
+     if (!s) goto done;
+     memcpy(&s->candidate, &s->saved, sizeof(s->candidate));
+-    if (source && probe_kernel_read(s->candidate.params, source, T41_ADR_PARAM_BYTES)) { ret = -EFAULT; goto done; }
++    if (source && copy_from_kernel_nofault(s->candidate.params, source, T41_ADR_PARAM_BYTES)) { ret = -EFAULT; goto done; }
+     if (t41_adr_hardware_parameters(s->candidate.params, T41_ADR_PARAM_BYTES) ||
+         t41_adr_gaussian(s->candidate.params, T41_ADR_PARAM_BYTES, s->candidate.context.gaussian_previous,
+             s->candidate.context.gaussian) < 0) { ret = -EINVAL; goto done; }
+@@ -398,8 +398,8 @@ static int t41_native_adr_face(unsigned int channel, unsigned int enabled, const
+     mutex_lock(&t41_adr_lock);
+     s = t41_adr_object();
+     if (!s) goto done;
+-    if (probe_kernel_read(s->candidate.context.face_flags, flags, 24) ||
+-        probe_kernel_read(s->candidate.context.face_curve, curve, 672)) { ret = -EFAULT; goto done; }
++    if (copy_from_kernel_nofault(s->candidate.context.face_flags, flags, 24) ||
++        copy_from_kernel_nofault(s->candidate.context.face_curve, curve, 672)) { ret = -EFAULT; goto done; }
+     memcpy(s->saved.context.face_flags, s->candidate.context.face_flags, 24);
+     memcpy(s->saved.context.face_curve, s->candidate.context.face_curve, 672);
+     s->saved.context.face_enabled = enabled; ret = 0;
+diff --git a/driver/t41/tx_isp_t41_compat.c b/driver/t41/tx_isp_t41_compat.c
+new file mode 100644
+index 0000000..e7fc1bd
+--- /dev/null
++++ b/driver/t41/tx_isp_t41_compat.c
+@@ -0,0 +1,98 @@
++/*
++ * Kernel 7.x compatibility implementations for the recovered T41 driver.
++ *
++ * The 4.4 vendor tree provided these through the Ingenic SDK and old kernel
++ * internals. Keep them in one place so the recovered source stays close to
++ * what was decompiled.
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/proc_fs.h>
++#include <linux/dma-mapping.h>
++#include <linux/io.h>
++#include <linux/sched.h>
++
++struct proc_dir_entry *tx_isp_get_jz_proc_root(void)
++{
++	static struct proc_dir_entry *root;
++
++	if (!root)
++		root = proc_mkdir("jz", NULL);
++	return root;
++}
++
++struct proc_dir_entry *jz_proc_mkdir(const char *name, ...)
++{
++	return proc_mkdir(name, tx_isp_get_jz_proc_root());
++}
++
++int jzgpio_set_func(int port, int func, unsigned long pins, ...)
++{
++	/* The T41 DT pinctrl states own the used pins. */
++	(void)port;
++	(void)func;
++	(void)pins;
++	return 0;
++}
++
++void kernel_mxuv3_begin_partial(int mode)
++{
++	(void)mode;
++}
++
++void kernel_mxuv3_end(void)
++{
++}
++
++void warn_slowpath_null(const char *file, int line)
++{
++	(void)file;
++	(void)line;
++}
++
++void dma_cache_sync(void *dev, void *vaddr, size_t size,
++		    enum dma_data_direction dir, ...)
++{
++	/* Coherent buffers need no explicit cache maintenance. */
++	(void)dev;
++	(void)vaddr;
++	(void)size;
++	(void)dir;
++}
++
++int dma_alloc_from_coherent(void *dev, ssize_t size, void **vaddr,
++			    dma_addr_t *dma_handle, ...)
++{
++	*vaddr = dma_alloc_coherent(dev, size, dma_handle, GFP_KERNEL);
++	return *vaddr ? 0 : -ENOMEM;
++}
++
++int dma_release_from_coherent(void *dev, int order, ...)
++{
++	/* The recovered caller only has the handle and order here; the
++	 * allocation path already keeps the CPU address for dma_free. */
++	(void)dev;
++	(void)order;
++	return -ENOENT;
++}
++
++int __copy_user(void *to, const void *from, unsigned long n, ...)
++{
++	/* Recovered direct-copy token; the ioctl user-copy wrappers use the
++	 * real copy_from_user()/copy_to_user() paths. */
++	memcpy(to, from, n);
++	return 0;
++}
++
++void *__ioremap(phys_addr_t phys_addr, size_t size, ...)
++{
++	return ioremap(phys_addr, size);
++}
++
++void __iounmap(const volatile void __iomem *addr, ...)
++{
++	iounmap((void __iomem *)addr);
++}
++
++MODULE_LICENSE("GPL");
+diff --git a/driver/t41/tx_isp_t41_heapwatch.c b/driver/t41/tx_isp_t41_heapwatch.c
+index 8068ec6..0ec0b97 100644
+--- a/driver/t41/tx_isp_t41_heapwatch.c
++++ b/driver/t41/tx_isp_t41_heapwatch.c
+@@ -298,7 +298,7 @@ static void t41_hw_check(const char *where)
+ 	}
+ }
+ 
+-static void t41_hw_tick(unsigned long data)
++static void t41_hw_tick(struct timer_list *data)
+ {
+ 	(void)data;
+ 	t41_hw_check("timer");
+@@ -351,7 +351,7 @@ void t41_heapwatch_start(void)
+ 	       t41_hw_n, mp->grp.attrs, (t41_hw_n + 1) * sizeof(u32), mp,
+ 	       t41_hw_mp_bytes);
+ 	t41_hw_armed = true;
+-	setup_timer(&t41_hw_timer, t41_hw_tick, 0);
++	timer_setup(&t41_hw_timer, t41_hw_tick, 0);
+ 	mod_timer(&t41_hw_timer, jiffies + 1);
+ }
+ 
+@@ -367,7 +367,7 @@ void t41_heapwatch_stop(void)
+ 		t41_hw_free_decoys();
+ 		return;
+ 	}
+-	del_timer_sync(&t41_hw_timer);
++	timer_delete_sync(&t41_hw_timer);
+ 	t41_hw_check("stop");
+ 	{
+ 		struct t41_hw_mp *mp = (struct t41_hw_mp *)THIS_MODULE->mkobj.mp;
+diff --git a/driver/t41/tx_isp_t41_kernel_compat.h b/driver/t41/tx_isp_t41_kernel_compat.h
+new file mode 100644
+index 0000000..77eab63
+--- /dev/null
++++ b/driver/t41/tx_isp_t41_kernel_compat.h
+@@ -0,0 +1,72 @@
++#ifndef __TX_ISP_T41_KERNEL_COMPAT_H__
++#define __TX_ISP_T41_KERNEL_COMPAT_H__
++
++#include <linux/version.h>
++#include <linux/types.h>
++#include <linux/math64.h>
++#include <linux/wait.h>
++#include <linux/proc_fs.h>
++#include <linux/string.h>
++#include <linux/timekeeping.h>
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
++/* struct timeval was removed from the kernel API; the recovered timing code
++ * and the vendor ioctl ABI still use it. */
++struct timeval {
++	long tv_sec;
++	long tv_usec;
++};
++#endif
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
++typedef wait_queue_entry_t wait_queue_t;
++#endif
++
++/* __div64_32 is a MIPS-internal helper; the recovered division path only
++ * takes its address as a function token. */
++static inline uint32_t tx_isp_t41_div64_32(uint64_t *n, uint32_t base)
++{
++	return do_div(*n, base);
++}
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
++static inline size_t strlcpy(char *dst, const char *src, size_t size)
++{
++	int ret = strscpy(dst, src, size);
++	return ret < 0 ? size : (size_t)ret;
++}
++#endif
++
++#ifndef PDE_DATA
++#define PDE_DATA(inode) pde_data(inode)
++#endif
++
++struct proc_dir_entry *jz_proc_mkdir(const char *name, ...);
++
++/* set_fs()/KERNEL_DS are gone; the V4L2 bridge still spells them out. */
++typedef unsigned long mm_segment_t;
++#ifndef KERNEL_DS
++#define KERNEL_DS 0UL
++#endif
++#ifndef get_fs
++#define get_fs() 0UL
++#endif
++#ifndef set_fs
++#define set_fs(segment) do { (void)(segment); } while (0)
++#endif
++
++static inline void do_gettimeofday(struct timeval *tv)
++{
++	struct timespec64 now;
++
++	ktime_get_real_ts64(&now);
++	tv->tv_sec = (long)now.tv_sec;
++	tv->tv_usec = now.tv_nsec / NSEC_PER_USEC;
++}
++
++static inline void getrawmonotonic64(struct timespec64 *ts)
++{
++	ktime_get_raw_ts64(ts);
++}
++
++#endif
+diff --git a/driver/t41/tx_isp_t41_lsc_runtime.inc b/driver/t41/tx_isp_t41_lsc_runtime.inc
+index 7bfdff7..37e4c2e 100644
+--- a/driver/t41/tx_isp_t41_lsc_runtime.inc
++++ b/driver/t41/tx_isp_t41_lsc_runtime.inc
+@@ -266,7 +266,7 @@ static int t41_native_lsc_set(unsigned int channel, unsigned int part, const voi
+     if (!s) goto done;
+     memcpy(&s->candidate, &s->saved, sizeof(s->candidate));
+     if (!s->staging) memcpy(s->pending_params, s->saved.params, T41_LSC_PARAM_BYTES);
+-    ret = probe_kernel_read(s->pending_params + offsets[part], source, sizes[part]);
++    ret = copy_from_kernel_nofault(s->pending_params + offsets[part], source, sizes[part]);
+     if (ret) { s->staging = 0; goto done; }
+     if (part && part < 4) { s->staging = 1; goto done; }
+     if (part == 4) memcpy(s->candidate.params, s->pending_params, T41_LSC_PARAM_BYTES);
+diff --git a/driver/t41/tx_isp_t41_procwatch.c b/driver/t41/tx_isp_t41_procwatch.c
+index 7c6c6e8..507fa16 100644
+--- a/driver/t41/tx_isp_t41_procwatch.c
++++ b/driver/t41/tx_isp_t41_procwatch.c
+@@ -210,7 +210,7 @@ static void t41_pw_check_tree(void)
+ 	}
+ }
+ 
+-static void t41_pw_tick(unsigned long unused)
++static void t41_pw_tick(struct timer_list *unused)
+ {
+ 	unsigned long flags;
+ 	unsigned int i;
+@@ -290,7 +290,7 @@ void t41_procwatch_start(void)
+ 	}
+ 	t41_pw_armed = true;
+ 	spin_unlock_irqrestore(&t41_pw_lock, flags);
+-	setup_timer(&t41_pw_timer, t41_pw_tick, 0);
++	timer_setup(&t41_pw_timer, t41_pw_tick, 0);
+ 	mod_timer(&t41_pw_timer, jiffies + msecs_to_jiffies(T41_PW_INTERVAL_MS));
+ }
+ 
+@@ -305,7 +305,7 @@ void t41_procwatch_stop(void)
+ 	t41_pw_armed = false;
+ 	spin_unlock_irqrestore(&t41_pw_lock, flags);
+ 	if (armed)
+-		del_timer_sync(&t41_pw_timer);
++		timer_delete_sync(&t41_pw_timer);
+ 	spin_lock_irqsave(&t41_pw_lock, flags);
+ 	t41_pw_n = 0;
+ 	t41_pw_busy = 0;
+diff --git a/driver/t41/tx_isp_t41_recovered.c b/driver/t41/tx_isp_t41_recovered.c
+index 765a348..f5806c0 100644
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -115,6 +115,8 @@
+ #endif
+ #endif
+ #include <asm/uaccess.h>
++#include <linux/printk.h>
++#include "tx_isp_t41_kernel_compat.h"
+ #ifndef __regtrace_stringify
+ #define __regtrace_stringify_1(x) #x
+ #define __regtrace_stringify(x) __regtrace_stringify_1(x)
+@@ -607,11 +609,10 @@ extern int printk(const char *fmt, ...);
+ 
+ extern void dev_err(const void *dev, const char *fmt, ...);
+ extern void _dev_info(const void *dev, const char *fmt, ...);
+-extern int __copy_user(void *to, const void *from, unsigned long n, ...);
+ #ifndef REGTRACE_COPY_USER_DEFINED
+ #define REGTRACE_COPY_USER_DEFINED
+-static inline int copy_from_user(void *to, const void *from, unsigned long n) { return __copy_user(to, from, n); }
+-static inline int copy_to_user(void *to, const void *from, unsigned long n) { return __copy_user(to, from, n); }
++static inline int copy_from_user(void *to, const void *from, unsigned long n) { return raw_copy_from_user(to, from, n); }
++static inline int copy_to_user(void *to, const void *from, unsigned long n) { return raw_copy_to_user(to, from, n); }
+ #endif
+ extern int snprintf(char *buf, size_t size, const char *fmt, ...);
+ extern void dma_cache_sync(void *dev, void *vaddr, size_t size, enum dma_data_direction dir, ...);
+@@ -2281,7 +2282,7 @@ static struct platform_device tx_isp_fs_platform_device;
+ struct tx_isp_subdev;
+ struct v4l2_format;
+ static uint16_t FrameSize[5];
+-static uint32_t WDRMODE, __bss_start, _awb_base, _awb_bss_base, _bss_anchor, _cb_base;
++static uint32_t WDRMODE, t41_bss_start, _awb_base, _awb_bss_base, _bss_anchor, _cb_base;
+ static uint32_t _tisp_tmo_detailen_base, adr_ctc1_y_change, adr_ev, adr_ev_changed, adr_ev_top;
+ static uint32_t adr_info[2], adr_tg_f_top, adr_tgain_changed, adr_tgain_top, ae_info[2];
+ static unsigned char adr_mlock_storage[32] __attribute__((aligned(4)));
+@@ -6644,7 +6645,7 @@ int32_t private_log2_fixed_to_fixed_64(uint64_t val, int32_t in_fix_point,
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000770 origin=model_output original=private_platform_driver_register */
+ int private_platform_driver_register(void *drv)
+ {
+-	return __platform_driver_register(drv, &__this_module);
++	return platform_driver_register(drv);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000784 origin=fragment_seed original=private_platform_driver_unregister */
+@@ -6749,13 +6750,13 @@ int32_t private_release_mem_region(resource_size_t start, resource_size_t len)
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000848 origin=model_output original=private_ioremap */
+ void __iomem *private_ioremap(phys_addr_t offset, unsigned long size)
+ {
+-    return __ioremap(offset, size, 1024);
++    return ioremap(offset, size);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000858 origin=model_output original=private_iounmap */
+ void private_iounmap(void __iomem *addr)
+ {
+-    __iounmap(addr);
++    iounmap(addr);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000868 origin=model_output original=private_request_threaded_irq */
+@@ -6874,7 +6875,7 @@ int private_i2c_register_driver(struct module *owner,
+ /* WHOLE_DRIVER_CANDIDATE fn_000000000000094c origin=fragment_seed original=private_i2c_new_device */
+ struct i2c_client *private_i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
+ {
+-    return i2c_new_device(adap, info);
++    return i2c_new_client_device(adap, info);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_000000000000095c origin=fragment_seed original=private_i2c_unregister_device */
+@@ -7079,7 +7080,7 @@ void private_vfree(const void *addr)
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000c24 origin=fragment_seed original=private_kmalloc */
+ void *private_kmalloc(size_t size, gfp_t flags)
+ {
+-    return __kmalloc(size, flags);
++    return kmalloc(size, flags);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000c34 origin=model_output original=private_kfree */
+@@ -7118,13 +7119,13 @@ int private_filp_close(struct file *filp, fl_owner_t id)
+ ssize_t private_vfs_read(struct file *file, char __user *buf, size_t count,
+                          loff_t *pos)
+ {
+-    return vfs_read(file, buf, count, pos);
++    return kernel_read(file, buf, count, pos);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d24 origin=model_output original=private_vfs_write */
+ int32_t private_vfs_write(struct file *file, const char *buf, size_t count, loff_t *pos)
+ {
+-    return vfs_write(file, buf, count, pos);
++    return kernel_write(file, buf, count, pos);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d34 origin=fragment_seed original=private_vfs_llseek */
+@@ -7136,24 +7137,19 @@ loff_t private_vfs_llseek(struct file *file, loff_t offset, int whence)
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d44 origin=fragment_seed original=private_get_fs */
+ int64_t private_get_fs(uintptr_t a0)
+ {
+-    mm_segment_t fs = get_fs();
+-
++    /* Mainline has no address limit to read back. */
+     if (a0)
+-        *(uint32_t *)a0 = (uint32_t)fs.seg;
++        *(uint32_t *)a0 = 0;
+ 
+-    /* The OEM wrapper returns its output pointer in v0; callers use the
+-     * stored address limit and ignore the return value. */
+     return (int64_t)(uint32_t)a0;
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000000d54 origin=fragment_seed original=private_set_fs */
+ int32_t private_set_fs(uint32_t a0)
+ {
+-    mm_segment_t fs;
+-
+-    fs.seg = a0;
+-    set_fs(fs);
+-
++    /* Mainline has no set_fs(); kernel_read()/kernel_write() handle the
++     * address space themselves. */
++    (void)a0;
+     return 0;
+ }
+ 
+@@ -7439,15 +7435,7 @@ long private_wait_event_interruptible_timeout(wait_queue_head_t queue,
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000001048 origin=fragment_seed original=private_dma_sync_single_for_device */
+ void private_dma_sync_single_for_device(struct device *dev, dma_addr_t addr, size_t size, enum dma_data_direction dir)
+ {
+-    struct dma_map_ops *ops;
+-
+-    if ((unsigned int)dir >= 3)
+-        return;
+-    ops = dev ? *(struct dma_map_ops **)((char *)dev + 0x124) : NULL;
+-    if (!ops)
+-        ops = mips_dma_map_ops;
+-    if (ops && ops->sync_single_for_device)
+-        ops->sync_single_for_device(dev, addr, size, dir);
++    dma_sync_single_for_device(dev, addr, size, dir);
+ }
+ 
+ /* WHOLE_DRIVER_CANDIDATE fn_000000000000108c origin=model_output original=private_dma_free_coherent */
+@@ -7602,9 +7590,14 @@ int32_t private_device_create(struct class *cls, struct device *parent,
+     /* The recovered body passed its first argument as every parameter. */
+     if (IS_ERR_OR_NULL(cls) || !fmt)
+         return 0;
+-    va_start(args, fmt);
+-    dev = device_create_vargs(cls, parent, devt, drvdata, fmt, args);
+-    va_end(args);
++    {
++        char name[128];
++
++        va_start(args, fmt);
++        vsnprintf(name, sizeof(name), fmt, args);
++        va_end(args);
++        dev = device_create(cls, parent, devt, drvdata, "%s", name);
++    }
+     return (int32_t)(uintptr_t)dev;
+ }
+ 
+@@ -32017,7 +32010,7 @@ frame_channel_unlocked_ioctl0xcf0:
+ 
+ frame_channel_unlocked_ioctl0xd0c:
+     /* fragment 288: Arithmetic */
+-    s4 = (unsigned int *)&printk;
++    s4 = (unsigned int *)0; /* printk token, not a callable pointer */
+     s1 = 0;
+     s3 = s3;
+     s5 = (uintptr_t)&LC79;
+@@ -53744,7 +53737,7 @@ int32_t tisp_stream_on(uintptr_t a0)
+ 
+     if (!a0)
+         return -EINVAL;
+-    ret = probe_kernel_read(config, (const void *)(uintptr_t)a0,
++    ret = copy_from_kernel_nofault(config, (const void *)(uintptr_t)a0,
+                             sizeof(config));
+     if (ret)
+         return ret;
+@@ -56836,7 +56829,7 @@ int64_t tisp_event_push(uint32_t a0, uintptr_t a1)
+ 
+     if (a0 >= T41_TISP_EVENT_CHANNELS || !a1)
+         return -EINVAL;
+-    ret = probe_kernel_read(source, (const void *)(uintptr_t)a1,
++    ret = copy_from_kernel_nofault(source, (const void *)(uintptr_t)a1,
+                             sizeof(source));
+     if (ret)
+         return ret;
+@@ -57817,7 +57810,7 @@ uint32_t tisp_ae_lib_div_64(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+     if (v1 == 0) { goto tisp_ae_lib_div_640x38; }
+ 
+     /* fragment 4: Branch */
+-    v0 = (unsigned int *)&__div64_32;
++    v0 = (unsigned int *)&tx_isp_t41_div64_32;
+     if (a1 != 0) { goto tisp_ae_lib_div_640x48; }
+ 
+     /* fragment 5: Unknown */
+@@ -57849,7 +57842,8 @@ tisp_ae_lib_div_640x38:
+ 
+ tisp_ae_lib_div_640x48:
+     /* fragment 12: CallSetup */
+-    v0 = (unsigned int *)__div64_32((void *)(uintptr_t)&local_10, a2); /* jalr target resolved by relocation */
++    local_10 = (uint32_t *)(uintptr_t)(a2 ? ((uint32_t)(uintptr_t)local_10 / a2) : 0);
++    v0 = (unsigned int *)local_10; /* division token; no helper call */
+ 
+     /* fragment 13: Branch */
+     v0 = local_10;
+@@ -162608,7 +162602,8 @@ int64_t ae_process_kthread(void)
+     s0 = (unsigned int *)&private_kthread_should_stop;
+     s1 = (uint32_t *)&private_wait_for_completion_timeout;
+     s2 = (unsigned int *)&tisp_ae_process;
+-    v0 = (uintptr_t)sched_setscheduler(current, 1, (void *)(uintptr_t)&local_10); /* gp is thread_info here: *(gp + 0) is current (the recovery read address 0) */
++    sched_set_fifo(current); /* vendor SCHED_FIFO priority 1 */
++    v0 = 0;
+ 
+     /* fragment 2: CallSetup */
+     s0 = s0;
+@@ -162839,7 +162834,7 @@ isp_save_cmd_set0x194:
+     if (s0 != 0) { goto isp_save_cmd_set0x5cc; }
+ 
+     /* fragment 28: CallSetup */
+-    v0 = (uintptr_t)__ioremap(3221225472, 939982848 + 17152, 1024); /* jalr target resolved by relocation */
++    v0 = (uintptr_t)ioremap(3221225472, 939982848 + 17152); /* jalr target resolved by relocation */
+ 
+     /* fragment 29: CallSetup */
+     local_10 = v0;
+@@ -162864,11 +162859,11 @@ isp_save_cmd_set0x1f0:
+     if (v0 != 0) { goto isp_save_cmd_set0x5e8; }
+ 
+     /* fragment 33: Arithmetic */
+-    v0 = (unsigned int *)&__iounmap;
++    v0 = (unsigned int *)&iounmap;
+     a0 = s7;
+ 
+     /* fragment 34: Branch */
+-    v0 = (unsigned int *)&__iounmap;
++    v0 = (unsigned int *)&iounmap;
+     goto isp_save_cmd_set0x26c;
+ 
+ isp_save_cmd_set0x210:
+@@ -167544,7 +167539,8 @@ int32_t fs_work_kthread(void)
+     s0 = (unsigned int *)&private_kthread_should_stop;
+     s1 = (uint32_t *)&private_wait_for_completion_timeout;
+     s2 = (unsigned int *)&ispcore_irq_main_fs_work;
+-    v0 = (uintptr_t)sched_setscheduler(current, 1, (void *)(uintptr_t)&local_10); /* gp is thread_info here: *(gp + 0) is current (the recovery read address 0) */
++    sched_set_fifo(current); /* vendor SCHED_FIFO priority 1 */
++    v0 = 0;
+ 
+     /* fragment 2: CallSetup */
+     s0 = s0;
+diff --git a/driver/t41/tx_isp_t41_sinfo.c b/driver/t41/tx_isp_t41_sinfo.c
+index ae4a9b8..2bc5098 100644
+--- a/driver/t41/tx_isp_t41_sinfo.c
++++ b/driver/t41/tx_isp_t41_sinfo.c
+@@ -13,6 +13,7 @@
+ #include <linux/slab.h>
+ #include <linux/string.h>
+ #include <linux/errno.h>
++#include "tx_isp_t41_kernel_compat.h"
+ 
+ #include "../include/tx_isp/tx_isp_sinfo.h"
+ 
+diff --git a/driver/t41/tx_isp_t41_v4l2.c b/driver/t41/tx_isp_t41_v4l2.c
+index e537d51..e1f487c 100644
+--- a/driver/t41/tx_isp_t41_v4l2.c
++++ b/driver/t41/tx_isp_t41_v4l2.c
+@@ -24,6 +24,7 @@
+ #include "../include/tx_isp/tx_isp_frame_layout.h"
+ #include "../include/tx_isp/tx_isp_video_queue.h"
+ #include "tx_isp_t41_v4l2.h"
++#include "tx_isp_t41_kernel_compat.h"
+ 
+ #ifndef CONFIG_DMA_SHARED_BUFFER
+ #error "CONFIG_TX_ISP_T41_V4L2 requires CONFIG_DMA_SHARED_BUFFER"
+@@ -714,8 +715,9 @@ static int tx_isp_t41_v4l2_completion_thread(void *argument)
+ 		v4l2_buffer = to_vb2_v4l2_buffer(buffer);
+ 		v4l2_buffer->field = V4L2_FIELD_NONE;
+ 		v4l2_buffer->sequence = complete.sequence;
+-		v4l2_buffer->timestamp.tv_sec = complete.timestamp_sec;
+-		v4l2_buffer->timestamp.tv_usec = complete.timestamp_usec;
++		v4l2_buffer->vb2_buf.timestamp =
++			(u64)complete.timestamp_sec * NSEC_PER_SEC +
++			(u64)complete.timestamp_usec * NSEC_PER_USEC;
+ 		vb2_set_plane_payload(buffer, 0, complete.bytesused);
+ 		vb2_buffer_done(buffer,
+ 			complete.flags & TX_ISP_FRAME_FLAG_ERROR ?
+@@ -801,8 +803,6 @@ static const struct vb2_ops tx_isp_t41_v4l2_vb2_ops = {
+ 	.buf_queue = tx_isp_t41_v4l2_buffer_queue,
+ 	.start_streaming = tx_isp_t41_v4l2_start_streaming,
+ 	.stop_streaming = tx_isp_t41_v4l2_stop_streaming,
+-	.wait_prepare = vb2_ops_wait_prepare,
+-	.wait_finish = vb2_ops_wait_finish,
+ };
+ 
+ static int tx_isp_t41_v4l2_querycap(struct file *file, void *priv,
+@@ -1071,7 +1071,7 @@ static int tx_isp_t41_v4l2_register(struct device *parent, unsigned int channel)
+ 	video->video_dev.queue = &video->vb2_queue;
+ 	video->video_dev.vfl_dir = VFL_DIR_RX;
+ 	video_set_drvdata(&video->video_dev, video);
+-	ret = video_register_device(&video->video_dev, VFL_TYPE_GRABBER, -1);
++	ret = video_register_device(&video->video_dev, VFL_TYPE_VIDEO, -1);
+ 	if (ret)
+ 		goto fail_v4l2;
+ 	video->registered = true;

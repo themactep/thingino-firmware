@@ -39,6 +39,10 @@ ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
 OPEN_TX_ISP_DEPENDENCIES = linux
 ifeq ($(SOC_FAMILY),t20)
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/t20
+else ifeq ($(SOC_FAMILY),t41)
+# T41 carries its sensors through the recovered driver; there is no
+# sensor-src/t41 tree.
+OPEN_TX_ISP_MODULE_SUBDIRS = driver/t41
 else
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY) sensor-src/$(SOC_FAMILY)
 endif
@@ -54,6 +58,13 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	INSTALL_MOD_DIR=ingenic \
 	INSTALL_MOD_STRIP=--strip-unneeded \
 	DIR=.
+
+# The T41 V4L2 frontend is behind a Kbuild switch, not a Kconfig symbol.
+ifeq ($(SOC_FAMILY),t41)
+ifeq ($(KERNEL_VERSION),7.3.1)
+OPEN_TX_ISP_MODULE_MAKE_OPTS += CONFIG_TX_ISP_T41_V4L2=y
+endif
+endif
 
 # The vendor 5.15 tree predates the mainline kernel APIs the T31 driver was
 # recovered against (CONFIG_SET_FS was dropped, mediabus was renamed, ...);

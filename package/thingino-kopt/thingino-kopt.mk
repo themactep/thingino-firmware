@@ -782,9 +782,9 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MOTORS
 endef
 endif
 
-# Mainline V4L2 sensors on the 7.x T41 tree: open-TX-ISP does not cover
-# T41 on 7.x yet, so enable the media stack and the one driver the camera
-# names. The driver is carried as a kernel patch, like the T31 ports.
+# Mainline V4L2 sensors and the recovered T41 ISP driver on the 7.x tree:
+# enable the media stack, the sensor the camera names, and the DMA-contig
+# buffer allocator the ISP V4L2 frontend links against.
 ifeq ($(KERNEL_VERSION),7.3.1)
 ifneq ($(filter t41,$(SOC_FAMILY)),)
 ifneq ($(SENSOR_1_MODEL),)
@@ -795,6 +795,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SENSOR
 	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_DEV)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_V4L2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_V4L2_SUBDEV_API)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEOBUF2_DMA_CONTIG)
 	$(call KCONFIG_SET_OPT,CONFIG_VIDEO_$(shell echo $(SENSOR_1_MODEL) | tr a-z A-Z),m)
 endef
 endif
