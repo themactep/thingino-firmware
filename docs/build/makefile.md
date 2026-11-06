@@ -519,6 +519,12 @@ Flash full firmware image (includes bootloader). Uses `sysupgrade`.
 make ota IP=192.168.1.10
 ```
 
+`IP=` also selects a per-IP output directory (`...-<ip>`). The image must
+have been built with the same `IP=`, or `make ota` falls back to
+`GENERIC_FIRMWARE_BIN_FULL`, which may be an older build. To flash the
+camera-specific generic image without changing the output path, pass
+`CAMERA_IP_ADDRESS=<ip>` instead of `IP=`.
+
 #### `ota-kernel`
 Flash kernel only. Uploads `uImage` directly — no full firmware needed.
 ```bash
