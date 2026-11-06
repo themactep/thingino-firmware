@@ -119,10 +119,16 @@ Current state (last insmod):
 ```
 @@@@ tx-isp-probe ok (version H20250310a) @@@@
 tx-isp-sinfo: initialized max_sensors=4
-tx-isp-sinfo: cannot create /proc/jz/sensor
-tx-isp-sinfo: exited
-insmod: can't insert ...: Invalid argument
+t41: V4L2 MMAP node registered as /dev/video0 (channel 0)
+t41: V4L2 MMAP node registered as /dev/video1 (channel 1)
+t41: V4L2 MMAP node registered as /dev/video2 (channel 2)
 ```
+
+The vendor clock names now get clkdev lookups, so
+`devm_clk_get()`/`devm_clk_put()` are symmetric and the
+`clk-devres.c:335` warning is gone. The V4L2 frontend sets
+`device_caps`, so `video_register_device()` succeeds. There is no
+`/dev/media*`; the driver exposes the capture nodes directly.
 
 The main tx-isp probe now succeeds. The subdevs get their IRQs and the
 vendor clock names resolve through `of_clk_get_from_provider()` against
