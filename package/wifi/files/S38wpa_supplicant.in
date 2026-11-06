@@ -387,6 +387,21 @@ start_client() {
 	echo "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
+
+	# wpa_supplicant only associates; nothing on this code path ever
+	# configures an address on $IFACE, so a successful join leaves the
+	# interface linked but without an IPv4 lease. When the interface
+	# is DHCP-managed, run the DHCP client for it: udhcpc -b
+	# daemonizes and keeps retrying, so it is safe to start before
+	# the association completes. stop_client() already cleans up the
+	# same pidfile.
+	if [ -f "$WLAN_INT_FILE" ] &&
+		grep -q "^iface $IFACE inet dhcp" "$WLAN_INT_FILE"; then
+		if [ ! -f "/var/run/udhcpc.$IFACE.pid" ] ||
+			! kill -0 "$(cat "/var/run/udhcpc.$IFACE.pid")" 2>/dev/null; then
+			udhcpc -b -i "$IFACE" -p "/var/run/udhcpc.$IFACE.pid"
+		fi
+	fi
 }
 
 stop_client() {
@@ -405,7 +420,18 @@ start() {
 
 	echo -c 15 "Starting WPA Supplicant"
 
-	# Interface is not present
+	# USB WiFi modules enumerate asynchronously after module load, so
+	# the interface may legally not exist yet when this script runs at
+	# boot. Wait for it to appear before declaring it missing.
+	if ! iface_exists "$IFACE"; then
+		echo "Waiting for $IFACE to appear"
+		wait_i=0
+		while [ "$wait_i" -lt 30 ] && ! iface_exists "$IFACE"; do
+			sleep 1
+			wait_i=$((wait_i + 1))
+		done
+	fi
+
 	if iface_exists "$IFACE"; then
 		echo "Found $IFACE interface"
 	else
