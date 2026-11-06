@@ -1,0 +1,44 @@
+// Noorio T120 (T41NQ, GC8613, AIC8800 USB) per-board GPIO definitions.
+//
+// Board wiring from the stock T120 firmware dump and the T41NQ stock DTB:
+//   PB26 (gpio 58)  SD card detect, active-low. Stock msc0 ships both the
+//                   active-low flag and cd-inverted; keep both.
+//   PA30 (gpio 30)  reset button, active-low (stock "power" key).
+//   PC9  (gpio 73)  blue status LED, active-high (stock led_blink.sh).
+//   PB29 (gpio 61)  SD power, active-low; sequenced by S09mmc from
+//                   thingino.json and injected into U-Boot's vmmc.
+//
+// The reset key uses KEY_ENTER because thingino-button's default map
+// binds the reset/reboot actions to it.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+&msc0 {
+	ingenic,cd-gpios = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	cd-inverted;
+};
+
+/ {
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpa 30 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpc 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};
