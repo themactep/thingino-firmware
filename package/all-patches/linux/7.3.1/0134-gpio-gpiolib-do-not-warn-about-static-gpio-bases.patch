@@ -1,0 +1,23 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] gpio: gpiolib: do not warn about the static GPIO bases
+
+Thingino addresses pins by the flat PA0..PE31 numbers in thingino.json,
+the motors module and the boot scripts, so the Ingenic pinctrl driver
+keeps the per-bank static bases. The deprecation warning is noise on
+every boot; leave it at debug level.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -1277,8 +1277,8 @@
+ 			 */
+ 			gc->base = base;
+ 		} else {
+-			dev_warn(&gdev->dev,
+-				 "Static allocation of GPIO base is deprecated, use dynamic allocation.\n");
++			dev_dbg(&gdev->dev,
++				"Static allocation of GPIO base is deprecated, use dynamic allocation.\n");
+ 		}
+ 
+ 		gdev->base = base;

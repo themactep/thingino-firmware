@@ -1,0 +1,99 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: dts: ingenic: t41: enable the efuse, USB host and userspace SD power
+
+The efuse node is disabled and has no clock, so the nvmem driver never
+ungates T41_CLK_EFUSE or programs the read timing; the userspace serial
+reads come back empty and the hostname/MAC has no serial suffix. Enable
+it and attach the CGU gate.
+
+The OTG/PHY nodes still use the vendor compatibles, so neither the
+mainline T41 PHY nor dwc2 binds and the AIC8800 USB module never
+enumerates. Use the mainline shapes in host mode.
+
+The kernel pwrseq also claims GPB29, which is the SD power the MMC
+service drives from thingino.json; the two fight and the controller
+defers with EBUSY. The MMC service already powers and rebinds the
+controller, so drop the pwrseq node and reference.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t41.dtsi
++++ b/arch/mips/boot/dts/ingenic/t41.dtsi
+@@ -367,8 +367,11 @@
+ 		};
+ 
+ 		otg_phy: otg_phy {
+-			compatible = "ingenic,innophy";
+-			reg = <0x10000000 0x1000 0x10060000 0x1000>;
++			compatible = "ingenic,t41-phy";
++			reg = <0x1000003c 0x10>;
++			clocks = <&clock T41_CLK_OTG>;
++			#phy-cells = <0>;
++			status = "okay";
+ 		};
+ 
+ 		des: des@0x10061000 {
+@@ -496,18 +499,24 @@
+ 		};
+ 
+ 		otg: otg@0x13500000 {
+-			compatible = "ingenic,dwc2-hsotg";
++			compatible = "snps,dwc2";
+ 			reg = <0x13500000 0x40000>;
+ 			interrupt-parent = <&core_intc>;
+ 			interrupts = <IRQ_OTG>;
+-			ingenic,usbphy=<&otg_phy>;
++			phys = <&otg_phy>;
++			phy-names = "usb2-phy";
++			dr_mode = "host";
++			maximum-speed = "high-speed";
++			g-rx-fifo-size = <1024>;
++			g-np-tx-fifo-size = <256>;
+ 			status = "okay";
+ 		};
+ 
+ 		efuse: efuse@0x13540000 {
+ 			compatible = "ingenic,t41-efuse";
+ 			reg = <0x13540000 0x10000>;
+-			status = "disabled";
++			clocks = <&clock T41_CLK_EFUSE>;
++			status = "okay";
+ 		};
+ 	};
+ 
+--- a/arch/mips/boot/dts/ingenic/marmot.dts
++++ b/arch/mips/boot/dts/ingenic/marmot.dts
+@@ -10,11 +10,6 @@
+ 	chosen {
+ 		stdout-path = "serial1:115200n8";
+ 	};
+-
+-	mmc0_pwrseq: mmc0_pwrseq {
+-		compatible = "mmc-pwrseq-simple";
+-		reset-gpios = <&gpb 29 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+-	};
+ };
+ 
+ &uart0 {
+@@ -113,7 +108,6 @@
+ 	ingenic,cd-gpios = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+ 	ingenic,rst-gpios = <0>;
+ 	pinctrl-0 = <&msc0_pb>;
+-	mmc-pwrseq = <&mmc0_pwrseq>;
+ };
+ 
+ &msc1 {
+@@ -207,13 +201,6 @@
+ 	status = "okay";
+ };
+ 
+-&otg_phy {
+-	dr_mode = "otg";
+-	compatible = "ingenic,innophy", "syscon";
+-	ingenic,drvvbus-gpio = <0>;
+-	//ingenic,drvvbus-gpio = <&gpb 27 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+-	status = "okay";
+-};
+ 
+ / {
+ 
