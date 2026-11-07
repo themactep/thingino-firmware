@@ -120,9 +120,9 @@ def build_spl_image(
     and round up to the next 64-byte boundary so the check passes.  The
     ROM hashes exactly size_field bytes, so write the aligned value back.
     One extra 64-byte block is appended after the aligned payload for the
-    nonce: the bytes just before the old size field are live SPL data (e.g.
-    the end of cgu_clk_src[] and its terminator), so the nonce must never
-    overwrite them.
+    nonce: the last block of the real SPL (e.g. the end of cgu_clk_src[]
+    and its terminator) can fall on that boundary, so the nonce must never
+    overwrite it.
     """
     if tpl_mode:
         existing = struct.unpack_from("<I", uboot, 0x0C)[0]
@@ -131,7 +131,8 @@ def build_spl_image(
         total = HEADER_SIZE + payload_len + SHA_BLOCK   # fresh nonce block
         if total < HEADER_SIZE + SHA_BLOCK or total > SPL_PAD_TO:
             raise ValueError(
-                f"TPL aligned size 0x{total:x} out of range "
+                f"TPL image size 0x{total:x} (aligned payload + nonce block) "
+                f"out of range "
                 f"(min 0x{HEADER_SIZE + SHA_BLOCK:x}, max SPL_PAD_TO 0x{SPL_PAD_TO:x})")
         spl_data = uboot[:existing]
     else:
@@ -150,6 +151,25 @@ def build_spl_image(
     img[RSA_MOD_OFF:RSA_MOD_OFF + RSA_SIZE] = mod
     struct.pack_into("<I", img, 0x0C, total)          # hashed-extent field
     return img, total, total - 4                      # nonce in the final block
+
+
+def spl_signature_verifies(data: bytes, mod: bytes, exponent: int) -> bool:
+    """True if a TPL image already carries a signature valid for this modulus.
+
+    Keeps ``--in-place`` idempotent: re-running the patcher on its own output
+    would otherwise append another nonce block on every pass.
+    """
+    if len(data) < HEADER_SIZE + SHA_BLOCK:
+        return False
+    total = struct.unpack_from("<I", data, 0x0C)[0]
+    if total < HEADER_SIZE + SHA_BLOCK or total > SPL_PAD_TO:
+        return False
+    if (total - HEADER_SIZE) % SHA_BLOCK != 0 or len(data) < total:
+        return False
+    sig = data[RSA_SIG_OFF:RSA_SIG_OFF + RSA_SIZE]
+    digest = struct.unpack_from(
+        "<I", hashlib.sha256(data[HEADER_SIZE:total]).digest(), 0)[0]
+    return compute_target(sig, mod, exponent) == digest
 
 
 def mitm_collide(
@@ -393,6 +413,10 @@ def cmd_patch(args) -> int:
         splice_off = splice_uboot_offset(firmware)
         uboot = firmware[splice_off:splice_off + SPL_PAD_TO]
         print(f"mode:        full firmware; SPL at 0x{splice_off:x}")
+
+    if in_place and tpl_mode and spl_signature_verifies(firmware, mod, exponent):
+        print("skip:        already patched for this modulus")
+        return 0
 
     image, total, nonce_off = build_spl_image(uboot, mod, tpl_mode=tpl_mode)
     print(f"SPL image:   {total} bytes (0x{total:x}), nonce at 0x{nonce_off:x}")
