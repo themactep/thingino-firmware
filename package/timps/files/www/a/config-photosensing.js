@@ -175,7 +175,7 @@
     var R = {
       disabled: ["switching off", "Needs “Enable photosensing on boot” (daynight.enabled)."],
       schedule: ["calendar mode", "Works only when “Decided by” is “Light level” (daynight.mode = auto)."],
-      keepalive: ["no keepalive", "Needs general.fs_keepalive (auto on T23/T41 with OpenIMP). Elsewhere set general.fs_keepalive = 1 in /etc/timps.conf and restart timps (untested there)."],
+      keepalive: ["no keepalive", "Needs general.fs_keepalive = 1 (the default since timps 1.12.0; -1/auto keeps it on only for OpenIMP T23/T40/T41). Set it in /etc/timps.conf and restart timps."],
       no_illuminator: ["no switchable IR light", "daynight.irprobe_cmd is empty, or the IR light failed to switch twice and is retired until timps restarts. Check that IR 850/940 nm is ticked under “On switch, toggle”."],
       white_light: ["white light in the set", "Untick “White light” under “On switch, toggle”: it would light every reading while idle."],
       hook: ["IR hook not usable", "timps-irprobe has no “idle” verb (firmware older than 2026-10), has nothing to switch, or failed twice. Update the firmware or check the log; turning this off and on retries."],
