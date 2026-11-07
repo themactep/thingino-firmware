@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_LEDS
+	bool "thingino-leds"
+	depends on BR2_mips_xburst2
+	depends on BR2_PACKAGE_THINGINO_KOPT_LEDS
+	default y
+	help
+	  Out-of-tree module that registers the GPIO LEDs configured via
+	  BR2_THINGINO_LED_*_GPIO / _ACTIVE_LOW as /sys/class/leds/led_*
+	  on XBurst2 (kernel 4.4), which has no board file like 3.10.

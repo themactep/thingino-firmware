@@ -23,18 +23,18 @@
     "gpio_tilt": "",
     "homing": true,
     "invert_x": false,
-    "invert_y": false,
+    "invert_y": true,
     "is_spi": true,
     "presets": [
       {
         "id": 0,
         "x": 3925,
-        "y": 2218,
+        "y": 1365,
         "description": "Home"
       }
     ],
-    "speed_pan": 430,
-    "speed_tilt": 430,
+    "speed_pan": 1000,
+    "speed_tilt": 1000,
     "steps_pan": 7850,
     "steps_tilt": 2730
   }

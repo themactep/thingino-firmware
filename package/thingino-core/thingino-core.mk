@@ -31,9 +31,13 @@ define THINGINO_CORE_MERGE_THINGINO_JSON
 	done
 
 	# Apply user overrides last (non-empty only, to avoid parse errors)
+	# A failing import used to vanish into `|| true`, and so did the reason a
+	# user setting never reached the image. Report it; do not abort the build
+	# over one bad user file, but never stay silent about it either.
 	for USER_CONFIG in $(THINGINO_USER_JSON_FILES); do \
-		[ -s "$$USER_CONFIG" ] && \
-			$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$USER_CONFIG" || true; \
+		[ -s "$$USER_CONFIG" ] || continue; \
+		$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$USER_CONFIG" \
+			|| printf "thingino-core: WARNING: import of %s FAILED - its settings are not in the image\n" "$$USER_CONFIG" 1>&2; \
 	done
 
 	printf "thingino-core: finalized %s\n" $(THINGINO_CORE_OUTPUT_FILE) 1>&2

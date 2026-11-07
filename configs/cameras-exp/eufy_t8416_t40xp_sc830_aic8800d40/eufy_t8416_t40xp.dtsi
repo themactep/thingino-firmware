@@ -1,0 +1,31 @@
+// Eufy T8416 (T40XP, SC830AI, AIC8800D40) per-board GPIO definitions.
+//
+// The kernel tree is the profile's own eufy_t8416_t40xp.dts (a decompiled
+// dtb without labels), so inject-camera-dtsi.sh skips this fragment for the
+// kernel. It is the source of MMC_CD_PIN and BUTTON_PIN (thingino.mk) for the
+// U-Boot injection and for gpio-userkeys, which registers the reset button on
+// 4.4. The .dts already carries the same card-detect line; its dev-board
+// gpio_keys node (KEY_POWER on GPB8) is removed so the pin stays free.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/* Card detect GPD16 (112). */
+&msc0 {
+	ingenic,cd-gpios = <&gpd 16 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
+
+/ {
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		/* Reset GPB8 (40). */
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpb 8 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+};

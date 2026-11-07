@@ -2,6 +2,8 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-leds/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-userkeys/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
 

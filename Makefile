@@ -16,7 +16,10 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
-BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+# Buildroot tree. Defaults to the in-tree buildroot/ (a submodule); set
+# THINGINO_BUILDROOT_DIR to point at an external checkout instead, so the
+# in-tree symlink/submodule is not needed.
+BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 
 # --- CI / automation fast-paths -------------------------------------
 #
@@ -218,18 +221,30 @@ $(error Host locale en_US.UTF-8 is required to build the uClibc toolchain from s
 endif
 endif
 
-# Resolve U-Boot version fragment
+# Resolve U-Boot version fragment.
+# Last match wins (tail -1): EARLY_TOOLCHAIN_INPUT_FILES lists shared fragments
+# first, then the camera defconfig, then user local.fragment files - so a
+# camera or user fragment can override core.fragment's default, matching the
+# precedence of the actual .config merge. (head -1 made the core default
+# unoverridable.)
 THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | tail -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
 THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2013_07)
 THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
+# SD-card autoupdate + uenv override hook for the modern (kconfig) U-Boot's
+# bootcmd; the legacy 2013.07 U-Boot has no autoupdate support. Referenced by
+# the bootcmd lines in Makefile.utils but previously never defined (piuma
+# defines and uses it), so modern-uboot builds silently lost the autoupdate
+# path. Deferred (=) on principle; TAG is already known here.
+AUTOUPDATE_PREFIX = $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;run loaduenv;)
+
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
 # Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
 ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
- UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
+UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
 else
- UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
 endif
 # loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
 # (env partition included) and resets, so an env imported before flashing would
@@ -461,7 +476,7 @@ export BACKUP_SIZE_KB
 export KERNEL_SIZE_KB
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
 	O=$(OUTPUT_DIR) \
 	BR2_DL_DIR=$(BR2_DL_DIR)

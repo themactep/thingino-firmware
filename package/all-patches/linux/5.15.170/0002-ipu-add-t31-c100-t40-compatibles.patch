@@ -1,0 +1,27 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] ipu: match the T31/C100/T40 IPU compatibles again
+
+The 5.15 vendor tree reduced ingenic_ipu_v13.c's of_device_id table to the
+single "ingenic,PRJ007-ipu" entry, but the T31 device tree node is
+ipu@0x13080000 with compatible = "ingenic,t31-ipu" (the same string the 4.4
+T31 SDK driver matched). With no matching compatible the jz-ipu platform
+driver never probes, so /dev/ipu is never created. libimp's encoder path
+moves each captured frame through that hardware IPU, so without it the
+framesource->encoder handoff cannot run (the encoder is never driven and
+IMP_Encoder_PollingStream returns rc=-1).
+
+Restore the t31/c100/t40 compatibles that the 4.4 SDK table carried; the
+driver body is the same v13 implementation.
+
+--- a/drivers/video/ingenic_ipu/ingenic_ipu_v13.c
++++ b/drivers/video/ingenic_ipu/ingenic_ipu_v13.c
+@@ -1286,6 +1286,9 @@
+ 
+ static const struct of_device_id ingenic_ipu_dt_match[] = {
+ 	{ .compatible = "ingenic,PRJ007-ipu", .data = NULL },
++	{ .compatible = "ingenic,t31-ipu", .data = NULL },
++	{ .compatible = "ingenic,c100-ipu", .data = NULL },
++	{ .compatible = "ingenic,t40-ipu", .data = NULL },
+ 	{},
+ };
+ 

@@ -1,0 +1,21 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] pinctrl: ingenic: register the T31 GPIO banks
+
+The T31 pinctrl chip registers, but its GPIO child nodes use compatible
+"ingenic,t31-gpio", which is missing from ingenic_gpio_of_matches.
+ingenic_gpio_probe() therefore never runs for them, no gpiochip is
+created, and every gpiod consumer on the SoC defers forever (gpio-leds,
+gpio-keys, and any driver that requests a pin - e.g. the SDIO reset).
+The sysfs GPIO ABI is dead as well. Add the t31-gpio compatible so the
+banks are registered.
+
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -4528,6 +4528,7 @@
+ 	{ .compatible = "ingenic,jz4770-gpio" },
+ 	{ .compatible = "ingenic,jz4775-gpio" },
+ 	{ .compatible = "ingenic,jz4780-gpio" },
++	{ .compatible = "ingenic,t31-gpio" },
+ 	{ .compatible = "ingenic,x1000-gpio" },
+ 	{ .compatible = "ingenic,x1600-gpio" },
+ 	{ .compatible = "ingenic,x1830-gpio" },

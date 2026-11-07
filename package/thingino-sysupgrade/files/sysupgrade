@@ -86,7 +86,7 @@ check_free_space() {
 	# $1 = URL, $2 = offset in remote file, $3 = optional explicit byte count
 	local dl_size dl_size_offsetted flash_size free_space offset
 
-	dl_size=$(curl -sIL "$1" |
+	dl_size=$(curl -sIL --tls-max 1.2 "$1" |
 		grep -i '^content-length:' |
 		tail -n 1 |
 		cut -d: -f2 |
@@ -280,7 +280,7 @@ handle_payload() {
 			# Download only rootfs+data tail (uses HTTP Range)
 			offset=$(get_image_offset rootfs)
 			# Get total size for the Range end byte
-			dl_size=$(curl -sIL "$bin_url" | grep -i '^content-length:' | tail -1 | cut -d: -f2 | tr -d '\r[:space:]')
+			dl_size=$(curl -sIL --tls-max 1.2 "$bin_url" | grep -i '^content-length:' | tail -1 | cut -d: -f2 | tr -d '\r[:space:]')
 			[ -z "$dl_size" ] && die "Cannot determine remote file size for range request"
 			range_end=$((dl_size - 1))
 			curl_range="-r $offset-$range_end"

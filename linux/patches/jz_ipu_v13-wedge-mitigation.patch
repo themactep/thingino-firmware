@@ -1,0 +1,206 @@
+--- a/drivers/video/jz_ipu/jz_ipu_v13.c
++++ b/drivers/video/jz_ipu/jz_ipu_v13.c
+@@ -48,6 +48,42 @@
+ 
+ #define IPU_BUF_SIZE (1024 * 1024 * 2)
+ 
++/*
++ * Completion timeout for a single IPU op, and the consecutive-wedge fuse
++ * for the reset+retry mitigation in ipu_start().
++ *
++ * The T20-family IPU occasionally wedges mid-frame into an undefined
++ * internal state (MSTATUS=3 in IPU_STATUS[5:4]; hardware documents only
++ * 0/1/2) roughly once per ~500k ops.  The engine clock stays alive and
++ * counting, the IRQ stays enabled, but OUT_END never asserts - a silicon
++ * datapath hang, not a software bug.  There is no software cure; the
++ * existing IPU_STOP/IPU_RESET trigger sequence reliably returns the
++ * engine to a working state, so all we can do is detect fast and recover
++ * fast instead of parking both video channels behind ipu->mutex for the
++ * old 2000 ms wait.
++ *
++ * Timeout budget, from live T20 register evidence (Wyze Cam v2, JXF23):
++ * IPU_CLK_NUM_ONE_FRA counts IPU clocks per frame.  Healthy ops measure
++ * ~0x6E00 (~28k clocks) for small ops and ~0x26500 (~157k clocks) for a
++ * full 1920x1088 composite.  During a wedged 2000 ms wait the same
++ * counter reads 0x17d3df38 (400.1M clocks), which both proves the clock
++ * ran the whole time and directly measures the IPU clock at ~200 MHz.
++ * Worst healthy op is therefore ~0.8 ms; 100 ms is >120x headroom, so a
++ * timeout is a wedge, not a slow frame.
++ */
++#define IPU_DONE_TIMEOUT_MS	100
++
++/*
++ * If this many consecutive ops time out (a transient wedge clears after
++ * one reset; a genuinely dead engine does not), stop paying for the
++ * in-call retry and fail each op after a single timeout instead.  Any
++ * successful op resets the streak.  The retry is already bounded to one
++ * per call, so this fuse only trims worst-case latency on broken
++ * hardware; 16 ops (~a third of a second of stalled ops at 50 ops/s) is
++ * ample evidence the engine is not coming back on its own.
++ */
++#define IPU_WEDGE_STREAK_FUSE	16
++
+ struct ipu_reg_struct jz_ipu_regs_name[] = {
+ 	{"IPU_FM_CTRL", IPU_FM_CTRL},
+ 	{"IPU_STATUS", IPU_STATUS},
+@@ -690,6 +726,8 @@
+ static int ipu_start(struct jz_ipu *ipu, struct ipu_param *ipu_param)
+ {
+ 	int ret = 0;
++	int attempt = 0;
++	int max_attempts = 0;
+ 	struct ipu_param *ip = ipu_param;
+ 
+ 	if ((ipu == NULL) || (ipu_param == NULL)) {
+@@ -704,7 +742,21 @@
+ 	}
+ 	IPU_DEBUG("ipu: enter ipu_start %d\n", current->pid);
+ 
+-	clk_enable(ipu->clk);
++	/*
++	 * This used to be a bare clk_enable() per op with no matching
++	 * clk_disable() anywhere in the driver, so the clock framework's
++	 * enable refcount climbed by one per op (~50/s while streaming;
++	 * observed at 6.1M and climbing on a live unit) and would
++	 * eventually wrap.  Keep the long-standing effective behavior -
++	 * IPU clock permanently on after the first op - but stop the
++	 * refcount climb.  Actually gating the clock between ops would be
++	 * brand-new behavior for a datapath that already wedges ~1/500k
++	 * ops, and does not belong in a stability fix.
++	 */
++	if (!ipu->clk_always_on) {
++		clk_enable(ipu->clk);
++		ipu->clk_always_on = 1;
++	}
+ #ifdef CONFIG_SOC_T31
+ 	clk_enable(ipu->ahb1_gate);
+ #endif
+@@ -784,31 +836,96 @@
+ 		}
+ 	}
+ 
+-	__clear_ipu_out_end();
+-	__ipu_enable_irq();
++	/*
++	 * Arm, fire, and wait for OUT_END.  On a wedge (see the
++	 * IPU_DONE_TIMEOUT_MS comment block), reset the engine and retry
++	 * the op once within this call, instead of returning an error and
++	 * letting the NEXT unrelated op eat the wedged engine.
++	 */
++	max_attempts = (ipu->wedge_streak >= IPU_WEDGE_STREAK_FUSE) ? 1 : 2;
++
++	for (attempt = 1; attempt <= max_attempts; attempt++) {
++		/*
++		 * Re-arm the completion for THIS op.  Without this, a late
++		 * OUT_END interrupt arriving just after a previous op timed
++		 * out leaves done_ipu already-completed, and the next
++		 * ipu_start() would return "success" immediately without the
++		 * hardware having done that frame's work.  Safe here: the op
++		 * has not been triggered yet, IPU_STATUS.OUT_END is cleared
++		 * below before the IRQ is enabled, so a stale interrupt
++		 * cannot re-complete it behind our back.  A shorter timeout
++		 * makes that stale-completion window MORE likely to be hit,
++		 * so this re-init is a required part of the timeout change.
++		 */
++		INIT_COMPLETION(ipu->done_ipu);
+ 
+-	reg_write(ipu, IPU_REG_CTRL, 0xffffffff);
++		__clear_ipu_out_end();
++		__ipu_enable_irq();
+ 
+-	/* reg_bit_set(ipu, IPU_TRIGGER, 6<<6); */
+-	/* start ipu */
+-	__start_ipu();
++		reg_write(ipu, IPU_REG_CTRL, 0xffffffff);
++
++		/* reg_bit_set(ipu, IPU_TRIGGER, 6<<6); */
++		/* start ipu */
++		__start_ipu();
+ 
+ #ifdef DEBUG
+-	ipu_dump_info(ipu);
++		ipu_dump_info(ipu);
+ #endif
+-	IPU_DEBUG("ipu_start\n");
++		IPU_DEBUG("ipu_start\n");
+ 
+-	ret = wait_for_completion_interruptible_timeout(&ipu->done_ipu, msecs_to_jiffies(2000));
+-	if (ret < 0) {
+-		printk("ipu: done_ipu wait_for_completion_interruptible_timeout err %d\n", ret);
+-		goto err_ipu_wait_for_done;
+-	} else if (ret == 0 ) {
++		ret = wait_for_completion_interruptible_timeout(&ipu->done_ipu,
++				msecs_to_jiffies(IPU_DONE_TIMEOUT_MS));
++		if (ret > 0) {
++			/* completed normally */
++			if (ipu->wedge_streak) {
++				printk("ipu: recovered after reset%s (streak was %u, total wedges %lu)\n",
++						(attempt > 1) ? "+retry" : " by a previous op",
++						ipu->wedge_streak, ipu->wedge_total);
++				ipu->wedge_streak = 0;
++			}
++			break;
++		}
++
++		if (ret < 0) {
++			/* interrupted by a signal: not a hardware fault, no retry */
++			printk("ipu: done_ipu wait_for_completion_interruptible_timeout err %d\n", ret);
++			goto err_ipu_wait_for_done;
++		}
++
++		/* ret == 0: completion timed out - the engine wedged mid-frame */
++		ipu->wedge_total++;
++		ipu->wedge_streak++;
++		printk_ratelimited("ipu: done_ipu timeout after %d ms (attempt %d/%d, streak %u, total %lu) status=0x%08x clk_num=0x%08x - resetting\n",
++				IPU_DONE_TIMEOUT_MS, attempt, max_attempts,
++				ipu->wedge_streak, ipu->wedge_total,
++				reg_read(ipu, IPU_STATUS),
++				reg_read(ipu, IPU_CLK_NUM_ONE_FRA));
++
++		/*
++		 * The IRQ never fired (that is what a wedge is), so it is
++		 * still enabled; mask it before poking the trigger register,
++		 * then run the same stop/reset sequence that already proved
++		 * to unwedge the engine for the next op.  This recovery runs
++		 * even on the final attempt so a failing return still leaves
++		 * the engine reset for the next caller.
++		 */
++		__ipu_disable_irq();
++		__stop_ipu();
++		__reset_ipu();
++	}
++
++	if (ret <= 0) {
+ 		ret = -1;
+-		printk("ipu: done_ipu wait_for_completion_interruptible_timeout timeout %d\n", ret);
+-		ipu_dump_info(ipu);
++		printk("ipu: op abandoned after %d attempt(s), consecutive wedges %u\n",
++				max_attempts, ipu->wedge_streak);
++		/*
++		 * Full register dump only while the streak is fresh - on a
++		 * genuinely dead engine every op fails and the dump would
++		 * flood the log.
++		 */
++		if (ipu->wedge_streak <= 2)
++			ipu_dump_info(ipu);
+ 		goto err_ipu_wait_for_done;
+-	} else {
+-		;
+ 	}
+ 
+     IPU_DEBUG("ipu: exit ipu_start %d\n", current->pid);
+--- a/drivers/video/jz_ipu/jz_ipu_v13.h
++++ b/drivers/video/jz_ipu/jz_ipu_v13.h
+@@ -181,6 +181,12 @@
+ 	struct completion done_ipu;
+ 	struct completion done_buf;
+ 	struct ipu_buf_info pbuf;
++
++	/* ipu_start(): clk kept permanently on after first op (refcount-leak fix) */
++	int clk_always_on;
++	/* wedge mitigation bookkeeping, both protected by ipu->mutex */
++	unsigned int wedge_streak;	/* consecutive ops that timed out */
++	unsigned long wedge_total;	/* lifetime wedge count */
+ };
+ 
+ struct ipu_flush_cache_para

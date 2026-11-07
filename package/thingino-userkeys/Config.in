@@ -1,0 +1,10 @@
+config BR2_PACKAGE_THINGINO_USERKEYS
+	bool "thingino-userkeys"
+	depends on BR2_mips_xburst2
+	depends on BR2_PACKAGE_THINGINO_KOPT_KEYS
+	default y
+	help
+	  Out-of-tree gpio-userkeys.ko for XBurst2 (kernel 4.4): registers a
+	  gpio-keys device from /etc/modules.d/gpio-userkeys (reset button
+	  etc., generated from thingino.json gpio.button_reset), so
+	  thingino-button gets an /dev/input/event* like on 3.10.

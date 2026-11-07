@@ -1,5 +1,5 @@
 From f52a3b97ac8c38386fd401c7dc6a84809b8f19ba Mon Sep 17 00:00:00 2001
-From: Lu-Fi <lutz@fiebach.de>
+From: Lu-Fi <lu-fi@users.noreply.github.com>
 Date: Sat, 19 Sep 2026 00:48:51 +0200
 Subject: [PATCH] sensor: t31/gc2053 AE frame model and set_fps bounds
 

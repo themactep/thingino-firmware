@@ -260,7 +260,7 @@ named `<plugin-name>.webui.json` and installed to
   "cgi": [
     "/x/json-motor.cgi",
     "/x/json-motor-params.cgi",
-    "/x/json-motor-stream.cgi",
+    "/x/json-motor-token.cgi",
     "/x/json-motors-config.cgi"
   ],
 

@@ -1,0 +1,41 @@
+From 6a4d3824b879550698c9daaa830384face97e633 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 2 Nov 2026 07:14:00 -0500
+Subject: [PATCH 1/2] Keeping the uClibc mmap stubs out of the dynamic symbol
+ table on MIPS
+
+libc's pthread_create resolves mmap through the PLT, so exporting the syscall-based compat stub from the executable shadowed the implementation used to allocate thread stacks and crashed on . Keep the stub local to divinus on MIPS/uClibc so libc and dlopen'd SDK libraries use libc's mmap.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/compat.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/compat.c b/src/compat.c
+index 0ceedf5..5cee641 100644
+--- a/src/compat.c
++++ b/src/compat.c
+@@ -56,6 +56,10 @@ int __fgetc_unlocked(FILE *stream) { return fgetc(stream); }
+ double __log_finite(double x) { return log(x); }
+ 
+ #if defined(__arm__) || defined(__aarch64__) || defined(__mips__)
++#if defined(__mips__) && defined(__UCLIBC__)
++#pragma GCC visibility push(hidden)
++#define COMPAT_MMAP_HIDDEN 1
++#endif
+ void *mmap(void *start, size_t len, int prot, int flags, int fd, off_t off) {
+     return (void*)syscall(SYS_mmap2, start, len, prot, flags, fd, (long)(off >> 12));
+ }
+@@ -68,6 +72,9 @@ void *mmap64(void *start, size_t len, int prot, int flags, int fd, off_t off) {
+     return (void*)syscall(SYS_mmap2, start, len, prot, flags, fd, (long)(off >> 12));
+ }
+ #endif
++#ifdef COMPAT_MMAP_HIDDEN
++#pragma GCC visibility pop
++#endif
+ #else
+ void *__mmap64(void *start, size_t len, int prot, int flags, int fd, off_t off) {
+     return (void*)syscall(SYS_mmap, start, len, prot, flags, fd, off);
+-- 
+2.56.0
+

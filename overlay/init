@@ -134,8 +134,8 @@ trap 'on_exit "$@"' EXIT
 mount -t proc proc /proc ||
 	die "Failed to mount /proc!"
 
-# Skip if rootfs is NFS, MMC or RAM
-grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
+# Skip if rootfs is NFS, MMC or RAM (match the root= value only: "ram" must not hit ramoops.*)
+grep -qE '(^| )root=[^ ]*(nfs|mmcblk|ram)' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
 # Mount data partition (single overlay covering whole filesystem)

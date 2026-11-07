@@ -14,6 +14,13 @@ BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAM
 IMAGE_ID=${CAMERA}
 IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
+# A user overlay may ship its own etc/hostname (later dirs win). Overlays are
+# applied before this script runs, so honour it instead of overwriting it.
+for d in ${THINGINO_USER_OVERLAY_DIRS:-}; do
+	if [ -s "$d/etc/hostname" ]; then
+		HOSTNAME=$(head -n1 "$d/etc/hostname" | tr -d '[:space:]')
+	fi
+done
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 
@@ -21,6 +28,12 @@ sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 # must target that volume instead of a raw MTD offset (the NOR default).
 if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+elif ! grep -q "^BR2_THINGINO_UBOOT_VERSION_2013_07=y" "$BR2_CONFIG" \
+	&& grep -q '^/dev/mtd1 0x0 0x8000$' "${TARGET_DIR}/etc/fw_env.config" 2>/dev/null; then
+	# The overlay default (0x8000) matches only the 2013.07 U-Boot. Kconfig-era
+	# U-Boot (T41, ...) has CONFIG_ENV_SIZE=0x10000 (configs/uboot/layout/sfcnor.config);
+	# fw_setenv with a 0x8000 size writes an env with the wrong CRC.
+	printf '/dev/mtd1 0x0 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
 fi
 
 cd $BR2_EXTERNAL

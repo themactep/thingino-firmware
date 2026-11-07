@@ -45,3 +45,9 @@ __pycache__/
 /local.mk
 /.prereqs.done
 /.selected_camera*
+# private working notes (fleet IPs, credentials) - never in a fork of a
+# public repo; the mirror lives in timps-private/dev_notes/
+/dev_notes
+# local worktree (branch ciao) checked out inside the main one, like /output
+# it is not repo content
+/.ciao-wt

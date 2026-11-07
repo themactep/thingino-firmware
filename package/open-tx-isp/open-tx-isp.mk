@@ -7,7 +7,7 @@
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
 # Release tag of the Lu-Fi open-stack fork.
-OPEN_TX_ISP_VERSION = v2026.10.25-rc2
+OPEN_TX_ISP_VERSION = v2026.11.07-rc3
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
@@ -23,6 +23,10 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
 	DIR=.
+
+# The download has no .git, so the driver's build id (printed when the
+# module probes, otherwise "unknown") is taken from the package version.
+OPEN_TX_ISP_MODULE_MAKE_OPTS += OTX_BUILD_ID=$(OPEN_TX_ISP_VERSION)
 
 # Add XBurst platform include paths for soc headers
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \

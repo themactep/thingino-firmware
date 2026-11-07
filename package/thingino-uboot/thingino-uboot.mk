@@ -75,6 +75,25 @@ else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
 
+# Buildroot's support/scripts/apply-patches.sh records every patch it applies
+# in $(@D)/.applied_patches_list and refuses to apply the same path twice
+# ("Error: duplicate filename ..."). That list is cumulative for the whole
+# life of the build directory - it is only cleared by a full dirclean
+# (rm -Rf $(@D)), never by .stamp_patched merely being missing/invalidated.
+# The POST_PATCH_HOOKS below (and the ones further down this file) all run
+# *after* the patch loop but *before* .stamp_patched is touched, so if the
+# patch step is interrupted here - killed, OOM, Ctrl-C, a hook failing - the
+# 0001-from-2013.07-to-thingino.patch entry is already recorded even though
+# .stamp_patched was never created. A retry (e.g. a plain re-run of
+# `make ... all` on the same output dir) then reapplies the same patch list,
+# and the very first patch trips the duplicate-filename guard immediately,
+# with no hunks processed. Clear the bookkeeping file at the start of every
+# patch attempt so a retry always starts clean.
+define THINGINO_UBOOT_RESET_PATCH_BOOKKEEPING
+	rm -f $(@D)/.applied_patches_list
+endef
+UBOOT_PRE_PATCH_HOOKS += THINGINO_UBOOT_RESET_PATCH_BOOKKEEPING
+
 # GNU patch cannot apply binary diffs, so every binary blob shipped inside
 # a version patch comes out empty after patching: the prebuilt SPL images
 # (spl/binary/*.bin) needed by T31LC / Xiaomi boards, the prebuilt host

@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/clock/ingenic-t31.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "t31.dtsi"
+#include "t31-pinctrl.dtsi"
+
+/ {
+	compatible = "thingino,t31", "ingenic,swan", "ingenic,t31";
+	model = "Thingino T31";
+
+	aliases {
+		/* Pin the SFC's SPI bus number so its MTD device name is a
+		 * stable "spi1.0". The vendor SFC is driven through the
+		 * mainline spi-nor framework, so the MTD is named after the
+		 * SPI device, not jz_sfc; the U-Boot cmdline mtdparts id has
+		 * to match it to supply the dynamic rootfs/data sizes. */
+		spi1 = &sfc;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+};
+
+&uart0 {
+	status = "disable";
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pb>;
+};
+
+&uart2 {
+	status = "disable";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pa>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pb>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&cpufreq {
+	status = "okay";
+	operating-points = <
+		/*KHZ uV */
+		1200000	900000
+		750000	900000
+		600000	900000
+		500000	900000
+		400000	900000
+		375000	900000
+		300000	900000
+		200000	900000
+		>;
+};
+
+&pdma {
+	status = "okay";
+};
+
+&msc0 {
+	status = "okay";
+	/* The vendor pwrseq driver looks up a state literally named "active"
+	   on power-on; declare it (same pin group) alongside "default". */
+	pinctrl-names = "default", "active";
+	/*mmc-hs200-1_8v;*/
+	cap-mmc-highspeed;
+	max-frequency = <25000000>;
+	bus-width = <4>;
+	voltage-ranges = <1800 3300>;
+	cd-inverted;
+
+	ingenic,removal-removable = <1>;
+	/* special property */
+	ingenic,wp-gpios = <0>;
+	ingenic,cd-gpios = <&gpb 27 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,rst-gpios = <0>;
+	pinctrl-0 = <&msc0_pb>;
+	pinctrl-1 = <&msc0_pb>;
+};
+
+&msc1 {
+	status = "okay";
+	/* The vendor pwrseq driver looks up a state literally named "active"
+	   on power-on; declare it (same pin group) alongside "default". */
+	pinctrl-names = "default", "active";
+	/*mmc-hs200-1_8v;*/
+	cap-mmc-highspeed;
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	voltage-ranges = <1800 3300>;
+	non-removable;
+
+	/* special property */
+	ingenic,wp-gpios = <0>;
+	ingenic,rst-gpios = <0>;
+	pinctrl-0 = <&msc1_pb>;
+	pinctrl-1 = <&msc1_pb>;
+};
+
+&mac0 {
+	pinctrl-names = "default", "reset";
+	pinctrl-0 = <&mac0_rmii_p0_normal>, <&mac0_rmii_p1_normal>;
+	pinctrl-1 = <&mac0_rmii_p0_rst>, <&mac0_rmii_p1_normal>;
+	status = "okay";
+	ingenic,rst-gpio = <&gpc 7 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,rst-ms = <10>;
+	ingenic,mac-mode = <RMII>;
+	ingenic,mode-reg = <0xb00000e8>;
+	ingenic,phy-clk-freq = <50000000>;
+};
+
+&sfc {
+	/* Use the mainline SFC controller driver (spi-ingenic-sfc) with the
+	 * upstream spi-nor framework: it auto-detects the chip from the JEDEC
+	 * table and takes partitions from the DT. The vendor v1 SFC instead
+	 * needs a Burner-written flash geometry block we don't have. */
+	compatible = "ingenic,t31-sfc";
+	status = "okay";
+	/* No pinctrl-0: the vendor T31 pinctrl driver is absent in the 5.15
+	 * tree (only PRJ007/PRJ008 match) so a consumer would defer forever.
+	 * The SPL has already muxed the SFC pins. */
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "boot";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
+
+			partition@30000 {
+				label = "env";
+				reg = <0x30000 0x10000>;
+			};
+
+			partition@40000 {
+				label = "backup";
+				reg = <0x40000 0x10000>;
+			};
+
+			partition@50000 {
+				label = "kernel";
+				reg = <0x50000 0x240000>;
+			};
+
+			partition@0_all {
+				label = "all";
+				reg = <0x0 0x800000>;
+			};
+		};
+	};
+};
+
+&otg {
+	g-use-dma;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&otg_phy {
+	dr_mode = "otg";
+	compatible = "ingenic,innophy", "syscon";
+	status = "okay";
+};
+
+/* The jz-ipu driver takes its clock through devm_clk_get(dev, "gate_ipu");
+   the 3.10 vendor driver resolved it from the global clock namespace, but
+   4.4+/5.15 require it declared on the node or probe fails with -ENOENT.
+   libimp runs every captured frame through this IPU on the way to the
+   encoder, so without it /dev/ipu is absent and the encoder emits nothing. */
+&ipu {
+	clocks = <&clock CLK_GATE_IPU>;
+	clock-names = "gate_ipu";
+};
+
+/ {
+	extclk: extclk {
+		clock-frequency = <24000000>;
+	};
+};
+
+#include "cinnado_d1_t31l_sc2336_atbm6031.dtsi"
+
+#include "thingino-t31-thingino-usb.dtsi"

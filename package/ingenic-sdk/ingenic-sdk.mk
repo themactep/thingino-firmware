@@ -85,6 +85,14 @@ INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
 # help text for why this must NOT simply mirror BR2_THINGINO_MOTORS.
 INGENIC_SDK_MODULE_MAKE_OPTS += BR2_THINGINO_MOTORS=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
 
+# SENSOR_N_MODEL comes from the top-level make, which reads the camera
+# defconfig only. A user local.fragment that drops a dual-sensor profile to
+# BR2_THINGINO_IMAGE_SENSOR_QTY=1 reaches .config but not that export, so the
+# second sensor's module/IQ install ran with no bin name. The .config wins.
+ifeq ($(BR2_THINGINO_IMAGE_SENSOR_QTY),1)
+SENSOR_2_MODEL :=
+endif
+
 # Per-camera IQ file overrides. A bare file name (no '/') is resolved against
 # the SDK's sensor-iq/<SOC_FAMILY>/ directory; anything else is a path relative
 # to the BR2_EXTERNAL root.

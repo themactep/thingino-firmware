@@ -290,6 +290,16 @@ else
 		sed -i 's|^\(BR2_ROOTFS_OVERLAY="\)\(.*\)"|\1\2 $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"|' $(OUTPUT_DIR)/.config; \
 		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
 	fi
+	# append user common-, camera-, and (when IP= is set) device-specific
+	# overlays. THINGINO_USER_OVERLAY_DIRS covers user/common/overlay,
+	# user/<camera>/overlay and user/<camera>/<ip>/overlay; without this only
+	# the stock camera overlay above ever reached BR2_ROOTFS_OVERLAY, so wifi
+	# creds, /etc/shadow, ssh keys and per-IP timps.conf silently never made
+	# it into the image (ported from the 2026-08-10 piuma-side fix).
+	@for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
+		sed -i "s|^\(BR2_ROOTFS_OVERLAY=\"\)\(.*\)\"|\1\2 $$dir\"|" $(OUTPUT_DIR)/.config; \
+		echo "User overlay: $$dir"; \
+	done
 endif
 	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
 		if [ -f "$$file" ]; then \
@@ -324,9 +334,11 @@ endif
 		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
-	# Kernel config override: 3.10.14 and 4.4.94 use the official kernel.org
-	# tarball + patches; all other versions use the thingino-linux git repo.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ]; then \
+	# Kernel config override: thingino.mk sets KERNEL_OFFICIAL_TARBALL for
+	# 3.10.14 and for the 4.4.94 families that have a tarball patch set
+	# (t23 t31 t32 t41 c100); everything else (a1, t40 on 4.4.94, 7.1-rc1)
+	# uses the thingino-linux git repo at KERNEL_HASH.
+	@if [ "$(KERNEL_OFFICIAL_TARBALL)" != "y" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \

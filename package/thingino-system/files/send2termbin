@@ -22,7 +22,7 @@ if [ ! -s "$file" ]; then
 	exit 1
 fi
 
-response=$(curl -sS --fail-with-body -H "X-Thingino-Client: $CLIENT_ID" \
+response=$(curl -sS --fail-with-body --tls-max 1.2 -H "X-Thingino-Client: $CLIENT_ID" \
 	--data-binary "@$file" "$BIN_URL/" 2>&1)
 status=$?
 rm -f "$file"
