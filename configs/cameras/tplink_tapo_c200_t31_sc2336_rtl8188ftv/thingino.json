@@ -1,12 +1,16 @@
 {
   "gpio": {
-    "button_reset": 62,
-    "ir850": 49,
-    "ircut": {
-      "pin": 57,
+    "button_reset": 40,
+    "ir850": {
+      "pin": 49,
       "active_low": true
     },
-    "mmc_power": 60,
+    "ircut": 999,
+    "mmc_cd": 57,
+    "mmc_power": {
+      "pin": 58,
+      "active_low": true
+    },
     "speaker": 63,
     "white": {
       "pin": 50,
@@ -14,12 +18,27 @@
     },
     "wlan": 51
   },
-  "motor": {
-    "type": "spi",
-    "pin_enable": 38,
-    "max_steps_h": 7850,
-    "max_steps_v": 2730,
-    "pos_zero_h": 3925,
-    "pos_zero_v": 2218
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "",
+    "gpio_power": 38,
+    "gpio_switch": -1,
+    "gpio_tilt": "",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": true,
+    "presets": [
+      {
+        "id": 0,
+        "x": 3925,
+        "y": 2218,
+        "description": "Home"
+      }
+    ],
+    "speed_pan": 430,
+    "speed_tilt": 430,
+    "steps_pan": 7850,
+    "steps_tilt": 2730
   }
 }
