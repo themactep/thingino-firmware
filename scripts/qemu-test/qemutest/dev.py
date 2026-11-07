@@ -15,6 +15,7 @@ running in the background and driven one command at a time.
   qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
   qemu-dev gpio [NAME] --log|--serve       pin changes (--watch, --vcd FILE)
   qemu-dev isp [NAME] --log|--serve        the ISP trace (up --isp-trace)
+  qemu-dev pwm [NAME] --log|--serve        the PWM outputs (--vcd FILE)
   qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
@@ -310,15 +311,38 @@ def isp_trace_supported(qemu):
     return _ISP_TRACE[qemu]
 
 
-def isp_trace_tool(qemu):
-    """The fork's isp-trace.py for this QEMU: in a release's ingenic/, a
+def contrib_tool(qemu, name):
+    """One of the fork's tools for this QEMU: in a release's ingenic/, a
     build's share/qemu-ingenic or a source tree's contrib/ingenic."""
     d = os.path.dirname(os.path.abspath(qemu))
     for rel in ("ingenic", "../share/qemu-ingenic", "../contrib/ingenic"):
-        tool = os.path.normpath(os.path.join(d, rel, "isp-trace.py"))
+        tool = os.path.normpath(os.path.join(d, rel, name))
         if os.path.exists(tool):
             return tool
     return None
+
+
+def isp_trace_tool(qemu):
+    return contrib_tool(qemu, "isp-trace.py")
+
+
+_PWM_TRACE = {}
+
+# The families with the PWM block; the timer unit's channels are on all
+PWM_BLOCK = ("t32", "t33", "t41", "a1")
+
+
+def pwm_trace_supported(qemu):
+    """Whether this QEMU traces its PWM outputs (ingenic-tcu's trace)."""
+    if qemu not in _PWM_TRACE:
+        try:
+            out = subprocess.run([qemu, "-device", "ingenic-tcu,help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _PWM_TRACE[qemu] = "trace=" in out
+    return _PWM_TRACE[qemu]
 
 
 def qemu_devices(qemu):
@@ -911,6 +935,35 @@ def serial_run(con, cmd, timeout):
     return rc, out[:-1] if out.endswith("\n") else out
 
 
+@contextlib.contextmanager
+def console_unpaced(s):
+    """The fork's UARTs send at the line rate the guest sets, 115200 baud
+    on the console; a file copy over it goes unpaced, then pacing comes
+    back. An older QEMU has no switch and the copy keeps its pace."""
+    paced = []
+    q = None
+    try:
+        q = Qmp(s.path("qmp"))
+        for c in q.cmd("qom-list", path="/machine"):
+            path = "/machine/" + c["name"]
+            if (c.get("type") == "child<ingenic-uart>" and
+                    q.cmd("qom-get", path=path, property="line-rate")):
+                q.cmd("qom-set", path=path, property="line-rate", value=False)
+                paced.append(path)
+    except RuntimeError:
+        pass
+    try:
+        yield
+    finally:
+        for path in paced:
+            try:
+                q.cmd("qom-set", path=path, property="line-rate", value=True)
+            except RuntimeError:
+                pass
+        if q:
+            q.close()
+
+
 def serial_upload(con, data, remote, timeout):
     """Write data to a file on the camera, one line of base64 per shell
     command; returns the exit status. The console has no flow control:
@@ -1362,6 +1415,13 @@ def cmd_up(args, extra):
     if gpio_trace_supported(qemu):
         argv += ["-chardev", f"file,id=gpiotrace,path={s.path('gpio.jsonl')}",
                  "-global", "ingenic-gpio.trace=gpiotrace"]
+    if pwm_trace_supported(qemu):
+        argv += ["-chardev", f"file,id=tcutrace,path={s.path('tcu.jsonl')}",
+                 "-global", "ingenic-tcu.trace=tcutrace"]
+        if family in PWM_BLOCK:
+            argv += ["-chardev",
+                     f"file,id=pwmtrace,path={s.path('pwm.jsonl')}",
+                     "-global", "ingenic-pwm.trace=pwmtrace"]
     if args.isp_trace:
         argv += ["-msg", "timestamp=on", "-D", s.path("isp.log")]
         for ev in ISP_TRACE_EVENTS:
@@ -1564,7 +1624,8 @@ def cmd_put(args):
         remote = args.remote
         if serial_run(con, f"[ -d {shlex.quote(remote)} ]", 20)[0] == 0:
             remote = remote.rstrip("/") + "/" + os.path.basename(args.local)
-        rc = serial_upload(con, data, remote, args.timeout)
+        with console_unpaced(s):
+            rc = serial_upload(con, data, remote, args.timeout)
         _, out = serial_run(con, f"chmod {mode:o} {shlex.quote(remote)} && "
                                  f"md5sum {shlex.quote(remote)}", 20)
         s.info["mark"] = s.log_size()
@@ -1596,7 +1657,8 @@ def cmd_get(args):
     with s.console(args.timeout) as con:
         if needs_settle(s):
             settle(s, con, args.timeout)
-        rc, out = serial_run(con, f"base64 {q}", args.timeout)
+        with console_unpaced(s):
+            rc, out = serial_run(con, f"base64 {q}", args.timeout)
         _, sums = serial_run(con, f"md5sum {q}", 20)
         s.info["mark"] = s.log_size()
         s.save()
@@ -1938,6 +2000,28 @@ def cmd_isp(args, extra):
         cmd = ["log", trace] + opts + (["-f"] if args.watch else []) + \
             (["--pc"] if args.pc else [])
     # the tool in this process: Ctrl-C and signals reach it, as --serve wants
+    os.execv(sys.executable, [sys.executable, tool] + cmd + extra)
+
+
+def cmd_pwm(args, extra):
+    """Read a session's PWM outputs, the timer unit's and the PWM block's,
+    with the fork's pin-trace.py; arguments after -- go to it."""
+    s = pick(args.name, live=False)
+    traces = [s.path(f) for f in ("tcu.jsonl", "pwm.jsonl")
+              if os.path.exists(s.path(f))]
+    if not traces:
+        die("this session traces no PWM output: its QEMU predates the "
+            "timer unit's trace")
+    tool = contrib_tool(s.info["qemu"], "pin-trace.py")
+    if not tool:
+        die(f"no pin-trace.py beside {s.info['qemu']}: the fork's releases "
+            f"carry it in ingenic/, its source tree in contrib/ingenic/")
+    if args.serve is not None:
+        cmd = ["serve", *traces, "--port", str(args.serve)]
+    elif args.vcd:
+        cmd = ["vcd", *traces, "-o", args.vcd]
+    else:
+        cmd = ["log", *traces]
     os.execv(sys.executable, [sys.executable, tool] + cmd + extra)
 
 
@@ -2310,6 +2394,22 @@ def main(argv=None):
     sp.add_argument("--all", action="store_true",
                     help="also the registers that hold no state")
 
+    sp = add("pwm", "read the PWM outputs", None,
+             "%(prog)s [NAME] [--log|--vcd FILE|--serve [PORT]] [-- ARGS]",
+             "Read the outputs the timer unit's channels and the PWM block "
+             "drive, with the fork's pin-trace.py: each change with its "
+             "frequency and duty (--log, the default), every edge as a "
+             "waveform, or a live page. Arguments after -- go to "
+             "pin-trace.py.")
+    sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--log", action="store_true",
+                    help="each change since the session came up")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the outputs as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the outputs on 127.0.0.1 "
+                         "(a free port unless PORT)")
+
     sp = add("adc", "read or set ADC channels", None,
              "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",
              "Show the samples the camera's SADC channels convert, or set "
@@ -2344,6 +2444,8 @@ def main(argv=None):
             return cmd_up(args, tail)
         if args.command == "isp":
             return cmd_isp(args, tail)
+        if args.command == "pwm":
+            return cmd_pwm(args, tail)
         if args.command in ("sh", "uboot", "send", "monitor", "gpio",
                             "adc"):
             # [NAME] -- WORDS, or [NAME] 'WORDS'
