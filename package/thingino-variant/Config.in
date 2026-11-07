@@ -14,9 +14,11 @@ config BR2_PACKAGE_THINGINO_VARIANT_APPS
 	select BR2_PACKAGE_THINGINO_SYSTEM
 	select BR2_PACKAGE_THINGINO_SYSUPGRADE
 
-# Full-only extras trimmed from the 8 MB profile.
+# Extras trimmed from the 8 MB profile. Enabled by the Full profile and
+# automatically on 16 MB+ flash chips.
 config BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA
 	bool
+	default y if FLASH_SIZE_MB >= 16 && !BR2_PACKAGE_THINGINO_VARIANT_MINIMAL
 	select BR2_PACKAGE_THINGINO_AGENT
 	select BR2_PACKAGE_THINGINO_HA
 	select BR2_PACKAGE_THINGINO_ISP_INSPECTOR

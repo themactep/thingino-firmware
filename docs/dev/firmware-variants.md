@@ -34,6 +34,11 @@ camera that declares `FLASH_SIZE_MB=8` (or edit the value in menuconfig);
 the variant does not force the flash size, so an explicit camera value still
 wins.
 
+`BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA` is also enabled automatically when
+`FLASH_SIZE_MB >= 16`, even under Light, so a camera with a 16 MB or larger
+chip gets the full app layer without setting the Full profile. Minimal never
+gets the extras.
+
 ## What each variant enables
 
 The variant selects two hidden tier symbols in
@@ -41,19 +46,20 @@ The variant selects two hidden tier symbols in
 
 - `BR2_PACKAGE_THINGINO_VARIANT_APPS` - the baseline app layer. Enabled by
   Full and 8 MB.
-- `BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA` - Full-only extras, trimmed from
-  the 8 MB profile.
+- `BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA` - extras trimmed from the 8 MB
+  profile, enabled by Full and automatically on 16 MB+ flash chips (except
+  Minimal).
 
-| Package | Full | 8 MB | Minimal |
-| --- | --- | --- | --- |
-| `mdnsd` (+ HTTP, mquery) | yes | yes | no |
-| `thingino-diag`, `-gpio`, `-system`, `-sysupgrade`, `-isp-inspector` | yes | yes | no |
-| `thingino-agent` | yes | via streamer | no |
-| `thingino-ha`, mosquitto | yes | no | no |
-| `thingino-vpn` (WireGuard default) | yes | no (None) | no |
-| WebUI, uhttpd, ONVIF, sounds | yes | partial | no |
-| streamer (prudynt) | yes | yes | no |
-| dropbear, busybox, core, kopt, SSL | yes | yes | yes |
+| Package | Full | 8 MB | 16 MB+ | Minimal |
+| --- | --- | --- | --- | --- |
+| `mdnsd` (+ HTTP, mquery) | yes | yes | yes | no |
+| `thingino-diag`, `-gpio`, `-system`, `-sysupgrade`, `-isp-inspector` | yes | yes | yes | no |
+| `thingino-agent` | yes | via streamer | yes | no |
+| `thingino-ha`, mosquitto | yes | no | yes | no |
+| `thingino-vpn` (WireGuard default) | yes | no (None) | yes | no |
+| WebUI, uhttpd, ONVIF, sounds | yes | partial | yes | no |
+| streamer (prudynt) | yes | yes | yes | no |
+| dropbear, busybox, core, kopt, SSL | yes | yes | yes | yes |
 
 Minimal keeps the system layer (`BR2_THINGINO_SYSTEM_PACKAGES`) so dropbear,
 busybox, the kernel-option tooling, and the Ingenic platform libraries still
@@ -82,7 +88,7 @@ IPv6 support.
 
 1. Baseline (Full + 8 MB): add `select BR2_PACKAGE_<name>` to
    `BR2_PACKAGE_THINGINO_VARIANT_APPS`.
-2. Full-only (trimmed from 8 MB): add it to
+2. Full and 16 MB+ (trimmed from 8 MB): add it to
    `BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA`.
 3. A `select` cannot turn a symbol off. If the package has `default y` and must
    be down in a tier, add `# BR2_PACKAGE_<name> is not set` to
