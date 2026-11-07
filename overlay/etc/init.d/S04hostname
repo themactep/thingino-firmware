@@ -79,11 +79,22 @@ generate() {
 	local unique_id
 	local suffix
 
-	# Hostname suffix comes straight from the SoC serial number, using the
-	# same derivation as the MAC (lib-serial-mac). Never fall back to the
-	# assigned MAC: the two start from the same source but may drift (e.g.
-	# a user-assigned MAC), and a changed MAC must not rename the camera.
-	if [ -r /etc/init.d/lib-serial-mac ] && . /etc/init.d/lib-serial-mac && derive_serial_mac; then
+	# The suffix comes from the SoC serial.  U-Boot derives ethaddr from
+	# the eFUSE at boot; the userspace devmem read of the same registers is
+	# not reliable after boot, so prefer the U-Boot value and keep the
+	# hostname stable across reboots and full reflashes.
+	eth_mac_env=$(fw_printenv -n ethaddr 2>/dev/null)
+	if printf '%s\n' "$eth_mac_env" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'; then
+		IFS=: read -r p1 m1 m2 m3 m4 m5 <<-EOF
+			$eth_mac_env
+		EOF
+		m1=$((0x$m1))
+		m2=$((0x$m2))
+		m3=$((0x$m3))
+		m4=$((0x$m4))
+		m5=$((0x$m5))
+		unique_id=$(printf "%02x%02x%02x%02x%02x" $m1 $m2 $m3 $m4 $m5)
+	elif [ -r /etc/init.d/lib-serial-mac ] && . /etc/init.d/lib-serial-mac && derive_serial_mac; then
 		unique_id=$(printf "%02x%02x%02x%02x%02x" $m1 $m2 $m3 $m4 $m5)
 	else
 		log -c 240 -e "- No serial number available, keeping current hostname"

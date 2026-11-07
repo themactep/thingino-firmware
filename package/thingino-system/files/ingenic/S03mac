@@ -11,13 +11,34 @@ command -v jct >/dev/null 2>&1 || exit 0
 # If eth.mac already set, nothing to do
 jct "$CONFIG_JSON" get eth.mac >/dev/null 2>&1 && exit 0
 
-# Shared serial -> MAC derivation (also used for the hostname suffix)
-. /etc/init.d/lib-serial-mac
+# U-Boot derives ethaddr from the eFUSE chip serial at boot (misc_init_r),
+# before the efuse controller registers are repurposed.  The userspace
+# devmem read of those registers is not reliable after boot, so use the
+# U-Boot value when it is present; this keeps the MAC identical across
+# reboots and full reflashes.
+eth_mac_env=$(fw_printenv -n ethaddr 2>/dev/null)
+if printf '%s\n' "$eth_mac_env" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'; then
+	IFS=: read -r p1 m1 m2 m3 m4 m5 <<-EOF
+		$eth_mac_env
+	EOF
+	p1=$((0x$p1))
+	m1=$((0x$m1))
+	m2=$((0x$m2))
+	m3=$((0x$m3))
+	m4=$((0x$m4))
+	m5=$((0x$m5))
+	eth_mac=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" $p1 $m1 $m2 $m3 $m4 $m5)
+	log -c 240 -e "- Using U-Boot eFUSE MAC: $eth_mac"
+else
+	# Shared serial -> MAC derivation (also used for the hostname suffix)
+	. /etc/init.d/lib-serial-mac
 
-derive_serial_mac || exit 0
+	derive_serial_mac || exit 0
 
-eth_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $m1 $m2 $m3 $m4 $m5)
-log -c 240 -e "- Generated ETH MAC: $eth_mac"
+	p1=2
+	eth_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $m1 $m2 $m3 $m4 $m5)
+	log -c 240 -e "- Generated ETH MAC from eFUSE: $eth_mac"
+fi
 
 # Generate WLAN MAC = ETH MAC + 1 with carry
 w1=$m1
@@ -38,12 +59,14 @@ if [ "$w5" -eq 0 ]; then
 	fi
 fi
 
-wlan_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $w1 $w2 $w3 $w4 $w5)
+wlan_mac=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" $p1 $w1 $w2 $w3 $w4 $w5)
 log -c 240 -e "- Generated WLAN MAC: $wlan_mac"
 
 # Persist to thingino.json
 jct "$CONFIG_JSON" set eth.mac "$eth_mac"
 jct "$CONFIG_JSON" set wlan.mac "$wlan_mac"
 
-# Persist eth MAC to U-Boot environment for network operations (tftp, etc.)
+# Persist to the U-Boot environment for network operations (tftp, etc.)
+# and so S36wireless still has a stable value if the overlay is missing.
 fw_setenv ethaddr "$eth_mac" 2>/dev/null
+fw_setenv wlan_mac "$wlan_mac" 2>/dev/null
