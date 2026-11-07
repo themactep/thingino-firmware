@@ -1,0 +1,25 @@
+{
+  "gpio": {
+    "button_reset": 62,
+    "ir850": 49,
+    "ircut": {
+      "pin": 57,
+      "active_low": true
+    },
+    "mmc_power": 60,
+    "speaker": 63,
+    "white": {
+      "pin": 50,
+      "active_low": true
+    },
+    "wlan": 51
+  },
+  "motor": {
+    "type": "spi",
+    "pin_enable": 38,
+    "max_steps_h": 7850,
+    "max_steps_v": 2730,
+    "pos_zero_h": 3925,
+    "pos_zero_v": 2218
+  }
+}
