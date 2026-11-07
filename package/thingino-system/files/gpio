@@ -31,7 +31,32 @@ Legacy:
 
 list_pins() {
 	grep -q /sys/kernel/debug /proc/mounts || mount -t debugfs none /sys/kernel/debug
-	cat /sys/kernel/debug/gpio
+	# Kernel 7.x prints per-bank offsets.  Keep the global numbering the
+	# rest of Thingino uses: GPIOA 0-31, GPIOB 32-63, GPIOC 64-95, ...
+	awk '
+		/^gpiochip/ {
+			havebank = 0
+			if (match($0, /GPIO[A-Z]/)) {
+				bank = index("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					     substr($0, RSTART + 4, 1)) - 1
+				havebank = 1
+			}
+			print
+			next
+		}
+		match($0, /^ gpio-[0-9]+/) {
+			if (havebank) {
+				n = substr($0, 7, RLENGTH - 6) + 0
+				rest = substr($0, RLENGTH + 1)
+				sub(/^ +/, "", rest)
+				printf " gpio-%-3d %s\n", bank * 32 + n, rest
+			} else {
+				print
+			}
+			next
+		}
+		{ print }
+	' /sys/kernel/debug/gpio
 }
 
 claim_pin() {
