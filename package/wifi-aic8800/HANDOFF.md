@@ -17,6 +17,13 @@ Patches in this package:
 - `0003` cfg80211 `wireless_dev`/`radio_idx` conversions, ROC/mgmt-tx
   cookie ABI, ch-switch and station notifications, timer/NAPI helpers,
   `strncpy`, wakelock, TDLS action code
+- `0004` size the RX reorder array for all 16 TIDs
+- `0005` default `aicwf_dbg_level` to LOGERROR unless `CONFIG_RWNX_DBG`
+  is built in (USB, SDIO, PCIE fdrv)
+- `0006` route the USB aic_load_fw lifecycle and command-queue traces
+  through `AICWFDBG(LOGINFO, ...)`
+- `0007` route the tcp-ack init/deinit traces through `AICWFDBG(LOGINFO, ...)`
 
-The bluetooth namespace guard is handled by a post-patch hook in the
-package `.mk` because that file is CRLF.
+The bluetooth namespace guard and the aic_load_fw/BSP default log levels
+are handled by post-patch hooks in the package `.mk` because
+`aic_bluetooth_main.c` is CRLF and the BSP has no `CONFIG_RWNX_DBG`.

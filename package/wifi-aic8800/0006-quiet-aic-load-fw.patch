@@ -1,0 +1,120 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] aic8800: route aic_load_fw lifecycle messages through AICWFDBG
+
+Normal disconnects print the bus and thread lifecycle, the command
+queue dump, and the app-cmp state at KERN_INFO. These are debug
+traces, not errors, and they drown the kernel log on every reconnect.
+Move them behind AICWFDBG(LOGINFO, ...) so aicwf_dbg_level controls
+them. Error paths keep their unconditional printk.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_txrxif.c
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_txrxif.c
+@@ -25,6 +25,7 @@
+ #include "aic_txrxif.h"
+ #include "aicbluetooth.h"
+ #include "aicbluetooth_cmds.h"
++#include "aicwf_debug.h"
+ 
+ int aicwf_bus_init(uint bus_hdrlen, struct device *dev)
+ {
+@@ -91,7 +92,7 @@
+         txrx_err("device not found\n");
+         return;
+     }
+-    printk("%s", __func__);
++    AICWFDBG(LOGINFO, "%s\n", __func__);
+ 
+ 	mdelay(500);
+     bus_if = dev_get_drvdata(dev);
+@@ -119,7 +120,7 @@
+         kthread_stop(bus_if->bustx_thread);
+         bus_if->bustx_thread = NULL;
+     }
+-    printk("exit %s\n", __func__);
++    AICWFDBG(LOGINFO, "exit %s\n", __func__);
+ }
+ 
+ void aicwf_frame_tx(void *dev, struct sk_buff *skb)
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/aicwf_usb.c
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/aicwf_usb.c
+@@ -235,7 +235,7 @@
+         return;
+     }
+     if (usb_dev->app_cmp) {
+-        printk("app_cmp\r\n");
++        AICWFDBG(LOGINFO, "app_cmp\r\n");
+         return;
+ }
+ 
+@@ -337,7 +337,7 @@
+ 
+         if (!wait_for_completion_interruptible(&bus->bustx_trgg)) {
+ 			if (usbdev->app_cmp == false){
+-				printk("usb bustx thread will to stop\n");
++				AICWFDBG(LOGINFO, "usb bustx thread will to stop\n");
+ 				//mdelay(100);
+ 				break;
+ 				//continue;
+@@ -348,7 +348,7 @@
+     }
+ 
+ 	aic_thread_wait_stop();
+-	printk("usb bustx thread stop\n");
++	AICWFDBG(LOGINFO, "usb bustx thread stop\n");
+ 
+     return 0;
+ }
+@@ -372,13 +372,13 @@
+             break;
+         }
+         if (bus_if->state == BUS_DOWN_ST) {
+-            printk("usb busrx thread will to stop\n");
++            AICWFDBG(LOGINFO, "usb busrx thread will to stop\n");
+             break;
+         }
+ 
+     }
+ 	aic_thread_wait_stop();
+-    printk("usb busrx thread stop\n");
++    AICWFDBG(LOGINFO, "usb busrx thread stop\n");
+ 
+     return 0;
+ }
+@@ -1745,7 +1745,7 @@
+     struct aic_usb_dev *usb_dev =
+             (struct aic_usb_dev *) usb_get_intfdata(intf);
+ 
+-	printk("%s enter \r\n", __func__);
++	AICWFDBG(LOGINFO, "%s enter \r\n", __func__);
+ 
+     if (!usb_dev)
+         return;
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/aicbluetooth_cmds.c
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/aicbluetooth_cmds.c
+@@ -16,12 +16,14 @@
+ #include "aicbluetooth_cmds.h"
+ #include "aic_txrxif.h"
+ #include "aicwf_usb.h"
++#include <linux/printk.h>
++#include "aicwf_debug.h"
+ 
+ //extern int aicwf_sdio_writeb(struct aic_sdio_dev *sdiodev, uint regaddr, u8 val);
+ 
+ static void cmd_dump(const struct rwnx_cmd *cmd)
+ {
+-    printk(KERN_CRIT "tkn[%d]  flags:%04x  result:%3d  cmd:%4d - reqcfm(%4d)\n",
++    AICWFDBG(LOGINFO, "tkn[%d]  flags:%04x  result:%3d  cmd:%4d - reqcfm(%4d)\n",
+            cmd->tkn, cmd->flags, cmd->result, cmd->id, cmd->reqid);
+ }
+ 
+@@ -180,7 +182,7 @@
+     struct rwnx_cmd *cur;
+ 
+     spin_lock_bh(&cmd_mgr->lock);
+-    printk("q_sz/max: %2d / %2d - next tkn: %d\n",
++    AICWFDBG(LOGINFO, "q_sz/max: %2d / %2d - next tkn: %d\n",
+              cmd_mgr->queue_sz, cmd_mgr->max_queue_sz,
+              cmd_mgr->next_tkn);
+     list_for_each_entry(cur, &cmd_mgr->cmds, list) {

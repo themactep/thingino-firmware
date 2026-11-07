@@ -1,0 +1,68 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] aic8800: honor CONFIG_RWNX_DBG in the default log level
+
+The driver always starts with LOGINFO (and, on SDIO/PCIE, LOGDEBUG and
+LOGTRACE) enabled, so a production build prints the full init and
+connection trace even though CONFIG_RWNX_DBG is off. Gate the default
+level on the existing build-time flag: debug builds keep the vendor
+level, production images start at LOGERROR. The runtime module
+parameter still allows raising the level on a live system.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -531,7 +531,11 @@
+ struct semaphore aicwf_deinit_sem;
+ atomic_t aicwf_deinit_atomic;
+ 
++#ifdef CONFIG_RWNX_DBG
+ int aicwf_dbg_level = LOGERROR|LOGINFO;
++#else
++int aicwf_dbg_level = LOGERROR;
++#endif
+ module_param(aicwf_dbg_level, int, 0660);
+ 
+ int testmode = 0;
+--- a/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -510,7 +510,11 @@
+ 
+ 
+ extern uint8_t scanning;
++#ifdef CONFIG_RWNX_DBG
+ int aicwf_dbg_level = LOGERROR|LOGINFO|LOGDEBUG|LOGTRACE;
++#else
++int aicwf_dbg_level = LOGERROR;
++#endif
+ module_param(aicwf_dbg_level, int, 0660);
+ int testmode = 0;
+ char aic_fw_path[200];
+--- a/PCIE/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/PCIE/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -509,7 +509,11 @@
+ #endif
+ 
+ extern uint8_t scanning;
++#ifdef CONFIG_RWNX_DBG
+ int aicwf_dbg_level = LOGERROR|LOGINFO|LOGDEBUG|LOGTRACE;
++#else
++int aicwf_dbg_level = LOGERROR;
++#endif
+ module_param(aicwf_dbg_level, int, 0660);
+ int testmode = 0;
+ int adap_test = 0;
+--- a/PCIE/driver_fw/driver/aic8800d80x2/aic8800_fdrv/rwnx_main.c
++++ b/PCIE/driver_fw/driver/aic8800d80x2/aic8800_fdrv/rwnx_main.c
+@@ -509,7 +509,11 @@
+ #endif
+ 
+ extern uint8_t scanning;
++#ifdef CONFIG_RWNX_DBG
+ int aicwf_dbg_level = LOGERROR|LOGINFO|LOGDEBUG|LOGTRACE;
++#else
++int aicwf_dbg_level = LOGERROR;
++#endif
+ module_param(aicwf_dbg_level, int, 0660);
+ int testmode = 0;
+ int adap_test = 0;

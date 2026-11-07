@@ -13,6 +13,10 @@ WIFI_AIC8800_MODULE_MAKE_OPTS = \
 	CONFIG_RWNX_RADAR=n \
 	INSTALL_MOD_STRIP=1
 
+ifeq ($(BR2_ENABLE_RUNTIME_DEBUG),)
+WIFI_AIC8800_MODULE_MAKE_OPTS += CONFIG_RWNX_DBG=n
+endif
+
 ifeq ($(BR2_PACKAGE_WIFI_AIC8800_USB_8800),y)
 WIFI_AIC8800_MODULE_MAKE_OPTS += CONFIG_AIC_CHIP_8800=y
 endif
@@ -287,6 +291,19 @@ define WIFI_AIC8800_FIX_NS
 endef
 
 WIFI_AIC8800_POST_PATCH_HOOKS += WIFI_AIC8800_FIX_NS
+
+# aic_bluetooth_main.c is CRLF, and the SDIO BSP has no CONFIG_RWNX_DBG,
+# so lower their log levels here instead of carrying patches. Debug builds
+# keep the vendor defaults.
+ifeq ($(BR2_ENABLE_RUNTIME_DEBUG),)
+define WIFI_AIC8800_QUIET_LOG_LEVEL
+	$(SED) 's/^int aicwf_dbg_level = LOGERROR|LOGINFO|LOGDEBUG|LOGTRACE;/int aicwf_dbg_level = LOGERROR;/' \
+		$(@D)/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_bluetooth_main.c
+	$(SED) 's/^int aicwf_dbg_level_bsp = LOGERROR|LOGINFO|LOGDEBUG|LOGTRACE;/int aicwf_dbg_level_bsp = LOGERROR;/' \
+		$(@D)/SDIO/driver_fw/driver/aic8800/aic8800_bsp/aic_bsp_main.c
+endef
+WIFI_AIC8800_POST_PATCH_HOOKS += WIFI_AIC8800_QUIET_LOG_LEVEL
+endif
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
