@@ -10,6 +10,7 @@ WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
 WLAN_CONFIG_JSON="/etc/thingino.json"
 wlan_pins_used=""
+wlan_pins_state=""
 
 wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
 
@@ -244,6 +245,39 @@ apply_wlan_sequence() {
 	EOF
 }
 
+collect_wlan_sequence() {
+	local sequence="$1" pin action state
+	wlan_pins_state=""
+	while IFS=' ' read -r pin action state; do
+		[ -n "$pin" ] || continue
+		case "$action" in
+			set | '')
+				[ -n "$state" ] || state=1
+				wlan_pins_state="${wlan_pins_state:+$wlan_pins_state }$pin $state"
+				;;
+			toggle)
+				# The final level is unknown; force the board's
+				# inactive level before the sequence runs.
+				wlan_pins_state="${wlan_pins_state:+$wlan_pins_state }$pin 0"
+				;;
+		esac
+	done <<-EOF
+		$sequence
+	EOF
+}
+
+power_off_wlan_pins() {
+	local pin state off
+	for entry in $wlan_pins_state; do
+		set -- $entry
+		pin="$1"
+		state="$2"
+		off=$((1 - state))
+		echo "Power off GPIO $pin (set $off)"
+		gpio set "$pin" "$off"
+	done
+}
+
 start() {
 	log -c 15 "Starting wireless interface"
 
@@ -267,7 +301,15 @@ start() {
 	if [ -z "$wlan_sequence" ]; then
 		echo "Wireless module GPIO is not set"
 	else
+		# Power-cycle the module on every boot so a wedged USB or
+		# SDIO device always starts from a clean state.  The low
+		# pulse must cover the board's power-off discharge and, for
+		# USB, the host's disconnect detection.
+		collect_wlan_sequence "$wlan_sequence"
+		power_off_wlan_pins
+		sleep 1
 		apply_wlan_sequence "$wlan_sequence"
+		sleep 1
 
 		if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
 			for pin in $wlan_pins_used; do
@@ -358,6 +400,13 @@ stop() {
 	log -c 15 "Stopping wireless interface"
 
 	ifdown $IFACE
+	# rcK runs this before reboot.  Drive the module power/enable pin
+	# inactive so the next boot does not inherit a wedged USB or SDIO
+	# device; start() also power-cycles it before loading the driver.
+	if wlan_sequence=$(get_wlan_sequence); then
+		collect_wlan_sequence "$wlan_sequence"
+		power_off_wlan_pins
+	fi
 	# play /usr/share/sounds/wifidisconnected.opus
 }
 
