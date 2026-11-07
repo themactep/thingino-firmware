@@ -30,6 +30,7 @@
     i_bias_lvl: { key: "i_bias_lvl", type: "int" },
     fluc_lvl: { key: "fluc_lvl", type: "int" },
     rotation: { key: "rotation", type: "int" },
+    mbrc: { key: "mbrc", type: "bool" },
   };
   var KEY_TO_SUFFIX = {};
   Object.keys(FIELD_MAP).forEach(function (s) { KEY_TO_SUFFIX[FIELD_MAP[s].key] = s; });
@@ -170,6 +171,10 @@
     });
   }
 
+  function noCapped() {
+    return !!(last && last.caps && last.caps.capped_rc === 0);
+  }
+
   function renderModes() {
     var box = $id("v-modes"), fam = socFamily();
     box.innerHTML = "";
@@ -178,6 +183,10 @@
       b.type = "button";
       b.className = "btn btn-outline-secondary" + (m === curMode ? " active" : "");
       b.textContent = m.replace(/_/g, " ");
+      if (/^CAPPED/.test(m) && noCapped()) {
+        b.disabled = true;
+        b.title = "Not available with this libimp, runs as VBR";
+      }
       b.addEventListener("click", function () {
         if (m === curMode) return;
         curMode = m; renderModes(); rcGate();
@@ -328,15 +337,32 @@
       wrap.classList.toggle("d-none", !!off);
       if (off) hidden.push(info.name + " (" + off + ")");
     });
-    $id("v-hidden").textContent = hidden.length ? "Hidden: " + hidden.join(", ") + "." : "";
+    var t = hidden.length ? "Hidden: " + hidden.join(", ") + "." : "";
+    var modes = fam ? (SOC_MODE[fam] || DEF_MODE) : DEF_MODE;
+    if (noCapped() && modes.indexOf("CAPPED_VBR") >= 0)
+      t += (t ? " " : "") + "Capped modes are not available with this libimp" +
+        (/^CAPPED/.test(curMode) ? "; the stream runs as VBR." : ".");
+    else if (/^CAPPED/.test(curMode) && modes.indexOf(curMode) < 0)
+      t += (t ? " " : "") + curMode.toLowerCase() + " (from timps.conf) runs as VBR on this SoC.";
+    $id("v-hidden").textContent = t;
   }
 
   var RC_HOLD_ORDER = ["rc_mode", "bitrate", "max_bitrate", "qp", "min_qp",
     "max_qp", "quality_lvl", "change_pos", "i_bias_lvl", "fluc_lvl",
     "static_time", "frm_qp_step", "gop_qp_step", "ip_delta", "pb_delta", "max_psnr"];
+  function renderJpeg(json) {
+    var j = json && json.jpeg_reuse, el = $id("v-jpeg");
+    el.hidden = !(j && Number(j.available));
+    if (el.hidden) return;
+    el.textContent = "Snapshots, all JPEG channels since start: " + (j.reused || 0) +
+      " repeated pictures from the JPEG encoder, " + (j.skipped || 0) + " held back for a fresh one." +
+      (j.reused ? " If this keeps climbing, lower videoN.jpeg_fps or the JPEG size in /etc/timps.conf." : "");
+  }
+
   function refreshRcHolds() {
     var el = $id("v-holds"), s = idx;
     window.timpsApi.get().then(function (json) {
+      renderJpeg(json);
       if (s !== idx) return;
       var rc = json.encoder && json.encoder[s] && json.encoder[s].rc;
       if (!rc) { el.textContent = "Encoder readback: not available (channel not running)."; return; }
@@ -355,6 +381,7 @@
     curMode = String(video.rc_mode || "").toUpperCase();
     var au = $id("v-audio_enabled");
     if (last.audio && last.audio.enabled !== undefined) au.checked = !!Number(last.audio.enabled);
+    $id("v-mbrc-wrap").hidden = socFamily() !== "t20" || video.mbrc === undefined;
     renderModes(); renderMeta(); rcGate(); renderRot(); refreshRcHolds();
   }
 
