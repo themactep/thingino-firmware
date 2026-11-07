@@ -1,0 +1,93 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: use the 7.x struct file and kernel_read APIs
+
+The ioctl dispatch still read file->private_data at the 4.4 offset 136.
+On 7.x that field is gone, so the graph pointer passed to the sensor
+register/release and video stream/link handlers was garbage.  EnableSensor
+(0x80085407) then walked a bogus subdev array and faulted with BadVA
+0x4127c before the ISP could start.
+
+Read the member instead, as tx_isp_open, the video-link setup and the
+frame channel already do.
+
+The IQ and switch-bin loaders also called kernel_read() with the 4.4
+argument order (file, pos, buf, count).  On 7.x the order is (file, buf,
+count, pos), so the first page read returned -EINVAL and set-input failed
+before the ISP init.  Route both through the existing private_vfs_read()
+wrapper, which has the mainline signature, and let it advance the offset.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -21722,14 +21722,13 @@
+     }
+     while (pos < size) {
+         unsigned long chunk = min_t(loff_t, size - pos, PAGE_SIZE);
+-        int got = kernel_read(filp, pos, (char *)buf + pos, chunk);
++        int got = private_vfs_read(filp, (char *)buf + pos, chunk, &pos);
+ 
+         if (got <= 0) {
+             private_vfree(buf);
+             private_filp_close(filp, NULL);
+             return got < 0 ? got : -EIO;
+         }
+-        pos += got;
+         cond_resched();
+     }
+     private_filp_close(filp, NULL);
+@@ -37266,7 +37265,7 @@
+         return regtrace_ret;
+     }
+     if (a1 == 0x80645405U) {
+-        uintptr_t isp = t41_load_ptr(a0, 136);
++        uintptr_t isp = (uintptr_t)((struct file *)a0)->private_data;
+ 
+         regtrace_ret = isp ? tx_isp_sensor_register_sensor(isp - 12, a2) :
+                      -ENODEV;
+@@ -37277,7 +37276,7 @@
+         return regtrace_ret;
+     }
+     if (a1 == 0x80645406U) {
+-        uintptr_t isp = t41_load_ptr(a0, 136);
++        uintptr_t isp = (uintptr_t)((struct file *)a0)->private_data;
+ 
+         regtrace_ret = isp ? tx_isp_sensor_release_sensor(isp - 12, a2) :
+                      -ENODEV;
+@@ -37304,7 +37303,7 @@
+         return regtrace_ret;
+     }
+     if (a1 == 0x80085407U || a1 == 0x80085408U) {
+-        uintptr_t isp = t41_load_ptr(a0, 136);
++        uintptr_t isp = (uintptr_t)((struct file *)a0)->private_data;
+ 
+         regtrace_ret = isp ? tx_isp_video_s_stream(isp - 12, a2) :
+                      -ENODEV;
+@@ -37331,7 +37330,7 @@
+         return regtrace_ret;
+     }
+     if (a1 == 0xc008540bU || a1 == 0xc008540cU) {
+-        uintptr_t isp = t41_load_ptr(a0, 136);
++        uintptr_t isp = (uintptr_t)((struct file *)a0)->private_data;
+ 
+         regtrace_ret = isp ? tx_isp_video_link_stream(isp - 12, a2) :
+                      -ENODEV;
+@@ -55133,8 +55132,8 @@
+          * IRQ and watchdog work a scheduling point between transactions. */
+         unsigned long chunk = min_t(loff_t, file_size - bytes_read,
+                                     PAGE_SIZE);
+-        int chunk_read = kernel_read(filp, read_offset,
+-                                     payload + bytes_read, chunk);
++        int chunk_read = private_vfs_read(filp, payload + bytes_read,
++                                          chunk, &read_offset);
+ 
+         if (!bytes_read || bytes_read + chunk_read >= file_size)
+             printk(KERN_WARNING
+@@ -55146,7 +55145,6 @@
+             goto close_file;
+         }
+         bytes_read += chunk_read;
+-        read_offset += chunk_read;
+         cond_resched();
+     }
+     if (bytes_read != file_size) {

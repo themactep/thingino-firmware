@@ -339,3 +339,76 @@ camera at 192.168.88.121, same MAC/IP/hostname after a full reflash, and
 - T41 ISP programming is only known from the recovered source; there is no
   mainline documentation.
 - The rootfs is already tight; the driver must stay modular for bring-up.
+
+## Bridge bring-up, 2026-11-07 (session 3)
+
+Re-enabled `0038`/`0039`/`0040` on the T120 and traced the next failure
+with `t41_runtime_trace=1` and `echo 8 > /proc/sys/kernel/printk` (the
+console loglevel drops to 3 after boot, so KERN_WARNING traces never
+reach the UART otherwise).
+
+### Root cause of the EnableSensor fault
+
+The `0x80085407` (video stream) handler still read `file->private_data`
+at the 4.4 offset 136:
+
+```
+uintptr_t isp = t41_load_ptr(a0, 136);   /* 4.4 layout */
+```
+
+On 7.x that field is gone, so `isp` was a small stale value and
+`tx_isp_video_s_stream(isp - 12, ...)` walked a bogus subdev array.  The
+fault was `BadVA 0x4127c`, epc in `tx_isp_video_s_stream` at the
+`lw v0, 0xfc(a2)` that loads `subdev->ops`.  The sensor register/release
+and video-link-stream handlers had the same defect; AddSensor only worked
+because it returns from the VIN drvdata before touching the bogus graph.
+
+`0041-t41-use-the-7x-file-and-read-apis.patch` reads the member instead,
+matching `tx_isp_open`, the video-link setup and the frame channel.
+
+### IQ loader
+
+`0041` also fixes the IQ/switch-bin loaders, which called `kernel_read()`
+with the 4.4 argument order `(file, pos, buf, count)`.  On 7.x the order
+is `(file, buf, count, pos)`, so the first 4 KiB read returned `-EINVAL`
+and the set-input init failed before the ISP init ran.  Both loaders now
+use `private_vfs_read()`.
+
+### Bring-up gate
+
+`tx_isp_probe` creates the ISP graph (and therefore populates the 16
+subdev slots used by video stream/link) only when
+`tx_isp_bringup_level >= 1`.  The default is 0, so with the module loaded
+as before:
+
+- the video-link setup resolved the records (`isp-m0` -> `isp-fs`) but
+  found no pads and skipped every link;
+- `tx_isp_video_s_stream` iterated 16 empty slots and returned 0;
+- the graph subdevices (core/VIC/CSI/VIN) never got their s_stream.
+
+Load with `tx_isp_bringup_level=3` to create the graph, run `isp_mem_init`
+and the core tuning.  With the bridge and `0038`-`0040` enabled, a fresh
+boot then reaches:
+
+```
+tx-isp-v4l2: attached gc8613 at i2c-0/0x31
+t41: tisp-load ... read complete bytes=254032
+t41: tisp-init enter tisp_gib_init ... tisp_lsc_init ... tisp_tmo_init
+t41: tmo-init size-update exit
+Unexpected gfp: 0x2000000 ... Fixing up to gfp: 0x4000c0
+```
+
+and then hangs (no further console output; the hardware watchdog resets
+the board).  The next blocker is `tisp_tmo_init` (or the code immediately
+after its size update) on 7.x: the recovered allocator still passes 4.4
+`gfp` bits and the init does not return.
+
+### State
+
+- `0038`-`0040` are kept `.disabled`; the shipped T120 image uses
+  `0036`, `0037` and `0041` only, so AddSensor fails cleanly instead of
+  entering the unfinished graph path.
+- `0041` applies cleanly after `0036`/`0037` and builds.
+- To continue: enable the bridge patches, load with
+  `tx_isp_bringup_level=3`, and trace `tisp_tmo_init` (and the rest of
+  the set-input init) for the 7.x gfp/allocator mismatch.
