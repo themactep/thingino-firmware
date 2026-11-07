@@ -231,10 +231,12 @@
     var w = Math.round(sw / z / 2) * 2, h = Math.round(sh / z / 2) * 2;
     return cropFit({ x: c.x + fx * (c.w - w), y: c.y + fy * (c.h - h), w: w, h: h }, sw, sh, fmin);
   }
-  // view rotation in clockwise degrees: 90 = clockwise on T23/T40/T41, counter-clockwise on T31/T1x
-  function cropRotView(soc, rot) {
+  // view rotation in clockwise degrees: 90 = clockwise on T40/T41 and on the old
+  // T23 software path ("sw", timps <= 1.11.1), counter-clockwise on the framesource rotate
+  function cropRotView(soc, rot, path) {
     if (rot !== 90 && rot !== 270) return rot === 180 ? 180 : 0;
-    return /^t(31|10|20|21)/i.test(String(soc || "")) ? 360 - rot : rot;
+    if (path === "sw") return rot;
+    return /^t(31|10|20|21|23|30)/i.test(String(soc || "")) ? 360 - rot : rot;
   }
   // sensor window <-> the rotated view of the sensor (view is sh x sw for 90/270)
   function cropToView(c, rv, sw, sh) {
@@ -622,7 +624,7 @@
       var v = (j.video && (j.video[S] || j.video[String(S)])) || {}, f = window.timpsUi.frame(v);
       if (f.w > 0 && f.h > 0) { W = f.w; H = f.h; }
       var orv = rv;
-      rv = f.path === "off" ? 0 : cropRotView(window.thinginoUIConfig && window.thinginoUIConfig.device && window.thinginoUIConfig.device.soc, f.rot);
+      rv = f.path === "off" ? 0 : cropRotView(window.thinginoUIConfig && window.thinginoUIConfig.device && window.thinginoUIConfig.device.soc, f.rot, f.path);
       if (rv !== orv) { shot = false; ed.width = 0; }
       var st = roiState === "h265" ? "This stream is H.265: ROI regions are ignored." :
         roiState === "rotated" ? "This stream is rotated: the encoder ignores ROI regions, so they cannot be edited here." :
