@@ -458,7 +458,7 @@ ifeq ($(KERNEL_VERSION),5.15.170)
 # hand the slot back to the rootfs. Must match the kernel DT partitions in
 # thingino-t31.dts.
 KERNEL_PARTITION_SIZE := 2359296  # 2304KB (5.15 t31)
-else ifeq ($(KERNEL_VERSION),7.3.1)
+else ifeq ($(KERNEL_VERSION),7.3.3)
 # The slimmed 7.x kernel fits the 2304KB slot once the optional subsystems
 # are gated per camera. Must match the kernel DT partitions in
 # thingino-t31.dts.

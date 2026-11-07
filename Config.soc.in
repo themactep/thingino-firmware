@@ -960,7 +960,7 @@ config KERNEL_MODERN
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
 	string
-	default "7.3.1" if KERNEL_VERSION_7
+	default "7.3.3" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

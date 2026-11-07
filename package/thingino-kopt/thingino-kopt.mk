@@ -785,7 +785,7 @@ endif
 # Mainline V4L2 sensors and the recovered T41 ISP driver on the 7.x tree:
 # enable the media stack, the sensor the camera names, and the DMA-contig
 # buffer allocator the ISP V4L2 frontend links against.
-ifeq ($(KERNEL_VERSION),7.3.1)
+ifeq ($(KERNEL_VERSION),7.3.3)
 ifneq ($(filter t41,$(SOC_FAMILY)),)
 ifneq ($(SENSOR_1_MODEL),)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SENSOR

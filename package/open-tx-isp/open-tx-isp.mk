@@ -35,7 +35,7 @@ OPEN_TX_ISP_LICENSE = GPL-3.0
 # Modern kernels (5.15 vendor, 7.x mainline): the ingenic-sdk is disabled (its
 # sensor/audio/AVPU modules are 4.4-only), so the open driver carries its own
 # sensors from sensor-src/<soc>/. 3.10/4.4 keep using the SDK sensor module.
-ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.3,$(KERNEL_VERSION)),)
 OPEN_TX_ISP_DEPENDENCIES = linux
 ifeq ($(SOC_FAMILY),t20)
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/t20
@@ -61,7 +61,7 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 
 # The T41 V4L2 frontend is behind a Kbuild switch, not a Kconfig symbol.
 ifeq ($(SOC_FAMILY),t41)
-ifeq ($(KERNEL_VERSION),7.3.1)
+ifeq ($(KERNEL_VERSION),7.3.3)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += CONFIG_TX_ISP_T41_V4L2=y
 endif
 endif
@@ -81,7 +81,7 @@ endif
 
 # Add XBurst platform include paths for soc headers (the vendor trees carry
 # arch/mips/xburst; the mainline 7.x tree does not).
-ifneq ($(KERNEL_VERSION),7.3.1)
+ifneq ($(KERNEL_VERSION),7.3.3)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \
 	EXTRA_CFLAGS="-I$(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/include \
 	-I$(LINUX_DIR)/arch/mips/xburst/core/include \
@@ -94,7 +94,7 @@ endif
 # recreate the old paths as symlinks for the T20 build. Other families are
 # self-contained and do not reference external/.
 ifeq ($(SOC_FAMILY),t20)
-ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.3,$(KERNEL_VERSION)),)
 # The pinned tree already carries the unmerged SDK layout under
 # external/ingenic-sdk; nothing to relink for the modern kernels.
 else
@@ -132,7 +132,7 @@ endif
 # modules): tx-isp's V4L2 bridge attaches to the subdev that probed from DT,
 # and the vendor sensor module is neither built nor loaded. Enable only the
 # driver this camera uses; CONFIG_VIDEO_<MODEL> matches the driver symbol.
-ifeq ($(KERNEL_VERSION),7.3.1)
+ifeq ($(KERNEL_VERSION),7.3.3)
 OPEN_TX_ISP_MAINLINE_SENSORS = sc2336 gc2053 gc4653 imx307 gc2083 gc4023 \
 	gc8613 imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
 	sc2336p sc301iot sc3235 sc3335 sc3336 sc3338 sc401ai sc4236 \
@@ -230,7 +230,7 @@ endif
 # 30-sensor and the ISP + sensor modules are never loaded at boot. The
 # streamer's HAL init then loops on IMP_ISP_Open forever and RTSP never comes
 # up. Install the same loaders the SDK path would have written.
-ifneq ($(filter 5.15.170 7.3.1,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.3.3,$(KERNEL_VERSION)),)
 ifeq ($(BR2_THINGINO_DEV_CAMERA),y)
 define OPEN_TX_ISP_INSTALL_MODULES_D
 	$(INSTALL) -d $(TARGET_DIR)/etc/modules.d

@@ -2,11 +2,11 @@
 
 ## Status
 
-- 7.3.1 machine types and DTBs for T40/T41 are in
+- 7.3.3 machine types and DTBs for T40/T41 are in
   (`0052-mips-ingenic-add-t40-t41-machines.patch`).
 - The T41NQ SFC NOR U-Boot is trimmed to 239140 bytes and the boot
   partition is 256 KiB (`0004-t41nq-trim-uboot.patch`).
-- Kernel 7.3.1 build, image packing and `mtdparts` generation work.
+- Kernel 7.3.3 build, image packing and `mtdparts` generation work.
 - QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000` and
   runs it to the login prompt.
 - Three early-boot fixes were needed to get that far:
@@ -234,7 +234,7 @@ scripts/qemu-dev uboot -- 'bootm 0x81000000'
 - Vendor 4.4 trees: `T41-1.2.6-4.4.94` and `T40-main` in the cached
   `thingino-linux` git.
 - T41 DT: `arch/mips/boot/dts/ingenic/t41.dtsi`, `marmot.dts`.
-- Kernel patches: `package/all-patches/linux/7.3.1/0052`, `0101`,
+- Kernel patches: `package/all-patches/linux/7.3.3/0052`, `0101`,
   `0102`.
 - U-Boot patch: `package/all-patches/uboot/2026.07/0004`.
 - Camera profile: `configs/cameras/wyze_cam4_t41nq_os04d10_atbm6062s`.

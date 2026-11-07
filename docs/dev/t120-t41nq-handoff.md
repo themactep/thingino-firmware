@@ -28,9 +28,9 @@ Uncommitted (this sensor session):
   (stock CIM = VPLL 1,188,000,000 / 44 = 27.000 MHz; the old path selected
   APLL 1,104,000,000 / 41 = 26,926,829), and the `reset-gpios`/`powerdown-gpios`
   on GPC27 removed.
-- `package/all-patches/linux/7.3.1/0136-media-gc8613-accept-the-t41-cim-xclk.patch`:
+- `package/all-patches/linux/7.3.3/0136-media-gc8613-accept-the-t41-cim-xclk.patch`:
   ±1% xclk window (in case the clock still resolves to 26.93 MHz).
-- `package/all-patches/linux/7.3.1/0137-media-gc8613-give-the-sensor-time-to-boot.patch`:
+- `package/all-patches/linux/7.3.3/0137-media-gc8613-give-the-sensor-time-to-boot.patch`:
   `msleep(20)` → `msleep(100)` in `gc8613_power_on`.
 - `package/thingino-kopt/thingino-kopt.mk`: `THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SENSOR`
   now sets `CONFIG_VIDEO_<SENSOR>=m` (was `=y`) so the driver can be
@@ -75,18 +75,18 @@ Committed:
 - `configs/cameras/noorio_t120_t41nq_gc8613_aic8800d/{defconfig,thingino.json,noorio_t120_t41nq_gc8613_aic8800d.dtsi}`
 - `configs/cameras/noorio_t110_t41nq_gc4023_aic8800d/*_defconfig`
 - `configs/cameras/{wyze_cam4_t41nq_os04d10_atbm6062s,cinnado_d1_t32lq_sc4336p_atbm6162u}/*_defconfig`
-- `package/all-patches/linux/7.3.1/0128`–`0135`
+- `package/all-patches/linux/7.3.3/0128`–`0135`
 - `package/all-patches/uboot/2026.10/0001-from-2026.10-to-thingino.patch`
 - `configs/fragments/uboot/v2026-10.fragment`
 - `package/thingino-uboot/{Config.in,thingino-uboot.mk}`, `Makefile`
-- `board/ingenic/xburst2/kernel/7.3.1/t41.generic.config`
+- `board/ingenic/xburst2/kernel/7.3.3/t41.generic.config`
 - `configs/common.uenv.txt`, `overlay/etc/init.d/S04hostname`
 
 Uncommitted:
 
 - `configs/sensors/t41/gc8613.dtsi`
-- `package/all-patches/linux/7.3.1/0136-media-gc8613-accept-the-t41-cim-xclk.patch`
-- `package/all-patches/linux/7.3.1/0137-media-gc8613-give-the-sensor-time-to-boot.patch`
+- `package/all-patches/linux/7.3.3/0136-media-gc8613-accept-the-t41-cim-xclk.patch`
+- `package/all-patches/linux/7.3.3/0137-media-gc8613-give-the-sensor-time-to-boot.patch`
 - `package/thingino-kopt/thingino-kopt.mk`
 
 ## Commands run

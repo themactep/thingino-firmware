@@ -20,8 +20,8 @@ Earlier bring-up narrative (CPU/TLB, CGU, pinctrl, RTC, RNG, I2C, DMA):
 | Kernel tree (build, patched) | `/home/paul/output/feature/kernel-7/wyze_cam4_t41nq_os04d10_atbm6062s-7.3.1-uclibc-192.168.88.141/build/linux-7.3.1` |
 | Camera | `wyze_cam4_t41nq_os04d10_atbm6062s`, SoC T41NQ, 16 MiB SPI NOR (zb25vq128, 64 KiB blocks, 4 KiB sectors), 128 MiB DRAM |
 | DTS | `configs/cameras/wyze_cam4_t41nq_os04d10_atbm6062s/wyze_cam4_t41nq.dts` |
-| Kernel fragment | `board/ingenic/xburst2/kernel/7.3.1/t41.generic.config` |
-| Patches | `package/all-patches/linux/7.3.1/` (0001–0117; 0102 fixed, 0113–0117 new) |
+| Kernel fragment | `board/ingenic/xburst2/kernel/7.3.3/t41.generic.config` |
+| Patches | `package/all-patches/linux/7.3.3/` (0001–0117; 0102 fixed, 0113–0117 new) |
 | Console capture | `~/screen-sessions/screenlog-*.txt` (older sessions) |
 | Camera root password | image default `root`; first login forces a change |
 

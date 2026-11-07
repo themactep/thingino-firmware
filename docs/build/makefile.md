@@ -885,10 +885,10 @@ Kernels come from one of two sources:
   restored from `package/linux/files/4.4.94/<soc>/`. The snapped commits are
   recorded in `package/all-patches/linux/4.4.94/SOURCES` and the patches are
   produced by `scripts/generate_kernel_4.4.94_patches.rb`.
-- **5.15.170** and **7.3.1** — the official kernel.org tarball plus one
+- **5.15.170** and **7.3.3** — the official kernel.org tarball plus one
   cumulative patch each (`package/all-patches/linux/5.15.170/`,
-  `package/all-patches/linux/7.3.1/0001-linux-7.3.1-to-thingino.patch`),
-  followed by the small thingino patches. The 7.3.1 tree carries the thingino
+  `package/all-patches/linux/7.3.3/0001-linux-7.3.3-to-thingino.patch`),
+  followed by the small thingino patches. The 7.3.3 tree carries the thingino
   changes on top of upstream, so the core follows the stable release rather
   than a vendor branch. No commit pin.
 - **Everything else** (the t40/a1 branches) — the custom
