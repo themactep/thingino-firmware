@@ -2705,7 +2705,6 @@ function initPasswordRevealToggles(root = document) {
       if (response.ok) {
         data = await response.json(); // non-JSON throws -> retry path
       }
-      // any other status (5xx, 0-length proxy error, ...) -> retry path
     } catch (err) {
       console.error("Session check failed:", err);
     }
