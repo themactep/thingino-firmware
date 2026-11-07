@@ -4,7 +4,6 @@
       "pin": 89,
       "active_low": true
     },
-    "ircut": 72,
-    "mmc_cd": -1
+    "ircut": 72
   }
 }

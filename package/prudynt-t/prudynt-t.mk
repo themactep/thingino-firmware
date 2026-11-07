@@ -1,11 +1,23 @@
 PRUDYNT_T_SITE_METHOD = git
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = 6e4803405051f8b3183aab5d64547a0fcaa21456
+PRUDYNT_T_VERSION = 00bb414f073c25cca88a6e87cfd3d639f0a60a34
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
 PRUDYNT_T_GIT_SUBMODULES = YES
+
+# The IMP headers come from the include submodule. The pinned prudynt-t commit
+# still records the commit before the T32 2.2.0 headers were added, so advance
+# the submodule to the one that carries them.
+PRUDYNT_T_HEADERS_REPO = https://github.com/gtxaspec/ingenic-headers
+PRUDYNT_T_HEADERS_VERSION = 5bacc0f6ed70221081fe3f0aaa5e7f47aff89deb
+define PRUDYNT_T_UPDATE_HEADERS
+	rm -rf $(@D)/include
+	git clone --quiet --no-checkout $(PRUDYNT_T_HEADERS_REPO) $(@D)/include
+	git -C $(@D)/include checkout --quiet $(PRUDYNT_T_HEADERS_VERSION)
+endef
+PRUDYNT_T_POST_EXTRACT_HOOKS += PRUDYNT_T_UPDATE_HEADERS
 
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
@@ -209,6 +221,7 @@ define PRUDYNT_T_BUILD_CMDS
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
 		SDK_VERSION="$(SDK_VERSION)" \
+		$(if $(filter t32,$(SOC_FAMILY)),LIBIMP_PLATFORM=T32,) \
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \

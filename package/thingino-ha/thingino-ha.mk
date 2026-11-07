@@ -49,6 +49,10 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 	# Auto-enable floodlight entity on floodlight-equipped cameras
 	$(if $(BR2_PACKAGE_WYZE_ACCESSORY_FLOODLIGHT),
 		printf '{"ha":{"enable_floodlight":true}}\n' > $(TARGET_DIR)/usr/share/thingino-defaults/55-ha-floodlight.json)
+
+	# Auto-enable lamp socket entity on lamp-socket-equipped cameras
+	$(if $(BR2_PACKAGE_WYZE_ACCESSORY_LAMP_SOCKET),
+		printf '{"ha":{"enable_lamp_socket":true}}\n' > $(TARGET_DIR)/usr/share/thingino-defaults/55-ha-lamp-socket.json)
 endef
 
 $(eval $(generic-package))

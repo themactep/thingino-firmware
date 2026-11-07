@@ -1,0 +1,32 @@
+#!/bin/sh
+
+DAEMON="/usr/bin/divinus"
+PIDFILE="/run/divinus.pid"
+
+start() {
+	[ -x "$DAEMON" ] || return 0
+	start-stop-daemon -S -q -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop() {
+	start-stop-daemon -K -q -p "$PIDFILE" -x "$DAEMON" -R TERM/10/KILL/5
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

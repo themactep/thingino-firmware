@@ -1,0 +1,24 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] i2c: jz4780: select the X1000 profile for the T31 controller
+
+The T31 I2C controller has the 64-entry FIFO, the X1000 SDA hold
+register at 0x7c and no STPHLD bit; the vendored 3.10 driver is built
+with CONFIG_I2C_FIFO_LEN=64. The DT lists t31-i2c with a jz4780
+fallback, so the driver currently binds the JZ4780 profile (16-entry
+FIFO, STPHLD/stop-hold path). Register reads can then succeed while
+the sensor init write array times out ("write wait timeout") and the
+adapter never disables cleanly (ENSTA stuck at 1).
+
+Match "ingenic,t31-i2c" explicitly and reuse the X1000 profile.
+
+---
+--- a/drivers/i2c/busses/i2c-jz4780.c
++++ b/drivers/i2c/busses/i2c-jz4780.c
+@@ -754,6 +754,7 @@
+ static const struct of_device_id jz4780_i2c_of_matches[] = {
+ 	{ .compatible = "ingenic,jz4770-i2c", .data = &jz4780_i2c_config },
+ 	{ .compatible = "ingenic,jz4780-i2c", .data = &jz4780_i2c_config },
++	{ .compatible = "ingenic,t31-i2c", .data = &x1000_i2c_config },
+ 	{ .compatible = "ingenic,x1000-i2c", .data = &x1000_i2c_config },
+ 	{ /* sentinel */ }
+ };

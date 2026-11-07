@@ -1,0 +1,24 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] pinctrl: ingenic: allow the T31 pin-function shadow window
+
+T31 muxes pins through the PZ shadow window at 0x7000 (GID2LD at
+0x70f0), but t31_access_ranges only permits 0x0000-0x2ffc, so the
+regmap rejects every shadow write. ingenic_shadow_config_pin() and
+its load helper fail silently, no pin function is ever applied, and
+the pins keep whatever the bootloader left. I2C0 PA12/13 stayed on
+function 2 instead of function 1, so the SC2336 could not be reached.
+
+Allow the window, as the X1000 table already does for its 0x700
+shadow block.
+
+---
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -2931,6 +2931,7 @@
+ 
+ static const struct regmap_range t31_access_ranges[] = {
+ 	regmap_reg_range(0x0000, 0x3000 - 4),
++	regmap_reg_range(0x7000, 0x7000 + 0x100 - 4),
+ };
+ 
+ static const struct regmap_access_table t31_access_table = {

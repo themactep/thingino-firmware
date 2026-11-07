@@ -192,6 +192,65 @@ Create `uenv.txt`:
 # Usually this can be empty or minimal
 ```
 
+### 2.4 Optional: Camera-Profile Device-Tree Fragment
+
+A camera profile may ship exactly one `.dtsi` file alongside its defconfig.
+On kernel 4.4 and later the `thingino-kopt` Linux extension finds the leaf dts
+the kernel config builds, copies the fragment into the dts directory and
+appends a single `#include` to that leaf, so the fragment augments the family
+tree instead of replacing it. On 3.10 there is no device-tree directory and the
+fragment is ignored. A fragment may ship ahead of a family's 4.4 tree: the
+injector skips a leaf whose tree does not define the labels the fragment opens
+(`&gpa`..`&gpd`, `&msc0`) or that already declares a `gpio-leds` node.
+
+Use it for board pins that have a kernel device-tree binding:
+
+```dts
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 7 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpa 22 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+};
+
+&msc0 {
+	ingenic,cd-gpios = <&gpa 21 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
+```
+
+When the fragment declares `gpio-keys`, the injector deletes the SoC tree's own
+dev-board `gpio_keys` node first (`/delete-node/ &gpio_keys;` by label, else by
+node name), or gpio-keys would claim the vendor power/boot-select pins.
+
+A profile that must describe the whole board should ship a `.dts` instead.
+`thingino.json` and the defconfig remain the source for the pins userspace and
+the U-Boot `gpio.mmc_power` use.
+
+The fragment is the single source for three board functions, feeding both
+kernel lines:
+- **LEDs** - 4.4 includes the `gpio-leds` node in DT; the 3.10 header generator
+  prefers it and falls back to the legacy `BR2_THINGINO_LED_*` defconfig values.
+- **MMC card-detect** - 4.4 reads `ingenic,cd-gpios`; `MMC_CD_PIN` (parsed from
+  the fragment) feeds the U-Boot `cd-gpios` injection and S09mmc's jzmmc
+  `cd_gpio_pin` parameter.
+- **Reset/chime buttons** - 4.4 reads the `gpio-keys` node; `BUTTON_PIN`/
+  `CHIME_PIN` feed the U-Boot `gpio-keys` injection and the 3.10 `gpio-userkeys`
+  module config.
+
 ## Step 3: Create Device Tree File
 
 ### 3.1 Add Device Tree Kconfig Entry

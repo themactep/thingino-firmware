@@ -5,6 +5,12 @@
   const statusEl = document.getElementById("fmp4-status");
   if (!video) return;
 
+  // Use ManagedMediaSource where the browser provides it (Safari 17.1+,
+  // which requires disableremoteplayback on the <video>); plain MediaSource
+  // elsewhere. When the browser has neither, beginStream hands off to the
+  // MJPEG fallback.
+  const MSE = window.ManagedMediaSource || window.MediaSource;
+
   let mediaSource = null;
   let sourceBuffer = null;
   let abortController = null;
@@ -720,8 +726,7 @@
           const info = codecFromInit(buf.subarray(0, moovEnd));
           encodingByCh[ch] = info.hevc ? "H.265" : "H.264";
           const mseHevc =
-            !info.hevc ||
-            !!(window.MediaSource && MediaSource.isTypeSupported(info.mime));
+            !info.hevc || !!(MSE && MSE.isTypeSupported(info.mime));
           if (!mseHevc || wcMode[ch]) {
             wcMode[ch] = true;
             await startDecoder(
@@ -1005,7 +1010,14 @@
       runPromise = run(ch, mySession);
       return;
     }
-    mediaSource = new MediaSource();
+    if (!MSE) {
+      // No Media Source extensions at all: the fMP4 stream has no sink to
+      // attach to.
+      mjpegMode[ch] = true;
+      startMjpegFallback(ch, mySession);
+      return;
+    }
+    mediaSource = new MSE();
     video.src = URL.createObjectURL(mediaSource);
     mediaSource.addEventListener(
       "sourceopen",

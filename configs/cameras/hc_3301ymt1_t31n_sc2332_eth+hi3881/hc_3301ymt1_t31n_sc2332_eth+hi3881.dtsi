@@ -1,0 +1,19 @@
+// HC-3301Y-MT1 (T31N, SC2332, ETH, HI3881) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpa 6 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+};

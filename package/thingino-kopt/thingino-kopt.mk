@@ -40,10 +40,78 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_INTERNAL_PHY
 endef
 endif
 
+# 4.4 kernels name the MAC driver differently and take its pins, clock and PHY
+# from the device tree, so the options above do nothing there. The 4.4 base
+# configs leave the MAC out; this turns it back on as they used to carry it.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_JZ_MAC),y)
+ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(SOC_FAMILY),a1)
+# A1 uses stmmac. DWMAC_GENERIC defaults on with the platform glue, and the
+# base config never had it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_ETH)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_PLATFORM)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_DWMAC_INGENIC)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_DWMAC_GENERIC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PTP_1588_CLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PHYLIB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NETWORK_PHY_TIMESTAMPING)
+endef
+else
+# The driver picks its DMA setup from the bus option (T40 sits on AHB, the
+# others on AXI) and calls into phylib without selecting it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC_DMA_INTERFACES)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC_$(if $(filter t40,$(SOC_FAMILY)),AHB,AXI)_BUS)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PHYLIB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NETWORK_PHY_TIMESTAMPING)
+endef
+endif
+endif
+endif
+
 ################ MMC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
-ifeq ($(BR2_mips_xburst2),y)
+# Which MSC driver this SoC and kernel pair uses:
+#   jz4740-mmc    7.x mainline T31 - DT driven, one driver for msc0/msc1
+#   ingenic-mmc   5.15 (T31 vendor SDK) - mainline-style Ingenic MSC
+#   jzmmc         XBurst1 on 3.10/4.4, everything except t32
+#   sdhci-jz      t32 (PRJ007) on 3.10 - jzmmc_v12 does not list SOC_PRJ007 in
+#                 its depends, so JZMMC_V12* values are dropped by kconfig there
+#   sdhci-ingenic XBurst2 always, and t32 on 4.4 - device-tree driven, so the
+#                 per-controller and pin fixups below do not apply at all
+#
+# KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
+# be compared rather than concatenated.
+ifeq ($(KERNEL_VERSION_7),y)
+KOPT_MMC_DRIVER = jz4740-mmc
+else ifeq ($(KERNEL_VERSION_5),y)
+KOPT_MMC_DRIVER = ingenic-mmc
+else ifeq ($(SOC_FAMILY),t32)
+ifeq ($(KERNEL_VERSION_4),y)
+KOPT_MMC_DRIVER = sdhci-ingenic
+else
+KOPT_MMC_DRIVER = sdhci-jz
+endif
+else ifeq ($(BR2_mips_xburst2),y)
+KOPT_MMC_DRIVER = sdhci-ingenic
+else
+KOPT_MMC_DRIVER = jzmmc
+endif
+
+ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
+KOPT_MMC_SYM = MMC_SDHCI
+else ifeq ($(KOPT_MMC_DRIVER),ingenic-mmc)
+KOPT_MMC_SYM = INGENIC_MMC
+else ifeq ($(KOPT_MMC_DRIVER),jz4740-mmc)
+KOPT_MMC_SYM = MMC_JZ4740
+else
+KOPT_MMC_SYM = JZMMC_V12
+endif
+
+ifeq ($(KOPT_MMC_DRIVER),sdhci-ingenic)
 # XBurst2 drives its MSC through sdhci-ingenic, which binds the "ingenic,sdhci"
 # nodes the device tree declares. The jzmmc driver below does not exist here.
 #
@@ -67,6 +135,55 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
 endef
+else ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
+# t32 on 3.10: sdhci-jz, built as ingenic_sdhci_sdio.ko - the same module name XBurst2 uses,
+# so thingino-mmc patches S09mmc the same way. Modular for the same reason:
+# root is on SFC NOR, nothing needs a card before userspace, and the t32 kernel
+# has very little room left in its 1600 KiB partition. The board file still
+# registers the platform devices, guarded by the MMC_SDHCI_MMC[01] bools, so
+# the driver binds when the module loads.
+# Only the host driver is modular here, exactly as the jzmmc arm below does
+# it. The 3.10 MMC core cannot be built as a module: mmc_core.ko then has
+# undefined __tracepoint_mmc_blk_{rw,erase}_{start,end}, which are only
+# defined when the core is built in.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI,m)
+	$(if $(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT), \
+		$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_SDHCI_JZ), \
+		$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI_JZ,m))
+endef
+else ifeq ($(KOPT_MMC_DRIVER),ingenic-mmc)
+# 5.15 T31: mainline-style Ingenic MSC. Keep the controller built in - the SD
+# slot and any SDIO wifi part both want it up before userspace.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MMC)
+endef
+# A card slot is expected to mount FAT32; modular like the rest of the stack.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
+else ifeq ($(KOPT_MMC_DRIVER),jz4740-mmc)
+# 7.x mainline: one jz4740-mmc driver binds both msc0 (SD slot) and msc1
+# (SDIO WiFi) from the device tree; there are no per-controller Kconfig
+# symbols to toggle.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_JZ4740)
+endef
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
 else
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
@@ -75,15 +192,6 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 		$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12), \
 		$(call KCONFIG_SET_OPT,CONFIG_JZMMC_V12,m))
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_SDMA)
-endef
-# Built-in VFAT flags a card as corrupt the moment it is sensed, so the
-# 3.10.14 base configs dropped it. Load it as a module via S09mmc, before
-# any card can be automounted.
-define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
-	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
-	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
-	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
-	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
 endef
 endif
 
@@ -94,59 +202,76 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS)
 endef
 endif
+
+# exFAT on modern kernels comes from the in-tree driver (fs/exfat); the
+# out-of-tree exfat-nofuse no longer builds past 5.4. Enable it as a module
+# wherever an SD slot is expected, so a card mounts through the same
+# "mount -t auto" path as vfat. Legacy kernels keep exfat-nofuse.
+ifneq ($(filter y,$(KERNEL_VERSION_5) $(KERNEL_VERSION_7)),)
+ifeq ($(BR2_THINGINO_SDCARD),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT
+	$(call KCONFIG_SET_OPT,CONFIG_EXFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_EXFAT_DEFAULT_IOCHARSET,"utf8")
+endef
+endif
+endif
+# 7.x uses the DT and one host driver; there are no per-controller/pin
+# Kconfig knobs to apply.
+ifneq ($(KERNEL_VERSION_7),y)
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0)
 	$(call KCONFIG_SET_OPT,CONFIG_MMC0_MAX_FREQ,48000000)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_1BIT
 	# 1bit needs the pb_4bit...
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_1BIT)
-#	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_1BIT)
+#	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_PB_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_PB_8BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_8BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_8BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1)
 	$(call KCONFIG_SET_OPT,CONFIG_MMC1_MAX_FREQ,24000000)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PA_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PA_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PA_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PB_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PB_8BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PB_8BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PB_8BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PC_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PC_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PC_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PD_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PD_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PD_4BIT)
 endef
+endif
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT
@@ -166,10 +291,40 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_COMMON)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
+	# T32-class kernels do not bake CONFIG_USB_DWC2 into *.generic.config the
+	# way T31 does, so enable the controller, its DMA buffer mode and the
+	# Ingenic INNO PHY here (the PHY must come up or the root port never
+	# enables). The USB mode (host / dual-role) is set by the choice below.
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DMA_BUFFER_MODE)
+	# The INNO PHY driver is PRJ007/PRJ008-only in the vendor 5.15 tree
+	# (OPCR_USB_SPENDN0 is undefined on T31); skip it for t31 until the
+	# T31 PHY is ported.
+	$(if $(filter t31,$(SOC_FAMILY)),$(call KCONFIG_DISABLE_OPT,CONFIG_INGENIC_INNOPHY),$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_INNOPHY))
 endef
 endif
+# DWC2_OTG = the camera is the USB host: attach a device to it (e.g. via an
+# OTG adapter) - USB-Ethernet, storage, etc. Host-only + the usbnet drivers,
+# no gadget/dual-role stack. Dual-role lives in DWC2_DUAL_ROLE below.
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_AX88179_178A)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_SUBSET)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_NET1080)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_ZAURUS)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_OTG_WHITELIST)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_HOST_ONLY)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_JZ_DWC2)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
+endef
+endif
+# DWC2_DUAL_ROLE = the camera itself acts as a USB device (UVC webcam or
+# usb-direct NCM) - it plugs INTO a host. Dual-role + the USB gadget stack.
+# This is the old DWC2_OTG behaviour, kept for those models only.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_DUAL_ROLE),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_DUAL_ROLE
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_AX88179_178A)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_NCM)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_SUBSET)
@@ -178,6 +333,8 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_OTG_WHITELIST)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DUAL_ROLE)
+	# The 3.10 gadget code reads these debug switches outside the option's
+	# ifdef, so it does not compile without it (they default to off).
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_GADGET)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_JZ_DWC2)
@@ -195,7 +352,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_COMMON)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_HOST_ONLY)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_JZ_DWC2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_OTG)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
@@ -211,6 +368,20 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_UART_UART2),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SERIAL_JZ47XX_UART2)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SLIP),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLIP
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SLIP)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SLIP_COMPRESSED)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLUB_DEBUG
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SLUB_DEBUG)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SLUB_DEBUG_ON)
 endef
 endif
 
@@ -265,10 +436,34 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1
 endef
 endif
 
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PB25_PB26),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1_PB25_PB26
+	$(call KCONFIG_ENABLE_OPT,CONFIG_I2C1_PB25_PB26)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PA16_PA17),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1_PA16_PA17
+	$(call KCONFIG_ENABLE_OPT,CONFIG_I2C1_PA16_PA17)
+endef
+endif
+
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2
 	$(call KCONFIG_ENABLE_OPT,CONFIG_I2C2_V12_JZ)
 	$(call KCONFIG_SET_OPT,CONFIG_I2C2_SPEED,100)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB20_PB21),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2_PB20_PB21
+	$(call KCONFIG_ENABLE_OPT,CONFIG_I2C2_PB20_PB21)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB27_PB28),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2_PB27_PB28
+	$(call KCONFIG_ENABLE_OPT,CONFIG_I2C2_PB27_PB28)
 endef
 endif
 
@@ -288,6 +483,15 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_KEYS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_INPUT_KEYBOARD)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_KEYBOARD_GPIO)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_INPUT_EVDEV)
+endef
+endif
+
+################ NFS FS #########################
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_NFS),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NFS
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NFS_FS)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ROOT_NFS)
 endef
 endif
 
@@ -412,13 +616,6 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP
 endef
 endif
 
-ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG),y)
-define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLUB_DEBUG
-	$(call KCONFIG_ENABLE_OPT,CONFIG_SLUB_DEBUG)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_SLUB_DEBUG_ON)
-endef
-endif
-
 ################ GADGET_SERIAL #########################
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL),y)
@@ -457,6 +654,16 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DMIC),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_TS_DMIC)
+endef
+endif
+
+ifeq ($(BR2_THINGINO_AUDIO),y)
+# SOUND is the sound-core parent the audio path expects. SOUND_OSS3 (the
+# jzsound oss3 driver) is PRJ007/PRJ008-only and does not compile for t31,
+# and it defaults to y under SOUND, so force it off.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SOUND)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SOUND_OSS3)
 endef
 endif
 
@@ -564,7 +771,9 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V12)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V13)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_INTERNAL_PHY)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_1BIT)
@@ -577,13 +786,16 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PD_4BIT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_DUAL_ROLE)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RTC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_PWM)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLIP)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LEDS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_KEYS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
@@ -595,12 +807,17 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER6)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1_PB25_PB26)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1_PA16_PA17)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2_PB20_PB21)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2_PB27_PB28)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_USB_MASS_STORAGE)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXTFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_CLK)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RAMOOPS)
 endef
@@ -609,6 +826,12 @@ define THINGINO_KOPT_INSTALL_TARGET_CMDS
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6)
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_NETFILTER)
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_RAMOOPS)
+endef
+
+# The SLIP line discipline is attached from userspace; busybox carries the
+# applet only when the kopt asks for it.
+define THINGINO_KOPT_BUSYBOX_CONFIG_FIXUPS
+	$(if $(filter y,$(BR2_PACKAGE_THINGINO_KOPT_SLIP)),$(call KCONFIG_ENABLE_OPT,CONFIG_SLATTACH))
 endef
 
 $(eval $(generic-package))

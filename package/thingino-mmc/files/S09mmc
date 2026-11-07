@@ -5,6 +5,7 @@
 . /etc/init.d/lib-log
 
 MMC_MODULE="jzmmc_v12"
+MMC_CD_PIN=""
 MMC_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 set_gpio() {
@@ -158,9 +159,15 @@ set_power() {
 }
 
 load_module() {
-	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
-		echo "$MMC_MODULE is already loaded" >&2
-		exit 1
+	if grep -q "^$MMC_MODULE " /proc/modules; then
+		if [ -z "$MMC_PARAM" ]; then
+			echo "$MMC_MODULE is already loaded, nothing to reload" >&2
+		else
+			echo "$MMC_MODULE is already loaded, reloading to apply $MMC_PARAM" >&2
+			if ! rmmod "$MMC_MODULE"; then
+				echo "Failed to unload $MMC_MODULE, keeping the current instance" >&2
+			fi
+		fi
 	fi
 
 	echo "Load $MMC_MODULE $MMC_PARAM"
@@ -173,11 +180,12 @@ load_module() {
 	# The card/block driver is a separate module wherever MMC is modular
 	# (XBurst2). Without it the host registers and the card enumerates, but
 	# no /dev/mmcblk* node is ever created and nothing can be mounted.
-	# vfat likewise: /lib/mdev/automount uses "mount -t auto", which only
-	# tries filesystems already listed in /proc/filesystems, so it has to be
-	# resident before a card shows up. Both are no-ops when built in.
+	# vfat and exfat likewise: /lib/mdev/automount uses "mount -t auto",
+	# which only tries filesystems already listed in /proc/filesystems, so
+	# they have to be resident before a card shows up. No-ops when built in.
 	modprobe mmc_block 2>/dev/null || true
 	modprobe vfat 2>/dev/null || true
+	modprobe exfat 2>/dev/null || true
 
 	set_power
 }
@@ -186,15 +194,14 @@ start() {
 	log -c 15 "Initializing MMC"
 
 	# cd_gpio_pin is a jzmmc (XBurst1) module parameter and overrides the
-	# board's card-detect pin, so pass it only when the profile sets
-	# gpio.mmc_cd; a default would force a detect GPIO on boards with none.
-	# XBurst2's ingenic_sdhci_sdio takes its pin from the device tree and
-	# declares no parameters, so MMC_PARAM stays empty there.
-	if [ "$MMC_MODULE" = "jzmmc_v12" ]; then
-		MMC_PARAM=""
-		if gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd" 2>/dev/null); then
-			[ -n "$gpio_mmc_cd" ] && MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd}"
-		fi
+	# board's card-detect pin, so pass it only when the profile defines one;
+	# a default would force a detect GPIO on boards with none. The pin comes
+	# from the camera dtsi (MMC_CD_PIN, substituted at build time) - the same
+	# fragment the 4.4+ kernel takes its card-detect from. XBurst2's
+	# ingenic_sdhci_sdio takes its pin from the device tree and declares no
+	# parameters, so MMC_PARAM stays empty there.
+	if [ "$MMC_MODULE" = "jzmmc_v12" ] && [ -n "$MMC_CD_PIN" ]; then
+		MMC_PARAM="cd_gpio_pin=${MMC_CD_PIN}"
 	else
 		MMC_PARAM=""
 	fi

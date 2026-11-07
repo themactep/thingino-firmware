@@ -1,9 +1,5 @@
 {
   "gpio": {
-    "button_reset": {
-      "pin": 62,
-      "active_low": true
-    },
     "eth": {
       "pin": 60,
       "toggle": true
@@ -12,10 +8,6 @@
     "ircut": "50 49",
     "led_g": {
       "pin": 81,
-      "active_low": true
-    },
-    "mmc_cd": {
-      "pin": 58,
       "active_low": true
     },
     "mmc_power": {

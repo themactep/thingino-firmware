@@ -1,9 +1,7 @@
 {
   "gpio": {
-    "button_reset": 14,
     "ir850": 50,
     "ircut": "16 17",
-    "mmc_cd": 49,
     "scl": 58,
     "sda": 57,
     "wlan": 6

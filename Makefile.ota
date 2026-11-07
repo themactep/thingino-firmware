@@ -108,7 +108,8 @@ else
 	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
 	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
 	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
-	@if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
+	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
+	@if [ $(DATA_OFFSET) -gt $$(( 8 * 1024 * 1024 - $(JFFS2_MIN_SIZE) )) ]; then $(YELLOW) "WARNING: ROOTFS ENDS BEYOND 8MB MINUS MINIMAL JFFS2 PARTITION - IMAGE MAY NOT FIT AN 8MB FLASH"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
@@ -184,9 +185,21 @@ remove_bins:
 repack: remove_bins pack
 	@$(TEAL) "$@"
 
+# Guard: only the Buildroot internal toolchain can be packaged as an SDK; the
+# external/local one already is an SDK and has no BR2_TOOLCHAIN_BUILDROOT_VENDOR,
+# so it would be renamed with the wrong "buildroot" tuple.
+define check_sdk_toolchain
+if [ "$(TOOLCHAIN_TYPE_RAW)" != "BUILDROOT" ]; then \
+	echo "ERROR: the SDK can only be built with the Buildroot internal toolchain."; \
+	echo "       Set BR2_THINGINO_TOOLCHAIN_TYPE_BUILDROOT=y (current type: $(TOOLCHAIN_TYPE_RAW))."; \
+	exit 1; \
+fi
+endef
+
 # build toolchain fast
 sdk: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) -j$(NPROC) sdk
 
 source: defconfig
@@ -196,6 +209,7 @@ source: defconfig
 # build toolchain
 toolchain: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) sdk
 
 .PHONY: check-image-fits
@@ -216,7 +230,7 @@ ifneq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	if [ -f "$(KERNEL_BIN)" ] && [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
 		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
 	fi; \
-	if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then \
+	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
 		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; \
 	fi; \
 	if [ -f "$(DATA_BIN)" ] && [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \

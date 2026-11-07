@@ -1,8 +1,6 @@
 {
   "gpio": {
-    "button_reset": 6,
     "button_call": 40,
-    "mmc_cd": 59,
     "mmc_power": {
       "pin": 43,
       "active_low": true
