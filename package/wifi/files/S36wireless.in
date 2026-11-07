@@ -278,6 +278,20 @@ power_off_wlan_pins() {
 	done
 }
 
+reset_usb_host() {
+	local drv=/sys/bus/platform/drivers/dwc2 dev name
+	[ -d "$drv" ] || return 0
+	for dev in "$drv"/*; do
+		[ -L "$dev" ] || continue
+		name=${dev##*/}
+		echo "Reset USB host controller $name"
+		echo "$name" >"$drv/unbind"
+		sleep 1
+		echo "$name" >"$drv/bind"
+		sleep 1
+	done
+}
+
 start() {
 	log -c 15 "Starting wireless interface"
 
@@ -305,9 +319,19 @@ start() {
 		# SDIO device always starts from a clean state.  The low
 		# pulse must cover the board's power-off discharge and, for
 		# USB, the host's disconnect detection.
+		@if WIFI_FAMILY_AIC@
+		# aic8800_fdrv pulls aic_load_fw in, and that module keeps a
+		# global "firmware loaded" flag. If it autoloaded before this
+		# cycle, the re-enumerated bootloader device is rejected.
+		rmmod "$WLAN_MODULE_NAME" 2>/dev/null
+		rmmod aic_load_fw 2>/dev/null
+		@endif@
 		collect_wlan_sequence "$wlan_sequence"
 		power_off_wlan_pins
 		sleep 1
+		@if WIFI_USB_RESET@
+		reset_usb_host
+		@endif@
 		apply_wlan_sequence "$wlan_sequence"
 		sleep 1
 

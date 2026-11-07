@@ -142,6 +142,15 @@ endif
 
 WIFI_MODULE_IS_SDIO_FLAG := $(if $(filter sdio,$(WIFI_INTERFACE)),1,0)
 
+# The T41 USB PHY keeps a wedged port state across a WLAN rail power cycle;
+# unbinding/rebinding dwc2 gives the re-enumerated device a clean bus.
+WIFI_USB_RESET_FLAG := 0
+ifeq ($(WIFI_MODULE_IS_SDIO_FLAG),0)
+ifeq ($(SOC_FAMILY),t41)
+WIFI_USB_RESET_FLAG := 1
+endif
+endif
+
 ifeq ($(WIFI_MODULE_IS_SDIO_FLAG),1)
 	ifneq ($(filter $(SOC_FAMILY),t23 t31),)
 		ifeq ($(SOC_MODEL),t31a)
@@ -163,6 +172,7 @@ WIFI_TEMPLATE_VARS = \
 	--var SOC_FAMILY=$(SOC_FAMILY) \
 	--var SOC_MODEL=$(SOC_MODEL) \
 	--var WIFI_MODULE_IS_SDIO=$(WIFI_MODULE_IS_SDIO_FLAG) \
+	--var WIFI_USB_RESET=$(WIFI_USB_RESET_FLAG) \
 	--var WIFI_ATBM6461=$(WIFI_IS_ATBM6461_FLAG) \
 	--var WIFI_SDIO_SET_GPIO=$(WIFI_SDIO_SET_GPIO_FLAG) \
 	--var WIFI_SDIO_RETURN_EARLY=$(WIFI_SDIO_RETURN_EARLY_FLAG) \
