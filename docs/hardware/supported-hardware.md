@@ -397,6 +397,14 @@ Vanhua
 - [T31X, GC4653, ETH](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-vanhua_z55_t31x_gc4653_eth.bin)
 
 
+VICOHOME
+--------
+
+### Vicohome CG721 (ST-G1)
+
+- [T31ZL, GC2063, HI3881](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-vicohome_cg721_t31zl_gc2063_hi3881.bin)
+
+
 Victure
 -------
 

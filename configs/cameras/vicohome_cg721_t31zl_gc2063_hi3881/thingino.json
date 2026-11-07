@@ -1,0 +1,15 @@
+{
+  "_TODO": "PLACEHOLDER GPIOs - fill from board inspection/boot log before release. Do not flash a build with zeroed GPIOs.",
+  "gpio": {
+    "button_reset": 0,
+    "ircut": "0 0",
+    "ir850": {
+      "pin": 0,
+      "active_low": true
+    },
+    "white": {
+      "pin": 0,
+      "active_low": true
+    }
+  }
+}
