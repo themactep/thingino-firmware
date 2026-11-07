@@ -52,7 +52,8 @@ copy_video() {
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
 		# Create atomically (see copy_photo): cp target must not be a planted symlink.
 		local tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
-		cp "$MOTION_VIDEO_FILE" "$tmpfile"
+		ln -f "$MOTION_VIDEO_FILE" "$tmpfile" 2>/dev/null ||
+			cp "$MOTION_VIDEO_FILE" "$tmpfile"
 		add_to_garbage "$tmpfile"
 		echo "$tmpfile"
 		return
