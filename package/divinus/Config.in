@@ -1,0 +1,24 @@
+config BR2_PACKAGE_DIVINUS
+	bool "Divinus"
+	depends on BR2_SOC_FAMILY = "t31"
+	depends on BR2_PACKAGE_THINGINO_STREAMER_DIVINUS
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS if !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS && !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS if !BR2_PACKAGE_OPENIMP
+	help
+	  Divinus is a compact multi-platform streamer for Ingenic T31
+	  cameras. It speaks RTSP, serves JPEG snapshots from its own
+	  web server and can record fMP4.
+
+	  NOTE: this is a proof of concept, not a working package. It
+	  builds and starts on a T31, but it has not been integrated with
+	  the rest of the Thingino userland (day/night, OSD defaults,
+	  ONVIF discovery, WebUI) the way prudynt-t has. Expect to run it
+	  by hand and adjust /etc/divinus.yaml for the sensor and board.
+
+	  https://github.com/openipc/divinus

@@ -1,0 +1,36 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] mtd: mtdblock: do not auto-attach an I/O scheduler
+
+On the T31 (X1000-class) mainline-7.1 port, registering the first
+mtdblock device wedges the boot inside blk_register_queue():
+
+  ingenic_sfc_driver_init -> spi_nor probe -> mtd_device_parse_register
+    -> add_mtd_partitions -> add_mtd_device("boot")
+    -> blktrans_notify_add -> add_mtd_blktrans_dev
+    -> device_add_disk -> add_disk_fwnode -> __add_disk
+    -> blk_register_queue -> elevator_set_default -> elevator_change
+    -> elevator_switch   [hangs]
+
+The hang is a preempt-disabled spin in elevator_switch() (no soft-lockup
+or hung-task backtrace is produced). It happens before any flash access,
+so it is not the SFC/PIO path. Skipping the default I/O scheduler setup
+for the mtdblock queue avoids it; mtdblock works fine with "none" and the
+mtdblock4 squashfs rootfs mounts normally.
+
+Mark the mtdblock tag set with BLK_MQ_F_NO_SCHED_BY_DEFAULT so
+elevator_set_default() returns early.
+
+This is a workaround: the real fix is to understand why
+elevator_switch()/blk_mq_init_sched() spins for this queue.
+
+--- a/drivers/mtd/mtd_blkdevs.c
++++ b/drivers/mtd/mtd_blkdevs.c
+@@ -329,7 +329,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
+ 		goto out_list_del;
+ 
+ 	ret = blk_mq_alloc_sq_tag_set(new->tag_set, &mtd_mq_ops, 2,
+-			BLK_MQ_F_BLOCKING);
++			BLK_MQ_F_BLOCKING | BLK_MQ_F_NO_SCHED_BY_DEFAULT);
+ 	if (ret)
+ 		goto out_kfree_tag_set;
+ 	

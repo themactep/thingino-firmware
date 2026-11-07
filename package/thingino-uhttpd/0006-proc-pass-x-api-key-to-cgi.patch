@@ -1,0 +1,27 @@
+proc: pass the X-API-Key request header to CGI as HTTP_X_API_KEY
+
+uhttpd exports only a fixed list of request headers to CGI scripts
+(proc_header_env). The web UI's auth.sh uses X-API-Key for key-based
+authentication, but using uhttpd this never reaches.
+
+diff --git a/proc.c b/proc.c
+--- a/proc.c
++++ b/proc.c
+@@ -38,7 +38,8 @@
+ 	__header(content_length, content-length) \
+ 	__header(x_http_method_override, x-http-method-override) \
+ 	__header(http_auth_user, http-auth-user) \
+-	__header(http_auth_pass, http-auth-pass)
++	__header(http_auth_pass, http-auth-pass) \
++	__header(x_api_key, x-api-key)
+ 
+ #undef __header
+ #define __header __enum_header
+@@ -71,6 +72,7 @@
+ 	{ "HTTP_X_HTTP_METHOD_OVERRIDE", HDR_x_http_method_override },
+ 	{ "HTTP_AUTH_USER", HDR_http_auth_user },
+ 	{ "HTTP_AUTH_PASS", HDR_http_auth_pass },
++	{ "HTTP_X_API_KEY", HDR_x_api_key },
+ 	{ "CONTENT_TYPE", HDR_content_type },
+ 	{ "CONTENT_LENGTH", HDR_content_length },
+ };

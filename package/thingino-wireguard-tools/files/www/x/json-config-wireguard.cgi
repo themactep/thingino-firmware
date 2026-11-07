@@ -126,7 +126,7 @@ http_fetch() {
 	ERR_FILE=$(mktemp /tmp/${DOMAIN}-fetch-error.XXXXXX)
 
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsS "$url" >"$RESP_FILE" 2>"$ERR_FILE"
+		curl -fsS --tls-max 1.2 "$url" >"$RESP_FILE" 2>"$ERR_FILE"
 		return $?
 	fi
 

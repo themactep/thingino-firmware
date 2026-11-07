@@ -172,6 +172,11 @@ update_manual:
 	@curl -s -z docs/buildroot/manual.pdf -o docs/buildroot/manual.pdf https://buildroot.org/manual.pdf
 	@curl -s -z docs/buildroot/manual.txt -o docs/buildroot/manual.txt https://buildroot.org/manual.text
 
+# Refresh the static CA bundle shipped in the rootfs overlay
+update-certs:
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/update-certs.sh
+
 # install what's needed
 bootstrap:
 	@$(TEAL) "$@"
@@ -368,6 +373,7 @@ shellcheck:
 	@echo "All shell scripts passed."
 
 # Full lint suite: shellcheck + do-not-edit + defconfig sort + plugin validation
+# + tz.json strings
 lint: shellcheck
 	@echo "Checking do-not-edit paths..."
 	@git diff --name-only --diff-filter=ACMR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
@@ -390,6 +396,8 @@ lint: shellcheck
 	@echo "All defconfigs sorted."
 	@echo "Validating webui plugins..."
 	@$(BR2_EXTERNAL)/scripts/check-plugins.sh
+	@echo "Checking tz.json TZ strings..."
+	@$(BR2_EXTERNAL)/scripts/check-tz-json.sh
 	@echo "All lint checks passed."
 
 # Sort all camera defconfigs

@@ -1,0 +1,71 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] clk: ingenic: t31: fix the PLL OD mapping and divider handshake
+
+The T31 PLL OD1 field is a plain 1-based divider: register value N
+divides by N. The CGU core, however, adds one to the index of the
+matched encoding-table entry, so the current table maps N to N+1:
+VPLL 1200 MHz is reported as 800 MHz, MPLL 1000 MHz as 750 MHz and
+APLL 1008 MHz as 672 MHz. Every derived clock is then computed 1.5x
+too low and clk_set_rate() picks a divider for a rate the hardware
+never had. The CIM request for 24 MHz lands on VPLL/34 = 35.3 MHz,
+outside the SC2336 MCLK range, so the sensor never answers on I2C.
+
+Store the encoding so that entry N-1 holds value N; the core then
+yields the divider the register encodes.
+
+The ISP, CIM and RSA dividers also have the T31 change-enable
+handshake (CE bit 29, busy bit 28, stop bit 27). Without it
+clk_set_rate() updates the divider bits but the hardware keeps the
+old ratio: the sensor MCLK stayed at the bootloader's 35.3 MHz until
+the CE bit was written by hand. Add the bits, matching the vendor
+cgu_clks table and the MAC/MSC/SSI entries that already carry them.
+
+---
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -89,13 +89,13 @@
+  * (bits 10:8). The effective output divider is OD1 * OD0. In practice,
+  * the bootloader always sets OD0 = 1, so we model only OD1 here.
+  *
+- * The register value maps directly to the divider value (1-based):
+- * The table maps divider index to register value. The CGU framework
+- * searches for the register value in the table; the matching index
+- * is the divider. Index 0 is unused (divide-by-0 is invalid).
++ * The register value maps directly to the divider value (1-based).
++ * The CGU core searches the table for the register value and then
++ * adds one to the matching index, so entry N-1 must hold value N.
++ * Raw value 0 would mean a divide-by-zero and is never programmed.
+  */
+ static const s8 t31_pll_od_encoding[8] = {
+-	-1, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
++	0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, -1,
+ };
+ 
+ static const struct ingenic_cgu_clk_info t31_cgu_clocks[] = {
+@@ -296,7 +296,7 @@
+ 		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
+ 			     T31_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_ISPCDR, 30, 2 },
+-		.div = { CGU_REG_ISPCDR, 0, 1, 4, -1, -1, -1 },
++		.div = { CGU_REG_ISPCDR, 0, 1, 4, 29, 28, 27 },
+ 		.gate = { CGU_REG_CLKGR0, 23 },
+ 	},
+ 
+@@ -305,7 +305,7 @@
+ 		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
+ 			     T31_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_CIMCDR, 30, 2 },
+-		.div = { CGU_REG_CIMCDR, 0, 1, 8, -1, -1, -1 },
++		.div = { CGU_REG_CIMCDR, 0, 1, 8, 29, 28, 27 },
+ 	},
+ 
+ 	[T31_CLK_RSA] = {
+@@ -313,7 +313,7 @@
+ 		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
+ 			     T31_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_RSACDR, 30, 2 },
+-		.div = { CGU_REG_RSACDR, 0, 1, 4, -1, -1, -1 },
++		.div = { CGU_REG_RSACDR, 0, 1, 4, 29, 28, 27 },
+ 		.gate = { CGU_REG_CLKGR0, 27 },
+ 	},
+ 

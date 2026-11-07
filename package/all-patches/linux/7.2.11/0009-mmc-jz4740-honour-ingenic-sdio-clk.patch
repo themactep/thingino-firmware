@@ -1,0 +1,124 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] mmc: jz4740: honour the vendor ingenic,sdio_clk property
+
+The vendor Ingenic trees treat SDIO hosts specially: they keep the MSC
+clock running (CTRL_CLOCK_START, never LPM_LPM) instead of stopping it
+after every transfer, never gate the clock across power transitions, and
+change the CGU rate with the clock disabled, targeting the requested rate
+rather than f_max. The mainline jz4740_mmc driver does none of this (and
+enables LPM above 25 MHz, which stops the clock).
+
+Parse `ingenic,sdio_clk` and, when set: skip the LPM programming; do not
+gate the MSC clock between transfers; leave it enabled on MMC_POWER_OFF;
+enable it at probe; and change the CGU rate with the clock disabled like
+ingenic_mmc_set_ios() does.
+
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -162,6 +162,10 @@
+ 
+ 	bool vqmmc_enabled;
+ 
++	/* SDIO needs the clock kept out of low-power mode (vendor
++	 * "ingenic,sdio_clk" property). */
++	bool sdio_clk;
++
+ 	unsigned long waiting;
+ 
+ 	uint32_t cmdat;
+@@ -435,6 +439,16 @@
+ 	uint32_t status;
+ 	unsigned int timeout = 1000;
+ 
++	/*
++	 * SDIO cards need a continuously running SD clock (the vendor driver
++	 * writes CTRL_CLOCK_START and never stops it for sdio_clk hosts), so
++	 * do not gate the clock between transfers.
++	 */
++	if (host->sdio_clk) {
++		writew(JZ_MMC_STRPCL_CLOCK_START, host->base + JZ_REG_MMC_STRPCL);
++		return;
++	}
++
+ 	writew(JZ_MMC_STRPCL_CLOCK_STOP, host->base + JZ_REG_MMC_STRPCL);
+ 	do {
+ 		status = readl(host->base + JZ_REG_MMC_STATUS);
+@@ -892,9 +906,26 @@
+ 	int real_rate;
+ 
+ 	jz4740_mmc_clock_disable(host);
+-	clk_set_rate(host->clk, host->mmc->f_max);
+ 
+-	real_rate = clk_get_rate(host->clk);
++	if (host->sdio_clk) {
++		/*
++		 * The vendor changes the CGU rate with the clock disabled
++		 * (ingenic_mmc_clk_onoff(0) -> clk_set_rate -> clk_onoff(1)),
++		 * and targets the requested rate (24 MHz for the init clock)
++		 * rather than f_max. Changing the rate with the clock live
++		 * left MSC1CDR bogus on this SoC.
++		 */
++		clk_disable_unprepare(host->clk);
++		if (rate > 3000000)
++			clk_set_rate(host->clk, rate);
++		else
++			clk_set_rate(host->clk, 24000000);
++		real_rate = clk_get_rate(host->clk);
++		clk_prepare_enable(host->clk);
++	} else {
++		clk_set_rate(host->clk, host->mmc->f_max);
++		real_rate = clk_get_rate(host->clk);
++	}
+ 
+ 	while (real_rate > rate && div < 7) {
+ 		++div;
+@@ -903,7 +934,7 @@
+ 
+ 	writew(div, host->base + JZ_REG_MMC_CLKRT);
+ 
+-	if (real_rate > 25000000) {
++	if (real_rate > 25000000 && !host->sdio_clk) {
+ 		if (host->version >= JZ_MMC_JZ4780) {
+ 			writel(JZ_MMC_LPM_DRV_RISING_QTR_PHASE_DLY |
+ 				   JZ_MMC_LPM_SMP_RISING_QTR_OR_HALF_PHASE_DLY |
+@@ -969,7 +1000,13 @@
+ 			regulator_disable(mmc->supply.vqmmc);
+ 			host->vqmmc_enabled = false;
+ 		}
+-		clk_disable_unprepare(host->clk);
++		/*
++		 * SDIO hosts keep the MSC clock gated open across power
++		 * transitions (the vendor never gates it), otherwise the card
++		 * loses its clock and stops answering.
++		 */
++		if (!host->sdio_clk)
++			clk_disable_unprepare(host->clk);
+ 		break;
+ 	default:
+ 		break;
+@@ -1061,6 +1098,14 @@
+ 
+ 	mmc_regulator_get_supply(mmc);
+ 
++	{
++		u32 sdio_clk = 0;
++
++		if (!of_property_read_u32(pdev->dev.of_node, "ingenic,sdio_clk",
++					  &sdio_clk))
++			host->sdio_clk = !!sdio_clk;
++	}
++
+ 	host->irq = platform_get_irq(pdev, 0);
+ 	if (host->irq < 0)
+ 		return host->irq;
+@@ -1074,6 +1119,10 @@
+ 	if (IS_ERR(host->base))
+ 		return PTR_ERR(host->base);
+ 
++	/* SDIO hosts keep the MSC clock running from probe on. */
++	if (host->sdio_clk)
++		clk_prepare_enable(host->clk);
++
+ 	mmc->ops = &jz4740_mmc_ops;
+ 	if (!mmc->f_max)
+ 		mmc->f_max = JZ_MMC_CLK_RATE;

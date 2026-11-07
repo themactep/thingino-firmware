@@ -1,0 +1,22 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] net: make the net selftests module selectable and off by default
+
+NET_SELFTESTS carries no prompt and is def_tristate PHYLIB, so it is built
+as a module whenever phylib is (here pulled in by the DWC2 host USB-Ethernet
+drivers); those drivers also imply it. Nothing loads it on a device - it is
+a kselftest helper.
+
+Give it a prompt so a board config can turn it off; phylib and its users are
+unaffected.
+
+--- a/net/Kconfig
++++ b/net/Kconfig
+@@ -414,7 +414,7 @@
+ 	bool
+ 
+ config NET_SELFTESTS
+-	def_tristate PHYLIB
++	tristate "net selftests"
+ 	depends on PHYLIB && INET
+ 
+ config NET_SOCK_MSG

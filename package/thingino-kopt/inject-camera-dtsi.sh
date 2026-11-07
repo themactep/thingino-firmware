@@ -42,7 +42,7 @@ adds_keys = bool(re.search(r'^[ \t]*gpio-keys[ \t]*\{', frag, re.M))
 LEDS_RE = re.compile(r'^[ \t]*gpio-leds[ \t]*\{', re.M)
 KEY_LABEL_RE = re.compile(r'^[ \t]*gpio_keys[ \t]*:', re.M)
 KEY_NODE_RE = re.compile(r'^[ \t]*(gpio[-_]keys)[ \t]*\{', re.M)
-LABEL_RE = re.compile(r'^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*:', re.M)
+LABEL_RE = re.compile(r'(?:^|[:{\s])([A-Za-z_][A-Za-z0-9_]*)[ \t]*:', re.M)
 INCLUDE_RE = re.compile(r'^[ \t]*#include[ \t]+"([^"]+)"', re.M)
 
 

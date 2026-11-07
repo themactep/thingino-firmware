@@ -12,7 +12,8 @@
 #   md5=<32 hex>\n
 #   (padded with \n)
 #
-# Payload: tar (uncompressed - busybox tar lacks gzip)
+# Payload: tar, gzipped when gzip is available. Restore accepts both forms:
+# busybox tar cannot auto-detect compression, so the gzip magic decides.
 
 set -e
 
@@ -85,6 +86,11 @@ do_write() {
 
 	tar cf "$tmpd/payload" "$@" 2>/dev/null || die "tar failed"
 
+	if command -v gzip >/dev/null 2>&1; then
+		gzip -c "$tmpd/payload" >"$tmpd/payload.gz" || die "gzip failed"
+		mv "$tmpd/payload.gz" "$tmpd/payload"
+	fi
+
 	sz=$(stat -c%s "$tmpd/payload" 2>/dev/null) || sz=$(wc -c <"$tmpd/payload")
 	[ "$sz" -le "$MAX_PAYLOAD" ] ||
 		die "backup too large: $sz bytes (max $MAX_PAYLOAD)"
@@ -130,7 +136,16 @@ do_restore() {
 
 	[ "$stored_md5" = "$computed_md5" ] || die "MD5 mismatch - backup is corrupt"
 
-	tar xf "$tmpd/payload" -C / || die "tar extract failed"
+	payload="$tmpd/payload"
+	# Detect gzip by attempting decompression. busybox od has no -A
+	# option (CONFIG_DESKTOP off), so magic sniffing with od is not
+	# portable here. A plain-tar payload makes gzip -dc fail, and we
+	# fall through to tar as-is.
+	if gzip -dc "$payload" >"$tmpd/payload.tar" 2>/dev/null; then
+		payload="$tmpd/payload.tar"
+	fi
+
+	tar xf "$payload" -C / || die "tar extract failed"
 	echo "cfg-backup: $sz bytes restored from $MTD"
 }
 
