@@ -52,3 +52,4 @@ __pycache__/
 /contrib/frigate/.env
 /contrib/frigate/config
 /contrib/frigate/media
+configs/cameras_backup/
