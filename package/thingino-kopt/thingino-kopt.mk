@@ -870,6 +870,9 @@ endef
 # applet only when the kopt asks for it.
 define THINGINO_KOPT_BUSYBOX_CONFIG_FIXUPS
 	$(if $(filter y,$(BR2_PACKAGE_THINGINO_KOPT_SLIP)),$(call KCONFIG_ENABLE_OPT,CONFIG_SLATTACH))
+	# BusyBox netstat, ping6 and friends read /proc/net/*6.  Only build
+	# that code when the kernel actually carries IPv6.
+	$(if $(filter y,$(BR2_PACKAGE_THINGINO_KOPT_IPV6)),$(call KCONFIG_ENABLE_OPT,CONFIG_FEATURE_IPV6),$(call KCONFIG_DISABLE_OPT,CONFIG_FEATURE_IPV6))
 endef
 
 $(eval $(generic-package))
