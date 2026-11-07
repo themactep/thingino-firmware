@@ -433,8 +433,9 @@ scripts/qemu-dev reboot
 
 That is for an XBurst1 SoC with 128 MB, which test images built before
 the 128 MB profiles got 64 MB of rmem need. The T40 and T41 keep 8 MB of
-nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. The 64 MB T21
-needs `osmem 42M@0x0` and `rmem 22M@0x2a00000` even when built today.
+nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. A 64 MB T21
+image built before `qemu_t21n` got 22 MB of rmem needs `osmem 42M@0x0` and
+`rmem 22M@0x2a00000`.
 The encoders run on the host CPU, so a 4K stream may run below the
 sensor's frame rate.
 
