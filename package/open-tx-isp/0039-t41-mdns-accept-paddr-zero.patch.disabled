@@ -1,0 +1,38 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: keep the MDNS buffer when libimp sets paddr=0
+
+libimp probes the MDNS buffer with GET, then calls SET with the slice it
+reserved.  When it asks to keep the buffer that set-input already
+programmed it passes paddr=0; the recovered driver rejected that with
+-EINVAL, which made the HAL's AddSensor sequence fail even though the
+sensor was registered.
+
+Accept paddr=0 as a no-op and log the paddr/bytes/required values for any
+other rejected SET so the next mismatch is visible.
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -35382,9 +35382,21 @@
+     ret = t41_mdns_build_layout(vinum, &layout);
+     if (ret)
+         return ret;
+-    if (!paddr || (paddr & 0x3ffU) || bytes < layout.required ||
+-        paddr > UINT_MAX - layout.required)
++    if (!paddr) {
++        /* libimp can ask to keep the buffer already programmed by
++         * set-input; the layout is in place, so accept the no-op. */
++        printk(KERN_WARNING
++               "t41: MDNS set paddr=0 vinum=%u required=%#x (keep current)\n",
++               vinum, layout.required);
++        return 0;
++    }
++    if ((paddr & 0x3ffU) || bytes < layout.required ||
++        paddr > UINT_MAX - layout.required) {
++        printk(KERN_WARNING
++               "t41: MDNS set rejected vinum=%u paddr=%#x bytes=%#x required=%#x\n",
++               vinum, paddr, bytes, layout.required);
+         return -EINVAL;
++    }
+ 
+     base = (vinum + 30U) << 11;
+     offset = 0;

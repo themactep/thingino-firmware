@@ -1,0 +1,1144 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: attach the mainline V4L2 sensor
+
+The recovered T41 tx-isp driver expects a vendor sensor subdev: a private
+I2C client that implements tx_isp_subdev_ops and the vendor
+tx_isp_sensor_attribute.  The GC8613 now probes as a mainline V4L2 subdev,
+so AddSensor fails: creating a second client at 0x31 returns -EBUSY, and
+the mainline subdev is not part of the vendor VIN.
+
+Add a bridge that finds the already probed mainline subdev on the I2C bus
+and implements the T41 vendor sensor ABI on top of its pad ops and
+controls, in the same way driver/t31/tx_isp_v4l2_sensor.c does for the
+T31.  The sensor object is laid out with the OEM offsets (dev 276, info
+296, attr 396, video 724, video.attr 776, video.info 780) so the recovered
+VIN/ISP code can use it unchanged.
+
+t41_register_sensor tries the bridge first and falls back to the vendor
+i2c client.  The bridge also publishes the sensor in /proc/jz/sensor
+through tx_isp_sinfo_sensor_bind(), because the vendor sensor module that
+normally does that is not loaded, and releases it on teardown.  The sinfo
+static view is fed the real chip id, size, fps and name from the bridge
+so /proc/jz/sensor/sensor0 describes the attached sensor.
+
+The bridge is identified by the ops pointer in the sensor object rather
+than the module-global pointer, so a concurrent open/close of the other
+streamer cannot hide it from the register and release paths.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -38,6 +38,7 @@
+ #include "tx_isp_t41_awb_gain.h"
+ #include "tx_isp_t41_awb_frame.h"
+ #include "tx_isp_t41_sensor_gain.h"
++#include "tx_isp_t41_v4l2_sensor.h"
+ #include "tx_isp_t41_gamma.h"
+ #include "tx_isp_t41_dpc.h"
+ #include "tx_isp_t41_dmsc.h"
+@@ -15239,6 +15240,11 @@
+ 
+ 	if (!sensor_sd)
+ 		return;
++	if (tx_isp_t41_v4l2_sensor_is((void *)sensor_sd)) {
++		tx_isp_t41_v4l2_sensor_unpublish((void *)sensor_sd);
++		tx_isp_t41_v4l2_sensor_put((void *)sensor_sd);
++		return;
++	}
+ 	client = (struct i2c_client *)t41_load_ptr(sensor_sd,
+ 						   T41_SUBDEV_CLIENT_OFF);
+ 	if (client) {
+@@ -15378,10 +15384,15 @@
+ 		return -EINVAL;
+ 	}
+ 
+-	memset(&board_info, 0, sizeof(board_info));
+-	memcpy(board_info.type, (void *)(arg + 36), sizeof(board_info.type));
+-	board_info.addr = *(uint32_t *)(arg + 56);
+-	sensor_sd = isp_i2c_new_subdev_board(adapter, &board_info, NULL);
++	sensor_sd = (struct tx_isp_subdev *)tx_isp_t41_v4l2_sensor_get(
++		adapter, (const char *)(arg + 36));
++	if (!sensor_sd) {
++		memset(&board_info, 0, sizeof(board_info));
++		memcpy(board_info.type, (void *)(arg + 36),
++		       sizeof(board_info.type));
++		board_info.addr = *(uint32_t *)(arg + 56);
++		sensor_sd = isp_i2c_new_subdev_board(adapter, &board_info, NULL);
++	}
+ 	if (!sensor_sd || IS_ERR(sensor_sd)) {
+ 		private_i2c_put_adapter(adapter);
+ 		isp_printf(2, "failed to acquire sensor subdev %s\n",
+@@ -15436,6 +15447,8 @@
+ 	t41_note(
+ 	       "t41: sensor-register create-frame exit ret=%d\n",
+ 	       ret);
++	if (!ret && tx_isp_t41_v4l2_sensor_is((void *)sensor_sd))
++		tx_isp_t41_v4l2_sensor_publish((void *)sensor_sd);
+ 	return ret ? -1 : 0;
+ }
+ 
+--- a/driver/t41/Kbuild
++++ b/driver/t41/Kbuild
+@@ -16,7 +16,8 @@
+ ifneq ($(filter y m,$(CONFIG_VIDEOBUF2_DMA_CONTIG)),)
+ tx-isp-t41-$(CONFIG_TX_ISP_T41_V4L2) += \
+ 					tx_isp_t41_video_queue.o \
+-					tx_isp_t41_v4l2.o
++					tx_isp_t41_v4l2.o \
++					tx_isp_t41_v4l2_sensor.o
+ ccflags-$(CONFIG_TX_ISP_T41_V4L2) += -DCONFIG_TX_ISP_T41_V4L2
+ endif
+ obj-m += tx-isp-t41.o
+--- a/driver/include/tx_isp/tx_isp_sinfo.h
++++ b/driver/include/tx_isp/tx_isp_sinfo.h
+@@ -50,6 +50,7 @@
+ 	unsigned int static_width;
+ 	unsigned int static_height;
+ 	unsigned int static_fps;
++	const char *static_name;
+ 
+ 	void (*driver_added)(struct i2c_driver *drv, int default_i2c_addr,
+ 			     struct module *owner);
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -317,8 +317,10 @@
+ 	switch (selected_key) {
+ 	case TX_ISP_SINFO_NAME:
+ 		name = NULL;
+-		if (!(config_flags &
+-		      TX_ISP_SINFO_STATIC_METADATA))
++		if (config_flags &
++		    TX_ISP_SINFO_STATIC_METADATA)
++			name = tx_isp_sinfo_config.static_name;
++		else
+ 			name = tx_isp_sinfo_pointer_at(
+ 				attr, tx_isp_sinfo_config.attr_name_offset);
+ 		if (!name && slot->drv)
+--- a/driver/t41/tx_isp_t41_sinfo.c
++++ b/driver/t41/tx_isp_t41_sinfo.c
+@@ -17,7 +17,7 @@
+ 
+ #include "../include/tx_isp/tx_isp_sinfo.h"
+ 
+-static const struct tx_isp_sinfo_config tx_isp_sinfo_config = {
++static struct tx_isp_sinfo_config tx_isp_sinfo_config = {
+ 	.flags = TX_ISP_SINFO_EXTENDED_ATTRS,
+ 	.static_chip_id = 0x530444,
+ 	.static_i2c_adapter = 0,
+@@ -65,3 +65,14 @@
+ 	 ((*(volatile unsigned int *)&tx_isp_sinfo_stats.magic) ? \
+ 	  TX_ISP_SINFO_STATIC_METADATA : 0U))
+ #include "../common/tx_isp_sinfo.c"
++
++void tx_isp_t41_sinfo_set_static(unsigned int chip_id, unsigned int width,
++				 unsigned int height, unsigned int fps,
++				 const char *name)
++{
++	tx_isp_sinfo_config.static_chip_id = chip_id;
++	tx_isp_sinfo_config.static_width = width;
++	tx_isp_sinfo_config.static_height = height;
++	tx_isp_sinfo_config.static_fps = fps;
++	tx_isp_sinfo_config.static_name = name;
++}
+--- /dev/null
++++ b/driver/t41/tx_isp_t41_v4l2_sensor.h
+@@ -0,0 +1,49 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __TX_ISP_T41_V4L2_SENSOR_H__
++#define __TX_ISP_T41_V4L2_SENSOR_H__
++
++struct i2c_adapter;
++
++#ifdef CONFIG_TX_ISP_T41_V4L2
++
++void *tx_isp_t41_v4l2_sensor_get(struct i2c_adapter *adapter,
++				 const char *name);
++void tx_isp_t41_v4l2_sensor_put(void *sd);
++int tx_isp_t41_v4l2_sensor_is(void *sd);
++void tx_isp_t41_v4l2_sensor_publish(void *sd);
++void tx_isp_t41_v4l2_sensor_unpublish(void *sd);
++
++#else
++
++static inline void *tx_isp_t41_v4l2_sensor_get(struct i2c_adapter *adapter,
++					       const char *name)
++{
++	(void)adapter;
++	(void)name;
++	return NULL;
++}
++
++static inline void tx_isp_t41_v4l2_sensor_put(void *sd)
++{
++	(void)sd;
++}
++
++static inline int tx_isp_t41_v4l2_sensor_is(void *sd)
++{
++	(void)sd;
++	return 0;
++}
++
++static inline void tx_isp_t41_v4l2_sensor_publish(void *sd)
++{
++	(void)sd;
++}
++
++static inline void tx_isp_t41_v4l2_sensor_unpublish(void *sd)
++{
++	(void)sd;
++}
++
++#endif
++
++#endif /* __TX_ISP_T41_V4L2_SENSOR_H__ */
+--- /dev/null
++++ b/driver/t41/tx_isp_t41_v4l2_sensor.c
+@@ -0,0 +1,946 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Mainline V4L2 sensor bridge for the T41 tx-isp driver.
++ *
++ * The recovered T41 driver expects a sensor subdev that implements the
++ * Ingenic vendor sensor ABI (tx_isp_sensor_attribute, alloc_again,
++ * synchronous register programming).  Mainline kernels expose sensors as
++ * V4L2 subdevices owned by drivers/media/i2c.  This bridge finds the already
++ * probed V4L2 subdevice on the I2C bus and implements the T41 vendor ABI on
++ * top of the mainline subdev pad ops and controls.
++ *
++ * The vendor ABI offsets below are taken from the OEM 4.4 binary and the
++ * 4.4.94 T41 SDK headers.  The structs are spelled out here rather than
++ * included from the SDK because the SDK structs embed kernel objects whose
++ * size changed (miscdevice, spinlock_t).
++ */
++
++#include <linux/delay.h>
++#include <linux/device.h>
++#include <linux/i2c.h>
++#include <linux/list.h>
++#include <linux/math64.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-subdev.h>
++
++#include "../include/tx_isp/tx_isp_sinfo.h"
++#include "tx_isp_t41_v4l2_sensor.h"
++
++#define T41_V4L2_NAME_LEN		32
++#define T41_V4L2_CHIP_ID		0x8613
++#define T41_V4L2_GAIN_MAX_Q16		(6U << 16)
++#define T41_V4L2_EXPOSURE_OFFSET	8
++#define T41_V4L2_MIN_EXPOSURE		1
++
++#define T41_SD_OPS_OFF			252
++#define T41_SD_DEV_PRIV_OFF		268
++#define T41_SD_HOST_PRIV_OFF		272
++
++#define T41_VIDEO_ATTR_OFF		52
++#define T41_VIDEO_INFO_OFF		56
++
++#define T41_CBUS_I2C			1
++#define T41_DBUS_MIPI			1
++#define T41_DATA_LINEAR			0
++#define T41_MIPI_OTHER_MODE		0
++#define T41_CSI_RAW10			1
++#define T41_VI_FMT_SRGGB10_1X10	0x5207
++#define T41_COLORSPACE_SRGB		8
++
++#define T41_MODULE_DEINIT		2
++#define T41_MODULE_RUNNING		4
++
++/* TX_ISP_EVENT_SENSOR_* (NOTIFICATION_TYPE_SENSOR_OPS = 0x02000000). */
++#define T41_EVENT_SENSOR_FPS		0x0200000aU
++#define T41_EVENT_SENSOR_DGAIN		0x02000009U
++#define T41_EVENT_SENSOR_RESIZE		0x0200000dU
++#define T41_EVENT_SENSOR_PREPARE_CHANGE	0x0200000eU
++#define T41_EVENT_SENSOR_FINISH_CHANGE	0x0200000fU
++#define T41_EVENT_SENSOR_VFLIP		0x02000010U
++#define T41_EVENT_SENSOR_BLACK_LEVEL	0x0200000bU
++#define T41_EVENT_SENSOR_EXPO		0x02000016U
++
++struct t41_mipi_sc {
++	u32 hcrop_diff_en;
++	u32 mipi_vcomp_en;
++	u32 mipi_hcomp_en;
++	u16 crop[8];
++	u32 line_sync_mode;
++	u32 work_start_flag;
++	u32 data_type_en;
++	u32 data_type_value;
++	u32 del_start;
++	u32 sensor_fid_mode;
++	u32 sensor_frame_mode;
++	u32 sensor_mode;
++	u32 sensor_csi_fmt;
++};
++
++struct t41_mipi_bus {
++	u32 mode;
++	u32 clk;
++	u32 clk_nocontinue;
++	u32 data;
++	u8 index;
++	u8 lans;
++	u32 def2wdr;
++	u32 image_twidth;
++	u32 image_theight;
++	u32 front_invlid_pix;
++	u32 after_invlid_pix;
++	u32 settle_time_apative_en;
++	struct t41_mipi_sc mipi_sc;
++	struct {
++		u32 del0;
++		u32 del1;
++		u32 del2;
++		u32 del3;
++	} mipi_vcropdel;
++};
++
++typedef unsigned int (*t41_alloc_fn)(unsigned int, unsigned char,
++				     unsigned int *);
++
++struct t41_sensor_ctrl {
++	t41_alloc_fn alloc_again;
++	void *alloc_again_short;
++	t41_alloc_fn alloc_dgain;
++	void *alloc_dgain_short;
++	t41_alloc_fn alloc_integration_time;
++	void *alloc_integration_time_short;
++	void *get_first_integration_time;
++	void *set_first_integration_time;
++	void *get_first_again;
++	void *set_first_again;
++	void *get_first_dgain;
++	void *set_first_dgain;
++	void *get_first_integration_time_short;
++	void *set_first_integration_time_short;
++	void *get_first_again_short;
++	void *set_first_again_short;
++	void *get_first_dgain_short;
++	void *set_first_dgain_short;
++};
++
++struct t41_sensor_attr {
++	const char *name;
++	u32 chip_id;
++	u32 cbus_type;
++	u32 cbus_mask;
++	u32 cbus_device;
++	u32 dbus_type;
++	union {
++		struct t41_mipi_bus mipi;
++		u32 raw[31];
++		char string[64];
++	} bus;
++	u32 data_type;
++	u32 max_again;
++	u32 max_dgain;
++	u32 again;
++	u32 dgain;
++	u16 min_integration_time;
++	u16 min_integration_time_native;
++	u16 max_integration_time_native;
++	u16 integration_time_limit;
++	u32 integration_time;
++	u16 total_width;
++	u16 total_height;
++	u16 max_integration_time;
++	u16 integration_time_apply_delay;
++	u16 again_apply_delay;
++	u16 dgain_apply_delay;
++	u16 one_line_expr_in_us;
++	struct t41_sensor_ctrl sensor_ctrl;
++	u16 min_integration_time_short;
++	u16 max_integration_time_short;
++	u32 integration_time_short;
++	u32 max_again_short;
++	u32 again_short;
++	u32 wdr_cache;
++	u32 expo;
++	u32 expo_short;
++	u32 expo_fs;
++	u32 sensor_num;
++	u32 max_dgain_short;
++	u32 dgain_short;
++	u16 again_short_apply_delay;
++	u16 dgain_short_apply_delay;
++	u16 integration_time_short_apply_delay;
++	u32 sensor_fsync_mode;
++	void *priv;
++};
++
++struct t41_i2c_board_info {
++	char type[20];
++	int addr;
++	int i2c_adapter_id;
++};
++
++struct t41_spi_board_info {
++	char modalias[32];
++	int bus_num;
++};
++
++struct t41_sensor_register_info {
++	char name[32];
++	u32 cbus_type;
++	union {
++		struct t41_i2c_board_info i2c;
++		struct t41_spi_board_info spi;
++	} bus;
++	int rst_gpio;
++	int pwdn_gpio;
++	int power_gpio;
++	u16 sensor_id;
++	u32 video_interface;
++	u32 mclk;
++	int default_boot;
++};
++
++struct t41_mbus_framefmt {
++	u32 width;
++	u32 height;
++	u32 code;
++	u32 field;
++	u32 colorspace;
++	u16 ycbcr_enc;
++	u16 quantization;
++	u16 xfer_func;
++	u16 reserved[11];
++};
++
++struct t41_video_in {
++	struct t41_mbus_framefmt mbus;
++	u32 mbus_change;
++	struct t41_sensor_attr *attr;
++	struct t41_sensor_register_info *info;
++	u32 vi_max_width;
++	u32 vi_max_height;
++	u32 fps;
++	u32 min_fps;
++	u32 max_fps;
++	int grp_id;
++	int vic_id;
++	u32 shvflip;
++	int state;
++};
++
++struct t41_sensor {
++	u8 sd[276];
++	struct device *dev;
++	int index;
++	u32 type;
++	struct list_head list;
++	struct t41_sensor_register_info info;
++	struct t41_sensor_attr attr;
++	struct t41_video_in video;
++	struct clk *mclk;
++	void *priv;
++};
++
++struct t41_chip_ident {
++	char name[32];
++	char *revision;
++	unsigned int ident;
++};
++
++struct t41_v4l2_sensor {
++	struct t41_sensor sensor;
++	struct platform_device pdev;
++
++	struct v4l2_subdev *vsd;
++	struct i2c_client *client;
++	struct module *owner;
++
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *hflip;
++	struct v4l2_ctrl *vflip;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *pixel_rate;
++
++	char name[T41_V4L2_NAME_LEN];
++	u32 chip_id;
++	u32 width;
++	u32 height;
++	u32 hts;
++	u32 vts;
++	u32 lanes;
++	u64 link_freq_hz;
++	u32 pixel_rate_hz;
++};
++
++int tx_isp_subdev_init(struct platform_device *pdev, void *sd, void *ops);
++void tx_isp_subdev_deinit(void *sd);
++
++/*
++ * GC8613 vendor gain table, log2(gain) in Q16 as used by the T41 AE
++ * (0 = 1x, 65536 = 2x, 382780 = ~57.3x).  The T41 vendor driver caps the
++ * usable range at max_again = 393216 (6.0, i.e. 64x).
++ */
++static const u32 t41_gain_lut[] = {
++	0, 13726, 32233, 46808, 64046, 75349, 88967, 107731,
++	124574, 140885, 158178, 174907, 192261, 200230, 216516, 234943,
++	254951, 264333, 281526, 298237, 313457, 330767, 347287, 365304,
++	382780, 399272,
++};
++
++static struct t41_v4l2_sensor *t41_v4l2_active_sensor;
++
++static struct t41_v4l2_sensor *sd_to_v4l2_sensor(void *sd)
++{
++	return (struct t41_v4l2_sensor *)sd;
++}
++
++static unsigned int t41_v4l2_alloc_again(unsigned int isp_gain,
++					 unsigned char shift,
++					 unsigned int *sensor_again)
++{
++	unsigned int i, last = 0;
++
++	(void)shift;
++
++	for (i = 0; i < ARRAY_SIZE(t41_gain_lut); i++) {
++		if (t41_gain_lut[i] > T41_V4L2_GAIN_MAX_Q16)
++			break;
++		last = i;
++	}
++
++	if (isp_gain == 0) {
++		*sensor_again = 0;
++		return t41_gain_lut[0];
++	}
++	for (i = 1; i <= last; i++) {
++		if (isp_gain < t41_gain_lut[i]) {
++			*sensor_again = i - 1;
++			return t41_gain_lut[i - 1];
++		}
++	}
++
++	*sensor_again = last;
++	return t41_gain_lut[last];
++}
++
++static unsigned int t41_v4l2_alloc_dgain(unsigned int isp_gain,
++					 unsigned char shift,
++					 unsigned int *sensor_dgain)
++{
++	(void)isp_gain;
++	(void)shift;
++	*sensor_dgain = 0;
++	return 0;
++}
++
++static int t41_v4l2_sensor_update(struct t41_v4l2_sensor *s)
++{
++	struct t41_sensor_attr *attr = &s->sensor.attr;
++	struct t41_video_in *video = &s->sensor.video;
++	struct v4l2_subdev_state *state;
++	struct v4l2_subdev_format fmt = {
++		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
++		.pad = 0,
++		.stream = 0,
++	};
++	s64 pixel_rate;
++	int ret;
++
++	state = v4l2_subdev_lock_and_get_active_state(s->vsd);
++	if (!state)
++		return -EIO;
++
++	ret = v4l2_subdev_call(s->vsd, pad, get_fmt, state, &fmt);
++	v4l2_subdev_unlock_state(state);
++	if (ret) {
++		dev_err(&s->client->dev, "tx-isp-v4l2: get_fmt failed: %d\n",
++			ret);
++		return ret;
++	}
++
++	s->width = fmt.format.width;
++	s->height = fmt.format.height;
++	s->hts = s->width + (u32)v4l2_ctrl_g_ctrl(s->hblank);
++	s->vts = s->height + (u32)v4l2_ctrl_g_ctrl(s->vblank);
++
++	pixel_rate = v4l2_ctrl_g_ctrl_int64(s->pixel_rate);
++	if (pixel_rate <= 0 || pixel_rate > U32_MAX)
++		return -EINVAL;
++	s->pixel_rate_hz = pixel_rate;
++
++	if (!s->link_freq->qmenu_int)
++		return -EINVAL;
++	s->link_freq_hz = s->link_freq->qmenu_int[v4l2_ctrl_g_ctrl(s->link_freq)];
++
++	if (!s->hts || !s->vts || !s->link_freq_hz)
++		return -EINVAL;
++
++	attr->total_width = s->hts;
++	attr->total_height = s->vts;
++	attr->max_integration_time_native = s->vts - T41_V4L2_EXPOSURE_OFFSET;
++	attr->integration_time_limit = s->vts - T41_V4L2_EXPOSURE_OFFSET;
++	attr->max_integration_time = s->vts - T41_V4L2_EXPOSURE_OFFSET;
++	attr->one_line_expr_in_us = DIV_ROUND_CLOSEST_ULL(
++		(u64)s->hts * 1000000, s->pixel_rate_hz);
++
++	video->mbus.width = s->width;
++	video->mbus.height = s->height;
++	video->mbus.code = T41_VI_FMT_SRGGB10_1X10;
++	video->mbus.colorspace = T41_COLORSPACE_SRGB;
++	video->vi_max_width = s->width;
++	video->vi_max_height = s->height;
++	video->fps = ((u32)div_u64((u64)s->pixel_rate_hz,
++				   (u64)s->hts * s->vts) << 16) | 1;
++	video->min_fps = 5 << 16 | 1;
++	video->max_fps = video->fps;
++	video->attr = attr;
++
++	dev_dbg(&s->client->dev,
++		"tx-isp-v4l2: %ux%u hts %u vts %u lanes %u link %llu Hz pixel %u Hz\n",
++		s->width, s->height, s->hts, s->vts, s->lanes,
++		s->link_freq_hz, s->pixel_rate_hz);
++
++	return 0;
++}
++
++static int t41_v4l2_sensor_g_chip_ident(void *sd, void *arg)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++	struct t41_chip_ident *chip = arg;
++
++	if (!s || !chip)
++		return -EINVAL;
++
++	memset(chip, 0, sizeof(*chip));
++	strscpy(chip->name, s->name, sizeof(chip->name));
++	chip->revision = "v4l2";
++	chip->ident = s->chip_id;
++
++	return 0;
++}
++
++static int t41_v4l2_sensor_notify(struct t41_v4l2_sensor *s)
++{
++	void *notify = *(void **)((u8 *)s + 124);
++
++	if (!notify)
++		return -ENOIOCTLCMD;
++
++	return ((int (*)(void *, unsigned int, void *))notify)
++		(s, 0x01000001U, &s->sensor.video);
++}
++
++static int t41_v4l2_sensor_init(void *sd, void *arg)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++	int *initarg = arg;
++	int ret;
++
++	if (!s)
++		return -ENODEV;
++	if (!initarg || !initarg[0])
++		return 0;
++
++	ret = t41_v4l2_sensor_update(s);
++	if (ret)
++		return ret;
++
++	s->sensor.video.state = T41_MODULE_DEINIT;
++
++	return t41_v4l2_sensor_notify(s);
++}
++
++static int t41_v4l2_sensor_reset(void *sd, void *arg)
++{
++	(void)sd;
++	(void)arg;
++	return 0;
++}
++
++static int t41_v4l2_sensor_s_stream(void *sd, void *arg)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++	int *initarg = arg;
++	int enable;
++	int ret;
++
++	if (!s)
++		return -ENODEV;
++
++	enable = initarg ? initarg[0] : 0;
++
++	if (enable) {
++		ret = t41_v4l2_sensor_update(s);
++		if (ret)
++			return ret;
++	}
++
++	ret = v4l2_subdev_call(s->vsd, video, s_stream, enable);
++	if (ret == -ENOIOCTLCMD)
++		ret = 0;
++	if (!ret && enable)
++		s->sensor.video.state = T41_MODULE_RUNNING;
++
++	dev_dbg(&s->client->dev, "tx-isp-v4l2: s_stream(%d) -> %d\n",
++		enable, ret);
++
++	return ret;
++}
++
++static int t41_v4l2_sensor_set_fps(struct t41_v4l2_sensor *s, int fps)
++{
++	struct t41_sensor_attr *attr = &s->sensor.attr;
++	u32 num = (u32)fps >> 16;
++	u32 den = (u32)fps & 0xffff;
++	u64 vts;
++	int ret;
++
++	if (!num || !den)
++		return -EINVAL;
++
++	vts = div_u64((u64)s->pixel_rate_hz * den, (u64)s->hts * num);
++	if (vts <= s->height || vts > 0x3fff)
++		return -EINVAL;
++
++	ret = v4l2_ctrl_s_ctrl(s->vblank, vts - s->height);
++	if (ret)
++		return ret;
++
++	s->vts = vts;
++	attr->total_height = vts;
++	attr->max_integration_time_native = vts - T41_V4L2_EXPOSURE_OFFSET;
++	attr->integration_time_limit = vts - T41_V4L2_EXPOSURE_OFFSET;
++	attr->max_integration_time = vts - T41_V4L2_EXPOSURE_OFFSET;
++	s->sensor.video.fps = fps;
++
++	return t41_v4l2_sensor_notify(s);
++}
++
++static int t41_v4l2_sensor_set_expo(struct t41_v4l2_sensor *s, int value)
++{
++	int it = value & 0xffff;
++	int again = (value >> 16) & 0xffff;
++	int ret;
++
++	if (!s->exposure || !s->gain)
++		return -ENODEV;
++
++	if (it) {
++		ret = v4l2_ctrl_s_ctrl(s->exposure, it);
++		if (ret)
++			return ret;
++	}
++
++	if (again) {
++		u32 max = s->gain->maximum;
++
++		if ((u32)again > max)
++			again = max;
++		ret = v4l2_ctrl_s_ctrl(s->gain, again);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
++static int t41_v4l2_sensor_set_vflip(struct t41_v4l2_sensor *s, int enable)
++{
++	int ret;
++
++	if (s->hflip) {
++		ret = v4l2_ctrl_s_ctrl(s->hflip, !!(enable & 0x1));
++		if (ret)
++			return ret;
++	}
++	if (s->vflip) {
++		ret = v4l2_ctrl_s_ctrl(s->vflip, !!(enable & 0x2));
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
++static int t41_v4l2_sensor_ioctl(void *sd, unsigned int cmd, void *arg)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++	int value;
++
++	if (!s)
++		return -ENODEV;
++
++	/* struct tx_isp_sensor_value { int vinum; int value; } */
++	value = arg ? ((int *)arg)[1] : 0;
++
++	switch (cmd) {
++	case T41_EVENT_SENSOR_EXPO:
++		return arg ? t41_v4l2_sensor_set_expo(s, value) : 0;
++	case T41_EVENT_SENSOR_FPS:
++		return arg ? t41_v4l2_sensor_set_fps(s, value) : 0;
++	case T41_EVENT_SENSOR_VFLIP:
++		return arg ? t41_v4l2_sensor_set_vflip(s, value) : 0;
++	case T41_EVENT_SENSOR_RESIZE:
++		return t41_v4l2_sensor_update(s);
++	case T41_EVENT_SENSOR_PREPARE_CHANGE: {
++		int ret = v4l2_subdev_call(s->vsd, video, s_stream, 0);
++
++		return ret == -ENOIOCTLCMD ? 0 : ret;
++	}
++	case T41_EVENT_SENSOR_FINISH_CHANGE: {
++		int ret = v4l2_subdev_call(s->vsd, video, s_stream, 1);
++
++		return ret == -ENOIOCTLCMD ? 0 : ret;
++	}
++	case T41_EVENT_SENSOR_DGAIN:
++	case T41_EVENT_SENSOR_BLACK_LEVEL:
++		return 0;
++	default:
++		return 0;
++	}
++}
++
++struct t41_subdev_core_ops {
++	int (*g_chip_ident)(void *, void *);
++	int (*init)(void *, void *);
++	int (*reset)(void *, void *);
++	int (*fsync)(void *, void *);
++	int (*g_register)(void *, void *);
++	int (*g_register_list)(void *, void *);
++	int (*g_register_all)(void *, void *);
++	int (*s_register)(void *, void *);
++	int (*ioctl)(void *, unsigned int, void *);
++	int (*interrupt_service_routine)(void *, u32, void *);
++	int (*interrupt_service_thread)(void *, void *);
++};
++
++struct t41_subdev_video_ops {
++	int (*s_stream)(void *, void *);
++	int (*link_stream)(void *, void *);
++	int (*link_setup)(void *, void *, void *, u32);
++};
++
++struct t41_subdev_sensor_ops {
++	int (*release_all_sensor)(void *);
++	int (*sync_sensor_attr)(void *, void *);
++	int (*ioctl)(void *, unsigned int, void *);
++};
++
++struct t41_subdev_ops {
++	struct t41_subdev_core_ops *core;
++	struct t41_subdev_video_ops *video;
++	void *pad;
++	struct t41_subdev_sensor_ops *sensor;
++	void *internal;
++};
++
++static struct t41_subdev_core_ops t41_core_ops = {
++	.g_chip_ident = t41_v4l2_sensor_g_chip_ident,
++	.init = t41_v4l2_sensor_init,
++	.reset = t41_v4l2_sensor_reset,
++};
++
++static struct t41_subdev_video_ops t41_video_ops = {
++	.s_stream = t41_v4l2_sensor_s_stream,
++};
++
++static struct t41_subdev_sensor_ops t41_sensor_ops = {
++	.ioctl = t41_v4l2_sensor_ioctl,
++};
++
++static struct t41_subdev_ops t41_ops = {
++	.core = &t41_core_ops,
++	.video = &t41_video_ops,
++	.sensor = &t41_sensor_ops,
++};
++
++struct t41_v4l2_lookup {
++	const char *name;
++	struct i2c_client *client;
++	struct v4l2_subdev *vsd;
++};
++
++static int t41_v4l2_lookup_client(struct device *dev, void *data)
++{
++	struct t41_v4l2_lookup *lookup = data;
++	struct i2c_client *client;
++	struct v4l2_subdev *vsd;
++
++	client = i2c_verify_client(dev);
++	if (!client)
++		return 0;
++	if (strcmp(client->name, lookup->name))
++		return 0;
++
++	if (!client->dev.of_node || !client->dev.driver) {
++		dev_info(dev, "tx-isp-v4l2: %s: no DT node or driver bound\n",
++			 lookup->name);
++		return 0;
++	}
++
++	if (!client->dev.driver->of_match_table ||
++	    !of_match_node(client->dev.driver->of_match_table,
++			   client->dev.of_node)) {
++		dev_info(dev, "tx-isp-v4l2: %s: driver %s does not match the node\n",
++			 lookup->name, client->dev.driver->name);
++		return 0;
++	}
++
++	vsd = i2c_get_clientdata(client);
++	if (!vsd || !vsd->ctrl_handler) {
++		dev_info(dev, "tx-isp-v4l2: %s: no V4L2 subdev/control handler\n",
++			 lookup->name);
++		return 0;
++	}
++
++	lookup->client = client;
++	lookup->vsd = vsd;
++
++	return 1;
++}
++
++static int t41_v4l2_parse_lanes(struct t41_v4l2_sensor *s)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	int ret = 0;
++
++	s->lanes = 2;
++
++	endpoint = fwnode_graph_get_next_endpoint(s->client->dev.fwnode, NULL);
++	if (!endpoint)
++		return 0;
++
++	if (!v4l2_fwnode_endpoint_parse(endpoint, &ep) &&
++	    ep.bus.mipi_csi2.num_data_lanes)
++		s->lanes = ep.bus.mipi_csi2.num_data_lanes;
++	else
++		ret = -EINVAL;
++
++	fwnode_handle_put(endpoint);
++
++	return ret;
++}
++
++static void t41_v4l2_fill_attr(struct t41_v4l2_sensor *s)
++{
++	struct t41_sensor_attr *attr = &s->sensor.attr;
++
++	attr->name = s->name;
++	attr->chip_id = s->chip_id;
++	attr->cbus_type = T41_CBUS_I2C;
++	attr->cbus_mask = 0x03;
++	attr->cbus_device = s->client->addr;
++	attr->dbus_type = T41_DBUS_MIPI;
++	attr->data_type = T41_DATA_LINEAR;
++	attr->max_again = T41_V4L2_GAIN_MAX_Q16;
++	attr->max_dgain = 0;
++	attr->min_integration_time = T41_V4L2_MIN_EXPOSURE;
++	attr->min_integration_time_native = T41_V4L2_MIN_EXPOSURE;
++	attr->integration_time_apply_delay = 2;
++	attr->again_apply_delay = 2;
++	attr->dgain_apply_delay = 2;
++	attr->expo_fs = 1;
++	attr->sensor_ctrl.alloc_again = t41_v4l2_alloc_again;
++	attr->sensor_ctrl.alloc_dgain = t41_v4l2_alloc_dgain;
++
++	attr->bus.mipi.mode = T41_MIPI_OTHER_MODE;
++	attr->bus.mipi.clk = DIV_ROUND_CLOSEST_ULL(s->link_freq_hz * 2,
++						   1000000);
++	attr->bus.mipi.lans = s->lanes;
++	attr->bus.mipi.image_twidth = s->width;
++	attr->bus.mipi.image_theight = s->height;
++	attr->bus.mipi.settle_time_apative_en = 0;
++	attr->bus.mipi.mipi_sc.sensor_csi_fmt = T41_CSI_RAW10;
++	attr->bus.mipi.mipi_sc.sensor_frame_mode = 0;
++	attr->bus.mipi.mipi_sc.sensor_fid_mode = 0;
++	attr->bus.mipi.mipi_sc.sensor_mode = 0;
++}
++
++static void t41_v4l2_sensor_free(struct t41_v4l2_sensor *s)
++{
++	if (!s)
++		return;
++	if (s->owner)
++		module_put(s->owner);
++	kfree(s);
++}
++
++void *tx_isp_t41_v4l2_sensor_get(struct i2c_adapter *adapter, const char *name)
++{
++	struct t41_v4l2_lookup lookup = { .name = name };
++	struct t41_v4l2_sensor *s;
++	int ret;
++
++	BUILD_BUG_ON(sizeof(struct t41_sensor_register_info) != 100);
++	BUILD_BUG_ON(sizeof(struct t41_sensor_attr) != 328);
++	BUILD_BUG_ON(sizeof(struct t41_video_in) != 96);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, dev) != 276);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, info) != 296);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, attr) != 396);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, video) != 724);
++	BUILD_BUG_ON(offsetof(struct t41_video_in, attr) != T41_VIDEO_ATTR_OFF);
++	BUILD_BUG_ON(offsetof(struct t41_video_in, info) != T41_VIDEO_INFO_OFF);
++	BUILD_BUG_ON(offsetof(struct t41_sensor_attr, max_again) != 152);
++	BUILD_BUG_ON(offsetof(struct t41_sensor_attr, total_width) != 180);
++	BUILD_BUG_ON(offsetof(struct t41_sensor_attr, sensor_ctrl) != 196);
++	BUILD_BUG_ON(sizeof(struct t41_sensor) != 828);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, video) +
++		     offsetof(struct t41_video_in, attr) != 776);
++	BUILD_BUG_ON(offsetof(struct t41_sensor, video) +
++		     offsetof(struct t41_video_in, info) != 780);
++
++	if (!adapter || !name || !name[0])
++		return NULL;
++
++	if (t41_v4l2_active_sensor)
++		return t41_v4l2_active_sensor;
++
++	device_for_each_child(&adapter->dev, &lookup, t41_v4l2_lookup_client);
++	if (!lookup.vsd)
++		return NULL;
++
++	s = kzalloc(sizeof(*s), GFP_KERNEL);
++	if (!s)
++		return NULL;
++
++	s->client = lookup.client;
++	s->vsd = lookup.vsd;
++	if (s->vsd->dev && s->vsd->dev->driver)
++		s->owner = s->vsd->dev->driver->owner;
++	if (s->owner && !try_module_get(s->owner)) {
++		kfree(s);
++		return NULL;
++	}
++
++	strscpy(s->name, name, sizeof(s->name));
++	s->chip_id = T41_V4L2_CHIP_ID;
++	if (!strncmp(s->name, "gc", 2)) {
++		u32 id;
++
++		if (!kstrtou32(s->name + 2, 16, &id))
++			s->chip_id = id;
++	}
++
++	s->exposure = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_EXPOSURE);
++	s->gain = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_ANALOGUE_GAIN);
++	s->hblank = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_HBLANK);
++	s->vblank = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_VBLANK);
++	s->hflip = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_HFLIP);
++	s->vflip = v4l2_ctrl_find(s->vsd->ctrl_handler, V4L2_CID_VFLIP);
++	s->link_freq = v4l2_ctrl_find(s->vsd->ctrl_handler,
++				      V4L2_CID_LINK_FREQ);
++	s->pixel_rate = v4l2_ctrl_find(s->vsd->ctrl_handler,
++				       V4L2_CID_PIXEL_RATE);
++
++	if (!s->exposure || !s->gain || !s->hblank || !s->vblank ||
++	    !s->link_freq || !s->pixel_rate) {
++		dev_err(&s->client->dev,
++			"tx-isp-v4l2: missing controls exp=%p gain=%p hb=%p vb=%p lf=%p pr=%p\n",
++			s->exposure, s->gain, s->hblank, s->vblank,
++			s->link_freq, s->pixel_rate);
++		t41_v4l2_sensor_free(s);
++		return NULL;
++	}
++
++	if (t41_v4l2_parse_lanes(s)) {
++		t41_v4l2_sensor_free(s);
++		return NULL;
++	}
++
++	s->pdev.name = s->name;
++	s->pdev.id = -1;
++	s->pdev.dev.platform_data = NULL;
++	ret = tx_isp_subdev_init(&s->pdev, s, &t41_ops);
++	if (ret) {
++		dev_err(&s->client->dev, "tx_isp_subdev_init failed: %d\n", ret);
++		t41_v4l2_sensor_free(s);
++		return NULL;
++	}
++
++	s->sensor.dev = &s->client->dev;
++	*(void **)((u8 *)s + T41_SD_DEV_PRIV_OFF) = NULL;
++	*(void **)((u8 *)s + T41_SD_HOST_PRIV_OFF) = s;
++
++	ret = t41_v4l2_sensor_update(s);
++	if (ret) {
++		dev_err(&s->client->dev, "initial sensor update failed: %d\n",
++			ret);
++		tx_isp_subdev_deinit(s);
++		t41_v4l2_sensor_free(s);
++		return NULL;
++	}
++	t41_v4l2_fill_attr(s);
++	s->sensor.video.attr = &s->sensor.attr;
++	s->sensor.video.info = &s->sensor.info;
++	s->sensor.video.state = T41_MODULE_DEINIT;
++
++	t41_v4l2_active_sensor = s;
++
++	pr_info("tx-isp-v4l2: attached %s at i2c-%d/0x%02x (%ux%u, %u lanes, link %llu Hz)\n",
++		s->name, s->client->adapter->nr, s->client->addr,
++		s->width, s->height, s->lanes, s->link_freq_hz);
++
++	return s;
++}
++
++int tx_isp_t41_v4l2_sensor_is(void *sd)
++{
++	if (!sd)
++		return 0;
++
++	return *(void **)((u8 *)sd + T41_SD_OPS_OFF) == (void *)&t41_ops;
++}
++
++void tx_isp_t41_sinfo_set_static(unsigned int chip_id, unsigned int width,
++				 unsigned int height, unsigned int fps,
++				 const char *name);
++
++void tx_isp_t41_v4l2_sensor_publish(void *sd)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++	u32 fps;
++
++	if (!s)
++		return;
++
++	fps = s->sensor.video.fps;
++	fps = (fps >> 16) / ((fps & 0xffff) ? (fps & 0xffff) : 1);
++	tx_isp_t41_sinfo_set_static(s->chip_id, s->width, s->height,
++				    fps, s->name);
++
++	if (!tx_isp_sinfo_sensor_bind(sd, s->owner))
++		tx_isp_sinfo_sensor_addr(sd, s->client->addr);
++}
++
++void tx_isp_t41_v4l2_sensor_unpublish(void *sd)
++{
++	struct t41_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
++
++	if (!s)
++		return;
++	tx_isp_sinfo_sensor_unbind(sd, s->owner);
++}
++
++void tx_isp_t41_v4l2_sensor_put(void *sd)
++{
++	struct t41_v4l2_sensor *s;
++
++	if (!tx_isp_t41_v4l2_sensor_is(sd))
++		return;
++
++	s = sd_to_v4l2_sensor(sd);
++	t41_v4l2_active_sensor = NULL;
++	tx_isp_subdev_deinit(s);
++	t41_v4l2_sensor_free(s);
++}

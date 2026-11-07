@@ -45,6 +45,11 @@
 		clock-names = "xclk";
 		assigned-clocks = <&clock T41_CLK_CIM>;
 		assigned-clock-rates = <27000000>;
+		assigned-clock-parents = <&clock T41_CLK_VPLL>;
+
+		/* Route the CIM MCLK divider to PA15 (function 1). */
+		pinctrl-names = "default";
+		pinctrl-0 = <&cim0_vic_mclk_pa>;
 
 		iovdd-supply = <&sensor_iovdd>;
 		avdd-supply = <&sensor_avdd>;

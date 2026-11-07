@@ -204,6 +204,125 @@ The firmware itself is healthy: S31raptor loads the tx-isp module,
 `/dev/tx-isp` and `/dev/video0..2` exist, and the vendor open now
 returns `refs=0` / `VIN fallback ret=0` without a panic.
 
+### ERR_PTR panic on the same path (2026-11-06)
+
+Once the mainline GC8613 subdev binds at `0x31`, the vendor bridge can no
+longer create its own client for that address. `isp_i2c_new_subdev_board()`
+checked the `i2c_new_client_device()` result only for NULL and then read
+`client->dev.driver`, so the `-EBUSY` ERR_PTR produced:
+
+```
+gc8613 0-0031: Failed to register i2c client gc8613 at 0x31 (-16)
+BadVA: 00000048
+<8c420058>  lw v0,0x58(v0)
+```
+
+`0037-t41-handle-i2c-client-errors.patch` treats `IS_ERR_OR_NULL()` as a
+failed registration and clears the pointer before the cleanup path, so
+`AddSensor` returns `-EINVAL` instead of panicking the kernel. This is the
+same defect the T31 driver fixed in `0015`, and it is still the Phase 3
+gap: the mainline subdev cannot stand in for a vendor sensor module.
+
+## Phase 3 sensor bridge (2026-11-06)
+
+`0038-t41-attach-the-mainline-v4l2-sensor.patch` adds
+`driver/t41/tx_isp_t41_v4l2_sensor.c`, the T41 counterpart of the T31
+bridge.  It finds the already probed mainline GC8613 subdev on i2c-0,
+keeps its V4L2 controls, and implements the vendor sensor ABI on top of
+them:
+
+- the sensor object is laid out with the OEM offsets from the recovered
+  binary: `dev` 276, `index` 280, `info` 296, `attr` 396, `video` 724,
+  `video.attr` 776, `video.info` 780;
+- `tx_isp_subdev_init()` is called with a pdev whose `platform_data` is
+  NULL, so only the module header and the ops pointer are initialised;
+- the attribute carries the GC8613 gain table as log2 gain in Q16,
+  `max_again = 393216` (64x), 3840x2160 MIPI RAW10, and the timing read
+  back from the mainline controls (`hblank`, `vblank`, `pixel_rate`,
+  `link_freq`);
+- `s_stream` goes through the mainline subdev `s_stream` helper, and the
+  EXPO/FPS/VFLIP/RESIZE events map to the V4L2 exposure, analogue-gain,
+  vblank and flip controls;
+- `t41_register_sensor()` tries the bridge before creating a vendor I2C
+  client, and `t41_unregister_i2c_sensor()` releases the bridge instead
+  of unregistering a client it does not own.
+
+The module builds and links; the image rootfs is 6,836,224 bytes in a
+6,881,280-byte partition (44 KiB free).
+
+### QEMU validation (2026-11-06)
+
+The T41 flash image cannot be booted by the pinned QEMU (`ingenic-0.6.11`)
+or the current release (`ingenic-0.7.10`): U-Boot reads the flash, then the
+kernel's DMA-only T41 SFC transfer times out and the rootfs never mounts.
+
+```
+ingenic-sfc 13440000.sfc0: SFC DMA timeout: SR=0x00010004 GLB=0x0000104d
+spi-nor spi0.0: probe with driver spi-nor failed with error -145
+Kernel panic - not syncing: VFS: Unable to mount root fs
+```
+
+The same happens with the stock `qemu_t41nq` profile, so it is not caused by
+the sensor work.  Direct `-kernel` boot works around it: build a raw
+(uncompressed) uImage, point QEMU at `vmlinux.bin` plus an initramfs, and
+use the image's `mem=` line.
+
+The bridge was then exercised with the QEMU image-sensor model:
+
+```
+-device image-sensor,bus=i2c0,address=0x29,model=gc4023
+```
+
+`gc4023` probes as a mainline subdev and `AddSensor` takes the bridge:
+
+```
+gc4023 0-0029: gc4023: chip id 4023
+tx-isp-v4l2: attached gc4023 at i2c-0/0x29 (2560x1440, 2 lanes, link 432000000 Hz)
+t41: sensor-register VIN returned 0
+REGISTER ret=0
+RELEASE ret=0
+t41: sensor-release VIN returned 0
+```
+
+The only dmesg noise is pre-existing: the recovered driver's
+`Unexpected gfp: 0x2000000` kmalloc warning and the `IRQ index N not found`
+messages from probing for optional IRQs.
+
+Two gc4023 fixes came out of this and are kept: the same VPLL CIM parent and
+PA15 pinctrl that `gc8613.dtsi` already has, and a 1% xclk window
+(`0138-media-gc4023-accept-the-t41-cim-xclk.patch`).
+
+## Current state (2026-11-07)
+
+The bridge reached the point where the mainline GC8613 subdev was found,
+`AddSensor` returned 0 and `/proc/jz/sensor/sensor0` reported the real
+3820x2160 sensor.  The next stage then panicked: the recovered driver walks
+the ISP video-link graph, the bridge sensor is not in that graph, and it
+jumped through an uninitialised ops pointer.  The bridge therefore needs
+pad/internal ops and graph registration before it can be enabled.
+
+The bridge patches are kept as `.disabled` for that work:
+
+- `0038-t41-attach-the-mainline-v4l2-sensor.patch.disabled`
+- `0039-t41-mdns-accept-paddr-zero.patch.disabled`
+- `0040-t41-mdns-profile-error-nonfatal.patch.disabled`
+
+The shipped T120 image uses `0037` only, so `AddSensor` fails gracefully
+instead of panicking.  It also carries the bring-up fixes found during this
+round:
+
+- `S36wireless` power-cycles the WLAN pin on every boot and drives it
+  inactive in `stop()`; the T120 uses the verified GPIO 57 REGON, not the
+  T110's GPIO 60;
+- the MAC and hostname come from U-Boot's eFUSE-derived `ethaddr`, not the
+  unreliable post-boot `devmem` read, so they survive full reflashes;
+- BusyBox `CONFIG_FEATURE_IPV6` follows `BR2_PACKAGE_THINGINO_KOPT_IPV6`,
+  so a kernel without IPv6 does not build the `/proc/net/*6` readers.
+
+Verified on the T120 after an OTA: `wlan0` at `02:22:3f:01:c5:4a`,
+camera at 192.168.88.121, same MAC/IP/hostname after a full reflash, and
+`netstat -ln` with no IPv6 warnings.
+
 ## Validation
 
 - Phases 1: object/module build with the 7.3.1 cross toolchain.

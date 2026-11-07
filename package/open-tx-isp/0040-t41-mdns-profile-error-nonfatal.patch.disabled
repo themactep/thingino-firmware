@@ -1,0 +1,24 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: do not fail AddSensor when the MDNS profile write fails
+
+The HAL's AddSensor sequence programs the MDNS buffer, then asks the
+driver to apply the stock motion profile.  The recovered profile write
+can fail with -EINVAL; returning that made IMP_ISP_AddSensor fail even
+though the buffer was programmed and the main video path is independent
+of MDNS.
+
+Log the failure and let the buffer SET succeed so streaming can come up.
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -36935,7 +36935,9 @@
+             if (mdns) {
+                 ret = t41_apply_stock_mdns_profile();
+                 if (ret)
+-                    return ret;
++                    printk(KERN_WARNING
++                           "t41: MDNS profile apply failed: %d (continuing)\n",
++                           ret);
+             }
+         }
+     } else if (get) {

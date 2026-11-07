@@ -1,0 +1,33 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: handle i2c client creation errors
+
+i2c_new_client_device() returns an ERR_PTR on failure, not NULL. The
+recovered T41 flow checks only for NULL and then dereferences
+client->dev.driver, so when the DT sensor driver already owns the address
+(EBUSY) the kernel panics on the ERR_PTR:
+
+  gc8613 0-0031: Failed to register i2c client gc8613 at 0x31 (-16)
+  BadVA: 00000048
+  epc: ... <8c420058>  lw v0,0x58(v0)
+
+Match the T31 fix: treat ERR_PTR as a failed registration, normalize it
+to NULL so the cleanup path does not call i2c_unregister_device() on an
+error pointer.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -15102,7 +15102,11 @@
+ 	}
+ 
+ 	client = private_i2c_new_device(adapter, info);
+-	if (!client || !client->dev.driver)
++	if (IS_ERR_OR_NULL(client)) {
++		client = NULL;
++		goto error;
++	}
++	if (!client->dev.driver)
+ 		goto error;
+ 
+ 	owner = client->dev.driver->owner;

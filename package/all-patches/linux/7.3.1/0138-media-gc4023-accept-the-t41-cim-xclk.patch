@@ -1,0 +1,22 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: gc4023: accept a 1% xclk window on T41
+
+The T41 CIM MCLK divider can resolve to 27 MHz (VPLL / 44) or 26.926 MHz
+(APLL / 41) depending on which parent the mux picks. The 0.27% error is
+inside the sensor's xclk tolerance, so accept a 1% window instead of
+requiring an exact rate, as gc8613 already does.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/gc4023.c
++++ b/drivers/media/i2c/gc4023.c
+@@ -763,7 +763,8 @@
+ 				     "failed to get xclk\n");
+ 
+ 	xclk_freq = clk_get_rate(gc4023->xclk);
+-	if (xclk_freq != GC4023_XCLK_FREQ)
++	if (xclk_freq < GC4023_XCLK_FREQ - GC4023_XCLK_FREQ / 100 ||
++	    xclk_freq > GC4023_XCLK_FREQ + GC4023_XCLK_FREQ / 100)
+ 		return dev_err_probe(dev, -EINVAL,
+ 				     "xclk frequency %lu Hz not supported\n",
+ 				     xclk_freq);
