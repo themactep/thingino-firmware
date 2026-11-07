@@ -338,9 +338,12 @@
       if (off) hidden.push(info.name + " (" + off + ")");
     });
     var t = hidden.length ? "Hidden: " + hidden.join(", ") + "." : "";
-    if (noCapped() && (fam ? (SOC_MODE[fam] || DEF_MODE) : DEF_MODE).indexOf("CAPPED_VBR") >= 0)
+    var modes = fam ? (SOC_MODE[fam] || DEF_MODE) : DEF_MODE;
+    if (noCapped() && modes.indexOf("CAPPED_VBR") >= 0)
       t += (t ? " " : "") + "Capped modes are not available with this libimp" +
         (/^CAPPED/.test(curMode) ? "; the stream runs as VBR." : ".");
+    else if (/^CAPPED/.test(curMode) && modes.indexOf(curMode) < 0)
+      t += (t ? " " : "") + curMode.toLowerCase() + " (from timps.conf) runs as VBR on this SoC.";
     $id("v-hidden").textContent = t;
   }
 
@@ -351,9 +354,9 @@
     var j = json && json.jpeg_reuse, el = $id("v-jpeg");
     el.hidden = !(j && Number(j.available));
     if (el.hidden) return;
-    el.textContent = "Snapshots: " + (j.reused || 0) + " repeated pictures from the JPEG encoder, " +
-      (j.skipped || 0) + " held back for a fresh one." +
-      (j.reused ? " If this keeps climbing, lower the JPEG frame rate or resolution." : "");
+    el.textContent = "Snapshots, all JPEG channels since start: " + (j.reused || 0) +
+      " repeated pictures from the JPEG encoder, " + (j.skipped || 0) + " held back for a fresh one." +
+      (j.reused ? " If this keeps climbing, lower videoN.jpeg_fps or the JPEG size in /etc/timps.conf." : "");
   }
 
   function refreshRcHolds() {
@@ -378,7 +381,7 @@
     curMode = String(video.rc_mode || "").toUpperCase();
     var au = $id("v-audio_enabled");
     if (last.audio && last.audio.enabled !== undefined) au.checked = !!Number(last.audio.enabled);
-    $id("v-mbrc-wrap").hidden = socFamily() !== "t20";
+    $id("v-mbrc-wrap").hidden = socFamily() !== "t20" || video.mbrc === undefined;
     renderModes(); renderMeta(); rcGate(); renderRot(); refreshRcHolds();
   }
 
