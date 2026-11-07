@@ -120,10 +120,18 @@ copy_photo() {
 copy_video() {
 	# Use existing video from motion if available
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
-		# Create atomically (see copy_photo): cp target must not be a planted symlink.
+		# Create atomically (mktemp) so the link/copy target can't be a
+		# pre-planted symlink in the sticky /tmp.
 		local tmpfile
 		tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
-		cp "$MOTION_VIDEO_FILE" "$tmpfile"
+		# Hard-link instead of copying: /tmp is RAM-backed and a clip can
+		# approach 9 MB, so a second copy can exhaust memory and reboot the
+		# camera mid-copy (issue #1923). Every send2* consumer runs in
+		# parallel and would otherwise hold its own full copy. The data
+		# lives until its last name is removed, so garbage collection and
+		# motion's cleanup still work; fall back to cp across filesystems.
+		ln -f "$MOTION_VIDEO_FILE" "$tmpfile" 2>/dev/null ||
+			cp "$MOTION_VIDEO_FILE" "$tmpfile"
 		add_to_garbage "$tmpfile"
 		echo "$tmpfile"
 		return
