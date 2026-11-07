@@ -39,8 +39,7 @@ index de5f2c3..795cc57 100644
  		"	-y alias[=path]	URL alias handle\n"
  		"	-i .ext=path    Use interpreter at path for files with the given extension\n"
  		"	-t seconds      CGI, Lua and UBUS script timeout in seconds, default is 60\n"
-@@ -189,9 +189,10 @@ static void init_defaults_pre(void)
- 	conf.max_script_requests = 3;
+@@ -196,7 +196,8 @@ static void init_defaults_pre(void)
  	conf.max_connections = 100;
  	conf.realm = "Protected Area";
 -	conf.cgi_prefix = "/cgi-bin";
@@ -50,7 +49,6 @@ index de5f2c3..795cc57 100644
 +	INIT_LIST_HEAD(&conf.cgi_prefixes);
  	INIT_LIST_HEAD(&conf.lua_prefix);
  #if HAVE_UCODE
- 	INIT_LIST_HEAD(&conf.ucode_prefix);
 @@ -200,6 +201,8 @@ static void init_defaults_pre(void)
  
  static void init_defaults_post(void)
