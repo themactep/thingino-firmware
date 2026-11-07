@@ -20,6 +20,7 @@
     image_wb_bgain: "wb_bgain",
     image_wb_rgain: "wb_rgain",
     image_ae_compensation: "ae_compensation",
+    image_max_again: "max_again",
     image_hflip: "hflip",
     image_vflip: "vflip",
   };
@@ -190,7 +191,7 @@
         el.addEventListener("dblclick", function () {
           var min = Number(el.min || 0);
           var max = Number(el.max || 255);
-          el.value = Math.round((min + max) / 2);
+          el.value = el.dataset.default !== undefined ? el.dataset.default : Math.round((min + max) / 2);
           showValue(id);
           send(id);
         });
