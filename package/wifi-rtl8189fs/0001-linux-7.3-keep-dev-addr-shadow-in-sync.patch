@@ -1,0 +1,95 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.3: keep the dev_addr shadow in sync
+
+Kernel 5.17 made dev_addr const and tracks a shadow copy that
+register_netdevice() compares against. The driver writes dev_addr before
+registration, which leaves the shadow zeroed and triggers the "Incorrect
+netdev->dev_addr" warning at module load. Route every write through
+rtw_set_netdev_addr(): before registration it updates dev_addr and the
+shadow directly, afterwards it uses eth_hw_addr_set().
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/include/osdep_service_linux.h b/include/osdep_service_linux.h
+index 11ca88a..0f1e07f 100644
+--- a/include/osdep_service_linux.h
++++ b/include/osdep_service_linux.h
+@@ -232,6 +232,19 @@ static inline void rtw_eth_hw_addr_set(struct net_device *dev, const u8 *addr)
+ #define eth_hw_addr_set rtw_eth_hw_addr_set
+ #endif
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
++#define rtw_set_netdev_addr(dev, addr) do { \
++	if ((dev)->reg_state == NETREG_UNINITIALIZED) { \
++		memcpy((dev)->dev_addr, (addr), ETH_ALEN); \
++		memcpy((dev)->dev_addr_shadow, (addr), ETH_ALEN); \
++	} else { \
++		eth_hw_addr_set((dev), (addr)); \
++	} \
++} while (0)
++#else
++#define rtw_set_netdev_addr(dev, addr) memcpy((dev)->dev_addr, (addr), ETH_ALEN)
++#endif
++
+ typedef unsigned long systime;
+ typedef struct tasklet_struct _tasklet;
+ 
+diff --git a/os_dep/linux/mlme_linux.c b/os_dep/linux/mlme_linux.c
+index 39c0ac1..372f3dd 100644
+--- a/os_dep/linux/mlme_linux.c
++++ b/os_dep/linux/mlme_linux.c
+@@ -400,7 +400,7 @@ int hostapd_mode_init(_adapter *padapter)
+ 	mac[4] = 0x11;
+ 	mac[5] = 0x12;
+ 
+-	_rtw_memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
++	rtw_set_netdev_addr(pnetdev, mac);
+ 
+ 
+ 	rtw_netif_carrier_off(pnetdev);
+diff --git a/os_dep/linux/os_intfs.c b/os_dep/linux/os_intfs.c
+index fc1393d..86966bf 100644
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -1837,7 +1837,7 @@ static int rtw_os_ndev_register(_adapter *adapter, const char *name)
+ 	/* alloc netdev name */
+ 	rtw_init_netdev_name(ndev, name);
+ 
+-	eth_hw_addr_set(ndev, adapter_mac_addr(adapter));
++	rtw_set_netdev_addr(ndev, adapter_mac_addr(adapter));
+ 
+ 	/* Tell the network stack we exist */
+ 
+@@ -2836,7 +2836,7 @@ static int _netdev_vir_if_open(struct net_device *pnetdev)
+ 		rtw_mbid_camid_alloc(padapter, adapter_mac_addr(padapter));
+ #endif
+ 		rtw_init_wifidirect_addrs(padapter, adapter_mac_addr(padapter), adapter_mac_addr(padapter));
+-		_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
++		rtw_set_netdev_addr(pnetdev, adapter_mac_addr(padapter));
+ 	}
+ #endif /*CONFIG_PLATFORM_INTEL_BYT*/
+ 
+@@ -3578,7 +3578,7 @@ int _netdev_open(struct net_device *pnetdev)
+ 		rtw_mbid_camid_alloc(padapter, adapter_mac_addr(padapter));
+ #endif
+ 		rtw_init_wifidirect_addrs(padapter, adapter_mac_addr(padapter), adapter_mac_addr(padapter));
+-		_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
++		rtw_set_netdev_addr(pnetdev, adapter_mac_addr(padapter));
+ #endif /* CONFIG_PLATFORM_INTEL_BYT */
+ 
+ 		rtw_clr_surprise_removed(padapter);
+diff --git a/os_dep/osdep_service.c b/os_dep/osdep_service.c
+index 04000c7..cee2409 100644
+--- a/os_dep/osdep_service.c
++++ b/os_dep/osdep_service.c
+@@ -2524,7 +2524,7 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
+ 
+ 	rtw_init_netdev_name(pnetdev, ifname);
+ 
+-	eth_hw_addr_set(pnetdev, adapter_mac_addr(padapter));
++	rtw_set_netdev_addr(pnetdev, adapter_mac_addr(padapter));
+ 
+ 	if (rtnl_lock_needed)
+ 		ret = register_netdev(pnetdev);
+-- 
+2.55.0
