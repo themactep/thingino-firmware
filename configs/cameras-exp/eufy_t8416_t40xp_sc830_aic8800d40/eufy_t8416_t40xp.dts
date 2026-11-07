@@ -987,18 +987,6 @@
 		phandle = <0x1e>;
 	};
 
-	gpio_keys {
-		compatible = "gpio-keys";
-
-		power {
-			label = "Power";
-			linux,code = <0x74>;
-			gpios = <0x07 0x08 0x01 0x00>;
-			linux,input-type = <0x01>;
-			gpio_key,wakeup = <0x01>;
-			debounce-interval = <0x64>;
-		};
-	};
 
 	display-dpi {
 		compatible = "simple-bus";
