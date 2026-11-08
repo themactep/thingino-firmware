@@ -434,6 +434,15 @@ start() {
 	# the MCU reconnects from its NVM.
 	case "$WLAN_MODULE_NAME" in
 		atbm6441*)
+			# The MCU runs its own DHCP client and the IoT supplicant copies
+			# the resulting address and default route onto wlan0. Leave the
+			# interface manual so S40network's ifup -a does not start udhcpc
+			# and flush what the supplicant configured. This applies in every
+			# mode: the MCU can keep a network in its NVM even with no config
+			# file to provision from.
+			sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' \
+				/etc/network/interfaces.d/wlan0
+
 			# No host AP/portal path for the ATBM6441 yet. A WiFi-only board
 			# with no MCU NVM network needs an SD-card config to provision.
 			if [ "$mode" != "client" ]; then
