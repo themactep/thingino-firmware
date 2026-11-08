@@ -12,12 +12,26 @@ NTP_DEFAULT_FILE="/etc/default/ntp.conf"
 NTP_WORKING_FILE="/tmp/ntp.conf"
 NTP_SOURCE_FILE="/etc/ntp.source"
 
+TZ_MAX=67
+# uClibc-ng parses a POSIX TZ string only if the names obey its rules, so the
+# whitelist is close to check-tz-json.sh. 67 is the /etc/TZ buffer size minus
+# newline; a longer string is truncated silently, so reject it instead.
+valid_tz_string() {
+	# < and > are redirection operators in an unquoted case pattern, so the
+	# whitelist is enforced by stripping allowed characters instead.
+	[ -n "$1" ] || return 1
+	strip=$(printf '%s' "$1" | tr -d 'A-Za-z0-9+.,:/<>-')
+	[ -z "$strip" ] || return 1
+	[ "${#1}" -le "$TZ_MAX" ]
+}
+
 usage() {
 	echo "Usage: $0 <command> [args]" >&2
 	echo "Commands:" >&2
 	echo "  status                      print resolved state as key=value" >&2
 	echo "  refresh                     boot: re-resolve /etc/timezone to /etc/TZ" >&2
 	echo "  set-timezone <name> [--source user|dhcp]" >&2
+	echo "  set-timezone-raw <posix-tz> set a raw POSIX TZ string (bypasses tz.json)" >&2
 	echo "  set-ntp <srv>... [--source user|dhcp]" >&2
 	echo "  set-time <date>             manual clock hint, then NTP reconcile" >&2
 	echo "  pin-timezone                keep the current timezone, ignore DHCP" >&2
@@ -93,8 +107,14 @@ cmd_refresh() {
 
 	tz=$(resolve "$name")
 	if [ -z "$tz" ]; then
-		echo "timectl: timezone '$name' not found in $TZJSON_FILE" >&2
-		return 1
+		# A raw string set via set-timezone-raw lives in /etc/timezone too
+		# and is not in tz.json; keep it verbatim instead of failing.
+		if valid_tz_string "$name"; then
+			tz="$name"
+		else
+			echo "timectl: refresh: '$name' not found in $TZJSON_FILE" >&2
+			return 1
+		fi
 	fi
 
 	if [ "$tz" != "$(cat "$TZCODE_FILE" 2>/dev/null)" ]; then
@@ -148,6 +168,31 @@ cmd_set_timezone() {
 	echo "$tz" >"$TZCODE_FILE"
 	echo "$source" >"$TZ_SOURCE_FILE"
 	echo "timectl: timezone set to $name ($tz) [$source]" >&2
+}
+
+cmd_set_timezone_raw() {
+	tz="$1"
+
+	if [ -z "$tz" ]; then
+		echo "timectl: set-timezone-raw requires a POSIX TZ string" >&2
+		return 1
+	fi
+
+	if ! valid_tz_string "$tz"; then
+		echo "timectl: invalid POSIX TZ string '$tz'" >&2
+		return 1
+	fi
+
+	if [ "$tz" = "$(cat "$TZCODE_FILE" 2>/dev/null)" ] &&
+		[ "$tz" = "$(cat "$TZNAME_FILE" 2>/dev/null)" ]; then
+		echo "timectl: timezone already set to '$tz' [user]" >&2
+		return 0
+	fi
+
+	echo "$tz" >"$TZNAME_FILE"
+	echo "$tz" >"$TZCODE_FILE"
+	echo "user" >"$TZ_SOURCE_FILE"
+	echo "timectl: timezone set to $tz [user]" >&2
 }
 
 cmd_set_ntp() {
@@ -249,6 +294,10 @@ case "${1:-}" in
 	set-timezone)
 		shift
 		cmd_set_timezone "$@"
+		;;
+	set-timezone-raw)
+		shift
+		cmd_set_timezone_raw "$@"
 		;;
 	set-ntp)
 		shift
