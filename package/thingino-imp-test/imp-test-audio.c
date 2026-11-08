@@ -15,6 +15,9 @@
  *   -v <vol>     Volume [-30..120] (default: 80)
  *   -g <gain>    Gain [-1 = skip, 0..31] (default: -1)
  *   -D <depth>   User frame depth (default: 30)
+ *   -N <level>   Enable noise suppression, level 0..3 (default: disabled)
+ *   -H           Enable the high pass filter (default: disabled)
+ *   -A           Enable AGC, target 10 dBFS, compression 20 dB
  *   -o <file>    Output raw PCM to file (default: none, discard)
  *   -t <ms>      Polling timeout in ms (default: 1000)
  *   -h           Show this help
@@ -31,6 +34,9 @@
  *   8  IMP_AI_SetGain failed
  *   9  IMP_AI_PollingFrame failed (after retries)
  *  10  IMP_AI_GetFrame failed
+ *  11  IMP_AI_EnableNs failed
+ *  12  IMP_AI_EnableHpf failed
+ *  13  IMP_AI_EnableAgc failed
  *
  * Build: see thingino-imp-test.mk
  */
@@ -41,6 +47,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 /* ---- Minimal IMP type/function declarations ----
@@ -105,6 +112,11 @@ typedef struct {
 	int Rev;
 } IMPAudioIChnParam;
 
+typedef struct {
+	int TargetLevelDbfs;
+	int CompressionGaindB;
+} IMPAudioAgcConfig;
+
 /* Audio input API */
 int IMP_AI_SetPubAttr(int audioDevId, IMPAudioIOAttr *attr);
 int IMP_AI_GetPubAttr(int audioDevId, IMPAudioIOAttr *attr);
@@ -118,6 +130,12 @@ int IMP_AI_SetVol(int audioDevId, int aiChn, int aiVol);
 int IMP_AI_GetVol(int audioDevId, int aiChn, int *aiVol);
 int IMP_AI_SetGain(int audioDevId, int aiChn, int aiGain);
 int IMP_AI_GetGain(int audioDevId, int aiChn, int *aiGain);
+int IMP_AI_EnableNs(IMPAudioIOAttr *attr, int mode);
+int IMP_AI_DisableNs(void);
+int IMP_AI_EnableHpf(IMPAudioIOAttr *attr);
+int IMP_AI_DisableHpf(void);
+int IMP_AI_EnableAgc(IMPAudioIOAttr *attr, IMPAudioAgcConfig agcConfig);
+int IMP_AI_DisableAgc(void);
 int IMP_AI_PollingFrame(int audioDevId, int aiChn, unsigned int timeout_ms);
 int IMP_AI_GetFrame(int audioDevId, int aiChn, IMPAudioFrame *frm, IMPBlock block);
 int IMP_AI_ReleaseFrame(int audioDevId, int aiChn, IMPAudioFrame *frm);
@@ -135,6 +153,11 @@ static void sig_handler(int sig) {
 	g_quit = 1;
 }
 
+static double rusage_seconds(const struct rusage *ru) {
+	return (double)ru->ru_utime.tv_sec + (double)ru->ru_utime.tv_usec / 1e6 +
+	       (double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec / 1e6;
+}
+
 static void usage(const char *prog) {
 	fprintf(stderr,
 		"Usage: %s [options]\n"
@@ -145,6 +168,9 @@ static void usage(const char *prog) {
 		"  -v <vol>     Volume [-30..120] (default: 80)\n"
 		"  -g <gain>    Gain [0..31, -1=skip] (default: -1)\n"
 		"  -D <depth>   Frame buffer depth (default: 30)\n"
+		"  -N <level>   Enable noise suppression, level 0..3 (default: off)\n"
+		"  -H           Enable the high pass filter\n"
+		"  -A           Enable AGC (target 10 dBFS, compression 20 dB)\n"
 		"  -o <file>    Output raw PCM to file (- for stdout)\n"
 		"  -t <ms>      Polling timeout ms (default: 1000)\n"
 		"  -h           Help\n", prog);
@@ -159,11 +185,14 @@ int main(int argc, char *argv[]) {
 	int gain        = -1;
 	int frm_depth   = 30;
 	int timeout_ms  = 1000;
+	int ns_level    = -1;
+	int hpf         = 0;
+	int agc         = 0;
 	const char *outpath = NULL;
 	FILE *outfile   = NULL;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "r:n:d:c:v:g:D:o:t:h")) != -1) {
+	while ((opt = getopt(argc, argv, "r:n:d:c:v:g:D:N:HAo:t:h")) != -1) {
 		switch (opt) {
 		case 'r': sample_rate = atoi(optarg); break;
 		case 'n': max_frames  = atoi(optarg); break;
@@ -172,6 +201,9 @@ int main(int argc, char *argv[]) {
 		case 'v': volume      = atoi(optarg); break;
 		case 'g': gain        = atoi(optarg); break;
 		case 'D': frm_depth   = atoi(optarg); break;
+		case 'N': ns_level    = atoi(optarg); break;
+		case 'H': hpf         = 1;             break;
+		case 'A': agc         = 1;             break;
 		case 'o': outpath     = optarg;        break;
 		case 't': timeout_ms  = atoi(optarg); break;
 		case 'h': /* fall through */
@@ -181,12 +213,17 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	if (ns_level < -1 || ns_level > 3) {
+		fprintf(stderr, "[imp-test-audio] ERROR: -N must be 0..3\n");
+		return 1;
+	}
+
 	signal(SIGINT,  sig_handler);
 	signal(SIGTERM, sig_handler);
 
-	fprintf(stderr, "[imp-test-audio] config: dev=%d chn=%d rate=%d vol=%d gain=%d depth=%d timeout=%dms frames=%d\n",
+	fprintf(stderr, "[imp-test-audio] config: dev=%d chn=%d rate=%d vol=%d gain=%d depth=%d timeout=%dms frames=%d ns=%d hpf=%d agc=%d\n",
 		dev_id, chn_id, sample_rate, volume, gain, frm_depth, timeout_ms,
-		max_frames);
+		max_frames, ns_level, hpf, agc);
 
 	if (outpath) {
 		if (strcmp(outpath, "-") == 0) {
@@ -321,6 +358,61 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "[imp-test-audio] gain readback=%d\n", cur_gain);
 	}
 
+	/* Step 8: optional audio processing */
+	if (ns_level >= 0) {
+		fprintf(stderr, "[imp-test-audio] IMP_AI_EnableNs(level=%d)...\n",
+			ns_level);
+		ret = IMP_AI_EnableNs(&ioattr, ns_level);
+		if (ret != 0) {
+			fprintf(stderr, "[imp-test-audio] FAIL: IMP_AI_EnableNs returned %d (errno=%d %s)\n",
+				ret, errno, strerror(errno));
+			IMP_AI_DisableChn(dev_id, chn_id);
+			IMP_AI_Disable(dev_id);
+			IMP_System_Exit();
+			return 11;
+		}
+		fprintf(stderr, "[imp-test-audio] OK: IMP_AI_EnableNs\n");
+	}
+
+	if (hpf) {
+		fprintf(stderr, "[imp-test-audio] IMP_AI_EnableHpf...\n");
+		ret = IMP_AI_EnableHpf(&ioattr);
+		if (ret != 0) {
+			fprintf(stderr, "[imp-test-audio] FAIL: IMP_AI_EnableHpf returned %d (errno=%d %s)\n",
+				ret, errno, strerror(errno));
+			if (ns_level >= 0)
+				IMP_AI_DisableNs();
+			IMP_AI_DisableChn(dev_id, chn_id);
+			IMP_AI_Disable(dev_id);
+			IMP_System_Exit();
+			return 12;
+		}
+		fprintf(stderr, "[imp-test-audio] OK: IMP_AI_EnableHpf\n");
+	}
+
+	if (agc) {
+		IMPAudioAgcConfig agcConfig = { 10, 20 };
+		fprintf(stderr, "[imp-test-audio] IMP_AI_EnableAgc(target=%d, compression=%d)...\n",
+			agcConfig.TargetLevelDbfs, agcConfig.CompressionGaindB);
+		ret = IMP_AI_EnableAgc(&ioattr, agcConfig);
+		if (ret != 0) {
+			fprintf(stderr, "[imp-test-audio] FAIL: IMP_AI_EnableAgc returned %d (errno=%d %s)\n",
+				ret, errno, strerror(errno));
+			if (hpf)
+				IMP_AI_DisableHpf();
+			if (ns_level >= 0)
+				IMP_AI_DisableNs();
+			IMP_AI_DisableChn(dev_id, chn_id);
+			IMP_AI_Disable(dev_id);
+			IMP_System_Exit();
+			return 13;
+		}
+		fprintf(stderr, "[imp-test-audio] OK: IMP_AI_EnableAgc\n");
+	}
+
+	struct rusage ru_start, ru_end;
+	getrusage(RUSAGE_SELF, &ru_start);
+
 	fprintf(stderr, "[imp-test-audio] --- starting capture loop (%d frames, Ctrl-C to stop) ---\n",
 		max_frames);
 
@@ -385,10 +477,24 @@ int main(int argc, char *argv[]) {
 	}
 
 	fprintf(stderr, "\n[imp-test-audio] --- capture done ---\n");
+	getrusage(RUSAGE_SELF, &ru_end);
 	fprintf(stderr, "[imp-test-audio] frames=%d bytes=%zu poll_errors=%d get_errors=%d release_errors=%d\n",
 		frame_count, total_bytes, poll_errors, get_errors, release_errors);
+	fprintf(stderr, "[imp-test-audio] cpu user+sys=%.6f s (start=%.6f end=%.6f)\n",
+		rusage_seconds(&ru_end) - rusage_seconds(&ru_start),
+		rusage_seconds(&ru_start), rusage_seconds(&ru_end));
 
 	/* Cleanup */
+	if (agc)
+		fprintf(stderr, "[imp-test-audio] IMP_AI_DisableAgc returned %d\n",
+			IMP_AI_DisableAgc());
+	if (hpf)
+		fprintf(stderr, "[imp-test-audio] IMP_AI_DisableHpf returned %d\n",
+			IMP_AI_DisableHpf());
+	if (ns_level >= 0)
+		fprintf(stderr, "[imp-test-audio] IMP_AI_DisableNs returned %d\n",
+			IMP_AI_DisableNs());
+
 	fprintf(stderr, "[imp-test-audio] IMP_AI_DisableChn(dev=%d, chn=%d)...\n", dev_id, chn_id);
 	ret = IMP_AI_DisableChn(dev_id, chn_id);
 	fprintf(stderr, "[imp-test-audio] IMP_AI_DisableChn returned %d\n", ret);
