@@ -1,7 +1,5 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC3043,SC2015
-# Replace a firmware file the streamer loads at start. ?kind=iq (sensor IQ .bin) or font (OSD default.ttf).
-# GET = info, POST raw file = install into the overlay, POST &reset = drop the overlay copy (stock is back).
 
 . /var/www/x/auth.sh
 require_auth
@@ -12,9 +10,6 @@ reply() {
 }
 fail() { reply "$1" "{\"error\":\"$2\"}"; }
 
-# exact &-delimited param/flag match, not a bare substring (a future param
-# whose value merely contains "reset", or a request naming both kinds, must
-# not match)
 qs_has() {
 	case "&$QUERY_STRING&" in *"&$1&"*) return 0 ;; esac
 	return 1
@@ -31,7 +26,6 @@ else
 	fail "400 Bad Request" "kind=iq|font"
 fi
 FILE="$DIR/$NAME"
-# the dir may be a symlink (/etc/sensor -> /usr/share/sensor); overlay upper and /rom use the real path
 REAL="$(readlink -f "$DIR" 2>/dev/null || echo "$DIR")/$NAME"
 UPPER="/overlay$REAL"
 
@@ -78,12 +72,7 @@ fi
 if qs_has "reset"; then
 	[ -f "$UPPER" ] || info
 	[ -f "/rom$REAL" ] || fail "409 Conflict" "no stock file to restore"
-	# Unlink through the mounted overlay path ($REAL), not the raw upperdir
-	# ($UPPER): removing a file directly in the upperdir while the overlay is
-	# mounted is undefined - the merged view can keep resolving to the
-	# unlinked inode until the dcache is evicted, so "reset" looked like it
-	# worked (custom:0) while the daemon kept loading the old file on the
-	# next restart. A remount did not reliably fix it either.
+	# unlink via the overlay path, not the upperdir: the merged view can keep the old inode
 	rm -f "$REAL"
 	info
 fi
@@ -101,8 +90,7 @@ head -c "$LEN" >"$TMP"
 magic_ok "$TMP" || fail "415 Unsupported Media Type" "wrong file type"
 
 mkdir -p "$DIR" || fail "500 Internal Server Error" "write failed"
-# unique per-request staging name: a fixed "$FILE.new" let two concurrent
-# uploads (two tabs, a double-click) truncate each other's copy mid-write
+# unique staging name: concurrent uploads must not truncate each other
 NEW=$(mktemp "$DIR/.upl.XXXXXX") || fail "500 Internal Server Error" "write failed"
 cp "$TMP" "$NEW" && chmod 644 "$NEW" && mv "$NEW" "$FILE" && sync || {
 	rm -f "$NEW"

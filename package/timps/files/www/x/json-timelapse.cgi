@@ -15,7 +15,6 @@ urldec() { printf '%b' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/+/ /g; s/%\(..\
 
 esc() { printf '%s' "$1" | tr -d '\001-\037\177' | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
-# reject absolute paths and traversal
 safe() { case "$1" in "" | /* | *..*) return 1 ;; *) return 0 ;; esac }
 
 within_base() {
@@ -42,10 +41,7 @@ not_found() {
 FILE=$(urldec "$(qval file)")
 SEQ=$(urldec "$(qval seq)")
 
-# ---- one shot (the hot path: the player asks for these back to back) ----
 if [ -n "$FILE" ]; then
-	# extension whitelist on top of within_base: even inside the tree this
-	# endpoint can only ever hand out a JPEG.
 	case "$FILE" in *.jpg | *.JPG | *.jpeg | *.JPEG) ;; *) not_found ;; esac
 	if ! safe "$FILE" || [ ! -f "$BASE/$FILE" ] || [ -L "$BASE/$FILE" ] || ! within_base "$BASE/$FILE"; then
 		not_found
@@ -62,7 +58,6 @@ if [ -n "$FILE" ]; then
 	exit 0
 fi
 
-# ---- frames of ONE folder ----
 if [ -n "$SEQ" ]; then
 	D="$BASE/$SEQ"
 	if ! safe "$SEQ" || [ ! -d "$D" ] || ! within_base_dir "$D"; then
@@ -91,7 +86,6 @@ substr($1, 1, 1) != "-" { next }
 	exit 0
 fi
 
-# ---- index: folders that actually hold shots ----
 printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-store\r\n\r\n'
 if [ ! -d "$BASE" ]; then
@@ -99,12 +93,10 @@ if [ ! -d "$BASE" ]; then
 	exit 0
 fi
 printf '{"base":"%s","exists":true,"seqs":[' "$(esc "$BASE")"
-# -maxdepth bounds the walk to the shapes a name template can plausibly produce.
 find "$BASE" -maxdepth 4 -type d 2>/dev/null | sort | (
 	i=0
 	while IFS= read -r d; do
-		# Match the same 4 case variants ?file=/?seq= already accept. No
-		# nullglob in busybox ash, so count via builtin -e tests, not $#.
+		# no nullglob in busybox ash: count via -e tests, not $#
 		set -- "$d"/*.jpg "$d"/*.JPG "$d"/*.jpeg "$d"/*.JPEG
 		n=0
 		for f in "$@"; do
