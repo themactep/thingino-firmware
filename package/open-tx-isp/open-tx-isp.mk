@@ -8,7 +8,7 @@ OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
 # Release candidate v2026.11.07-rc3 (728ee0d8); the same tag is published
 # on the Lu-Fi/open-tx-isp open-stack fork.
-OPEN_TX_ISP_VERSION = v2026.11.07-rc3
+OPEN_TX_ISP_VERSION = v2026.11.07-rc3.1
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
