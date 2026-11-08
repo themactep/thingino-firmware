@@ -277,6 +277,7 @@ start() {
 		echo "Skipping WLAN GPIO toggling for kernel $kernel_version"
 	fi
 
+	@if !WIFI_ATBM6441@
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
 
@@ -303,6 +304,7 @@ start() {
 		@endif@
 	fi
 	@endif@
+	@endif@
 
 	@if WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
@@ -315,6 +317,20 @@ start() {
 	fi
 	@endif@
 
+	@if WIFI_ATBM6441@
+	if grep -q "^$WLAN_MODULE_NAME " /proc/modules; then
+		echo "Module $WLAN_MODULE_NAME is already loaded"
+	else
+		echo "ATBM6441: waiting for S09mmc to load $WLAN_MODULE_NAME"
+	fi
+
+	m=300 # limit to 30 seconds
+	while [ "$m" -gt 0 ]; do
+		ip link show dev "$IFACE" >/dev/null 2>&1 && break
+		m=$((m - 1))
+		sleep 0.1
+	done
+	@else@
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
@@ -328,9 +344,11 @@ start() {
 		m=$((m - 1))
 		sleep 0.1
 	done
+	@endif@
 
 	@if !WIFI_IS_HI3881@
 	@if !WIFI_ATBM6461@
+	@if !WIFI_ATBM6441@
 	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo "Bring interface $IFACE down"
@@ -340,6 +358,7 @@ start() {
 		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
 	fi
+	@endif@
 	@endif@
 	@endif@
 	# play /usr/share/sounds/wificonnected.opus
