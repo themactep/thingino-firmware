@@ -32,6 +32,12 @@ config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
 
 config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 	bool "Reset PHY after being Configured"
+	depends on BR2_THINGINO_UBOOT_VERSION_2013_07
+	help
+	  Legacy 2013.07 U-Boot only. The 2026.07 tree has no such
+	  config; declare the board's PHY reset line as gpio.eth_phy_reset
+	  in thingino.json instead (it becomes the gmac DT node's
+	  ingenic,reset-gpio property at build time).
 
 config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET
 	int "GPIO to toggle for PHY Reset"
