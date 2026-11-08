@@ -90,6 +90,8 @@ again for a session that is already up replaces it. Other options:
   joined to it (see Wi-Fi).
 - `--speaker speaker.wav` records the camera's speaker, and `--mic` sets
   what its microphones hear (see Audio).
+- `--tap DIR` writes every stream the camera's encoders code to DIR, to
+  play while it runs (see Video).
 - `--riscv` runs the SoC's RISC-V core beside it, for stock firmware that
   boots fast with one (see Fast boot).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
@@ -380,6 +382,23 @@ scripts/qemu-dev get /tmp/main.h264 main.h264
 scripts/qemu-dev get /tmp/snap.jpg snap.jpg
 ffplay main.h264
 ```
+
+The emulated encoders can also write every stream themselves, from any
+image, stock firmware included, with nothing changed in the camera:
+`--tap DIR` (QEMU ingenic-0.7.11 on) gives each stream a file in DIR,
+named for its encoder and its order (`avpu-0.h264` the T31's first,
+`helix-1.h264` a T23's second, `.h265` and `.mjpg` the rest), which
+grows a picture at a time from its first key frame:
+
+```bash
+scripts/qemu-dev up qemu_t31x --tap /tmp/tap
+ffplay -f h264 -follow 1 -i file:/tmp/tap/avpu-0.h264
+```
+
+A FIFO made at a stream's path before it starts (`mkfifo
+/tmp/tap/avpu-0.h264`) is written instead; the camera never waits for
+a slow player, which skips to the next key frame. The QEMU fork's
+contrib/ingenic/README.md ("Stream tap") has the details.
 
 With the main stream over IVDC (`direct_mode=1` in
 `/etc/modules.d/20-isp`, `ivdc = true` under `[stream0]` in
