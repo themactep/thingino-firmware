@@ -230,7 +230,7 @@ endif
 # Resolve U-Boot version fragment
 THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | tail -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
 THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2013_07)
-THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
+THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
@@ -375,7 +375,7 @@ FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
-U_BOOT_SIZE_KB := 320
+U_BOOT_SIZE_KB := 192
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
 

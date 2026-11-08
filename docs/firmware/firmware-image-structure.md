@@ -20,7 +20,7 @@ The firmware consists of the following partitions, written sequentially to flash
 
 | Partition | Size    | Type   | Description |
 |-----------|---------|--------|-------------|
-| U-Boot    | 256 KB  | Fixed  | Bootloader (first stage and SPL) |
+| U-Boot    | 192 KB  | Fixed  | Bootloader (first stage and SPL) |
 | Env       | 64 KB   | Fixed  | U-Boot environment variables |
 | Kernel    | Dynamic | Dynamic| Linux kernel (uImage format) |
 | RootFS    | Dynamic | Dynamic| Root filesystem (SquashFS, compressed) |
@@ -28,7 +28,7 @@ The firmware consists of the following partitions, written sequentially to flash
 
 ### Partition Details
 
-#### U-Boot Partition (256 KB, fixed)
+#### U-Boot Partition (192 KB, fixed)
 Contains the bootloader that initializes the hardware and loads the kernel.
 
 #### Env Partition (64 KB, fixed)
@@ -73,7 +73,7 @@ The build system automatically calculates partition sizes based on:
 
 ### Partition Size Calculation
 
-- **Fixed partitions**: U-Boot (256K), Env (64K) always use the same sizes
+- **Fixed partitions**: U-Boot (192K), Env (64K) always use the same sizes
 - **Dynamic partitions**: Kernel and RootFS sizes are aligned to 64 KB block boundaries
 - **Data partition**: Size = (Flash Size - Sum of all other partitions), padded to fill the remaining flash
 

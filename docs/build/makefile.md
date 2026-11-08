@@ -944,8 +944,8 @@ Firmware is assembled from multiple partitions:
 
 | Partition | Offset     | Size    | Contents                   |
 |-----------|------------|---------|----------------------------|
-| U-Boot    | 0x000000   | 256 KB  | Bootloader                 |
-| UB_ENV    | 0x040000   | 64 KB   | U-Boot environment         |
+| U-Boot    | 0x000000   | 192 KB  | Bootloader                 |
+| UB_ENV    | 0x030000   | 64 KB   | U-Boot environment         |
 | KERNEL    | 0x050000   | Dynamic | Linux kernel (uImage)      |
 | ROOTFS    | Dynamic    | Dynamic | Root filesystem (SquashFS) |
 | DATA      | Dynamic    | Dynamic | Overlay layers (JFFS2)      |

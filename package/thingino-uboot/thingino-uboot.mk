@@ -27,9 +27,9 @@ endif
 # NetConsole (U-Boot console over UDP), opt-in per camera via
 # BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE. That symbol is default n and gated
 # in Kconfig to 2013.07, because patch 0006 provides the plumbing only for
-# that tree; 2026.07 enables netconsole through Kconfig on its own. Keying
-# off the symbol (not BR2_ETHERNET) keeps it off for the ethernet cameras
-# that never asked for it, and the Kconfig gate keeps both effects below --
+# that tree; Kconfig-era trees enable netconsole through Kconfig on their
+# own. Keying off the symbol (not BR2_ETHERNET) keeps it off for the ethernet
+# cameras that never asked for it, and the Kconfig gate keeps both effects below --
 # the make option and the injected environment -- out of non-2013.07 builds.
 # Must be =y, not =1: U-Boot's drivers/net/Makefile selects the object with
 # COBJS-$(CONFIG_NETCONSOLE), and a command-line value overrides autoconf.mk.
@@ -88,8 +88,6 @@ endif
 # https://github.com/themactep/thingino-firmware/issues/1299
 ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 THINGINO_UBOOT_BINARIES_VERSION := 2013.07
-else ifeq ($(BR2_THINGINO_UBOOT_VERSION_2026_07),y)
-THINGINO_UBOOT_BINARIES_VERSION := 2026.07
 else ifeq ($(BR2_THINGINO_UBOOT_VERSION_CUSTOM_FORK),y)
 THINGINO_UBOOT_BINARIES_VERSION := custom-fork
 endif

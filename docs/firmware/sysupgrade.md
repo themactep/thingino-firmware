@@ -12,9 +12,9 @@ Thingino has two camera-side upgrade utilities:
 All SFC (SPI NOR) builds share a fixed early-partition layout:
 
 ```
-mtdparts=...:256k(boot),64k(env),64k(backup),1600k(kernel),*k(rootfs),*k(data),*@0(all)
+mtdparts=...:192k(boot),64k(env),64k(backup),1600k(kernel),*k(rootfs),*k(data),*@0(all)
 
-mtd0   boot       256KB   fixed   U-Boot SPL + image
+mtd0   boot       192KB   fixed   U-Boot SPL + image
 mtd1   env         64KB   fixed   U-Boot environment
 mtd2   backup      64KB   fixed   config backup (raw, cfg-backup)
 mtd3   kernel    1600KB   fixed   uImage
@@ -99,7 +99,7 @@ IP=192.168.88.127 make ota-kernel FORCE=1
 ### How host-driven OTA works
 
 1. `fw_ota.sh` pads partition files to exact MTD sizes on the host (boot to
-   256KB, env to 64KB, rootfs to 64KB-aligned, data as-is).
+   192KB, env to 64KB, rootfs to 64KB-aligned, data as-is).
 2. Uploads `flash-ota.sh` and the partition files to `/tmp/` on the camera.
 3. Invokes `flash-ota.sh <mode> <file> [file2]` which flashes each partition
    directly to its MTD device and reboots.
