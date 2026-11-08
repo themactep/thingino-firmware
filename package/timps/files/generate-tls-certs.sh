@@ -1,16 +1,4 @@
 #!/bin/sh
-# Generate self-signed TLS certificates for timps HTTPS/RTSPS.
-# Uses openssl if available, falls back to mbedtls-certgen.
-#
-# Usage: generate-timps-tls-certs.sh [cert_path] [key_path]
-# Defaults match timps.conf (http.tls_cert / http.tls_key).
-#
-# This is a plain generator; it does NOT decide WHICH certificate timps should
-# use. S95timps' ensure_tls_certs() owns that policy and prefers the thingino
-# web UI's own /etc/ssl/certs/uhttpd.crt where it exists (so :443 and :8880
-# present the identical cert to the browser), calling this script only for
-# images that have no web UI - hence the timps-own default paths below rather
-# than a uhttpd-named one, which would be a lie on exactly those images.
 
 CERT="${1:-/etc/ssl/certs/timps.crt}"
 KEY="${2:-/etc/ssl/private/timps.key}"
@@ -35,8 +23,6 @@ if command -v openssl >/dev/null 2>&1; then
 	chmod 644 "$CERT" 2>/dev/null
 elif command -v mbedtls-certgen >/dev/null 2>&1; then
 	echo "Generating self-signed certificate with mbedtls-certgen..."
-	# mbedtls-certgen's flags, not openssl's: -h hostname -c cert -k key
-	# (no positional "server" arg, no --cn/--days long options).
 	mbedtls-certgen -h camera.local -c "$CERT" -k "$KEY" -d 3650
 	ret=$?
 	chmod 600 "$KEY" 2>/dev/null
@@ -45,9 +31,6 @@ else
 	exit 1
 fi
 
-# Neither branch above may have written both files (wrong flags, disk full,
-# etc.) - checking $ret alone isn't enough since a tool can exit 0 without
-# producing a usable pair, so also verify the outputs are actually there.
 if [ "$ret" -ne 0 ] || [ ! -s "$CERT" ] || [ ! -s "$KEY" ]; then
 	echo "ERROR: certificate generation failed (exit $ret)"
 	exit 1

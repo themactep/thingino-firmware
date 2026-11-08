@@ -1,10 +1,8 @@
-// streamer-image.js - Image Quality page (cards with sliders).
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-image") return;
 
-  // page field id -> timps image.* key (ids are prudynt-era names)
   var FIELD_MAP = {
     brightness: "brightness",
     contrast: "contrast",
@@ -14,11 +12,15 @@
     wide_dynamic_range: "drc_strength",
     tone: "highlight_depress",
     defog: "defog_strength",
-    noise_reduction: "sinter_strength", // set() also mirrors temper_strength
+    noise_reduction: "sinter_strength",
+    dpc: "dpc_strength",
+    image_colorfx: "colorfx",
+    image_scene: "scene",
     image_core_wb_mode: "core_wb_mode",
     image_wb_bgain: "wb_bgain",
     image_wb_rgain: "wb_rgain",
     image_ae_compensation: "ae_compensation",
+    image_max_again: "max_again",
     image_hflip: "hflip",
     image_vflip: "vflip",
   };
@@ -34,7 +36,6 @@
   var LABEL = {};
   var unsupported = {};
 
-  // unsupported on this SoC: hidden and named under the preview
   function setEnabled(id, on) {
     var el = $id(id);
     if (!el) return;
@@ -49,7 +50,6 @@
     if (o && el) o.textContent = el.value;
   }
 
-  // RGB gains only act in manual/custom white balance
   function wbGate() {
     var mode = $id("image_core_wb_mode");
     var manual = mode && isManual(mode.value);
@@ -60,6 +60,33 @@
     var note = $id("img-wb-note");
     if (note) note.textContent = manual || unsupported.image_wb_rgain ? "" :
       "Red/blue gain apply in Manual or Custom mode.";
+  }
+
+  function hideCustomWb() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var m = soc && String(soc).toLowerCase().match(/^(t10|t20|t30)/);
+    var sel = $id("image_core_wb_mode");
+    if (!m || !sel) return;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (o.value === "9") { o.hidden = true; o.disabled = true; }
+    });
+  }
+
+  function hideSepia() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var sel = $id("image_colorfx");
+    if (!sel || (soc && /^t20/i.test(String(soc)))) return;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (o.value === "2") { o.hidden = true; o.disabled = true; }
+    });
+  }
+
+  function effectsCard() {
+    var card = $id("img-effects-card");
+    if (card) card.classList.toggle("d-none",
+      !!(unsupported.image_colorfx && unsupported.image_scene));
   }
 
   function renderUnsupported() {
@@ -85,8 +112,6 @@
   function applyCorrections(r) {
     var corr = r && r.corrections;
     if (!corr) return;
-    // the single NR slider mirrors sinter -> temper; naming both in the toast
-    // would report the same knob twice
     if (corr["image.temper_strength"] !== undefined &&
         corr["image.sinter_strength"] !== undefined)
       delete corr["image.temper_strength"];
@@ -94,14 +119,10 @@
       var id = REVERSE[k];
       if (id) populate(id, corr[k]);
     });
-    // take-once: a debounced flush settles every queued waiter with the same
-    // result; the element writes above are idempotent, the toast is not
     var t = window.timpsApi.takeCorrections(r);
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // one changed control -> debounced POST {"image":{key:val}} to timps.
-  // The page's single NR slider drives both spatial+temporal NR strengths.
   function send(id) {
     var el = $id(id);
     var key = FIELD_MAP[id];
@@ -129,7 +150,6 @@
 
   function isManual(v) { return v === "1" || v === "9"; }
 
-  // entering manual/custom: start from the gains AWB applies now, so the picture doesn't jump
   function wbEnterManual(el) {
     el.classList.add("opacity-75");
     window.timpsApi.get().then(function (json) {
@@ -154,7 +174,7 @@
       if (!el) return;
       var lab = document.querySelector('label[for="' + id + '"]');
       LABEL[id] = lab ? lab.textContent.replace(/\s+\d*\s*$/, "").trim() : id;
-      el.disabled = true; // until caps confirm support
+      el.disabled = true;
       el.addEventListener("input", function () { showValue(id); });
       if (id === "image_core_wb_mode")
         el.addEventListener("focus", function () { wbPrev = el.value; });
@@ -167,12 +187,11 @@
         }
         send(id);
       });
-      // double-click resets a numeric field to the midpoint of its range
       if (el.type !== "checkbox" && el.tagName !== "SELECT") {
         el.addEventListener("dblclick", function () {
           var min = Number(el.min || 0);
           var max = Number(el.max || 255);
-          el.value = Math.round((min + max) / 2);
+          el.value = el.dataset.default !== undefined ? el.dataset.default : Math.round((min + max) / 2);
           showValue(id);
           send(id);
         });
@@ -205,12 +224,15 @@
       .then(function (json) {
         var image = json.image || {};
         var capsImage = (json.caps && json.caps.image) || [];
+        hideCustomWb();
+        hideSepia();
         Object.keys(FIELD_MAP).forEach(function (id) {
           var key = FIELD_MAP[id];
           populate(id, image[key]);
           setEnabled(id, capsImage.indexOf(key) >= 0);
         });
         renderUnsupported();
+        effectsCard();
         wbGate();
       })
       .catch(function (err) {
@@ -223,18 +245,14 @@
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["image." + FIELD_MAP[id]] = id;
   });
-  REVERSE["image.temper_strength"] = "noise_reduction"; // after the loop: a
-  // future FIELD_MAP entry literally named "temper_strength" must not win
-  // over this intentional alias (mirrors send()'s special case).
+  REVERSE["image.temper_strength"] = "noise_reduction";
 
   function onConfigEvent(type, data) {
     if (!data) return;
-    if (data.resync) { load(); return; } // this client lapped an eviction
+    if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
     if (!id) return;
     var el = $id(id);
-    // don't fight the user mid-drag on this same page; the value will
-    // land anyway once they let go and post their own change
     if (!el || document.activeElement === el) return;
     populate(id, data.value);
   }
