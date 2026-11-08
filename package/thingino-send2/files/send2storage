@@ -74,6 +74,24 @@ process_file() {
 
 read_config
 
+# A clip that motion recorded on the mount itself is renamed into place (no
+# copy, no RAM); anything else takes the normal copy_video route.
+process_video() {
+	case "$MOTION_VIDEO_FILE" in
+		"$mount"/*)
+			[ -f "$MOTION_VIDEO_FILE" ] || return 0
+			local dest_file
+			dest_file="$dest_dir/$(target_path video)"
+			mkdir -p "$(dirname "$dest_file")" || return 1
+			mv "$MOTION_VIDEO_FILE" "$dest_file" || return 1
+			chmod 644 "$dest_file"
+			;;
+		*)
+			process_file "$(copy_video)" video
+			;;
+	esac
+}
+
 # order is important!
 while getopts m:d:t:vSV flag; do
 	case "$flag" in
@@ -127,7 +145,7 @@ fi
 
 # Process media files
 if [ "true" = "$send_video" ]; then
-	process_file "$(copy_video)" video || exit 1
+	process_video || exit 1
 fi
 
 if [ "true" = "$send_photo" ]; then
