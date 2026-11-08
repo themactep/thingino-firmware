@@ -1,0 +1,456 @@
+diff --git a/driver/common/tx_isp_sinfo.c b/driver/common/tx_isp_sinfo.c
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -662,6 +662,19 @@
+ #define TX_ISP_SINFO_VENDOR_NFILES \
+ 	(sizeof(tx_isp_sinfo_vendor_files) / sizeof(tx_isp_sinfo_vendor_files[0]))
+ 
++/* Keys published as regular vendor files in the flat view.  Do not also
++ * create compatibility symlinks for them: procfs would warn on the second
++ * registration and the vendor file is the one readers expect. */
++static bool tx_isp_sinfo_vendor_flat_key(int key)
++{
++	unsigned int n;
++
++	for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n)
++		if (tx_isp_sinfo_vendor_files[n].key == key)
++			return true;
++	return false;
++}
++
+ static bool tx_isp_sinfo_module_image(struct module *mod, const void **base,
+ 				      unsigned long *size)
+ {
+@@ -854,6 +867,8 @@
+ {
+ 	unsigned int n;
+ 
++	if (!dir)
++		return;
+ 	for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n) {
+ 		int key = tx_isp_sinfo_vendor_files[n].key;
+ 		bool version = key == TX_ISP_SINFO_NKEYS;
+@@ -952,6 +967,7 @@
+ #endif
+ 		if (!tx_isp_sinfo_key_supported(key))
+ 			continue;
++		remove_proc_subtree(tx_isp_sinfo_key_name[key], slot->dir);
+ 		proc_create_data(tx_isp_sinfo_key_name[key], 0444, slot->dir,
+ 				 &tx_isp_sinfo_fops,
+ #ifdef TX_ISP_SINFO_STABLE_PROC_SNAPSHOT
+@@ -1185,7 +1201,7 @@
+ 			remove_proc_subtree(aliases[i], root);
+ 		if (had_flat[i] && root)
+ 			for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n)
+-				remove_proc_entry(
++				remove_proc_subtree(
+ 					tx_isp_sinfo_vendor_files[n].name,
+ 					root);
+ 	}
+diff --git a/driver/t31/tx_isp_module.c b/driver/t31/tx_isp_module.c
+--- a/driver/t31/tx_isp_module.c
++++ b/driver/t31/tx_isp_module.c
+@@ -3363,6 +3363,35 @@
+ 
+ // Initialize real hardware interrupt handling - Kernel 3.10 compatible, SDK compatible
+ /* tx_isp_enable_irq - CORRECTED Binary Ninja exact implementation */
++static DEFINE_MUTEX(tx_isp_irq_state_lock);
++static unsigned long tx_isp_irq_on[BITS_TO_LONGS(1024)];
++
++void tx_isp_irq_enable_once(int irq)
++{
++	if (irq < 0 || irq >= 1024)
++		return;
++	mutex_lock(&tx_isp_irq_state_lock);
++	if (test_and_set_bit(irq, tx_isp_irq_on)) {
++		mutex_unlock(&tx_isp_irq_state_lock);
++		return;
++	}
++	enable_irq(irq);
++	mutex_unlock(&tx_isp_irq_state_lock);
++}
++
++void tx_isp_irq_disable_once(int irq)
++{
++	if (irq < 0 || irq >= 1024)
++		return;
++	mutex_lock(&tx_isp_irq_state_lock);
++	if (!test_and_clear_bit(irq, tx_isp_irq_on)) {
++		mutex_unlock(&tx_isp_irq_state_lock);
++		return;
++	}
++	disable_irq(irq);
++	mutex_unlock(&tx_isp_irq_state_lock);
++}
++
+ void tx_isp_enable_irq(struct tx_isp_dev *isp_dev)
+ {
+     if (!isp_dev || isp_dev->isp_irq <= 0) {
+@@ -3450,7 +3479,7 @@
+         isp_dev->irq_disable_func = tx_isp_disable_irq; /* arg2[2] = tx_isp_disable_irq */
+ 
+         /* Binary Ninja: tx_isp_disable_irq(arg2) */
+-        tx_isp_disable_irq(isp_dev);
++        disable_irq(irq_num);
+ 
+         pr_info("*** tx_isp_request_irq: IRQ %d registered, stored, and left disabled until stream enable ***\n", irq_num);
+ 
+diff --git a/driver/t31/tx_isp_subdev.c b/driver/t31/tx_isp_subdev.c
+--- a/driver/t31/tx_isp_subdev.c
++++ b/driver/t31/tx_isp_subdev.c
+@@ -847,7 +847,7 @@
+ 	irq_info->irq = irq_num;
+ 	irq_info->handler = (void *)tx_isp_irq_info_enable;
+ 	irq_info->data = (void *)tx_isp_irq_info_disable;
+-	tx_isp_irq_info_disable(irq_info);
++	disable_irq(irq_num);
+ 	pr_info("tx_isp_request_irq: registered irq %d for %s (dev_id=%p, left disabled)\n",
+ 		irq_num, dev_name(&pdev->dev), irq_info);
+ 
+diff --git a/driver/t31/tx_isp_v4l2_sensor.c b/driver/t31/tx_isp_v4l2_sensor.c
+--- a/driver/t31/tx_isp_v4l2_sensor.c
++++ b/driver/t31/tx_isp_v4l2_sensor.c
+@@ -36,6 +36,12 @@
+ #define TX_V4L2_MIN_EXPOSURE	2
+ #define TX_V4L2_EXPOSURE_OFFSET	4
+ 
++struct tx_v4l2_gain_model {
++	const char *name;
++	const u32 *lut;
++	unsigned int size;
++};
++
+ struct tx_isp_v4l2_sensor {
+ 	struct tx_isp_sensor sensor;
+ 	struct platform_device pdev;
+@@ -67,12 +73,27 @@
+ };
+ 
+ static struct tx_isp_subdev *tx_isp_v4l2_sensor_sd;
++static const struct tx_v4l2_gain_model *tx_v4l2_active_gain;
++static u32 tx_v4l2_active_gain_max;
+ 
+ /*
+  * The mainline sc2336 driver maps the V4L2 analogue gain control to the
+  * vendor gain table by index.  Keep the same ISP-gain to index mapping as
+  * the vendor driver so the AE algorithm behaves identically.
+  */
++/*
++ * Gain model handed to the AE, one entry per index of the vendor sensor
++ * driver's gain table (the V4L2 analogue-gain control value; the sensor
++ * writes {coarse, fine} = {index>>8, index&0xff} through its own table).
++ *
++ * The values are the vendor sensor_again_lut gain column verbatim:
++ * log2(gain) in Q16, i.e. 0 = 1x, 65536 = 2x, 131072 = 4x ... 327680 = 32x.
++ * That is the unit the T31 AE works in - alloc_again() receives log2 Q16,
++ * max_again is ".16" and the core converts with exp2(x, 0x10, 0xa) - so the
++ * table must not be converted to linear Q10: a linear 32768 would read as
++ * 2^0.5 = 1.41x maximum, the AE would run out of sensor gain early and make
++ * up the rest with ISP digital gain (noise at night).
++ */
+ static const u32 tx_v4l2_gain_lut[] = {
+ 	0, 2886, 5776, 8494, 11136, 13706, 16287, 18723,
+ 	21097, 23414, 25746, 27953, 30109, 32217, 34345, 36361,
+@@ -97,26 +118,81 @@
+ 	327680,
+ };
+ 
++static const u32 tx_v4l2_sc4236_gain_lut[] = {
++	     0,   5731,  11136,  16248,  21097,  25710,  30109,  34312,
++	 38336,  42195,  45904,  49472,  52910,  56228,  59433,  62534,
++	 65536,  71267,  76672,  81784,  86633,  91246,  95645,  99848,
++	103872, 107731, 111440, 115008, 118446, 121764, 124969, 128070,
++	131072, 136803, 142208, 147320, 152169, 156782, 161181, 165384,
++	169408, 173267, 176976, 180544, 183982, 187300, 190505, 193606,
++	196608, 202339, 207744, 212856, 217705, 222318, 226717, 230920,
++	234944, 238803, 242512, 246080, 249518, 252836, 256041,
++};
++
++static const u32 tx_v4l2_gc2083_gain_lut[] = {
++	     0,  16247,  32233,  48592,  65536,  81783,  97243, 113685,
++	131072, 147629, 162779, 179442, 196608, 213165, 228446, 244978,
++	262144, 278701, 293982, 310458, 327680, 344199, 359485, 376022,
++	393216, 409735, 425021, 441558, 456839,
++};
++
++static const u32 tx_v4l2_gc4023_gain_lut[] = {
++	     0,  16208,  32217,  47690,  65536,  81784,  97213, 113226,
++	131072, 147001, 162766, 178990, 196608, 212696, 228446, 244419,
++	262144, 278158, 293982, 310012, 327680, 343731, 359484, 375550,
++	393216,
++};
++
++static const struct tx_v4l2_gain_model tx_v4l2_gain_models[] = {
++	{ "sc2336",  tx_v4l2_gain_lut,        ARRAY_SIZE(tx_v4l2_gain_lut) },
++	{ "sc2336p", tx_v4l2_gain_lut,        ARRAY_SIZE(tx_v4l2_gain_lut) },
++	{ "sc4236",  tx_v4l2_sc4236_gain_lut, ARRAY_SIZE(tx_v4l2_sc4236_gain_lut) },
++	{ "gc2083",  tx_v4l2_gc2083_gain_lut, ARRAY_SIZE(tx_v4l2_gc2083_gain_lut) },
++	{ "gc4023",  tx_v4l2_gc4023_gain_lut, ARRAY_SIZE(tx_v4l2_gc4023_gain_lut) },
++};
++
++static const struct tx_v4l2_gain_model *
++tx_v4l2_gain_model_by_name(const char *name)
++{
++	unsigned int i;
++
++	for (i = 0; i < ARRAY_SIZE(tx_v4l2_gain_models); i++)
++		if (!strcmp(tx_v4l2_gain_models[i].name, name))
++			return &tx_v4l2_gain_models[i];
++
++	return NULL;
++}
++
+ static unsigned int tx_v4l2_alloc_again(unsigned int isp_gain,
+ 					unsigned char shift,
+ 					unsigned int *sensor_again)
+ {
+-	unsigned int i;
++	const struct tx_v4l2_gain_model *model = tx_v4l2_active_gain;
++	unsigned int i, max;
++
++	if (!model) {
++		model = &tx_v4l2_gain_models[0];
++		max = model->size - 1;
++	} else {
++		max = tx_v4l2_active_gain_max;
++		if (max >= model->size)
++			max = model->size - 1;
++	}
+ 
+ 	if (isp_gain == 0) {
+ 		*sensor_again = 0;
+-		return 0;
++		return model->lut[0];
+ 	}
+ 
+-	for (i = 1; i < ARRAY_SIZE(tx_v4l2_gain_lut); i++) {
+-		if (isp_gain < tx_v4l2_gain_lut[i]) {
++	for (i = 1; i <= max; i++) {
++		if (isp_gain < model->lut[i]) {
+ 			*sensor_again = i - 1;
+-			return tx_v4l2_gain_lut[i - 1];
++			return model->lut[i - 1];
+ 		}
+ 	}
+ 
+-	*sensor_again = ARRAY_SIZE(tx_v4l2_gain_lut) - 1;
+-	return tx_v4l2_gain_lut[ARRAY_SIZE(tx_v4l2_gain_lut) - 1];
++	*sensor_again = max;
++	return model->lut[max];
+ }
+ 
+ static unsigned int tx_v4l2_alloc_dgain(unsigned int isp_gain,
+@@ -194,6 +270,11 @@
+ 	s->sensor.video.vi_max_height = s->height;
+ 	s->sensor.video.fps = (30 << 16) | 1;
+ 
++	dev_dbg(&s->client->dev,
++		"tx-isp-v4l2: %ux%u hts %u vts %u lanes %u link %llu Hz pixel %u Hz\n",
++		s->width, s->height, s->hts, s->vts, s->lanes,
++		s->link_freq_hz, s->pixel_rate_hz);
++
+ 	return 0;
+ }
+ 
+@@ -202,6 +283,7 @@
+ {
+ 	struct tx_isp_sensor *sensor = tx_isp_get_subdev_hostdata(sd);
+ 	struct tx_isp_sensor_attribute *attr;
++	struct tx_isp_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
+ 
+ 	if (!sensor || !chip)
+ 		return -EINVAL;
+@@ -214,6 +296,10 @@
+ 	chip->ident = attr->chip_id;
+ 	chip->revision = "v4l2";
+ 
++	if (s)
++		dev_dbg(&s->client->dev, "tx-isp-v4l2: g_chip_ident %s/0x%x\n",
++			attr->name, attr->chip_id);
++
+ 	return 0;
+ }
+ 
+@@ -275,7 +361,11 @@
+ 			return ret;
+ 	}
+ 
+-	return tx_v4l2_sensor_set_stream(s, enable);
++	ret = tx_v4l2_sensor_set_stream(s, enable);
++	dev_dbg(&s->client->dev, "tx-isp-v4l2: s_stream(%d) -> %d\n",
++		enable, ret);
++
++	return ret;
+ }
+ 
+ static int tx_v4l2_sensor_set_fps(struct tx_isp_subdev *sd, int fps)
+@@ -321,6 +411,9 @@
+ 	if (!s)
+ 		return -ENODEV;
+ 
++	dev_dbg(&s->client->dev, "tx-isp-v4l2: expo it=%d again=%d\n",
++		it, again);
++
+ 	if (it) {
+ 		ret = v4l2_ctrl_s_ctrl(s->exposure, it);
+ 		if (ret)
+@@ -432,20 +525,44 @@
+ 	if (!client)
+ 		return 0;
+ 
+-	if (!client->dev.driver || !client->dev.of_node)
++	if (strcmp(client->name, lookup->name))
++		return 0;
++
++	dev_info(dev, "tx-isp-v4l2: found i2c client %s at 0x%02x\n",
++		 lookup->name, client->addr);
++
++	if (!client->dev.of_node) {
++		dev_info(dev, "tx-isp-v4l2: %s: no OF node (missing camera@%02x in the DTSI?)\n",
++			 lookup->name, client->addr);
+ 		return 0;
++	}
+ 
+-	if (strcmp(client->name, lookup->name))
++	if (!client->dev.driver) {
++		dev_info(dev, "tx-isp-v4l2: %s: no driver bound (is the mainline sensor driver enabled and probed?)\n",
++			 lookup->name);
+ 		return 0;
++	}
+ 
+ 	if (!client->dev.driver->of_match_table ||
+ 	    !of_match_node(client->dev.driver->of_match_table,
+-			   client->dev.of_node))
++			   client->dev.of_node)) {
++		dev_info(dev, "tx-isp-v4l2: %s: driver %s does not match the node compatible\n",
++			 lookup->name, client->dev.driver->name);
+ 		return 0;
++	}
+ 
+ 	vsd = i2c_get_clientdata(client);
+-	if (!vsd || !vsd->ctrl_handler)
++	if (!vsd) {
++		dev_info(dev, "tx-isp-v4l2: %s: driver bound but no V4L2 subdev in clientdata\n",
++			 lookup->name);
++		return 0;
++	}
++
++	if (!vsd->ctrl_handler) {
++		dev_info(dev, "tx-isp-v4l2: %s: V4L2 subdev has no control handler\n",
++			 lookup->name);
+ 		return 0;
++	}
+ 
+ 	lookup->client = client;
+ 	lookup->vsd = vsd;
+@@ -464,14 +581,20 @@
+ 	s->lanes = 2;
+ 
+ 	endpoint = fwnode_graph_get_next_endpoint(s->client->dev.fwnode, NULL);
+-	if (!endpoint)
++	if (!endpoint) {
++		dev_info(&s->client->dev,
++			 "tx-isp-v4l2: no endpoint, assuming 2 lanes\n");
+ 		return 0;
++	}
+ 
+ 	if (!v4l2_fwnode_endpoint_parse(endpoint, &ep) &&
+-	    ep.bus.mipi_csi2.num_data_lanes)
++	    ep.bus.mipi_csi2.num_data_lanes) {
+ 		s->lanes = ep.bus.mipi_csi2.num_data_lanes;
+-	else
++	} else {
++		dev_err(&s->client->dev,
++			"tx-isp-v4l2: endpoint parse failed, assuming 2 lanes\n");
+ 		ret = -EINVAL;
++	}
+ 
+ 	fwnode_handle_put(endpoint);
+ 
+@@ -496,11 +619,16 @@
+ 	struct tx_isp_v4l2_sensor *s;
+ 	struct tx_isp_sensor *sensor;
+ 	struct tx_isp_sensor_attribute *attr;
++	const struct tx_v4l2_gain_model *gain_model;
++	u32 gain_index_max;
+ 	int ret;
+ 
+ 	if (!adapter || !name || !name[0])
+ 		return NULL;
+ 
++	dev_info(&adapter->dev, "tx-isp-v4l2: looking for %s on i2c-%d\n",
++		 name, adapter->nr);
++
+ 	if (tx_isp_v4l2_sensor_sd) {
+ 		s = sd_to_v4l2_sensor(tx_isp_v4l2_sensor_sd);
+ 		if (s && !strcmp(s->name, name))
+@@ -510,11 +638,14 @@
+ 	device_for_each_child(&adapter->dev, &lookup, tx_v4l2_lookup_client);
+ 	if (!lookup.vsd) {
+ 		dev_err(&adapter->dev,
+-			"tx-isp-v4l2: no mainline V4L2 sensor named %s\n",
+-			name);
++			"tx-isp-v4l2: no mainline V4L2 sensor named %s on i2c-%d; check that the camera DTSI has a camera@<addr> node with a compatible, clocks, supplies and an endpoint\n",
++			name, adapter->nr);
+ 		return NULL;
+ 	}
+ 
++	dev_info(&lookup.client->dev, "tx-isp-v4l2: matched %s at 0x%02x\n",
++		 name, lookup.client->addr);
++
+ 	s = kzalloc(sizeof(*s), GFP_KERNEL);
+ 	if (!s)
+ 		return NULL;
+@@ -524,6 +655,9 @@
+ 	if (s->vsd->dev && s->vsd->dev->driver)
+ 		s->owner = s->vsd->dev->driver->owner;
+ 	if (s->owner && !try_module_get(s->owner)) {
++		dev_err(&lookup.client->dev,
++			"tx-isp-v4l2: failed to pin the %s driver module\n",
++			name);
+ 		kfree(s);
+ 		return NULL;
+ 	}
+@@ -551,6 +685,24 @@
+ 		return NULL;
+ 	}
+ 
++	gain_model = tx_v4l2_gain_model_by_name(name);
++	if (!gain_model) {
++		dev_warn(&s->client->dev,
++			 "tx-isp-v4l2: no gain model for %s, using the SC2336 model capped at index %u\n",
++			 name, (u32)s->gain->maximum);
++		gain_model = &tx_v4l2_gain_models[0];
++	}
++
++	gain_index_max = (u32)s->gain->maximum;
++	if (gain_index_max >= gain_model->size)
++		gain_index_max = gain_model->size - 1;
++	tx_v4l2_active_gain = gain_model;
++	tx_v4l2_active_gain_max = gain_index_max;
++	dev_info(&s->client->dev,
++		 "tx-isp-v4l2: gain model %s (%u entries, max index %u, max gain %u)\n",
++		 gain_model->name, gain_model->size, gain_index_max,
++		 gain_model->lut[gain_index_max]);
++
+ 	if (tx_v4l2_parse_lanes(s)) {
+ 		dev_err(&s->client->dev, "failed to parse MIPI lanes\n");
+ 		tx_v4l2_sensor_free(s);
+@@ -574,7 +726,7 @@
+ 	attr->mipi.mipi_sc.sensor_frame_mode = TX_SENSOR_DEFAULT_FRAME_MODE;
+ 	attr->mipi.mipi_sc.sensor_mode = TX_SENSOR_DEFAULT_MODE;
+ 	attr->data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+-	attr->max_again = TX_V4L2_MAX_GAIN;
++	attr->max_again = gain_model->lut[gain_index_max];
+ 	attr->max_dgain = 0;
+ 	attr->min_integration_time = TX_V4L2_MIN_EXPOSURE;
+ 	attr->min_integration_time_native = TX_V4L2_MIN_EXPOSURE;
+@@ -627,6 +779,8 @@
+ 
+ 	s = sd_to_v4l2_sensor(sd);
+ 	tx_isp_v4l2_sensor_sd = NULL;
++	tx_v4l2_active_gain = NULL;
++	tx_v4l2_active_gain_max = 0;
+ 
+ 	if (!s)
+ 		return;

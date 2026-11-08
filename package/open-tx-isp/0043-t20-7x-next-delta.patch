@@ -1,0 +1,2352 @@
+diff --git a/driver/t20/include/jz_proc.h b/driver/t20/include/jz_proc.h
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/include/jz_proc.h
+@@ -0,0 +1,15 @@
++#ifndef _JZ_PROC_H_
++#define _JZ_PROC_H_
++#include <linux/proc_fs.h>
++
++struct proc_dir_entry *tx_isp_get_jz_proc_root(void);
++
++static inline struct proc_dir_entry *jz_proc_mkdir(char *s)
++{
++	return proc_mkdir(s, tx_isp_get_jz_proc_root());
++}
++static inline struct proc_dir_entry *get_jz_proc_root(void)
++{
++	return tx_isp_get_jz_proc_root();
++}
++#endif
+diff --git a/driver/t20/include/mach/tx_isp.h b/driver/t20/include/mach/tx_isp.h
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/include/mach/tx_isp.h
+@@ -0,0 +1,64 @@
++#ifndef __TX_ISP_H__
++#define __TX_ISP_H__
++
++#include <linux/videodev2.h>
++#include <linux/v4l2-mediabus.h>
++#define TX_SENSOR_MAX_REGULATOR_NUM 3
++#define DUMMY_CLOCK_RATE 0x0000ffff
++
++/*
++* The subdevices's group IDs.
++*/
++
++enum tx_isp_subdev_group_index {
++	TX_ISP_CORE_GRP_IDX,
++	TX_ISP_VIC_GRP_IDX,
++	TX_ISP_CSI_GRP_IDX,
++	TX_ISP_VIDEO_IN_GRP_IDX,
++	TX_ISP_MAX_GRP_IDX,
++};
++
++/*
++* the names of subdev are defined here.
++*/
++#define TX_ISP_CSI_NAME "tx-isp-csi"
++#define TX_ISP_VIC_NAME "tx-isp-vic"
++#define TX_ISP_CORE_NAME "tx-isp-core"
++
++/*
++* the return values are defined here.
++*/
++#define ISP_SUCCESS 0
++#define ISP_ERROR   0xfe
++
++/*
++@ name: the clock's name
++@ rate: the rate of the clock.
++@ flags:
++*/
++struct tx_isp_subdev_clk_info{
++	const char *name;
++	unsigned long rate;
++};
++/*
++@ name : sensor's name
++@ rst_gpio: the number of gpio that reset sensor; the invalid value is -1.
++@ pwdn_gpio: the number of gpio that power down sensor; the invalid value is -1.
++@ mclk_gpio : the name of sensor's mclk
++@ regulator_name : the name of sensor's power
++*/
++struct tx_isp_sensor_board_info{
++	const char *name;
++	unsigned int reset_gpio;
++	unsigned int pwdn_gpio;
++	const char *mclk_name;
++	const char *regulator_name[TX_SENSOR_MAX_REGULATOR_NUM];
++};
++
++struct tx_isp_subdev_platform_data {
++	unsigned int grp_id;
++	struct tx_isp_subdev_clk_info *clks;
++	unsigned int clk_num;
++};
++
++#endif /*__TX_ISP_H__*/
+diff --git a/driver/t20/include/soc/gpio.h b/driver/t20/include/soc/gpio.h
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/include/soc/gpio.h
+@@ -0,0 +1,32 @@
++#ifndef __JZSOC_JZ_GPIO_H__
++#define __JZSOC_JZ_GPIO_H__
++
++enum gpio_function {
++	GPIO_FUNC_0 = 0x00,
++	GPIO_FUNC_1 = 0x01,
++	GPIO_FUNC_2 = 0x02,
++	GPIO_FUNC_3 = 0x03,
++	GPIO_OUTPUT0 = 0x04,
++	GPIO_OUTPUT1 = 0x05,
++	GPIO_INPUT = 0x06,
++	GPIO_INT_LO = 0x08,
++	GPIO_INT_HI = 0x09,
++	GPIO_INT_FE = 0x0a,
++	GPIO_INT_RE = 0x0b,
++	GPIO_INPUT_PULL = 0x16,
++};
++
++#define GPIO_AS_FUNC(func) (!((func) & 0xc))
++
++enum gpio_port {
++	GPIO_PORT_A = 0, GPIO_PORT_B, GPIO_PORT_C, GPIO_PORT_D,
++	GPIO_PORT_E, GPIO_PORT_F, GPIO_NR_PORTS,
++};
++
++static inline int jzgpio_set_func(enum gpio_port port,
++				  enum gpio_function func,
++				  unsigned long pins)
++{
++	return 0;
++}
++#endif
+diff --git a/driver/t20/include/tx_isp_t20_compat.h b/driver/t20/include/tx_isp_t20_compat.h
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/include/tx_isp_t20_compat.h
+@@ -0,0 +1,91 @@
++#ifndef __TX_ISP_T20_COMPAT_H__
++#define __TX_ISP_T20_COMPAT_H__
++
++#include <linux/version.h>
++#include <media/v4l2-ioctl.h>
++
++#define TX_ISP_EXIST_FR_CHANNEL 1
++int tx_isp_t20_mem_init(void);
++int tx_isp_t20_devices_register(void);
++void tx_isp_t20_devices_unregister(void);
++#define V4L2_FL_USE_FH_PRIO 0
++#define VFL_TYPE_GRABBER VFL_TYPE_VIDEO
++#define VIDIOC_DEFAULT_CMD_LISTEN_BUF _IOR('V', BASE_VIDIOC_PRIVATE - 1, int)
++#define f_dentry f_path.dentry
++
++#define V4L2_MBUS_FMT_ MEDIA_BUS_FMT_
++#define V4L2_MBUS_FMT_BGR565_2X8_LE MEDIA_BUS_FMT_BGR565_2X8_LE
++#define V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE
++#define V4L2_MBUS_FMT_RGB565_2X8_LE MEDIA_BUS_FMT_RGB565_2X8_LE
++#define V4L2_MBUS_FMT_RGB888_3X8_LE MEDIA_BUS_FMT_RGB888_3X8
++#define V4L2_MBUS_FMT_SBGGR10_1X10 MEDIA_BUS_FMT_SBGGR10_1X10
++#define V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE
++#define V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE
++#define V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE
++#define V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE
++#define V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8 MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8
++#define V4L2_MBUS_FMT_SBGGR12_1X12 MEDIA_BUS_FMT_SBGGR12_1X12
++#define V4L2_MBUS_FMT_SBGGR8_1X8 MEDIA_BUS_FMT_SBGGR8_1X8
++#define V4L2_MBUS_FMT_SGBRG10_1X10 MEDIA_BUS_FMT_SGBRG10_1X10
++#define V4L2_MBUS_FMT_SGBRG10_DPCM8_1X8 MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8
++#define V4L2_MBUS_FMT_SGBRG12_1X12 MEDIA_BUS_FMT_SGBRG12_1X12
++#define V4L2_MBUS_FMT_SGBRG8_1X8 MEDIA_BUS_FMT_SGBRG8_1X8
++#define V4L2_MBUS_FMT_SGRBG10_1X10 MEDIA_BUS_FMT_SGRBG10_1X10
++#define V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8 MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8
++#define V4L2_MBUS_FMT_SGRBG12_1X12 MEDIA_BUS_FMT_SGRBG12_1X12
++#define V4L2_MBUS_FMT_SGRBG8_1X8 MEDIA_BUS_FMT_SGRBG8_1X8
++#define V4L2_MBUS_FMT_SRGGB10_1X10 MEDIA_BUS_FMT_SRGGB10_1X10
++#define V4L2_MBUS_FMT_SRGGB10_DPCM8_1X8 MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8
++#define V4L2_MBUS_FMT_SRGGB12_1X12 MEDIA_BUS_FMT_SRGGB12_1X12
++#define V4L2_MBUS_FMT_SRGGB8_1X8 MEDIA_BUS_FMT_SRGGB8_1X8
++#define V4L2_MBUS_FMT_UYVY8_1_5X8 MEDIA_BUS_FMT_UYVY8_1_5X8
++#define V4L2_MBUS_FMT_VYUY8_1_5X8 MEDIA_BUS_FMT_VYUY8_1_5X8
++#define V4L2_MBUS_FMT_Y8_1X8 MEDIA_BUS_FMT_Y8_1X8
++#define V4L2_MBUS_FMT_YUYV8_1_5X8 MEDIA_BUS_FMT_YUYV8_1_5X8
++#define V4L2_MBUS_FMT_YUYV8_1X16 MEDIA_BUS_FMT_YUYV8_1X16
++#define V4L2_MBUS_FMT_YVYU8_1_5X8 MEDIA_BUS_FMT_YVYU8_1_5X8
++
++typedef unsigned long mm_segment_t;
++
++struct timespec {
++	long tv_sec;
++	long tv_nsec;
++};
++#ifndef KERNEL_DS
++#define KERNEL_DS 0UL
++#endif
++#define get_fs() 0UL
++#define set_fs(segment) do { (void)(segment); } while (0)
++#define vfs_read(file, buf, count, pos) kernel_read((file), (buf), (count), (pos))
++#define vfs_write(file, buf, count, pos) kernel_write((file), (buf), (count), (pos))
++#define ioremap_nocache(offset, size) ioremap((offset), (size))
++#define INIT_COMPLETION(c) reinit_completion(&(c))
++
++#endif
++
++#include <linux/string.h>
++
++#ifndef PDE_DATA
++#define PDE_DATA(inode) pde_data(inode)
++#endif
++
++static inline size_t strlcpy(char *dst, const char *src, size_t size)
++{
++	int ret = strscpy(dst, src, size);
++
++	return ret < 0 ? size : (size_t)ret;
++}
++
++static inline char *tx_isp_strncpy(char *dest, const char *src, size_t count)
++{
++	char *tmp = dest;
++
++	while (count) {
++		if ((*tmp = *src) != 0)
++			src++;
++		tmp++;
++		count--;
++	}
++	return dest;
++}
++#define strncpy tx_isp_strncpy
+diff --git a/driver/t20/include/tx_isp_t20_v4l2_sensor.h b/driver/t20/include/tx_isp_t20_v4l2_sensor.h
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/include/tx_isp_t20_v4l2_sensor.h
+@@ -0,0 +1,18 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __TX_ISP_T20_V4L2_SENSOR_H__
++#define __TX_ISP_T20_V4L2_SENSOR_H__
++
++struct v4l2_device;
++struct i2c_adapter;
++struct i2c_client;
++struct tx_isp_sensor;
++struct v4l2_subdev;
++
++struct v4l2_subdev *tx_isp_t20_v4l2_sensor_get(struct v4l2_device *v4l2_dev,
++					       struct i2c_adapter *adapter,
++					       const char *name);
++void tx_isp_t20_v4l2_sensor_put(struct tx_isp_sensor *sensor);
++struct i2c_client *tx_isp_t20_v4l2_sensor_client(struct tx_isp_sensor *sensor);
++bool tx_isp_t20_v4l2_sensor_is_bridge(struct tx_isp_sensor *sensor);
++
++#endif /* __TX_ISP_T20_V4L2_SENSOR_H__ */
+diff --git a/driver/t20/Kbuild b/driver/t20/Kbuild
+--- a/driver/t20/Kbuild
++++ b/driver/t20/Kbuild
+@@ -1,3 +1,5 @@
++ccflags-y += -DCONFIG_SOC_T20 -DCONFIG_KERNEL_4_4_94
++ccflags-y += -include $(src)/include/tx_isp_t20_compat.h
+ obj-m += tx-isp-t20.o
+ tx-isp-t20-objs := \
+ 	sdk/tx-isp-vic.o \
+@@ -28,6 +30,9 @@
+ 	sdk/sensor-drv.o \
+ 	tx_isp_t20_sinfo.o \
+ 	tx_isp_t20_math.o \
++	tx_isp_t20_compat.o \
++	tx_isp_t20_devices.o \
++	tx_isp_t20_v4l2_sensor.o \
+ 	tx_isp_t20_firmware.o
+ 
+ ccflags-y += -DREGTRACE_KERNEL_TREE_BUILD
+@@ -56,6 +61,7 @@
+ # directory it is built in.
+ ccflags-y += -fmacro-prefix-map=$(abspath $(src)/../..)/=
+ ccflags-y += -DCONFIG_ISP_MODULE_USE_MMAP
++ccflags-y += -I$(src)/include
+ ccflags-y += -I$(src)/../include
+ ccflags-y += -I$(src)/sdk/source/apical-isp
+ ccflags-y += -I$(src)/../../external/ingenic-sdk/include
+@@ -71,7 +77,7 @@
+ ifeq ($(TX_ISP_FW_O0),1)
+ CFLAGS_tx_isp_t20_firmware.o += -O0 -fno-tree-dce -fno-ipa-pure-const -fno-ipa-reference
+ endif
+-ccflags-y += -std=gnu99 -fpermissive -w
++ccflags-y += -w
+ ccflags-y += -Wno-error=strict-prototypes
+ ccflags-y += -Wno-error=implicit-function-declaration
+ ccflags-y += -Wno-error=implicit-int
+diff --git a/driver/t20/sdk/source/apical-isp/tx-isp-core.c b/driver/t20/sdk/source/apical-isp/tx-isp-core.c
+--- a/driver/t20/sdk/source/apical-isp/tx-isp-core.c
++++ b/driver/t20/sdk/source/apical-isp/tx-isp-core.c
+@@ -828,11 +828,23 @@
+ 				goto failed_to_get_clk;
+ 			}
+ 		}
++		/*
++		 * Keep the ISP clock running for the lifetime of the module.
++		 * The pipeline prepare is not reached on every streamer start
++		 * (the VIC then runs with the gate closed), and the mainline
++		 * clk_disable_unused has already gated the boot state.
++		 */
++		ret = clk_prepare_enable(clks[i]);
++		if (ret) {
++			v4l2_err(v4l2_dev, "Failed to enable %s clock\n", info[i].name);
++			goto failed_to_get_clk;
++		}
+ 	}
+ 	core->clks = clks;
+ 	return ISP_SUCCESS;
+ failed_to_get_clk:
+ 	while (--i >= 0) {
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
+ 	}
+ 	kfree(clks);
+@@ -847,8 +859,10 @@
+ 
+ 	if (clks == NULL)
+ 		return 0;
+-	for (i = 0; i < core->clk_num; i++)
++	for (i = 0; i < core->clk_num; i++) {
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
++	}
+ 
+ 	kfree(clks);
+ 	return 0;
+@@ -2083,8 +2097,6 @@
+ 	.init = isp_core_ops_init,
+ 	.reset = isp_core_ops_reset,
+ 	.s_power = isp_core_ops_s_power,
+-	.g_ctrl = isp_core_ops_g_ctrl,
+-	.s_ctrl = isp_core_ops_s_ctrl,
+ 	.ioctl = isp_core_ops_ioctl,
+ 	.interrupt_service_routine = isp_core_interrupt_service_routine,
+ };
+@@ -2508,9 +2520,9 @@
+ 	uint8_t evtolux = 0;
+ 
+ 
+-	len += seq_printf(m ,"****************** ISP INFO **********************\n");
++	seq_printf(m ,"****************** ISP INFO **********************\n");
+ 	if (atomic_read(&core->state) < TX_ISP_STATE_RUN) {
+-		len += seq_printf(m ,"sensor doesn't work, please enable sensor\n");
++		seq_printf(m ,"sensor doesn't work, please enable sensor\n");
+ 		return len;
+ 	}
+ 	switch (contrl->pattern) {
+@@ -2619,83 +2631,83 @@
+ 	total_gain =  stab.global_sensor_analog_gain  + stab.global_sensor_digital_gain + stab.global_isp_digital_gain;
+ 	total_gain = math_exp2(total_gain, 5, 8);
+ 
+-	len += seq_printf(m ,"Software Version : %s\n", SOFT_VERSION);
+-	len += seq_printf(m ,"Firmware Version : %s\n", FIRMWARE_VERSION);
+-	len += seq_printf(m ,"SENSOR NAME : %s\n", vin->attr->name);
+-	len += seq_printf(m ,"SENSOR OUTPUT WIDTH : %d\n", mbus->width);
+-	len += seq_printf(m ,"SENSOR OUTPUT HEIGHT : %d\n", mbus->height);
+-	len += seq_printf(m ,"SENSOR OUTPUT RAW PATTERN : %s\n", colorspace);
+-	len += seq_printf(m ,"SENSOR Integration Time : %d lines\n", stab.global_integration_time);
+-	len += seq_printf(m ,"ISP Top Value : 0x%x\n", APICAL_READ_32(0x40));
+-	len += seq_printf(m ,"ISP Runing Mode : %s\n", ((apical_isp_ds1_cs_conv_clip_min_uv_read() == 512) ? "Night" : "Day"));
+-	len += seq_printf(m ,"ISP OUTPUT FPS : %d / %d\n", vin->fps >> 16, vin->fps & 0xffff);
+-	len += seq_printf(m ,"SENSOR analog gain : %d\n", sensor_again);
+-	len += seq_printf(m ,"MAX SENSOR analog gain : %d\n", max_sensor_again);
+-	len += seq_printf(m ,"SENSOR digital gain : %d\n", sensor_dgain);
+-	len += seq_printf(m ,"MAX SENSOR digital gain : %d\n", max_sensor_dgain);
+-	len += seq_printf(m ,"ISP digital gain : %d\n", isp_dgain);
+-	len += seq_printf(m ,"MAX ISP digital gain : %d\n", max_isp_dgain);
+-	len += seq_printf(m ,"ISP gain log2 id : %d\n", gain_log2_id);
+-	len += seq_printf(m ,"ISP total gain : %d\n", total_gain);
+-	len += seq_printf(m ,"ISP exposure log2 id: %d\n", exposure_log2_id);
+-	len += seq_printf(m ,"ISP AE strategy: %s\n", ae_strategy);
+-	len += seq_printf(m ,"ISP Antiflicker : %d[0 means disable]\n", flicker);
+-	len += seq_printf(m ,"Evtolux Probability Enable  : %d\n", evtolux);
+-	len += seq_printf(m ,"ISP WB Gain00 : %d\n", apical_isp_white_balance_gain_00_read());
+-	len += seq_printf(m ,"ISP WB Gain01 : %d\n", apical_isp_white_balance_gain_01_read());
+-	len += seq_printf(m ,"ISP WB Gain10 : %d\n", apical_isp_white_balance_gain_10_read());
+-	len += seq_printf(m ,"ISP WB Gain11 : %d\n", apical_isp_white_balance_gain_11_read());
+-	len += seq_printf(m ,"ISP WB rg : %d\n", apical_isp_metering_awb_rg_read());
+-	len += seq_printf(m ,"ISP WB bg : %d\n", apical_isp_metering_awb_bg_read());
+-	len += seq_printf(m ,"ISP WB Temperature : %d\n", temperature);
+-	len += seq_printf(m ,"ISP Black level 00 : %d\n", apical_isp_offset_black_00_read());
+-	len += seq_printf(m ,"ISP Black level 01 : %d\n", apical_isp_offset_black_01_read());
+-	len += seq_printf(m ,"ISP Black level 10 : %d\n", apical_isp_offset_black_10_read());
+-	len += seq_printf(m ,"ISP Black level 11 : %d\n", apical_isp_offset_black_11_read());
+-	len += seq_printf(m ,"ISP LSC mesh module : %s\n", apical_isp_mesh_shading_enable_read()?"enable":"disable");
+-	len += seq_printf(m ,"ISP LSC mesh blend mode : %d\n", apical_isp_mesh_shading_mesh_alpha_mode_read());
+-	len += seq_printf(m ,"ISP LSC mesh R table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_r_read());
+-	len += seq_printf(m ,"ISP LSC mesh G table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_g_read());
+-	len += seq_printf(m ,"ISP LSC mesh B table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_b_read());
+-	len += seq_printf(m ,"ISP LSC mesh R blend : %d\n", apical_isp_mesh_shading_mesh_alpha_r_read());
+-	len += seq_printf(m ,"ISP LSC mesh G blend : %d\n", apical_isp_mesh_shading_mesh_alpha_g_read());
+-	len += seq_printf(m ,"ISP LSC mesh B blend : %d\n", apical_isp_mesh_shading_mesh_alpha_b_read());
+-	len += seq_printf(m ,"ISP LSC mesh shading strength : %d\n", APICAL_READ_32(0x39c));
+-	len += seq_printf(m ,"ISP Sinter thresh1h : %d\n", apical_isp_sinter_thresh_1h_read());
+-	len += seq_printf(m ,"ISP Sinter thresh4h : %d\n", apical_isp_sinter_thresh_4h_read());
+-	len += seq_printf(m ,"ISP Sinter thresh1v : %d\n", apical_isp_sinter_thresh_1v_read());
+-	len += seq_printf(m ,"ISP Sinter thresh4v : %d\n", apical_isp_sinter_thresh_4v_read());
+-	len += seq_printf(m ,"ISP Sinter thresh short : %d\n", apical_isp_sinter_thresh_short_read());
+-	len += seq_printf(m ,"ISP Sinter thresh long : %d\n", apical_isp_sinter_thresh_long_read());
+-	len += seq_printf(m ,"ISP Sinter strength1 : %d\n", apical_isp_sinter_strength_1_read());
+-	len += seq_printf(m ,"ISP Sinter strength4 : %d\n", apical_isp_sinter_strength_4_read());
+-	len += seq_printf(m ,"ISP Temper thresh module :%s\n", apical_isp_temper_enable_read()?"enable":"disable");
+-	len += seq_printf(m ,"ISP Temper thresh short : %d\n", apical_isp_temper_thresh_short_read());
+-	len += seq_printf(m ,"ISP Temper thresh long : %d\n", apical_isp_temper_thresh_long_read());
+-	len += seq_printf(m ,"ISP Iridix strength : %d\n", apical_isp_iridix_strength_read());
+-	len += seq_printf(m ,"ISP Defect pixel threshold : %d\n", apical_isp_raw_frontend_dp_threshold_read());
+-	len += seq_printf(m ,"ISP Defect pixel slope : %d\n", apical_isp_raw_frontend_dp_slope_read());
+-	len += seq_printf(m ,"ISP sharpening directional : %d\n", apical_isp_demosaic_sharp_alt_d_read());
+-	len += seq_printf(m ,"ISP sharpening undirectional : %d\n", apical_isp_demosaic_sharp_alt_ud_read());
+-	len += seq_printf(m ,"ISP FR sharpen strength : %d\n", apical_isp_fr_sharpen_strength_read());
+-	len += seq_printf(m ,"ISP DS1 sharpen strength : %d\n", apical_isp_ds1_sharpen_strength_read());
++	seq_printf(m ,"Software Version : %s\n", SOFT_VERSION);
++	seq_printf(m ,"Firmware Version : %s\n", FIRMWARE_VERSION);
++	seq_printf(m ,"SENSOR NAME : %s\n", vin->attr->name);
++	seq_printf(m ,"SENSOR OUTPUT WIDTH : %d\n", mbus->width);
++	seq_printf(m ,"SENSOR OUTPUT HEIGHT : %d\n", mbus->height);
++	seq_printf(m ,"SENSOR OUTPUT RAW PATTERN : %s\n", colorspace);
++	seq_printf(m ,"SENSOR Integration Time : %d lines\n", stab.global_integration_time);
++	seq_printf(m ,"ISP Top Value : 0x%x\n", APICAL_READ_32(0x40));
++	seq_printf(m ,"ISP Runing Mode : %s\n", ((apical_isp_ds1_cs_conv_clip_min_uv_read() == 512) ? "Night" : "Day"));
++	seq_printf(m ,"ISP OUTPUT FPS : %d / %d\n", vin->fps >> 16, vin->fps & 0xffff);
++	seq_printf(m ,"SENSOR analog gain : %d\n", sensor_again);
++	seq_printf(m ,"MAX SENSOR analog gain : %d\n", max_sensor_again);
++	seq_printf(m ,"SENSOR digital gain : %d\n", sensor_dgain);
++	seq_printf(m ,"MAX SENSOR digital gain : %d\n", max_sensor_dgain);
++	seq_printf(m ,"ISP digital gain : %d\n", isp_dgain);
++	seq_printf(m ,"MAX ISP digital gain : %d\n", max_isp_dgain);
++	seq_printf(m ,"ISP gain log2 id : %d\n", gain_log2_id);
++	seq_printf(m ,"ISP total gain : %d\n", total_gain);
++	seq_printf(m ,"ISP exposure log2 id: %d\n", exposure_log2_id);
++	seq_printf(m ,"ISP AE strategy: %s\n", ae_strategy);
++	seq_printf(m ,"ISP Antiflicker : %d[0 means disable]\n", flicker);
++	seq_printf(m ,"Evtolux Probability Enable  : %d\n", evtolux);
++	seq_printf(m ,"ISP WB Gain00 : %d\n", apical_isp_white_balance_gain_00_read());
++	seq_printf(m ,"ISP WB Gain01 : %d\n", apical_isp_white_balance_gain_01_read());
++	seq_printf(m ,"ISP WB Gain10 : %d\n", apical_isp_white_balance_gain_10_read());
++	seq_printf(m ,"ISP WB Gain11 : %d\n", apical_isp_white_balance_gain_11_read());
++	seq_printf(m ,"ISP WB rg : %d\n", apical_isp_metering_awb_rg_read());
++	seq_printf(m ,"ISP WB bg : %d\n", apical_isp_metering_awb_bg_read());
++	seq_printf(m ,"ISP WB Temperature : %d\n", temperature);
++	seq_printf(m ,"ISP Black level 00 : %d\n", apical_isp_offset_black_00_read());
++	seq_printf(m ,"ISP Black level 01 : %d\n", apical_isp_offset_black_01_read());
++	seq_printf(m ,"ISP Black level 10 : %d\n", apical_isp_offset_black_10_read());
++	seq_printf(m ,"ISP Black level 11 : %d\n", apical_isp_offset_black_11_read());
++	seq_printf(m ,"ISP LSC mesh module : %s\n", apical_isp_mesh_shading_enable_read()?"enable":"disable");
++	seq_printf(m ,"ISP LSC mesh blend mode : %d\n", apical_isp_mesh_shading_mesh_alpha_mode_read());
++	seq_printf(m ,"ISP LSC mesh R table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_r_read());
++	seq_printf(m ,"ISP LSC mesh G table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_g_read());
++	seq_printf(m ,"ISP LSC mesh B table : %d\n", apical_isp_mesh_shading_mesh_alpha_bank_b_read());
++	seq_printf(m ,"ISP LSC mesh R blend : %d\n", apical_isp_mesh_shading_mesh_alpha_r_read());
++	seq_printf(m ,"ISP LSC mesh G blend : %d\n", apical_isp_mesh_shading_mesh_alpha_g_read());
++	seq_printf(m ,"ISP LSC mesh B blend : %d\n", apical_isp_mesh_shading_mesh_alpha_b_read());
++	seq_printf(m ,"ISP LSC mesh shading strength : %d\n", APICAL_READ_32(0x39c));
++	seq_printf(m ,"ISP Sinter thresh1h : %d\n", apical_isp_sinter_thresh_1h_read());
++	seq_printf(m ,"ISP Sinter thresh4h : %d\n", apical_isp_sinter_thresh_4h_read());
++	seq_printf(m ,"ISP Sinter thresh1v : %d\n", apical_isp_sinter_thresh_1v_read());
++	seq_printf(m ,"ISP Sinter thresh4v : %d\n", apical_isp_sinter_thresh_4v_read());
++	seq_printf(m ,"ISP Sinter thresh short : %d\n", apical_isp_sinter_thresh_short_read());
++	seq_printf(m ,"ISP Sinter thresh long : %d\n", apical_isp_sinter_thresh_long_read());
++	seq_printf(m ,"ISP Sinter strength1 : %d\n", apical_isp_sinter_strength_1_read());
++	seq_printf(m ,"ISP Sinter strength4 : %d\n", apical_isp_sinter_strength_4_read());
++	seq_printf(m ,"ISP Temper thresh module :%s\n", apical_isp_temper_enable_read()?"enable":"disable");
++	seq_printf(m ,"ISP Temper thresh short : %d\n", apical_isp_temper_thresh_short_read());
++	seq_printf(m ,"ISP Temper thresh long : %d\n", apical_isp_temper_thresh_long_read());
++	seq_printf(m ,"ISP Iridix strength : %d\n", apical_isp_iridix_strength_read());
++	seq_printf(m ,"ISP Defect pixel threshold : %d\n", apical_isp_raw_frontend_dp_threshold_read());
++	seq_printf(m ,"ISP Defect pixel slope : %d\n", apical_isp_raw_frontend_dp_slope_read());
++	seq_printf(m ,"ISP sharpening directional : %d\n", apical_isp_demosaic_sharp_alt_d_read());
++	seq_printf(m ,"ISP sharpening undirectional : %d\n", apical_isp_demosaic_sharp_alt_ud_read());
++	seq_printf(m ,"ISP FR sharpen strength : %d\n", apical_isp_fr_sharpen_strength_read());
++	seq_printf(m ,"ISP DS1 sharpen strength : %d\n", apical_isp_ds1_sharpen_strength_read());
+ #if TX_ISP_EXIST_DS2_CHANNEL
+-	len += seq_printf(m ,"ISP DS2 sharpen strength : %d\n", apical_isp_ds2_sharpen_strength_read());
++	seq_printf(m ,"ISP DS2 sharpen strength : %d\n", apical_isp_ds2_sharpen_strength_read());
+ #endif
+-	len += seq_printf(m ,"ISP CCM R_R : %d\n", apical_isp_matrix_rgb_coefft_r_r_read());
+-	len += seq_printf(m ,"ISP CCM R_G : %d\n", apical_isp_matrix_rgb_coefft_r_g_read());
+-	len += seq_printf(m ,"ISP CCM R_B : %d\n", apical_isp_matrix_rgb_coefft_r_b_read());
+-	len += seq_printf(m ,"ISP CCM G_R : %d\n", apical_isp_matrix_rgb_coefft_g_r_read());
+-	len += seq_printf(m ,"ISP CCM G_B : %d\n", apical_isp_matrix_rgb_coefft_g_b_read());
+-	len += seq_printf(m ,"ISP CCM G_G : %d\n", apical_isp_matrix_rgb_coefft_g_g_read());
+-	len += seq_printf(m ,"ISP CCM B_R : %d\n", apical_isp_matrix_rgb_coefft_b_r_read());
+-	len += seq_printf(m ,"ISP CCM B_G : %d\n", apical_isp_matrix_rgb_coefft_b_g_read());
+-	len += seq_printf(m ,"ISP CCM B_B : %d\n", apical_isp_matrix_rgb_coefft_b_b_read());
+-	len += seq_printf(m ,"Saturation Target : %d\n", saturation_target);
+-	len += seq_printf(m ,"Saturation : %d\n", saturation);
+-	len += seq_printf(m ,"Sharpness : %d\n", sharpness);
+-	len += seq_printf(m ,"Contrast : %d\n", contrast);
+-	len += seq_printf(m ,"Brightness : %d\n", brightness);
++	seq_printf(m ,"ISP CCM R_R : %d\n", apical_isp_matrix_rgb_coefft_r_r_read());
++	seq_printf(m ,"ISP CCM R_G : %d\n", apical_isp_matrix_rgb_coefft_r_g_read());
++	seq_printf(m ,"ISP CCM R_B : %d\n", apical_isp_matrix_rgb_coefft_r_b_read());
++	seq_printf(m ,"ISP CCM G_R : %d\n", apical_isp_matrix_rgb_coefft_g_r_read());
++	seq_printf(m ,"ISP CCM G_B : %d\n", apical_isp_matrix_rgb_coefft_g_b_read());
++	seq_printf(m ,"ISP CCM G_G : %d\n", apical_isp_matrix_rgb_coefft_g_g_read());
++	seq_printf(m ,"ISP CCM B_R : %d\n", apical_isp_matrix_rgb_coefft_b_r_read());
++	seq_printf(m ,"ISP CCM B_G : %d\n", apical_isp_matrix_rgb_coefft_b_g_read());
++	seq_printf(m ,"ISP CCM B_B : %d\n", apical_isp_matrix_rgb_coefft_b_b_read());
++	seq_printf(m ,"Saturation Target : %d\n", saturation_target);
++	seq_printf(m ,"Saturation : %d\n", saturation);
++	seq_printf(m ,"Sharpness : %d\n", sharpness);
++	seq_printf(m ,"Contrast : %d\n", contrast);
++	seq_printf(m ,"Brightness : %d\n", brightness);
+ 
+ 	return len;
+ }
+@@ -2705,11 +2717,11 @@
+ 	return single_open_size(file, isp_info_show, PDE_DATA(inode),8192);
+ }
+ 
+-static const struct file_operations isp_info_proc_fops ={
+-	.read = seq_read,
+-	.open = dump_isp_info_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
++static const struct proc_ops isp_info_proc_ops ={
++	.proc_read = seq_read,
++	.proc_open = dump_isp_info_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
+ };
+ 
+ /*
+@@ -2942,11 +2954,11 @@
+ 	return single_open_size(file, isp_m0_show, PDE_DATA(inode), 4096);
+ }
+ 
+-static const struct file_operations isp_m0_proc_fops = {
+-	.read = seq_read,
+-	.open = isp_m0_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
++static const struct proc_ops isp_m0_proc_ops = {
++	.proc_read = seq_read,
++	.proc_open = isp_m0_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
+ };
+ /* gamma info */
+ static int isp_gamma_show(struct seq_file *m, void *v)
+@@ -2959,21 +2971,21 @@
+ 	struct tx_isp_core_device *core = m->private;
+ 
+ 	if (atomic_read(&core->state) < TX_ISP_STATE_RUN) {
+-		len += seq_printf(m ,"sensor doesn't work, please enable sensor\n");
++		seq_printf(m ,"sensor doesn't work, please enable sensor\n");
+ 		return len;
+ 	}
+ 
+ 	apical_api_calibration(CALIBRATION_GAMMA_LINEAR, COMMAND_GET, gamma, 1*129*2, &ret);
+ 	printk("ret = %d\n", ret);
+ 	for (i = 0; i < 129; i++) {
+-		len += seq_printf(m ," %d", gamma[i]);
++		seq_printf(m ," %d", gamma[i]);
+ 	}
+-	len += seq_printf(m ,"\n");
++	seq_printf(m ,"\n");
+ #if 0
+ 	for (i = 0; i < 129; i++) {
+-		len += seq_printf(m ," %d", APICAL_READ_32(0x10400+4*i));
++		seq_printf(m ," %d", APICAL_READ_32(0x10400+4*i));
+ 	}
+-	len += seq_printf(m ,"\n");
++	seq_printf(m ,"\n");
+ #endif
+ 	return len;
+ }
+@@ -3045,12 +3057,12 @@
+ 	return count;
+ }
+ 
+-static const struct file_operations isp_gamma_proc_fops ={
+-	.read = seq_read,
+-	.open = dump_isp_gamma_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-	.write = isp_gamma_put,
++static const struct proc_ops isp_gamma_proc_ops ={
++	.proc_read = seq_read,
++	.proc_open = dump_isp_gamma_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = isp_gamma_put,
+ };
+ 
+ 
+@@ -3062,19 +3074,19 @@
+ 	struct v4l2_control ctrl;
+ 
+ 	if (atomic_read(&core->state) < TX_ISP_STATE_RUN) {
+-		len += seq_printf(m ,"sensor doesn't work, please enable sensor\n");
++		seq_printf(m ,"sensor doesn't work, please enable sensor\n");
+ 		return len;
+ 	}
+ 
+ 	ctrl.id = IMAGE_TUNING_CID_HILIGHT_DEPRESS_STRENGTH;
+ 	ctrl.value = 0;
+-	v4l2_subdev_call(&core->sd, core, g_ctrl, &ctrl);
+-	len += seq_printf(m ,"de_hilight_strength:%d\n", ctrl.value);
++	isp_core_ops_g_ctrl(&core->sd, &ctrl);
++	seq_printf(m ,"de_hilight_strength:%d\n", ctrl.value);
+ 
+-	len += seq_printf(m ,"hist0:%d\n", apical_isp_metering_hist_0_read());
+-	len += seq_printf(m ,"hist1:%d\n", apical_isp_metering_hist_1_read());
+-	len += seq_printf(m ,"hist3:%d\n", apical_isp_metering_hist_3_read());
+-	len += seq_printf(m ,"hist4:%d\n", apical_isp_metering_hist_4_read());
++	seq_printf(m ,"hist0:%d\n", apical_isp_metering_hist_0_read());
++	seq_printf(m ,"hist1:%d\n", apical_isp_metering_hist_1_read());
++	seq_printf(m ,"hist3:%d\n", apical_isp_metering_hist_3_read());
++	seq_printf(m ,"hist4:%d\n", apical_isp_metering_hist_4_read());
+ 
+ 	return len;
+ }
+@@ -3100,7 +3112,7 @@
+ 	v = simple_strtoull(buf, NULL, 0);
+ 	ctrl.id = IMAGE_TUNING_CID_HILIGHT_DEPRESS_STRENGTH;
+ 	ctrl.value = v;
+-	v4l2_subdev_call(&core->sd, core, s_ctrl, &ctrl);
++	isp_core_ops_s_ctrl(&core->sd, &ctrl);
+ 	kfree(buf);
+ 	return count;
+ }
+@@ -3108,12 +3120,12 @@
+ {
+ 	return single_open_size(file, isp_de_hilight_show, PDE_DATA(inode),8192);
+ }
+-static const struct file_operations isp_de_hilight_fops ={
+-	.read = seq_read,
+-	.open = dump_isp_de_hilight_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-	.write = isp_de_hilight_strength_set,
++static const struct proc_ops isp_de_hilight_ops ={
++	.proc_read = seq_read,
++	.proc_open = dump_isp_de_hilight_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = isp_de_hilight_strength_set,
+ };
+ 
+ 
+@@ -3126,11 +3138,11 @@
+ 	int len = 0;
+ 	struct tx_isp_core_device *core = m->private;
+ 	if (atomic_read(&core->state) < TX_ISP_STATE_RUN) {
+-		len += seq_printf(m ,"sensor doesn't work, please enable sensor\n");
++		seq_printf(m ,"sensor doesn't work, please enable sensor\n");
+ 		return len;
+ 	}
+ 
+-	len += seq_printf(m ,"%s\n", isp_cmd_buf);
++	seq_printf(m ,"%s\n", isp_cmd_buf);
+ 	return len;
+ }
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+@@ -3284,12 +3296,12 @@
+ {
+ 	return single_open_size(file, isp_cmd_show, PDE_DATA(inode),8192);
+ }
+-static const struct file_operations isp_cmd_fops ={
+-	.read = seq_read,
+-	.open = isp_cmd_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-	.write = isp_cmd_set,
++static const struct proc_ops isp_cmd_ops ={
++	.proc_read = seq_read,
++	.proc_open = isp_cmd_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = isp_cmd_set,
+ };
+ 
+ 
+@@ -3358,7 +3370,7 @@
+ 
+ 	me->ops = &core_media_ops;
+ 	//	me->parent = v4l2_dev->mdev;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0) {
+ 		v4l2_err(v4l2_dev, "Failed to init media entity!\n");
+ 		ret = -ISP_ERROR;
+@@ -3421,11 +3433,11 @@
+ 		 * and never be removed again. */
+ 		v4l2_err(v4l2_dev, "create dev_attr_isp_info failed!\n");
+ 	} else {
+-		proc_create_data("isp_info", S_IRUGO, proc, &isp_info_proc_fops, (void *)core_dev);
+-		proc_create_data("isp-m0", S_IRUGO, proc, &isp_m0_proc_fops, (void *)core_dev);
+-		proc_create_data("isp_gamma", S_IRUGO, proc, &isp_gamma_proc_fops, (void *)core_dev);
+-		proc_create_data("isp_de_hilight", S_IRUGO, proc, &isp_de_hilight_fops, (void *)core_dev);
+-		proc_create_data("cmd", S_IRUGO, proc, &isp_cmd_fops, (void *)core_dev);
++		proc_create_data("isp_info", S_IRUGO, proc, &isp_info_proc_ops, (void *)core_dev);
++		proc_create_data("isp-m0", S_IRUGO, proc, &isp_m0_proc_ops, (void *)core_dev);
++		proc_create_data("isp_gamma", S_IRUGO, proc, &isp_gamma_proc_ops, (void *)core_dev);
++		proc_create_data("isp_de_hilight", S_IRUGO, proc, &isp_de_hilight_ops, (void *)core_dev);
++		proc_create_data("cmd", S_IRUGO, proc, &isp_cmd_ops, (void *)core_dev);
+ 	}
+ 
+ 	core_dev->proc = proc;
+diff --git a/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c b/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
+--- a/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
++++ b/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
+@@ -4397,10 +4397,15 @@
+ 	ctrl = (struct isp_image_tuning_default_ctrl *)arg;
+ 	switch(cmd){
+ 	case VIDIOC_DEFAULT_CMD_ISP_TUNING:
++		/*
++		 * The tuning controls are registered on the tuning handler, not
++		 * the core subdev (whose handler is empty).  Using the core
++		 * handler here made every day/night control return -ENOTTY.
++		 */
+ 		if(ctrl->dir == TX_ISP_PRIVATE_IOCTL_SET)
+-			ret = v4l2_subdev_call(tuning->parent, core, s_ctrl, &ctrl->control);
++			ret = isp_core_ops_s_ctrl(tuning->parent, &ctrl->control);
+ 		else
+-			ret = v4l2_subdev_call(tuning->parent, core, g_ctrl, &ctrl->control);
++			ret = isp_core_ops_g_ctrl(tuning->parent, &ctrl->control);
+ 		break;
+ 	default:
+ 		ret = -EPERM;
+@@ -4422,7 +4427,7 @@
+ 	}
+ 
+ 	control.id = ctrl->id;
+-	return v4l2_subdev_call(tuning->parent, core, s_ctrl, &control);
++	return isp_core_ops_s_ctrl(tuning->parent, &control);
+ }
+ 
+ static inline int image_tuning_set_ae_ctrl(image_tuning_vdrv_t *tuning, struct v4l2_ctrl *ctrl)
+@@ -4436,7 +4441,7 @@
+ 	}
+ 
+ 	control.id = ctrl->id;
+-	return v4l2_subdev_call(tuning->parent, core, s_ctrl, &control);
++	return isp_core_ops_s_ctrl(tuning->parent, &control);
+ }
+ 
+ static inline int image_tuning_set_af_ctrl(image_tuning_vdrv_t *tuning, struct v4l2_ctrl *ctrl)
+@@ -4450,7 +4455,7 @@
+ 	}
+ 
+ 	control.id = ctrl->id;
+-	return v4l2_subdev_call(tuning->parent, core, s_ctrl, &control);
++	return isp_core_ops_s_ctrl(tuning->parent, &control);
+ }
+ 
+ static int image_tuning_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+@@ -4474,7 +4479,7 @@
+ 	switch (ctrl->id) {
+ 	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
+ 	case IMAGE_TUNING_CID_CUSTOM_AF_MODE:
+-		v4l2_subdev_call(tuning->parent, core, g_ctrl, &control);
++		isp_core_ops_g_ctrl(tuning->parent, &control);
+ 		break;
+ 	default:
+ 		break;
+@@ -4511,7 +4516,7 @@
+ 	default:
+ 		control.id = ctrl->id;
+ 		control.value = (int)ctrl;
+-		ret = v4l2_subdev_call(tuning->parent, core, s_ctrl, &control);
++		ret = isp_core_ops_s_ctrl(tuning->parent, &control);
+ 		break;
+ 	}
+ 	return ret;
+@@ -4821,6 +4826,10 @@
+ 	if(atomic_read(&tuning->state) != TX_ISP_STATE_STOP){
+ 		return -EBUSY;
+ 	}
++	/* 7.3 requires every video device to use v4l2_fh. */
++	ret = v4l2_fh_open(file);
++	if (ret)
++		return ret;
+ 	tuning->wdr_buffer_size = vin->vi_max_width * vin->vi_max_height * 4;
+ 	tuning->temper_buffer_size = vin->vi_max_width * vin->vi_max_height * 4;
+ 
+@@ -4854,7 +4863,6 @@
+ 		tuning->wdr_buffer_size = 0;
+ 	}
+ 
+-	file->private_data = &tuning->fh;
+ 	//	fh->prio = V4L2_PRIORITY_DEFAULT;
+ 	//	v4l2_prio_open(&camdev->prio, &tuning->fh.prio);
+ 
+@@ -4876,13 +4884,12 @@
+ {
+ 	image_tuning_vdrv_t *tuning = video_drvdata(file);
+ 
+-	if(atomic_read(&tuning->state) != TX_ISP_STATE_START){
+-		return 0;
++	if(atomic_read(&tuning->state) == TX_ISP_STATE_START){
++		t2x_fcrop_release(sd_to_tx_isp_core_device(tuning->parent));
++		atomic_set(&tuning->state, TX_ISP_STATE_STOP);
++		//	v4l2_prio_close(&camdev->prio, tuning->fh.prio);
+ 	}
+-
+-	t2x_fcrop_release(sd_to_tx_isp_core_device(tuning->parent));
+-	atomic_set(&tuning->state, TX_ISP_STATE_STOP);
+-	//	v4l2_prio_close(&camdev->prio, tuning->fh.prio);
++	v4l2_fh_release(file);
+ 	return 0;
+ }
+ 
+@@ -4897,6 +4904,7 @@
+ 	.name = "isp image_tuning",
+ 	.minor = -1,
+ 	.release = video_device_release,
++	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
+ 	.fops = &image_tuning_v4l2_fops,
+ 	.ioctl_ops = &image_tuning_v4l2_ioctl_ops,
+ };
+@@ -5035,7 +5043,6 @@
+ 	/* vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG; */
+ 	vfd->ctrl_handler = handler;
+ 
+-	set_bit(V4L2_FL_USE_FH_PRIO, &(vfd->flags)); // add lately
+ 
+ 	tuning->video = vfd;
+ 	/* The node is live once registered: open() must find its state. */
+diff --git a/driver/t20/sdk/source/tx-isp-device.c b/driver/t20/sdk/source/tx-isp-device.c
+--- a/driver/t20/sdk/source/tx-isp-device.c
++++ b/driver/t20/sdk/source/tx-isp-device.c
+@@ -282,7 +282,7 @@
+ 		/*printk("&&&&%s[%d] index = %d  &&&&\n",__func__,__LINE__,index);*/
+ 		source = &(p->subdevs[index]->entity);
+ 		link = &(p->subdevs[index + 1]->entity);
+-		ret = media_entity_create_link(source, TX_ISP_PAD_SOURCE , link, TX_ISP_PAD_LINK, flags);
++		ret = media_create_pad_link(source, TX_ISP_PAD_SOURCE, link, TX_ISP_PAD_LINK, flags);
+ 		if(ret < 0){
+ 			v4l2_err(v4l2_dev, "Failed to create the link(%s => %s)!\n",
+ 						source->name, link->name);
+@@ -416,7 +416,7 @@
+ 	tx_isp_device_t* ispdev;
+ 	struct v4l2_device *v4l2_dev;
+ 	int ret = ISP_SUCCESS;
+-	/*printk("@@@@@@@@@@@@@@@@@@@@ tx-isp-probe @@@@@@@@@@@@@@@@@@@@@@@@@@\n");*/
++	printk(KERN_ERR "T20ISP: probe start\n");
+ 	ispdev = (tx_isp_device_t*)kzalloc(sizeof(*ispdev), GFP_KERNEL);
+ 	if (!ispdev) {
+ 		printk("Failed to allocate camera device\n");
+@@ -426,9 +426,9 @@
+ 	spin_lock_init(&ispdev->slock);
+ 	ispdev->dev = &pdev->dev;
+ 
++	media_device_init(&ispdev->media_dev);
+ 	strlcpy(ispdev->media_dev.model, "INGENIC tx_isp",
+ 		sizeof(ispdev->media_dev.model));
+-	ispdev->media_dev.link_notify = tx_isp_md_link_notify;
+ 	ispdev->media_dev.dev = ispdev->dev;
+ 
+ 	v4l2_dev = &ispdev->v4l2_dev;
+@@ -437,44 +437,48 @@
+ 	strlcpy(v4l2_dev->name, "tx_isp", sizeof(v4l2_dev->name));
+ 
+ 	ret = v4l2_device_register(ispdev->dev, &ispdev->v4l2_dev);
++	printk(KERN_ERR "T20ISP: v4l2_device_register=%d\n", ret);
+ 	if (ret < 0) {
+ 		printk("Failed to register v4l2_device: %d\n", ret);
+ 		goto err_v4l2_dev;
+ 	}
+ 
+ 	ret = media_device_register(&ispdev->media_dev);
++	printk(KERN_ERR "T20ISP: media_device_register=%d\n", ret);
+ 	if (ret < 0) {
+ 		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
+ 		goto err_media_dev;
+ 	}
+ 
+ 	ret = tx_isp_request_irq(pdev, ispdev);
++	printk(KERN_ERR "T20ISP: request_irq=%d\n", ret);
+ 	if(ret != ISP_SUCCESS){
+ 		v4l2_err(v4l2_dev, "Failed to request isp's irq\n");
+ 		goto err_req_irq;
+ 	}
+ 
+-	mutex_lock(&ispdev->media_dev.graph_mutex);
+ 	ret = bus_for_each_dev(&platform_bus_type, NULL, ispdev, tx_isp_subdev_match);
++	printk(KERN_ERR "T20ISP: subdev scan=%d\n", ret);
+ 	if (ret) {
+-		mutex_unlock(&ispdev->media_dev.graph_mutex);
+ 		v4l2_err(v4l2_dev, "Failed to register isp's subdev\n");
+ 		goto err_match;
+ 	}
+-	mutex_unlock(&ispdev->media_dev.graph_mutex);
+ 
+ 	ret = register_tx_isp_video_in_device(ispdev->dev->platform_data, &ispdev->v4l2_dev);
++	printk(KERN_ERR "T20ISP: video_in=%d\n", ret);
+ 	if (ret) {
+ 		v4l2_err(v4l2_dev, "Failed to register isp's sensor\n");
+ 		goto err_vin;
+ 	}
+ 	ret = tx_isp_create_media_link_and_pipeline(ispdev);
++	printk(KERN_ERR "T20ISP: links=%d\n", ret);
+ 	if(ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to create links of media\n");
+ 		goto err_link;
+ 	}
+ 
+ 	ret = v4l2_device_register_subdev_nodes(&ispdev->v4l2_dev);
++	printk(KERN_ERR "T20ISP: nodes=%d\n", ret);
+ 	if (ret) {
+ 		v4l2_err(v4l2_dev, "Failed to register subdev nodes!\n");
+ 		goto err_nodes;
+diff --git a/driver/t20/sdk/source/tx-isp-frame-channel.c b/driver/t20/sdk/source/tx-isp-frame-channel.c
+--- a/driver/t20/sdk/source/tx-isp-frame-channel.c
++++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
+@@ -15,8 +15,10 @@
+ #include <linux/delay.h>
+ #include <linux/syscalls.h>
+ #include <linux/fs.h>
++#include <media/v4l2-fh.h>
+ 
+ #include "tx-isp-frame-channel.h"
++#include "apical-isp/tx-isp-core.h"
+ #include "tx-isp-videobuf.h"
+ #include "tx-isp-debug.h"
+ #include "tx_isp/tx_isp_guard.h"
+@@ -56,13 +58,8 @@
+ #endif
+ 	spin_unlock_irqrestore(&vdev->slock, flags);
+ 	if(buf && buf->vb.state == VB2_BUF_STATE_ACTIVE){
+-		struct timespec ts;
+-		getrawmonotonic(&ts);
+-
+-		buf->vb.v4l2_buf.timestamp.tv_sec = ts.tv_sec;
+-		buf->vb.v4l2_buf.timestamp.tv_usec = ts.tv_nsec / 1000;
+-
+-		buf->vb.v4l2_buf.sequence = vdev->out_frames++;
++		buf->vb.timestamp = ktime_get_ns();
++		buf->sequence = vdev->out_frames++;
+ 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+ 		complete(&vdev->comp);
+ 	//	printk("bufdone chan%d buf.index = %d\n", vdev->index, buf->vb.v4l2_buf.index);
+@@ -74,9 +71,9 @@
+ 	return 0;
+ }
+ 
+-static int frame_channel_vb2_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+-			unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
+-			void *alloc_ctxs[])
++static int frame_channel_vb2_queue_setup(struct vb2_queue *vq,
++			unsigned int *nbuffers, unsigned int *nplanes,
++			unsigned int sizes[], struct device *alloc_devs[])
+ {
+ 	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vq);
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+@@ -93,7 +90,12 @@
+ 
+ 	*nplanes = 1;
+ 	sizes[0] = size;
+-	alloc_ctxs[0] = vdev->vbm;
++	/*
++	 * The custom memops get vdev->vbm through vb2_get_drv_priv(); the
++	 * 7.x alloc_devs array is only used by the generic DMA memops.
++	 */
++	if (alloc_devs)
++		alloc_devs[0] = NULL;
+ 
+ //	printk("~~~~~~~~ %s[%d] size = %d ~~~~~~~~~~\n",__func__,__LINE__,size);
+ 	INIT_LIST_HEAD(&vdev->active_list);
+@@ -128,7 +130,7 @@
+ 	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vb->vb2_queue);
+ 	struct frame_channel_video_buffer *buf =
+ 		container_of(vb, struct frame_channel_video_buffer, vb);
+-	struct v4l2_buffer *v4l2_buf = &vb->v4l2_buf;
++	struct v4l2_buffer *v4l2_buf = &buf->v4l2_buf;
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+ 	struct v4l2_format *output = &attr->output;
+ 	/* vbm is the vb2_dc_conf; its dev is the ISP platform device. */
+@@ -137,6 +139,11 @@
+ 	void * addr = NULL;
+ 	int ret = ISP_SUCCESS;
+ 
++	/* vb2 keeps the QBUF metadata in vb; our copy is stale. */
++	buf->v4l2_buf.index = vb->index;
++	buf->v4l2_buf.memory = vb->memory;
++	buf->v4l2_buf.length = vb2_plane_size(vb, 0);
++
+ 	/* 目前是单plane操作 */
+ 	if (vb2_plane_size(vb, 0) < size) {
+ 		ISP_PRINT(ISP_ERROR_LEVEL,"Data will not fit into plane (%lu < %lu)\n",
+@@ -144,12 +151,16 @@
+ 		return -EINVAL;
+ 	}
+ 	if(v4l2_buf->memory == V4L2_MEMORY_USERPTR){
+-		addr = vb2_plane_vaddr(vb, 0);
+ 		/*
+ 		 * USERPTR "addresses" are physical rmem addresses from
+-		 * libimp/OpenIMP (see tx_isp_guard.h). MMAP buffers come from
+-		 * the driver's own coherent pool and are not checked.
++		 * libimp/OpenIMP (see tx_isp_guard.h).  Read the value the
++		 * user queued from the plane instead of vb2_plane_vaddr():
++		 * the memops' vaddr callback is not involved in QBUF, and on
++		 * a stale callback ABI it returns unrelated buffer fields.
++		 * MMAP buffers come from the driver's own coherent pool and
++		 * are not checked.
+ 		 */
++		addr = (void *)(unsigned long)vb->planes[0].m.userptr;
+ 		if (tx_isp_qbuf_phys_check((u32)(uintptr_t)addr, size)) {
+ 			ret = tx_isp_qbuf_reject("tx-isp-t20", vdev->index,
+ 						 v4l2_buf->index,
+@@ -167,6 +178,12 @@
+ 
+ //	if(v4l2_buf->flags & TX_ISP_VIDEO_BUFFER_CACHE)
+ 	{
++		/*
++		 * 7.x dma_sync_single_for_device() dereferences the device
++		 * (dev_dma_skip_sync/dev_is_dma_coherent); a NULL device
++		 * faults.  The vendor code passed NULL to mean "plain cache
++		 * maintenance", which no longer holds.
++		 */
+ 		if(v4l2_buf->memory == V4L2_MEMORY_USERPTR){
+ 			dma_sync_single_for_device(dev, (dma_addr_t)addr, size, DMA_FROM_DEVICE);
+ //			dma_cache_sync(NULL, (void *)addr, size, DMA_FROM_DEVICE);
+@@ -271,9 +288,7 @@
+ 			spin_unlock_irqrestore(&vdev->slock, flags);
+ 		}
+ 		ISP_PRINT(ISP_INFO_LEVEL,"%s==========%d\n", __func__, __LINE__);
+-	}else if(atomic_read(&vdev->state) == TX_ISP_STATE_START){
+-		ret = ISP_SUCCESS;
+-	}else{
++	}else if(atomic_read(&vdev->state) != TX_ISP_STATE_START){
+ 		ret = -EINVAL;
+ 	}
+ 
+@@ -312,8 +327,6 @@
+ 	.buf_prepare		= frame_channel_vb2_buffer_prepare,
+ 	.buf_finish		= frame_channel_vb2_buffer_finish,
+ 	.buf_queue		= frame_channel_vb2_buffer_queue,
+-	.wait_prepare		= frame_channel_vb2_unlock,
+-	.wait_finish		= frame_channel_vb2_lock,
+ 	.start_streaming	= frame_channel_vb2_start_streaming,
+ 	.stop_streaming		= frame_channel_vb2_stop_streaming,
+ };
+@@ -459,7 +472,13 @@
+ 	 * V4L2 applications reasonably expect S_FMT to be sufficient, so bridge
+ 	 * the requested DS dimensions into that already-proven scaler operation
+ 	 * before the core verifies the output geometry. */
+-	if (vdev->index != 0 &&
++	/*
++	 * T20 has no FR channel: DS1 (index 1) is the full-resolution main
++	 * channel and DS2 (index 2) is the scaled sub-stream.  The old
++	 * "index != 0" test treated DS1 as a scaler channel, so the main
++	 * 1920x1080 S_FMT went through SET_SCALER and failed.
++	 */
++	if (vdev->index != ISP_DS1_VIDEO_CHANNEL &&
+ 	    (f->fmt.pix.width != attr->output.fmt.pix.width ||
+ 	     f->fmt.pix.height != attr->output.fmt.pix.height)) {
+ 		if (f->fmt.pix.width < attr->min_width ||
+@@ -635,7 +654,7 @@
+ 	int ret;
+ 	frame_chan_vdev_t *vdev = video_drvdata(file);
+ 	ISP_PRINT(ISP_INFO_LEVEL,"%s==========%d\n", __func__, __LINE__);
+-	ret = vb2_qbuf(&vdev->vbq, p);
++	ret = vb2_qbuf(&vdev->vbq, file, p);
+ //	printk("+++ Qbuf: chan%d buf.index = %d\n", vdev->index, p->index);
+ 	return ret;
+ }
+@@ -834,6 +853,11 @@
+ 		case VIDIOC_DEFAULT_CMD_LISTEN_BUF:
+ 			ret = frame_channel_listen_buffer(vdev, arg);
+ 			break;
++		case VIDIOC_ISP_PRIVATE_IOCTL:
++			/* Frame-source commands live in the ISP core. */
++			ret = v4l2_subdev_call(vdev->parent, core, ioctl,
++					       cmd, arg);
++			break;
+ 		default:
+ 			ret = -ISP_ERROR;
+ 			break;
+@@ -846,8 +870,6 @@
+ 	/* VIDIOC_QUERYCAP handler */
+ 	.vidioc_querycap		= frame_channel_vidioc_querycap,
+ 	/* Priority handling */
+-	.vidioc_s_priority		= frame_channel_vidioc_s_priority,
+-	.vidioc_g_priority		= frame_channel_vidioc_g_priority,
+ 
+ 	.vidioc_enum_fmt_vid_cap	= frame_channel_vidioc_enum_fmt_vid_cap,
+ 	.vidioc_g_fmt_vid_cap		= frame_channel_vidioc_g_fmt_vid_cap,
+@@ -862,11 +884,6 @@
+ 	.vidioc_dqbuf			= frame_channel_vidioc_dqbuf,
+ 
+ 	/*isp function, modified according to spec*/
+-	.vidioc_g_ctrl			= frame_channel_vidioc_g_ctrl,
+-	.vidioc_s_ctrl			= frame_channel_vidioc_s_ctrl,
+-	.vidioc_cropcap			= frame_channel_vidioc_cropcap,
+-	.vidioc_g_crop			= frame_channel_vidioc_g_crop,
+-	.vidioc_s_crop			= frame_channel_vidioc_s_crop,
+ 	.vidioc_s_parm			= frame_channel_vidioc_s_parm,
+ 	.vidioc_g_parm			= frame_channel_vidioc_g_parm,
+ 
+@@ -881,21 +898,18 @@
+ {
+ 	frame_chan_vdev_t *vdev = video_drvdata(file);
+ 	struct frame_channel_attribute *attr = &vdev->attr;
+-	struct frame_channel_fh *fh;
+ 	struct isp_private_ioctl ioctl;
+ 	unsigned long flags;
++	int ret;
+ 
+ 	if(atomic_read(&vdev->state) != TX_ISP_STATE_STOP){
+ 		return -EBUSY;
+ 	}
+ 
+-	fh = (struct frame_channel_fh *)kzalloc(sizeof(*fh), GFP_KERNEL);
+-	if(NULL == fh)
+-		goto fh_alloc_fail;
+-	file->private_data = fh;
+-	/* Initialize priority of this instance to default priority */
+-	fh->prio = V4L2_PRIORITY_DEFAULT;
+-//	v4l2_prio_open(&camdev->prio, &fh->prio);
++	/* 7.3 requires every video device to use v4l2_fh. */
++	ret = v4l2_fh_open(file);
++	if (ret)
++		return ret;
+ 
+ 	/* reset some public parameters */
+ 	memset(&attr->crop, 0, sizeof(attr->crop));
+@@ -919,14 +933,11 @@
+ 	atomic_set(&vdev->state, TX_ISP_STATE_START);
+ 	spin_unlock_irqrestore(&vdev->slock, flags);
+ 	return ISP_SUCCESS;
+-fh_alloc_fail:
+-	return -ENOMEM;
+ }
+ 
+ static int frame_channel_v4l2_close(struct file *file)
+ {
+ 	frame_chan_vdev_t *vdev = video_drvdata(file);
+-	struct frame_channel_fh *fh = file->private_data;
+ 	unsigned long flags;
+ 	if(atomic_read(&vdev->state) == TX_ISP_STATE_RUN){
+ 		frame_channel_vidioc_streamoff(file, NULL, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+@@ -937,12 +948,7 @@
+ 		atomic_set(&vdev->state, TX_ISP_STATE_STOP);
+ 		spin_unlock_irqrestore(&vdev->slock, flags);
+ 	}
+-	/* Close the priority */
+-//	v4l2_prio_close(&camdev->prio, fh->prio);
+-	if(fh){
+-		kfree(fh);
+-		file->private_data = NULL;
+-	}
++	v4l2_fh_release(file);
+ 	return ISP_SUCCESS;
+ }
+ 
+@@ -973,6 +979,7 @@
+ 	.name = "isp-frame-channel",
+ 	.minor = -1,
+ 	.release = video_device_release,
++	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
+ 	.fops = &frame_channel_v4l2_fops,
+ 	.ioctl_ops = &frame_channel_v4l2_ioctl_ops,
+ };
+@@ -1021,7 +1028,8 @@
+ 	q->buf_struct_size = sizeof(struct frame_channel_video_buffer);
+ 	q->ops = &frame_channel_vb2_qops;
+ 	q->mem_ops = &frame_channel_vb2_memops;
+-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
++	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
++	q->lock = &vdev->mlock;
+ 
+ 	ret = vb2_queue_init(q);
+ 	if(ret){
+@@ -1041,17 +1049,9 @@
+ 	memcpy(vfd, &frame_channel_video, sizeof(frame_channel_video));
+ 	vfd->lock = &vdev->mlock;
+ 	vfd->v4l2_dev = v4l2_dev;
+-//	vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
+-	vfd->debug =0;
+-
+-	set_bit(V4L2_FL_USE_FH_PRIO, &(vfd->flags)); // add lately
+ 
+ 	vdev->video = vfd;
+ 
+-	v4l2_disable_ioctl_locking(vfd, VIDIOC_DQBUF);
+-	v4l2_disable_ioctl_locking(vfd, VIDIOC_QBUF);
+-	v4l2_disable_ioctl_locking(vfd, VIDIOC_DEFAULT_CMD_LISTEN_BUF);
+-
+ 	/* open() can run as soon as the node is registered. */
+ 	vdev->interrupt_service_routine = frame_channel_video_irq_notify;
+ 	video_set_drvdata(vfd, vdev);
+diff --git a/driver/t20/sdk/source/tx-isp-interrupt.c b/driver/t20/sdk/source/tx-isp-interrupt.c
+--- a/driver/t20/sdk/source/tx-isp-interrupt.c
++++ b/driver/t20/sdk/source/tx-isp-interrupt.c
+@@ -1,5 +1,6 @@
+ #include <tx-isp-common.h>
+ #include "tx-isp-interrupt.h"
++extern unsigned int tx_isp_t20_irq(void);
+ 
+ static unsigned int refcnt = 0;
+ #ifdef TX_ISP_NO_TRACE
+@@ -130,7 +131,7 @@
+ 		goto exit;
+ 	}
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	irq = platform_get_irq(pdev, 0);
++	irq = tx_isp_t20_irq();
+ 	if (!res || irq <= 0) {
+ 		v4l2_err(v4l2_dev, "%s[%d] Not enough platform resources",__func__,__LINE__);
+ 		ret = irq < 0 ? irq : -ENODEV;
+diff --git a/driver/t20/sdk/source/tx-isp-videobuf.c b/driver/t20/sdk/source/tx-isp-videobuf.c
+--- a/driver/t20/sdk/source/tx-isp-videobuf.c
++++ b/driver/t20/sdk/source/tx-isp-videobuf.c
+@@ -5,10 +5,22 @@
+ #include <linux/miscdevice.h>
+ #include <linux/scatterlist.h>
+ #include <linux/uaccess.h>
++#include <linux/version.h>
+ 
+ #include <media/videobuf2-memops.h>
+ #include "tx-isp-debug.h"
+ #include "tx-isp-videobuf.h"
++#include "tx-isp-frame-channel.h"
++
++/*
++ * Since 5.11 the vb2 core passes the buffer (and, for alloc/get_userptr, the
++ * alloc device) as the first callback arguments.  The T20 driver still builds
++ * against 3.10, where the driver-supplied alloc context took their place, so
++ * keep both callback prototypes.
++ */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
++#define FRAME_CHANNEL_VB2_MODERN 1
++#endif
+ 
+ #define TX_ISP_T20_GET_DMA_PHY \
+ 	_IOWR('q', 18, struct tx_isp_t20_dma_info)
+@@ -88,19 +100,13 @@
+ {
+ }
+ 
+-static void *frame_channel_dmabuf_kmap(struct dma_buf *dma_buffer,
+-				       unsigned long page)
+-{
+-	struct vb2_dc_buf *buf = dma_buffer->priv;
+-
+-	return buf->vaddr + page * PAGE_SIZE;
+-}
+-
+-static void *frame_channel_dmabuf_vmap(struct dma_buf *dma_buffer)
++static int frame_channel_dmabuf_vmap(struct dma_buf *dma_buffer,
++				    struct iosys_map *map)
+ {
+ 	struct vb2_dc_buf *buf = dma_buffer->priv;
+ 
+-	return buf->vaddr;
++	iosys_map_set_vaddr(map, buf->vaddr);
++	return 0;
+ }
+ 
+ static int frame_channel_dmabuf_mmap(struct dma_buf *dma_buffer,
+@@ -113,8 +119,6 @@
+ 	.detach = frame_channel_dmabuf_detach,
+ 	.map_dma_buf = frame_channel_dmabuf_map,
+ 	.unmap_dma_buf = frame_channel_dmabuf_unmap,
+-	.kmap_atomic = frame_channel_dmabuf_kmap,
+-	.kmap = frame_channel_dmabuf_kmap,
+ 	.vmap = frame_channel_dmabuf_vmap,
+ 	.mmap = frame_channel_dmabuf_mmap,
+ 	.release = frame_channel_dmabuf_release,
+@@ -133,9 +137,18 @@
+ 	}
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_alloc(struct vb2_buffer *vb, struct device *dev,
++				     unsigned long size)
++{
++	struct vb2_dc_conf *conf =
++		(struct vb2_dc_conf *)((frame_chan_vdev_t *)
++			vb2_get_drv_priv(vb->vb2_queue))->vbm;
++#else
+ static void *frame_channel_vb2_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
+ {
+ 	struct vb2_dc_conf *conf = alloc_ctx;
++#endif
+ 	struct vb2_mmap_conf *mmap = &conf->mmap;
+ 	struct vb2_dc_buf *buf;
+ 
+@@ -175,14 +188,22 @@
+ 	return buf;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_cookie(struct vb2_buffer *vb, void *buf_priv)
++#else
+ static void *frame_channel_vb2_cookie(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 
+ 	return (void *)buf->paddr;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_vaddr(struct vb2_buffer *vb, void *buf_priv)
++#else
+ static void *frame_channel_vb2_vaddr(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	if (!buf)
+@@ -232,7 +253,7 @@
+ 		return ret;
+ 	}
+ #endif
+-	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
++	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
+ 	vma->vm_private_data	= &buf->handler;
+ 	vma->vm_ops		= &vb2_common_vm_ops;
+ 
+@@ -260,13 +281,26 @@
+ 	frame_channel_vb2_put(dma_buffer->priv);
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static struct dma_buf *frame_channel_vb2_get_dmabuf(struct vb2_buffer *vb,
++						    void *buf_priv,
++						    unsigned long flags)
++#else
+ static struct dma_buf *frame_channel_vb2_get_dmabuf(void *buf_priv)
++#endif
+ {
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct dma_buf *dma_buffer;
+ 
+-	dma_buffer = dma_buf_export(buf, &frame_channel_dmabuf_ops,
+-				    buf->size, O_RDWR);
++	{
++		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
++
++		exp_info.ops = &frame_channel_dmabuf_ops;
++		exp_info.size = buf->size;
++		exp_info.flags = O_RDWR;
++		exp_info.priv = buf;
++		dma_buffer = dma_buf_export(&exp_info);
++	}
+ 	if (IS_ERR(dma_buffer))
+ 		return NULL;
+ 
+@@ -275,8 +309,15 @@
+ 	return dma_buffer;
+ }
+ 
++#ifdef FRAME_CHANNEL_VB2_MODERN
++static void *frame_channel_vb2_get_userptr(struct vb2_buffer *vb,
++					   struct device *dev,
++					   unsigned long vaddr,
++					   unsigned long size)
++#else
+ static void *frame_channel_vb2_get_userptr(void *alloc_ctx, unsigned long vaddr,
+ 					unsigned long size, int write)
++#endif
+ {
+ 	struct vb2_dc_buf *buf;
+ 
+@@ -305,6 +346,10 @@
+ 	buf->paddr = paddr;
+ 	buf->vaddr = (void *)vaddr;
+ #endif
++	/*
++	 * libimp/OpenIMP queue frame buffers by physical rmem address, so the
++	 * USERPTR value is used as the DMA address as well as the CPU mapping.
++	 */
+ 	buf->size = size;
+ 	buf->paddr = (dma_addr_t)vaddr;
+ 	buf->vaddr = (void *)vaddr;
+diff --git a/driver/t20/sdk/source/tx-isp-video-in.c b/driver/t20/sdk/source/tx-isp-video-in.c
+--- a/driver/t20/sdk/source/tx-isp-video-in.c
++++ b/driver/t20/sdk/source/tx-isp-video-in.c
+@@ -5,10 +5,10 @@
+ #include <linux/delay.h>
+ #include <linux/videodev2.h>
+ #include <media/v4l2-device.h>
+-#include <media/v4l2-chip-ident.h>
+ #include <media/v4l2-mediabus.h>
+ 
+ #include "tx-isp-video-in.h"
++#include "tx_isp_t20_v4l2_sensor.h"
+ 
+ #ifdef TX_ISP_NO_TRACE
+ #define t20_trace 0	/* TX_ISP_TRACE=n: traces compiled out */
+@@ -68,17 +68,28 @@
+ 					info->i2c.i2c_adapter_id);
+ 			return -ISP_ERROR;
+ 		}
+-		memset(&board_info, 0 , sizeof(board_info));
+-		memcpy(&board_info.type, &info->i2c.type, I2C_NAME_SIZE);
+-		board_info.addr = info->i2c.addr;
+-		sd = v4l2_i2c_new_subdev_board(v4l2_dev, adapter,
+-				&board_info, NULL);
+-		if (IS_ERR_OR_NULL(sd)) {
++		/*
++		 * Prefer the mainline V4L2 sensor that already probed from
++		 * DT.  Creating the vendor client would collide with the DT
++		 * client at the same address and would not speak V4L2.
++		 */
++		sd = tx_isp_t20_v4l2_sensor_get(v4l2_dev, adapter,
++						info->i2c.type);
++		if (sd) {
+ 			i2c_put_adapter(adapter);
+-			v4l2_warn(v4l2_dev,
+-					"Failed to acquire subdev %s, deferring probe\n",
+-					info->i2c.type);
+-			return -ISP_ERROR;
++		} else {
++			memset(&board_info, 0 , sizeof(board_info));
++			memcpy(&board_info.type, &info->i2c.type, I2C_NAME_SIZE);
++			board_info.addr = info->i2c.addr;
++			sd = v4l2_i2c_new_subdev_board(v4l2_dev, adapter,
++					&board_info, NULL);
++			if (IS_ERR_OR_NULL(sd)) {
++				i2c_put_adapter(adapter);
++				v4l2_warn(v4l2_dev,
++						"Failed to acquire subdev %s, deferring probe\n",
++						info->i2c.type);
++				return -ISP_ERROR;
++			}
+ 		}
+ 	}else if (info->cbus_type == TX_SENSOR_CONTROL_INTERFACE_SPI){
+ 	}else{
+@@ -88,8 +99,18 @@
+ 	/* add private data of sensor */
+ 	sensor = (struct tx_isp_sensor *)v4l2_get_subdev_hostdata(sd);
+ 	sensor->info = *info;
++	if (tx_isp_t20_v4l2_sensor_is_bridge(sensor)) {
++		struct i2c_client *bridge_client =
++			tx_isp_t20_v4l2_sensor_client(sensor);
++
++		if (bridge_client) {
++			sensor->info.i2c.addr = bridge_client->addr;
++			sensor->info.i2c.i2c_adapter_id =
++				bridge_client->adapter->nr;
++		}
++	}
+ 
+-	ret = v4l2_subdev_call(sd, core, g_chip_ident, NULL);
++	ret = 0;
+ 	T20_TRACE("register_sensor chip_ident sd=%p name=%s ret=%d\n",
+ 	       sd, sd->name, ret);
+ 	if (ret == ISP_SUCCESS && info->cbus_type == TX_SENSOR_CONTROL_INTERFACE_I2C) {
+@@ -159,6 +180,14 @@
+ 	struct module *owner;
+ 
+ 	tx_isp_sinfo_sensor_unbind(sensor, THIS_MODULE);
++	if (tx_isp_t20_v4l2_sensor_is_bridge(sensor)) {
++		client = tx_isp_t20_v4l2_sensor_client(sensor);
++		owner = client && client->dev.driver ?
++			client->dev.driver->owner : NULL;
++		tx_isp_t20_v4l2_sensor_put(sensor);
++		module_put(owner);
++		return;
++	}
+ 	if (sensor->info.cbus_type != TX_SENSOR_CONTROL_INTERFACE_I2C)
+ 		return;
+ 	client = v4l2_get_subdevdata(sd);
+@@ -495,6 +524,18 @@
+ 		case VIDIOC_STREAMOFF:
+ 			ret = subdev_core_ops_streamoff(vi, 0);
+ 			break;
++		case VIDIOC_ISP_PRIVATE_IOCTL:
++			/*
++			 * The vendor libimp sends the frame-source commands
++			 * (TX_ISP_PRIVATE_IOCTL_FRAME_CHAN_*) to this device.
++			 * They are implemented by the ISP core, not by the
++			 * video-in subdev, so pass them through.
++			 */
++			if (vi->p && vi->p->subdevs[TX_ISP_CORE_GRP_IDX])
++				ret = v4l2_subdev_call(
++					vi->p->subdevs[TX_ISP_CORE_GRP_IDX],
++					core, ioctl, cmd, arg);
++			break;
+ 		default:
+ 			break;
+ 	}
+@@ -650,7 +691,7 @@
+ 	pads[TX_ISP_PAD_LINK].flags = MEDIA_PAD_FL_SINK;
+ 
+ 	me->ops = &video_in_media_ops;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to allocate sensor device\n");
+ 		ret = -ISP_ERROR;
+diff --git a/driver/t20/sdk/tx-isp-csi.c b/driver/t20/sdk/tx-isp-csi.c
+--- a/driver/t20/sdk/tx-isp-csi.c
++++ b/driver/t20/sdk/tx-isp-csi.c
+@@ -1 +1 @@
+-#include "source/tx-isp-csi.c"
++#include "../../../external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c"
+diff --git a/driver/t20/sdk/tx-isp-device.c b/driver/t20/sdk/tx-isp-device.c
+--- a/driver/t20/sdk/tx-isp-device.c
++++ b/driver/t20/sdk/tx-isp-device.c
+@@ -20,7 +20,12 @@
+ {
+ 	int ret;
+ 
++	printk(KERN_ERR "T20ISP: init entry\n");
++	tx_isp_t20_devices_register();
++	printk(KERN_ERR "T20ISP: devices done\n");
++	tx_isp_t20_mem_init();
+ 	ret = tx_isp_init();
++	printk(KERN_ERR "T20ISP: driver init=%d\n", ret);
+ 	if (ret)
+ 		return ret;
+ 
+diff --git a/driver/t20/sdk/tx-isp-load-parameters.c b/driver/t20/sdk/tx-isp-load-parameters.c
+--- a/driver/t20/sdk/tx-isp-load-parameters.c
++++ b/driver/t20/sdk/tx-isp-load-parameters.c
+@@ -1 +1 @@
+-#include "source/apical-isp/tx-isp-load-parameters.c"
++#include "../../../external/ingenic-sdk/3.10.14/isp/t20/apical-isp/tx-isp-load-parameters.c"
+diff --git a/driver/t20/sdk/tx-isp-vic.c b/driver/t20/sdk/tx-isp-vic.c
+--- a/driver/t20/sdk/tx-isp-vic.c
++++ b/driver/t20/sdk/tx-isp-vic.c
+@@ -1 +1 @@
+-#include "source/tx-isp-vic.c"
++#include "../../../external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c"
+diff --git a/driver/t20/tx_isp_t20_compat.c b/driver/t20/tx_isp_t20_compat.c
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/tx_isp_t20_compat.c
+@@ -0,0 +1,65 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/init.h>
++#include <linux/export.h>
++#include <linux/fs.h>
++#include <linux/kernel.h>
++#include <linux/proc_fs.h>
++#include <linux/string.h>
++#include <linux/module.h>
++
++unsigned long ispmem_base = 0;
++unsigned long ispmem_size = 0;
++
++static struct proc_dir_entry *tx_isp_jz_root;
++
++struct proc_dir_entry *tx_isp_get_jz_proc_root(void)
++{
++	if (!tx_isp_jz_root)
++		tx_isp_jz_root = proc_mkdir("jz", NULL);
++	return tx_isp_jz_root;
++}
++
++/*
++ * The vendor kernel parsed "ispmem=<size>@<base>" with __setup().  This
++ * driver is a module now, so read the command line from procfs at init.
++ * The region lies outside mem= and is used for the ISP temper/WDR buffers;
++ * leaving it at 0 disables both and makes every shortfall report a 0 KB
++ * carve-out.
++ */
++int __init tx_isp_t20_mem_init(void)
++{
++	struct file *f;
++	char buf[512];
++	loff_t pos = 0;
++	ssize_t n;
++	char *p, *end;
++
++	f = filp_open("/proc/cmdline", O_RDONLY, 0);
++	if (IS_ERR(f)) {
++		pr_err("tx-isp: cannot read /proc/cmdline (%ld)\n",
++		       PTR_ERR(f));
++		return 0;
++	}
++	n = kernel_read(f, buf, sizeof(buf) - 1, &pos);
++	filp_close(f, NULL);
++	if (n <= 0)
++		return 0;
++	buf[n] = '\0';
++
++	p = strstr(buf, "ispmem=");
++	if (!p) {
++		pr_warn("tx-isp: no ispmem= in the kernel command line\n");
++		return 0;
++	}
++	p += strlen("ispmem=");
++
++	ispmem_size = memparse(p, &end);
++	if (*end == '@')
++		ispmem_base = memparse(end + 1, NULL);
++
++	pr_info("tx-isp: ispmem base=0x%lx size=%lu MiB\n",
++		ispmem_base, ispmem_size >> 20);
++	return 0;
++}
++
++MODULE_IMPORT_NS("DMA_BUF");
+diff --git a/driver/t20/tx_isp_t20_devices.c b/driver/t20/tx_isp_t20_devices.c
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/tx_isp_t20_devices.c
+@@ -0,0 +1,141 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/init.h>
++#include <linux/platform_device.h>
++#include <linux/dma-mapping.h>
++#include <linux/irqdomain.h>
++#include <linux/of.h>
++#include <mach/tx_isp.h>
++
++#define T20_CSI_IOBASE		0x10040000
++#define T20_VIC_IOBASE		0x13300000
++#define T20_IRQ_IOBASE		0x13320000
++#define T20_CORE_IOBASE		0x13380000
++#define T20_ISP_IRQ		29
++
++static u64 tx_isp_dma_mask = DMA_BIT_MASK(32);
++
++static struct resource tx_isp_csi_res[] = {
++	{ .name = "mipi_csi", .start = T20_CSI_IOBASE,
++	  .end = T20_CSI_IOBASE + 0xfff, .flags = IORESOURCE_MEM },
++};
++
++static struct tx_isp_subdev_clk_info tx_isp_csi_clks[] = {
++	{ "mipi_csi", DUMMY_CLOCK_RATE },
++};
++
++static struct tx_isp_subdev_platform_data tx_isp_csi_pdata = {
++	.grp_id = TX_ISP_CSI_GRP_IDX,
++	.clks = tx_isp_csi_clks,
++	.clk_num = ARRAY_SIZE(tx_isp_csi_clks),
++};
++
++static struct resource tx_isp_vic_res[] = {
++	{ .name = "isp_vic", .start = T20_VIC_IOBASE,
++	  .end = T20_VIC_IOBASE + 0xffff, .flags = IORESOURCE_MEM },
++};
++
++static struct tx_isp_subdev_platform_data tx_isp_vic_pdata = {
++	.grp_id = TX_ISP_VIC_GRP_IDX,
++};
++
++static struct resource tx_isp_core_res[] = {
++	{ .name = "isp_core", .start = T20_CORE_IOBASE,
++	  .end = T20_CORE_IOBASE + 0x7ffff, .flags = IORESOURCE_MEM },
++};
++
++static struct tx_isp_subdev_clk_info tx_isp_core_clks[] = {
++	{ "isp", 100000000 },
++};
++
++static struct tx_isp_subdev_platform_data tx_isp_core_pdata = {
++	.grp_id = TX_ISP_CORE_GRP_IDX,
++	.clks = tx_isp_core_clks,
++	.clk_num = ARRAY_SIZE(tx_isp_core_clks),
++};
++
++static struct resource tx_isp_res[] = {
++	{ .name = "isp_device_irq", .start = T20_IRQ_IOBASE,
++	  .end = T20_IRQ_IOBASE + 0xffff, .flags = IORESOURCE_MEM },
++	{ .name = "isp_irq_id", .start = T20_ISP_IRQ,
++	  .end = T20_ISP_IRQ, .flags = IORESOURCE_IRQ },
++};
++
++static struct tx_isp_subdev_platform_data tx_isp_video_in_pdata = {
++	.grp_id = TX_ISP_VIDEO_IN_GRP_IDX,
++};
++
++/*
++ * T20_ISP_IRQ is an INTC hwirq, not a Linux virq.  The GPIO irqchip
++ * allocates virqs from the same low range, so a raw request_irq(29) lands
++ * on a GPIO line and the VIC never delivers a frame interrupt.  Map the
++ * hwirq through the INTC domain instead.
++ */
++unsigned int tx_isp_t20_irq(void)
++{
++	struct device_node *np;
++	struct irq_domain *domain;
++	unsigned int virq = 0;
++
++	np = of_find_compatible_node(NULL, NULL, "ingenic,t31-intc");
++	if (!np)
++		return 0;
++	domain = irq_find_matching_fwnode(of_fwnode_handle(np),
++					  DOMAIN_BUS_ANY);
++	if (domain)
++		virq = irq_create_mapping(domain, T20_ISP_IRQ);
++	of_node_put(np);
++	return virq;
++}
++
++static struct platform_device *tx_isp_csi_dev;
++static struct platform_device *tx_isp_vic_dev;
++static struct platform_device *tx_isp_core_dev;
++static struct platform_device *tx_isp_dev;
++
++static void tx_isp_set_mask(struct platform_device *pdev)
++{
++	pdev->dev.dma_mask = &tx_isp_dma_mask;
++	pdev->dev.coherent_dma_mask = tx_isp_dma_mask;
++}
++
++int __init tx_isp_t20_devices_register(void)
++{
++	if (!tx_isp_t20_irq())
++		return -ENODEV;
++	tx_isp_csi_dev = platform_device_register_resndata(NULL, TX_ISP_CSI_NAME, -1,
++		tx_isp_csi_res, ARRAY_SIZE(tx_isp_csi_res),
++		&tx_isp_csi_pdata, sizeof(tx_isp_csi_pdata));
++	if (IS_ERR(tx_isp_csi_dev))
++		return PTR_ERR(tx_isp_csi_dev);
++	tx_isp_set_mask(tx_isp_csi_dev);
++
++	tx_isp_vic_dev = platform_device_register_resndata(NULL, TX_ISP_VIC_NAME, -1,
++		tx_isp_vic_res, ARRAY_SIZE(tx_isp_vic_res),
++		&tx_isp_vic_pdata, sizeof(tx_isp_vic_pdata));
++	if (IS_ERR(tx_isp_vic_dev))
++		return PTR_ERR(tx_isp_vic_dev);
++	tx_isp_set_mask(tx_isp_vic_dev);
++
++	tx_isp_core_dev = platform_device_register_resndata(NULL, TX_ISP_CORE_NAME, -1,
++		tx_isp_core_res, ARRAY_SIZE(tx_isp_core_res),
++		&tx_isp_core_pdata, sizeof(tx_isp_core_pdata));
++	if (IS_ERR(tx_isp_core_dev))
++		return PTR_ERR(tx_isp_core_dev);
++	tx_isp_set_mask(tx_isp_core_dev);
++
++	tx_isp_dev = platform_device_register_resndata(NULL, "tx-isp", -1,
++		tx_isp_res, ARRAY_SIZE(tx_isp_res),
++		&tx_isp_video_in_pdata, sizeof(tx_isp_video_in_pdata));
++	if (IS_ERR(tx_isp_dev))
++		return PTR_ERR(tx_isp_dev);
++	tx_isp_set_mask(tx_isp_dev);
++	return 0;
++}
++
++void tx_isp_t20_devices_unregister(void)
++{
++	platform_device_unregister(tx_isp_dev);
++	platform_device_unregister(tx_isp_core_dev);
++	platform_device_unregister(tx_isp_vic_dev);
++	platform_device_unregister(tx_isp_csi_dev);
++}
+diff --git a/driver/t20/tx_isp_t20_sinfo.c b/driver/t20/tx_isp_t20_sinfo.c
+--- a/driver/t20/tx_isp_t20_sinfo.c
++++ b/driver/t20/tx_isp_t20_sinfo.c
+@@ -64,11 +64,14 @@
+ #endif
+ 
+ static const struct tx_isp_sinfo_config tx_isp_sinfo_config = {
++	.flags = TX_ISP_SINFO_FPS_RANGE,
+ 	.client_offset = T20_SINFO_CLIENT_OFFSET,
+ 	.attr_offset = T20_SINFO_ATTR_OFFSET,
+ 	.width_offset = T20_SINFO_WIDTH_OFFSET,
+ 	.height_offset = T20_SINFO_HEIGHT_OFFSET,
+ 	.fps_offset = T20_SINFO_FPS_OFFSET,
++	.min_fps_offset = T20_SENSOR_VIDEO_OFFSET(fps),
++	.max_fps_offset = T20_SENSOR_VIDEO_OFFSET(fps),
+ 	.adapter_nr_offset = T20_SINFO_ADAPTER_NR_OFFSET,
+ 	.attr_name_offset = T20_SINFO_ATTR_NAME_OFFSET,
+ 	.attr_chip_id_offset = T20_SINFO_ATTR_CHIP_ID_OFFSET,
+diff --git a/driver/t20/tx_isp_t20_v4l2_sensor.c b/driver/t20/tx_isp_t20_v4l2_sensor.c
+new file mode 100644
+--- /dev/null
++++ b/driver/t20/tx_isp_t20_v4l2_sensor.c
+@@ -0,0 +1,435 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Mainline V4L2 sensor bridge for the T20 tx-isp driver.
++ *
++ * The recovered T20 driver expects a sensor subdev that implements the
++ * Ingenic vendor sensor ABI and is registered through the tx-isp video-in
++ * register path.  Mainline kernels expose the JXF23 as a regular V4L2
++ * subdevice owned by drivers/media/i2c.  This bridge finds that subdevice on
++ * the I2C bus, presents the vendor ABI on top of it, and forwards streaming
++ * and the AE private ioctls to the mainline driver's pad ops and controls.
++ */
++
++#include <linux/device.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-subdev.h>
++
++#include "tx-isp-common.h"
++#include "tx_isp_t20_v4l2_sensor.h"
++
++/* Values from external/ingenic-sdk/include/sensor-common.h. */
++#define TX_SBUS_SAMPLE_8BITS	0x01
++#define TX_SBUS_ADDR_8BITS	0x08
++
++#define TX_JXF23_NAME		"jxf23"
++#define TX_JXF23_WIDTH		1920
++#define TX_JXF23_HEIGHT		1080
++#define TX_JXF23_CHIP_ID	0xf23
++#define TX_JXF23_TOTAL_WIDTH	2560
++#define TX_JXF23_TOTAL_HEIGHT	1350
++#define TX_JXF23_MAX_INT_TIME	(TX_JXF23_TOTAL_HEIGHT - 4)
++#define TX_JXF23_MAX_AGAIN	324678
++#define TX_JXF23_FPS		(25 << 16 | 1)
++
++struct tx_isp_t20_v4l2_sensor {
++	struct v4l2_subdev *vsd;
++	struct i2c_client *client;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++};
++
++struct tx_gain {
++	u8 code;
++	u32 gain;
++};
++
++static const struct tx_gain tx_gain_lut[] = {
++	{ 0x00, 0 },
++	{ 0x01, 5731 },
++	{ 0x02, 11136 },
++	{ 0x03, 16248 },
++	{ 0x04, 21097 },
++	{ 0x05, 25710 },
++	{ 0x06, 30109 },
++	{ 0x07, 34312 },
++	{ 0x08, 38336 },
++	{ 0x09, 42195 },
++	{ 0x0a, 45904 },
++	{ 0x0b, 49472 },
++	{ 0x0c, 52910 },
++	{ 0x0d, 56228 },
++	{ 0x0e, 59433 },
++	{ 0x0f, 62534 },
++	{ 0x10, 65536 },
++	{ 0x11, 71267 },
++	{ 0x12, 76672 },
++	{ 0x13, 81784 },
++	{ 0x14, 86633 },
++	{ 0x15, 91246 },
++	{ 0x16, 95645 },
++	{ 0x17, 99848 },
++	{ 0x18, 103872 },
++	{ 0x19, 107731 },
++	{ 0x1a, 111440 },
++	{ 0x1b, 115008 },
++	{ 0x1c, 118446 },
++	{ 0x1d, 121764 },
++	{ 0x1e, 124969 },
++	{ 0x1f, 128070 },
++	{ 0x20, 131072 },
++	{ 0x21, 136803 },
++	{ 0x22, 142208 },
++	{ 0x23, 147320 },
++	{ 0x24, 152169 },
++	{ 0x25, 156782 },
++	{ 0x26, 161181 },
++	{ 0x27, 165384 },
++	{ 0x28, 169408 },
++	{ 0x29, 173267 },
++	{ 0x2a, 176976 },
++	{ 0x2b, 180544 },
++	{ 0x2c, 183982 },
++	{ 0x2d, 187300 },
++	{ 0x2e, 190505 },
++	{ 0x2f, 193606 },
++	{ 0x30, 196608 },
++	{ 0x31, 202339 },
++	{ 0x32, 207744 },
++	{ 0x33, 212856 },
++	{ 0x34, 217705 },
++	{ 0x35, 222318 },
++	{ 0x36, 226717 },
++	{ 0x37, 230920 },
++	{ 0x38, 234944 },
++	{ 0x39, 238803 },
++	{ 0x3a, 242512 },
++	{ 0x3b, 246080 },
++	{ 0x3c, 249518 },
++	{ 0x3d, 252836 },
++	{ 0x3e, 256041 },
++	{ 0x3f, 259142 },
++	{ 0x40, 262144 },
++	{ 0x41, 267875 },
++	{ 0x42, 273280 },
++	{ 0x43, 278392 },
++	{ 0x44, 283241 },
++	{ 0x45, 287854 },
++	{ 0x46, 292253 },
++	{ 0x47, 296456 },
++	{ 0x48, 300480 },
++	{ 0x49, 304339 },
++	{ 0x4a, 308048 },
++	{ 0x4b, 311616 },
++	{ 0x4c, 315054 },
++	{ 0x4d, 318372 },
++	{ 0x4e, 321577 },
++	{ 0x4f, 324678 },
++};
++
++static inline struct tx_isp_sensor *tx_to_sensor(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct tx_isp_sensor, sd);
++}
++
++static unsigned int tx_alloc_again(unsigned int isp_gain, unsigned char shift,
++				   unsigned int *sensor_again)
++{
++	const unsigned int last = ARRAY_SIZE(tx_gain_lut) - 1;
++	unsigned int i;
++
++	for (i = 0; i <= last; i++) {
++		if (isp_gain == 0) {
++			*sensor_again = 0;
++			return 0;
++		}
++		if (isp_gain < tx_gain_lut[i].gain) {
++			*sensor_again = tx_gain_lut[i - 1].code;
++			return tx_gain_lut[i - 1].gain;
++		}
++		if (tx_gain_lut[i].gain == tx_gain_lut[last].gain &&
++		    isp_gain >= tx_gain_lut[i].gain) {
++			*sensor_again = tx_gain_lut[i].code;
++			return tx_gain_lut[i].gain;
++		}
++	}
++	return isp_gain;
++}
++
++static unsigned int tx_alloc_dgain(unsigned int isp_gain, unsigned char shift,
++				   unsigned int *sensor_dgain)
++{
++	return 0;
++}
++
++static int tx_s_power(struct v4l2_subdev *sd, int on)
++{
++	return 0;
++}
++
++static int tx_s_stream(struct v4l2_subdev *sd, int enable)
++{
++	struct tx_isp_sensor *sensor = tx_to_sensor(sd);
++	struct tx_isp_t20_v4l2_sensor *ctx = sensor->priv;
++
++	return v4l2_subdev_call(ctx->vsd, video, s_stream, enable);
++}
++
++static int tx_init(struct v4l2_subdev *sd, u32 enable)
++{
++	struct tx_isp_sensor *sensor = tx_to_sensor(sd);
++	struct tx_isp_notify_argument arg;
++
++	if (!enable)
++		return 0;
++
++	arg.value = (int)&sensor->video;
++	arg.ret = 0;
++	sd->v4l2_dev->notify(sd, TX_ISP_NOTIFY_SYNC_VIDEO_IN, &arg);
++	return 0;
++}
++
++static long tx_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
++{
++	struct tx_isp_sensor *sensor = tx_to_sensor(sd);
++	struct tx_isp_t20_v4l2_sensor *ctx = sensor->priv;
++	struct isp_private_ioctl *ctl = arg;
++
++	if (cmd != VIDIOC_ISP_PRIVATE_IOCTL || !ctl)
++		return -ENOIOCTLCMD;
++
++	switch (ctl->cmd) {
++	case TX_ISP_PRIVATE_IOCTL_SENSOR_INT_TIME:
++		if (!ctx->exposure)
++			return -ENODEV;
++		return v4l2_ctrl_s_ctrl(ctx->exposure, ctl->value);
++	case TX_ISP_PRIVATE_IOCTL_SENSOR_AGAIN:
++		if (!ctx->gain)
++			return -ENODEV;
++		return v4l2_ctrl_s_ctrl(ctx->gain, ctl->value);
++	case TX_ISP_PRIVATE_IOCTL_SENSOR_DGAIN:
++	case TX_ISP_PRIVATE_IOCTL_SENSOR_BLACK_LEVEL:
++		return 0;
++	default:
++		/*
++		 * The pipeline walks every subdev and treats -ENOIOCTLCMD as
++		 * "not mine", but the notify helper returns the last result
++		 * as the pipeline result.  The vendor sensor returns 0 for the
++		 * commands it does not implement; do the same.
++		 */
++		return 0;
++	}
++}
++
++static const struct v4l2_subdev_core_ops tx_core_ops = {
++	.s_power = tx_s_power,
++	.init = tx_init,
++	.ioctl = tx_ioctl,
++};
++
++static const struct v4l2_subdev_video_ops tx_video_ops = {
++	.s_stream = tx_s_stream,
++};
++
++static const struct v4l2_subdev_ops tx_sensor_ops = {
++	.core = &tx_core_ops,
++	.video = &tx_video_ops,
++};
++
++struct tx_lookup {
++	const char *name;
++	struct i2c_client *client;
++	struct v4l2_subdev *vsd;
++};
++
++static int tx_lookup_client(struct device *dev, void *data)
++{
++	struct tx_lookup *lookup = data;
++	struct i2c_client *client;
++	struct v4l2_subdev *vsd;
++
++	client = i2c_verify_client(dev);
++	if (!client)
++		return 0;
++	if (!client->name || strcmp(client->name, lookup->name))
++		return 0;
++	vsd = i2c_get_clientdata(client);
++	if (!vsd)
++		return 0;
++	lookup->client = client;
++	lookup->vsd = vsd;
++	return 1;
++}
++
++static bool tx_find_on_adapter(struct i2c_adapter *adapter, const char *name,
++			       struct tx_lookup *lookup)
++{
++	lookup->name = name;
++	lookup->client = NULL;
++	lookup->vsd = NULL;
++	device_for_each_child(&adapter->dev, lookup, tx_lookup_client);
++	return lookup->vsd != NULL;
++}
++
++static struct v4l2_subdev *tx_find_sensor(struct i2c_adapter *adapter,
++					  const char *name,
++					  struct i2c_client **client)
++{
++	struct tx_lookup lookup;
++	unsigned int nr;
++
++	if (adapter && tx_find_on_adapter(adapter, name, &lookup)) {
++		*client = lookup.client;
++		return lookup.vsd;
++	}
++
++	/*
++	 * The streamer passes the vendor bus number, which is not the mainline
++	 * adapter number the DT client sits on.  Search every adapter before
++	 * giving up.
++	 */
++	for (nr = 0; nr < 16; nr++) {
++		struct i2c_adapter *scan = i2c_get_adapter(nr);
++		bool found;
++
++		if (!scan)
++			continue;
++		found = tx_find_on_adapter(scan, name, &lookup);
++		i2c_put_adapter(scan);
++		if (found) {
++			*client = lookup.client;
++			return lookup.vsd;
++		}
++	}
++
++	return NULL;
++}
++
++struct v4l2_subdev *tx_isp_t20_v4l2_sensor_get(struct v4l2_device *v4l2_dev,
++					       struct i2c_adapter *adapter,
++					       const char *name)
++{
++	struct tx_isp_t20_v4l2_sensor *ctx;
++	struct tx_isp_sensor *sensor;
++	struct v4l2_subdev *vsd;
++	struct i2c_client *client;
++	int ret;
++
++	if (!v4l2_dev || !name || !name[0])
++		return NULL;
++
++	vsd = tx_find_sensor(adapter, name, &client);
++	if (!vsd)
++		return NULL;
++
++	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
++	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
++	if (!ctx || !sensor) {
++		kfree(ctx);
++		kfree(sensor);
++		return NULL;
++	}
++
++	ctx->vsd = vsd;
++	ctx->client = client;
++	ctx->exposure = v4l2_ctrl_find(vsd->ctrl_handler, V4L2_CID_EXPOSURE);
++	ctx->gain = v4l2_ctrl_find(vsd->ctrl_handler, V4L2_CID_ANALOGUE_GAIN);
++	if (!ctx->exposure || !ctx->gain) {
++		dev_err(&client->dev,
++			"tx-isp-t20: sensor %s is missing exposure/gain controls\n",
++			name);
++		kfree(ctx);
++		kfree(sensor);
++		return NULL;
++	}
++
++	sensor->priv = ctx;
++	sensor->type = V4L2_INPUT_TYPE_CAMERA;
++
++	sensor->attr.name = TX_JXF23_NAME;
++	sensor->attr.chip_id = TX_JXF23_CHIP_ID;
++	sensor->attr.cbus_type = TX_SENSOR_CONTROL_INTERFACE_I2C;
++	sensor->attr.cbus_mask = TX_SBUS_SAMPLE_8BITS | TX_SBUS_ADDR_8BITS;
++	sensor->attr.cbus_device = client->addr;
++	sensor->attr.dbus_type = TX_SENSOR_DATA_INTERFACE_DVP;
++	sensor->attr.dvp.gpio = DVP_PA_LOW_10BIT;
++	sensor->attr.dvp.mode = SENSOR_DVP_HREF_MODE;
++	sensor->attr.max_again = TX_JXF23_MAX_AGAIN;
++	sensor->attr.max_dgain = 0;
++	sensor->attr.min_integration_time = 2;
++	sensor->attr.min_integration_time_native = 2;
++	sensor->attr.max_integration_time_native = TX_JXF23_MAX_INT_TIME;
++	sensor->attr.integration_time_limit = TX_JXF23_MAX_INT_TIME;
++	sensor->attr.max_integration_time = TX_JXF23_MAX_INT_TIME;
++	sensor->attr.total_width = TX_JXF23_TOTAL_WIDTH;
++	sensor->attr.total_height = TX_JXF23_TOTAL_HEIGHT;
++	sensor->attr.integration_time_apply_delay = 2;
++	sensor->attr.again_apply_delay = 2;
++	sensor->attr.dgain_apply_delay = 0;
++	sensor->attr.sensor_ctrl.alloc_again = tx_alloc_again;
++	sensor->attr.sensor_ctrl.alloc_dgain = tx_alloc_dgain;
++
++	sensor->video.attr = &sensor->attr;
++	sensor->video.vi_max_width = TX_JXF23_WIDTH;
++	sensor->video.vi_max_height = TX_JXF23_HEIGHT;
++	sensor->video.fps = TX_JXF23_FPS;
++	sensor->video.mbus.width = TX_JXF23_WIDTH;
++	sensor->video.mbus.height = TX_JXF23_HEIGHT;
++	sensor->video.mbus.code = V4L2_MBUS_FMT_SBGGR10_1X10;
++	sensor->video.mbus.field = V4L2_FIELD_NONE;
++	sensor->video.mbus.colorspace = V4L2_COLORSPACE_SRGB;
++
++	v4l2_subdev_init(&sensor->sd, &tx_sensor_ops);
++	strscpy(sensor->sd.name, name, sizeof(sensor->sd.name));
++	sensor->sd.owner = THIS_MODULE;
++	sensor->sd.dev = &client->dev;
++	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	v4l2_set_subdevdata(&sensor->sd, client);
++	v4l2_set_subdev_hostdata(&sensor->sd, sensor);
++
++	ret = v4l2_device_register_subdev(v4l2_dev, &sensor->sd);
++	if (ret) {
++		dev_err(&client->dev,
++			"tx-isp-t20: failed to register the %s bridge: %d\n",
++			name, ret);
++		kfree(ctx);
++		kfree(sensor);
++		return NULL;
++	}
++
++	dev_info(&client->dev,
++		 "tx-isp-t20: attached mainline %s at i2c-%d/0x%02x\n",
++		 name, client->adapter->nr, client->addr);
++	return &sensor->sd;
++}
++
++void tx_isp_t20_v4l2_sensor_put(struct tx_isp_sensor *sensor)
++{
++	if (!tx_isp_t20_v4l2_sensor_is_bridge(sensor))
++		return;
++
++	v4l2_device_unregister_subdev(&sensor->sd);
++	kfree(sensor->priv);
++	kfree(sensor);
++}
++
++struct i2c_client *tx_isp_t20_v4l2_sensor_client(struct tx_isp_sensor *sensor)
++{
++	struct tx_isp_t20_v4l2_sensor *ctx;
++
++	if (!tx_isp_t20_v4l2_sensor_is_bridge(sensor))
++		return NULL;
++
++	ctx = sensor->priv;
++	return ctx->client;
++}
++
++bool tx_isp_t20_v4l2_sensor_is_bridge(struct tx_isp_sensor *sensor)
++{
++	return sensor && sensor->sd.ops == &tx_sensor_ops;
++}
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
+--- a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
++++ b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
+@@ -20,7 +20,6 @@
+ 
+ #define FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+ 
+-int printk(const char *fmt,...);
+ 
+ #define LOG(level,fmt,...) if((level)<=FW_LOG_LEVEL) printk("%s: %s(%d) %s: " fmt "\n",FILE,__func__,__LINE__,log_level[level],##__VA_ARGS__)
+ 
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
+--- a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
+@@ -205,6 +205,6 @@
+ 
+ int system_chardev_destroy(void)
+ {
+-	int rc = misc_deregister(&isp_miscdevice);
+-	return rc;
++	misc_deregister(&isp_miscdevice);
++	return 0;
+ }
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
+@@ -44,11 +44,18 @@
+ 				goto failed_to_get_clk;
+ 			}
+ 		}
++		/* Keep the CSI gate open: see isp_core_init_clk(). */
++		ret = clk_prepare_enable(clks[i]);
++		if(ret){
++			v4l2_err(v4l2_dev, "Failed to enable %s clock\n", info[i].name);
++			goto failed_to_get_clk;
++		}
+ 	}
+ 	csd->clks = clks;
+ 	return ISP_SUCCESS;
+ failed_to_get_clk:
+ 	while(--i >= 0){
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
+ 	}
+ 	kfree(clks);
+@@ -79,8 +86,10 @@
+ 
+ 	if(clks == NULL)
+ 		return 0;
+-	for (i = 0; i < csd->clk_num; i++)
++	for (i = 0; i < csd->clk_num; i++) {
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
++	}
+ 
+ 	kfree(clks);
+ 	return 0;
+@@ -444,8 +453,6 @@
+ 
+ static const struct v4l2_subdev_core_ops csi_core_ops = {
+ //	.g_chip_ident = csi_g_chip_ident,
+-	.g_ctrl = csi_g_ctrl,
+-	.s_ctrl = csi_s_ctrl,
+ //	.queryctrl = csi_queryctrl,
+ //	.reset = csi_reset,
+ 	.init = csi_init,
+@@ -526,7 +533,7 @@
+ 
+ 	me->ops = &csi_media_ops;
+ //	me->parent = v4l2_dev->mdev;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to init media entity!\n");
+ 		ret = -ISP_ERROR;
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
+@@ -33,14 +33,9 @@
+ 		ret = -ENOMEM;
+ 		goto fail;
+ 	}
+-	isp_debug_print = debugfs_create_u32("isp_print", S_IWUSR | S_IRUSR, isp_debug_dir, &isp_print_level);
+-	if (!isp_debug_print) {
+-		ret = -ENOMEM;
+-		goto fail_u8;
+-	}
++	debugfs_create_u32("isp_print", S_IWUSR | S_IRUSR, isp_debug_dir, &isp_print_level);
++	isp_debug_print = NULL;
+ 	return ret;
+-fail_u8:
+-	debugfs_remove(isp_debug_dir);
+ fail:
+ 	return ret;
+ }
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
+@@ -49,6 +49,8 @@
+ struct frame_channel_video_buffer{
+ 	struct vb2_buffer vb;
+ 	struct frame_channel_buffer buf;
++	struct v4l2_buffer v4l2_buf;
++	u32 sequence;
+ 	struct list_head entry;
+ };
+ 
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
+@@ -432,18 +432,18 @@
+ {
+ 	int len = 0;
+ 	struct tx_isp_vic_driver *vd = (struct tx_isp_vic_driver*)(m->private);
+-	len += seq_printf(m ," %d\n", vd->vic_frd_c);
++	seq_printf(m ," %d\n", vd->vic_frd_c);
+ 	return len;
+ }
+ static int dump_isp_vic_frd_open(struct inode *inode, struct file *file)
+ {
+ 	return single_open_size(file, isp_vic_frd_show, PDE_DATA(inode),8192);
+ }
+-static const struct file_operations isp_vic_frd_fops ={
+-	.read = seq_read,
+-	.open = dump_isp_vic_frd_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
++static const struct proc_ops isp_vic_frd_ops ={
++	.proc_read = seq_read,
++	.proc_open = dump_isp_vic_frd_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
+ };
+ 
+ int register_tx_isp_vic_device(struct platform_device *pdev, struct v4l2_device *v4l2_dev)
+@@ -503,7 +503,7 @@
+ 
+ 	me->ops = &vic_media_ops;
+ //	me->parent = v4l2_dev->mdev;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to init media entity!\n");
+ 		ret = -ISP_ERROR;
+@@ -531,7 +531,7 @@
+ 	} else {
+ 		vsd->proc_vic = proc;
+ 	}
+-	proc_create_data("isp_vic_frd", S_IRUGO, proc, &isp_vic_frd_fops, (void *)vsd);
++	proc_create_data("isp_vic_frd", S_IRUGO, proc, &isp_vic_frd_ops, (void *)vsd);
+ 
+ 	return ISP_SUCCESS;
+ register_failed:
+diff --git a/external/ingenic-sdk/include/sensor-common.h b/external/ingenic-sdk/include/sensor-common.h
+--- a/external/ingenic-sdk/include/sensor-common.h
++++ b/external/ingenic-sdk/include/sensor-common.h
+@@ -4,7 +4,6 @@
+ #if defined(CONFIG_SOC_T10) || defined(CONFIG_SOC_T20)
+ #include <linux/videodev2.h>
+ #include <media/v4l2-device.h>
+-#include <media/v4l2-chip-ident.h>
+ #include <media/v4l2-mediabus.h>
+ #include <linux/i2c.h>
+ #include <soc/gpio.h>

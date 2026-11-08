@@ -5,15 +5,12 @@
 ################################################################################
 
 OPEN_TX_ISP_SITE_METHOD = git
-# Pinned to the thingino fork's T31 7.x line, not upstream: upstream
-# (opensensor/open-tx-isp) stops short of the mainline port this tree needs on
-# kernel 5.15/7.x - the vendor clock-name resolution and the 7.x kernel-API
-# adaptation - and has no way to attach a drivers/media/i2c sensor to the
-# vendor ABI. The branch is the full port, offered to Lu-Fi as a PR; it sits on
-# that repo's next branch and carries the patches this package used to apply.
-OPEN_TX_ISP_SITE = https://github.com/themactep/open-tx-isp
-OPEN_TX_ISP_SITE_BRANCH = port/mainline-t31-7x
-OPEN_TX_ISP_VERSION = 57d16f169e763422b66260c63c5efd65b08938e4
+# Pinned to Lu-Fi's next. The Thingino 7.x work that is not in next yet (the
+# T20/T41 bring-up, the per-sensor gain model, and the diagnostics) is carried
+# by the 0042-0044 patches in this directory.
+OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
+OPEN_TX_ISP_SITE_BRANCH = next
+OPEN_TX_ISP_VERSION = bcf180e855378584b728353aed84f7e2c9455ce0
 # external/ingenic-sdk carries the per-SoC sensor IQ tuning blobs
 # (sensor-iq/<soc>/<model>.bin) installed by the open path; see the sensor IQ
 # section below.
@@ -23,14 +20,12 @@ OPEN_TX_ISP_GIT_SUBMODULES = YES
 # top-level license file for legal-info to collect.
 OPEN_TX_ISP_LICENSE = GPL-3.0
 
-# NOTE: no package patches. The 0001-0005 series in this directory was written
-# against the old upstream pin; the pinned fork already carries that content
-# (0001 t20 sinfo publish, 0002 t23 G_INPUT gate, 0004 t31 5.15 compat), a
-# later implementation of it (0003 t23 frame wait, superseded there by
-# "succeed only when a frame is ready"), and its own fix for 0005's problem
-# (the kernel compat header supplies strlcpy()/strncpy() on 6.8+/7.x). They
-# are renamed to *.patch.disabled rather than deleted so they can be restored
-# if the pin ever goes back to upstream.
+# The 0042-0044 series is the delta between next and the Thingino tree that
+# was device-proven on the T20 (and the T31 work next has not merged yet):
+# 0042 carries the T31/common changes (gain model, diagnostics, sinfo
+# hardening), 0043 the T20 7.x bring-up, and 0044 the T41 mainline port.
+# Everything else in this directory is the pre-next patch series, disabled
+# rather than deleted so it can be restored if the pin goes back to the fork.
 
 # Modern kernels (5.15 vendor, 7.x mainline): the ingenic-sdk is disabled (its
 # sensor/audio/AVPU modules are 4.4-only), so the open driver carries its own
