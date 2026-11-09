@@ -106,7 +106,7 @@ elif [ -z "$PATH_ARG" ]; then
 fi
 
 if is_remote_path "$PATH_ARG"; then
-	: # skip local existence check for URLs
+	:
 elif [ ! -e "$PATH_ARG" ]; then
 	echo "play: '$PATH_ARG' not found" >&2
 	exit 1

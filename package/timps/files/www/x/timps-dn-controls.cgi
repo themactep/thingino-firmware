@@ -1,7 +1,5 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC3043
-# daynight.controls in thingino.json: what /usr/sbin/daynight toggles when timps switches.
-# (json-config-daynight.cgi ships only with thingino-daynightd.)
 
 . /var/www/x/auth.sh
 require_auth
@@ -31,14 +29,21 @@ LEN=${CONTENT_LENGTH:-0}
 case "$LEN" in '' | *[!0-9]*) reply "411 Length Required" '{"error":"no length"}' ;; esac
 [ "$LEN" -gt 0 ] && [ "$LEN" -le 512 ] || reply "413 Payload Too Large" '{"error":"bad size"}'
 BODY=$(head -c "$LEN")
-# only {"daynight":{"controls":{"<known>":true|false,...}}}, one line - grep's
-# ^...$ anchors per line, so a multi-line body could slip a matching last line
-# past it; reject any embedded newline outright, the real body never has one.
-case "$BODY" in *"$(printf '\n')"*) reply "400 Bad Request" '{"error":"unexpected body"}' ;; esac
+# grep anchors per line: reject multi-line bodies before matching
+nl='
+'
+case "$BODY" in *"$nl"*) reply "400 Bad Request" '{"error":"unexpected body"}' ;; esac
 echo "$BODY" | grep -qE '^\{"daynight":\{"controls":\{("(color|ircut|ir850|ir940|white)":(true|false),?)+\}\}\}$' ||
 	reply "400 Bad Request" '{"error":"unexpected body"}'
 TMP=$(mktemp /tmp/dnc.XXXXXX) || reply "500 Internal Server Error" '{"error":"no temp file"}'
 trap 'rm -f "$TMP"' EXIT
 printf '%s' "$BODY" >"$TMP"
 jct "$CFG" import "$TMP" >/dev/null 2>&1 || reply "500 Internal Server Error" '{"error":"write failed"}'
+
+# timps re-runs the board hook only on the next transition: apply now
+mode=$(cat /run/thingino/daynight_mode 2>/dev/null)
+case "$mode" in
+	day | night) command -v daynight >/dev/null 2>&1 && daynight "$mode" >/dev/null 2>&1 & ;;
+esac
+
 get

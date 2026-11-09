@@ -268,7 +268,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc ca-certificates cmake cpio curl dosfstools file gawk gh git jq lzop m4 make mtools p7zip-full parted perl procps python3 python3-gmpy2 rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc ca-certificates cmake cpio curl dosfstools file gawk gh git jq libncurses-dev lzop m4 make mtools p7zip-full parted perl procps python3 python3-gmpy2 rsync tzdata u-boot-tools unzip wget
       - name: Set timezone
         run: |
           ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
@@ -548,7 +548,24 @@ jobs:
 
       - name: Post compiled firmware artifacts to release
         if: ${{ github.event.inputs.skip_release != 'true' }}
-        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" --clobber
+        run: |
+          # GitHub's upload endpoint occasionally answers 404 and leaves the
+          # asset in the "starter" state. Retry with --clobber so the stale
+          # asset is deleted before the next attempt.
+          upload() {
+            local file=$1 attempt
+            for attempt in 1 2 3 4 5; do
+              if gh release upload "$TAG_NAME" "$file" --clobber; then
+                return 0
+              fi
+              echo "::warning::upload of $(basename "$file") failed (attempt $attempt/5)"
+              sleep $((attempt * 5))
+            done
+            echo "::error::could not upload $(basename "$file") to $TAG_NAME"
+            return 1
+          }
+          upload "$FULL_FW"
+          upload "$FULL_FW_SHA"
 
       - name: Package binaries for notification
         run: |

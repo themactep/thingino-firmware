@@ -36,6 +36,12 @@ run.sh qemu_t31x_eth --only onvif,ipv6   # just these optional suites
 Anything after the profile name is passed through to `harness.py`, which
 also runs standalone if you need full control (`harness.py --help`).
 
+For development rather than a suite run, `scripts/qemu-dev`
+(`qemutest/dev.py`) keeps an image running in the background and drives
+it one command at a time: shell commands over SSH or the serial console,
+file copies, the boot log, reboots, U-Boot. See
+[`docs/dev/qemu.md`](../../docs/dev/qemu.md).
+
 Requirements: `dnsmasq` and `tcpdump` installed, `npm ci` in this
 directory plus `npx playwright install chromium` for the browser tests,
 and passwordless `sudo` for tap and slip runs (slip also needs
@@ -114,9 +120,6 @@ a slirp on the hub forwards host ports 19180 (HTTP) and 19122 (SSH) to
 the camera's usb0, and in server mode `usbpc` is a second host on the hub
 that takes a lease from the camera's udhcpd and queries its dnsd. A
 client-mode camera leases `10.0.3.15` from that slirp instead. No root.
-The device is newer than the pinned ingenic-0.6.8 release, so until the
-next one these profiles need `--qemu` (or `QEMU_BIN`) pointing at a fork
-build.
 
 ## Adding a suite
 

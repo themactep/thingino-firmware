@@ -1,4 +1,3 @@
-// tool-record.js - recorder settings tab of recordings.html.
 (function () {
   "use strict";
 
@@ -10,7 +9,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // field id -> {key, type}. type: bool | int | str
   var FIELDS = [
     { id: "rec_enabled",  key: "enabled",     type: "bool" },
     { id: "rec_dir",      key: "dir",         type: "str"  },
@@ -81,8 +79,6 @@
   }
 
   function motionHint(json) {
-    // motion-triggered recording only fires when motion DETECTION is enabled
-    // (Streamer -> Motion), which is a different switch from this "mode" select
     var modeEl = $("rec_mode");
     var isMotion = modeEl && String(modeEl.value) === "1";
     var m = json && json.motion;
@@ -112,8 +108,6 @@
     if (ev) ev.preventDefault();
     if (saveBtn) saveBtn.disabled = true;
     window.timpsApi.set({ record: collect() }).then(function (r) {
-      // corrected (clamped) values go straight back into their fields from
-      // the "applied" echo - no follow-up GET on the happy path
       var corr = r && r.corrections;
       if (corr) Object.keys(corr).forEach(function (k) {
         var id = REVERSE[k];
@@ -149,7 +143,6 @@
     if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
     var el = id ? $(id) : null;
-    // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
     applyKV(id, data.value);
   }

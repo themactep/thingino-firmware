@@ -78,6 +78,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_ONVIF if BR2_THINGINO_DEV_IPCAM
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_UBOOT_TOOLS
+	select BR2_TARGET_UBOOT
 	select BR2_THINGINO_PACKAGES
 	# buildroot package configuration
 	select BR2_PACKAGE_DROPBEAR_SMALL if BR2_PACKAGE_DROPBEAR
@@ -136,6 +137,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-floodlightd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-gpio/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp-inspector/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libble/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
@@ -269,7 +271,6 @@ config BR2_THINGINO_DEV_EXPERIMENTAL
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp-inspector/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"

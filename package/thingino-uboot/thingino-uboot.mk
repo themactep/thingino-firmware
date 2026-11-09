@@ -98,7 +98,7 @@ define THINGINO_UBOOT_RMEM_SET_VALUE
 			nmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
 			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
+			[ $(ISP_NMEM_MB) -eq 0 ] || grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
 		else \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
@@ -119,7 +119,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE" = "y" ]; then grep -q "^disable_sd=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_sd=.*/disable_sd=false/" $(THINGINO_UENV_TXT) || echo "disable_sd=false" >> $(THINGINO_UENV_TXT); else grep -q "^disable_sd=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_sd=.*/disable_sd=true/" $(THINGINO_UENV_TXT) || echo "disable_sd=true" >> $(THINGINO_UENV_TXT); fi'
 	@env BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE" = "y" ]; then grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=false/" $(THINGINO_UENV_TXT) || echo "disable_eth=false" >> $(THINGINO_UENV_TXT); else grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=true/" $(THINGINO_UENV_TXT) || echo "disable_eth=true" >> $(THINGINO_UENV_TXT); fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
-	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
+	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && [ $(ISP_NMEM_MB) -ne 0 ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV

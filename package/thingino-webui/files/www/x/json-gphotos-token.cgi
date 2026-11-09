@@ -54,7 +54,7 @@ error_response() {
 [ -n "$code" ] || error_response "missing_code" "Paste the authorization code returned by Google."
 
 curl_status=0
-http_code=$(curl -sS \
+http_code=$(curl -sS --tls-max 1.2 \
 	-o "$resp_file" \
 	-w '%{http_code}' \
 	--data-urlencode "client_id=$client_id" \

@@ -1,8 +1,7 @@
-// config-motion.js - NATIVE timps IMP_IVS grid motion detection settings.
 (function () {
   "use strict";
 
-  const MAX_AXIS = 16; // sane UI cap per axis even on 52-cell SDKs
+  const MAX_AXIS = 16;
 
   const els = {
     enabled: $("#motion_enabled"),
@@ -17,8 +16,8 @@
   };
   const controls = [els.enabled, els.cols, els.rows, els.stream, els.sens];
 
-  let maxCells = 0; // unknown until the first echo
-  let loading = true; // suppress change handlers while populating
+  let maxCells = 0;
+  let loading = true;
 
   function showAlert(variant, message, timeout = 6000) {
     if (window.showAlert && typeof window.showAlert === "function") {
@@ -42,7 +41,6 @@
     }
   }
 
-  /* rebuild one axis selector: 1..limit, keeping the current value */
   function fillAxis(select, limit, current) {
     if (!select) return;
     const cur = current || Number(select.value) || 1;
@@ -56,7 +54,6 @@
     select.value = String(Math.min(cur, limit));
   }
 
-  /* limit each axis so cols*rows <= max_cells (given the OTHER axis' value) */
   function rebuildAxisLimits(cols, rows) {
     if (!maxCells) return;
     const colLimit = Math.min(MAX_AXIS, Math.max(1, Math.floor(maxCells / rows)), maxCells);
@@ -79,7 +76,6 @@
     }
   }
 
-  /* apply a motion query/echo result to the form */
   function applyMotion(mo) {
     if (!mo) return;
     if (mo.available === false || mo.available === 0) {
@@ -98,7 +94,6 @@
     const cols = typeof mo.cols === "number" && mo.cols > 0 ? mo.cols : 1;
     const rows = typeof mo.rows === "number" && mo.rows > 0 ? mo.rows : 1;
     rebuildAxisLimits(cols, rows);
-    // timps reports enabled as 0/1; the old bridge used true/false - accept both
     if (els.enabled && mo.enabled !== undefined) els.enabled.checked = !!Number(mo.enabled);
     if (els.stream && typeof mo.monitor_stream === "number")
       els.stream.value = String(mo.monitor_stream);
@@ -119,7 +114,6 @@
     try {
       const json = await window.timpsApi.get();
       const mo = json && json.motion;
-      // caps.motion carries available/max_cells too; merge as a fallback
       if (mo && json.caps && json.caps.motion) {
         if (mo.available === undefined) mo.available = json.caps.motion.available;
         if (!mo.max_cells) mo.max_cells = json.caps.motion.max_cells;
@@ -141,7 +135,6 @@
       const r = await window.timpsApi.set({ motion: { [key]: value } });
       const corr = window.timpsApi.takeCorrections(r);
       if (corr) showAlert("info", window.timpsApi.correctionsText(corr));
-      // cols/rows may come back CLAMPED by timps: re-read the live state once
       const json = await window.timpsApi.get();
       if (json && json.motion) applyMotion(json.motion);
     } catch (err) {
@@ -176,12 +169,12 @@
     if (!data.resync && (typeof data.key !== "string" || data.key.indexOf("motion.") !== 0))
       return;
     const ae = document.activeElement;
-    if (ae && controls.indexOf(ae) >= 0) return; // don't fight the user mid-edit
+    if (ae && controls.indexOf(ae) >= 0) return;
     loadMotion();
   }
 
   function init() {
-    setDisabled(true); // greyed until the streamer confirms support
+    setDisabled(true);
     drawGridPreview(5, 5);
     bind();
     loadMotion();
