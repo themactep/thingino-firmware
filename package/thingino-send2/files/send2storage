@@ -44,13 +44,11 @@ target_path() {
 process_file() {
 	local file="$1" kind="$2" rel dest_file
 
-	# empty / missing capture — don't invent junk names
 	[ -n "$file" ] && [ -f "$file" ] || return 0
 
 	rel=$(target_path "$kind")
 	dest_file="$dest_dir/$rel"
 
-	# template may contain directory components (e.g. %Y%m%d/%H)
 	if ! mkdir -p "$(dirname "$dest_file")"; then
 		echo_error "Failed to create directory: $(dirname "$dest_file")"
 		rm -f "$file"
@@ -65,8 +63,7 @@ process_file() {
 		return 1
 	fi
 
-	# capture paths stage via mktemp (mode 600) and cp preserves the mode;
-	# published files must stay world-readable for NAS/NFS shares
+	# captures stage mode 600; published files stay world-readable (NAS/NFS)
 	chmod 644 "$dest_file"
 
 	rm -f "$file"
@@ -74,13 +71,9 @@ process_file() {
 
 read_config
 
-# A clip that motion recorded on the mount itself is renamed into place (no
-# copy, no RAM); anything else takes the normal copy_video route. Motion
-# stages the clip as a hidden dotfile (.motion_<ts>.mp4) at the root of the
-# mount, so nothing half-written is ever visible on NFS/SMB shares and the
-# rename stays atomic on one filesystem. A crash mid-recording would leave
-# a stale dotfile behind — sweep those older than an hour, on the mount
-# root and (for the copy path) in the destination directory.
+# Motion stages clips as .motion_<ts>.mp4 dotfiles at the mount root so
+# nothing half-written is visible on shares and renames stay atomic; a
+# crash leaves a stale dotfile behind — sweep those older than an hour.
 sweep_stale_staging() {
 	for sweep_dir in "$mount" "$dest_dir"; do
 		[ -d "$sweep_dir" ] || continue
@@ -105,7 +98,6 @@ process_video() {
 			chmod 644 "$dest_file"
 			;;
 		*)
-			sweep_stale_staging
 			process_file "$(copy_video)" video
 			;;
 	esac
@@ -136,15 +128,13 @@ if [ -z "$mount" ]; then
 	exit 1
 fi
 
-# -d alone only proves the directory exists; on an unmounted /mnt/mmc the
-# copy path would silently write into the overlay.
-if ! mountpoint -q "$mount" 2>/dev/null; then
-	echo_error "Mount point is not a mountpoint: $mount"
+if [ ! -d "$mount" ]; then
+	echo_error "Mount point does not exist: $mount"
 	exit 1
 fi
 
-if [ ! -d "$mount" ]; then
-	echo_error "Mount point does not exist: $mount"
+if ! mountpoint -q "$mount" 2>/dev/null; then
+	echo_error "Mount point is not a mountpoint: $mount"
 	exit 1
 fi
 
