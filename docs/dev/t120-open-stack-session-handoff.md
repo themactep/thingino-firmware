@@ -1077,3 +1077,27 @@ Debug params added this pass: `skip_flip_write`, `skip_hvflip_reapply`.
 Earlier: `qbuf_prestart`, `qbuf_nolock`, `streamon_event_first`,
 `skip_msca_flip`, `fifo_irsca_off`, `reg_write_wmb`,
 `probe_fifo_after_tisp`, `t41_defer_isp_start`.
+
+### 2026-11-09 (cont.): direct mode starts the input; sub-output QBUF is next
+
+With `direct_mode=1`, `t41_defer_isp_start=1`, `minimal_ipc=1`,
+`skip_flip_write=1`, `skip_hvflip_reapply=1` and every `t41_stock_*_profile`
+plus `t41_safe_tuning_events` off, the late input start now completes:
+
+- IVDC streamon and IVDC IRQ
+- VIC start (`vicstart:return 0`)
+- CSI/VIN sensor `s_stream` (`vsensor:call-ret=0`)
+- defered ISP start + IPC trigger (`ispcore:isp-ipc-triggered`)
+
+and the flow reaches the frame-channel STREAMON enqueue at ~56 s. The next
+stall is the **second output** (pad index 1, `channel_index=1`): its QBUF
+takes the `direct_mode && channel+0x74 == 0` branch only for channel 0. For
+channel 1 the code falls through to `tisp_msca_addr_fifo_write(1, ...)`
+(`0xf026c`) and stalls, because the sub-channel's
+`tisp_channel_main_start()` runs in `ispcore_frame_channel_streamon()` only
+after the pre-STREAM_ON enqueue loop has already pushed the addresses.
+
+Next: make the sub-output match whatever the vendor does before its first
+QBUF, or hold the sub-channel FIFO push until after its STREAM_ON has
+programmed the MSCA channel. `minimal_ipc` also skips the pre/post-IPC
+diagnostic reads and the late fps/tmo/snapshot replays.
