@@ -18,9 +18,7 @@ _cleanup() {
 		done < "$GARBAGE_FILE"
 		rm -f -- "$GARBAGE_FILE"
 	fi
-# Per-streamer variant: only the selected streamer's package installs this
-# file as /usr/share/send2common; snapshot/clip access differs by streamer.
-GARBAGE=""
+	GARBAGE=""
 }
 
 copy_photo() {
@@ -44,7 +42,13 @@ copy_video() {
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
 		local tmpfile
 		tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
-		cp "$MOTION_VIDEO_FILE" "$tmpfile"
+		# Hard link: /tmp is RAM, so a copy would double the clip's footprint.
+		if ! ln -f "$MOTION_VIDEO_FILE" "$tmpfile" 2>/dev/null &&
+			! cp "$MOTION_VIDEO_FILE" "$tmpfile"; then
+			rm -f "$tmpfile"
+			echo "$tmpfile"
+			return 1
+		fi
 		add_to_garbage "$tmpfile"
 		echo "$tmpfile"
 		return
