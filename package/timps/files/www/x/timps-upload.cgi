@@ -19,7 +19,8 @@ if qs_has "kind=iq"; then
 	SENSOR=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null || cat /proc/jz/sensor/name 2>/dev/null || cat /etc/sensor/model 2>/dev/null)
 	SOC=$(soc -f 2>/dev/null)
 	[ -n "$SENSOR" ] && [ -n "$SOC" ] || fail "412 Precondition Failed" "sensor or SoC unknown"
-	DIR=/etc/sensor NAME="${SENSOR}-${SOC}.bin" MIN=8192 MAX=2097152
+	NAME=$(sensor-iq-name "$SENSOR" "$SOC")
+	DIR=/etc/sensor MIN=8192 MAX=2097152
 elif qs_has "kind=font"; then
 	DIR=/usr/share/fonts NAME=default.ttf MIN=1024 MAX=2097152
 else
