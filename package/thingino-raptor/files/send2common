@@ -96,6 +96,127 @@ thingino_send2_raptor_ensure_rmr() {
 	pidof rmr >/dev/null 2>&1
 }
 
+thingino_send2_raptor_cfg_get() {
+	raptorctl config get recording "$1" 2>/dev/null | tr -d '\r\n"'
+}
+
+# Pick a storage base and mode that actually yield a clip. rmr writes clips
+# only in motion/both mode, and only on an existing writable storage dir (it
+# refuses to create one on the rootfs); otherwise use tmpfs.
+thingino_send2_raptor_clip_target() {
+	CLIP_STORAGE=$(thingino_send2_raptor_cfg_get storage_path)
+	[ -n "$CLIP_STORAGE" ] || CLIP_STORAGE=/mnt/mmcblk0p1/raptor
+	if [ ! -d "$CLIP_STORAGE" ] || [ ! -w "$CLIP_STORAGE" ]; then
+		CLIP_STORAGE=/tmp/raptor
+		mkdir -p /tmp/raptor/clips 2>/dev/null
+	fi
+
+	if [ "$CLIP_STORAGE" = /tmp/raptor ]; then
+		CLIP_MODE=motion
+		return
+	fi
+	case "$CLIP_ORIG_MODE" in
+		motion | both) CLIP_MODE=$CLIP_ORIG_MODE ;;
+		*) CLIP_MODE=both ;;
+	esac
+}
+
+thingino_send2_raptor_clip_apply() {
+	[ "$CLIP_STORAGE" = "$CLIP_ORIG_STORAGE" ] || {
+		raptorctl config set recording storage_path "$CLIP_STORAGE" >/dev/null 2>&1 || return 1
+		CLIP_RECONFIGURED=yes
+	}
+	[ "$CLIP_MODE" = "$CLIP_ORIG_MODE" ] || {
+		raptorctl config set recording mode "$CLIP_MODE" >/dev/null 2>&1 || return 1
+		CLIP_RECONFIGURED=yes
+	}
+	[ "${CLIP_RECONFIGURED:-no}" = yes ] || return 0
+
+	# The daemon re-execs asynchronously. Wait until it answers again and
+	# reports the new config; a start sent earlier can hit the old process
+	# (or a closed socket) and capture nothing.
+	raptorctl rmr restart >/dev/null 2>&1 || return 1
+	_i=0
+	while [ "$_i" -lt 50 ]; do
+		if raptorctl rmr status >/dev/null 2>&1 &&
+			[ "$(thingino_send2_raptor_cfg_get storage_path)" = "$CLIP_STORAGE" ] &&
+			[ "$(thingino_send2_raptor_cfg_get mode)" = "$CLIP_MODE" ]; then
+			return 0
+		fi
+		sleep 0.2 2>/dev/null || sleep 1
+		_i=$((_i + 1))
+	done
+	echo "send2: rmr did not reload the capture config" >&2
+	return 1
+}
+
+thingino_send2_raptor_clip_restore() {
+	[ "${CLIP_RECONFIGURED:-no}" = yes ] || return 0
+	CLIP_RECONFIGURED=no
+	raptorctl config set recording storage_path "$CLIP_ORIG_STORAGE" >/dev/null 2>&1 || true
+	raptorctl config set recording mode "$CLIP_ORIG_MODE" >/dev/null 2>&1 || true
+	raptorctl rmr restart >/dev/null 2>&1 || true
+	# Let the restored config go live before the next caller can use rmr.
+	_i=0
+	while [ "$_i" -lt 50 ]; do
+		if raptorctl rmr status >/dev/null 2>&1 &&
+			[ "$(thingino_send2_raptor_cfg_get storage_path)" = "$CLIP_ORIG_STORAGE" ] &&
+			[ "$(thingino_send2_raptor_cfg_get mode)" = "$CLIP_ORIG_MODE" ]; then
+			return 0
+		fi
+		sleep 0.2 2>/dev/null || sleep 1
+		_i=$((_i + 1))
+	done
+	return 0
+}
+
+# Capture one throwaway clip into $1, reconfiguring rmr only when needed and
+# restoring the original recording config on every catchable exit. The caller
+# holds the service lock. config set persists to /etc/raptor.conf, so a power
+# cut during the capture cannot be recovered by the trap.
+thingino_send2_raptor_capture() {
+	_out=$1
+	_duration=${2:-${SEND2_CLIP_SECS:-10}}
+
+	CLIP_RECONFIGURED=no
+	CLIP_TMP=""
+	# shellcheck disable=SC2154  # _rc is assigned inside the trap
+	trap '_rc=$?; if [ "${CLIP_RECONFIGURED:-no}" = yes ] && [ -n "${CLIP_TMP:-}" ]; then rm -f -- "$CLIP_TMP"; fi; thingino_send2_raptor_clip_restore; exit $_rc' EXIT
+	trap 'exit 1' INT TERM HUP
+
+	thingino_send2_raptor_ensure_rmr || {
+		echo "send2: raptor recorder (rmr) is not available" >&2
+		return 1
+	}
+
+	CLIP_ORIG_STORAGE=$(thingino_send2_raptor_cfg_get storage_path)
+	[ -n "$CLIP_ORIG_STORAGE" ] || CLIP_ORIG_STORAGE=/mnt/mmcblk0p1/raptor
+	CLIP_ORIG_MODE=$(thingino_send2_raptor_cfg_get mode)
+	[ -n "$CLIP_ORIG_MODE" ] || CLIP_ORIG_MODE=continuous
+	thingino_send2_raptor_clip_target
+	thingino_send2_raptor_clip_apply || return 1
+
+	_before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+	raptorctl rmr start >/dev/null 2>&1 || {
+		echo "send2: failed to start raptor clip" >&2
+		return 1
+	}
+	sleep "$_duration"
+	raptorctl rmr stop >/dev/null 2>&1 || true
+	# Allow the muxer to close the segment.
+	sleep 1
+	CLIP_TMP=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+	if [ -z "$CLIP_TMP" ] || [ "$CLIP_TMP" = "$_before" ]; then
+		echo "send2: raptor clip capture failed (is recording storage writable?)" >&2
+		return 1
+	fi
+	thingino_send2_wait_stable_file "$CLIP_TMP" 15 || {
+		echo "send2: raptor clip did not finish writing" >&2
+		return 1
+	}
+	cp "$CLIP_TMP" "$_out"
+}
+
 copy_photo() {
 	# Use existing photo from motion if available
 	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
@@ -139,38 +260,24 @@ copy_video() {
 	local tmpfile
 	tmpfile="$(mktemp -u /tmp/send2_clip.XXXXXX)"
 	local duration=${SEND2_CLIP_SECS:-10}
-
-	if ! thingino_send2_raptor_ensure_rmr; then
-		echo "send2: raptor recorder (rmr) is not available" >&2
-		echo "$tmpfile"
-		return 1
-	fi
-	before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
-	raptorctl rmr start >/dev/null 2>&1 || {
-		echo "send2: failed to start raptor clip" >&2
-		echo "$tmpfile"
-		return 1
-	}
-	sleep "$duration"
-	raptorctl rmr stop >/dev/null 2>&1 || true
-	# Allow the muxer to close the segment.
-	sleep 1
-	clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
-	if [ -z "$clip" ] || [ "$clip" = "$before" ]; then
-		echo "send2: raptor clip capture failed (is recording storage writable?)" >&2
-		echo "$tmpfile"
-		return 1
-	fi
-	if ! thingino_send2_wait_stable_file "$clip" 15; then
-		echo "send2: raptor clip did not finish writing" >&2
-		echo "$tmpfile"
-		return 1
-	fi
-	cp "$clip" "$tmpfile" || {
-		echo "$tmpfile"
-		return 1
-	}
+	# Register before the capture so a kill during it still reclaims a partial.
 	add_to_garbage "$tmpfile"
+
+	# One rmr serves every service; serialize the reconfig+capture so parallel
+	# send2* processes cannot restart it under each other.
+	if command -v flock >/dev/null 2>&1; then
+		(
+			flock 9 && thingino_send2_raptor_capture "$tmpfile" "$duration"
+		) 9>/run/send2-raptor-clip.lock
+	else
+		(thingino_send2_raptor_capture "$tmpfile" "$duration")
+	fi
+
+	if [ ! -s "$tmpfile" ]; then
+		rm -f "$tmpfile"
+		echo "$tmpfile"
+		return 1
+	fi
 	echo "$tmpfile"
 }
 
