@@ -105,8 +105,10 @@ class QemuSerial:
         booted = self.state != "rebooting"
         while time.time() < deadline:
             buf += self.read(1.0)
-            if self.proc.poll() is not None:
-                print(f"  QEMU exited with status {self.proc.returncode} "
+            # qemu-dev's console is not given the QEMU process to watch
+            proc = getattr(self, "proc", None)
+            if proc is not None and proc.poll() is not None:
+                print(f"  QEMU exited with status {proc.returncode} "
                       "during boot")
                 return False
             plain = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", buf)
