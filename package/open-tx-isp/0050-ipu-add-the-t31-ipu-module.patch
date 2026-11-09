@@ -1,0 +1,1923 @@
+From 5cb826d982d4d1a0df0facba34fb3e26635d5d9a Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lutz@fiebach.de>
+Date: Mon, 9 Nov 2026 20:47:57 +0100
+Subject: [PATCH] ipu: add a T31 IPU module providing /dev/ipu for the OpenIMP
+ OSD blend
+
+OpenIMP's T31 OSD blends overlays through /dev/ipu with one ioctl,
+IPU_START (_IO('I', 106)) and a parameter block. On the vendor 3.10
+kernel this is the built-in jz_ipu_v13 driver; mainline-based kernels
+have none, so OpenIMP disabled the IPU OSD backend there.
+
+Port jz_ipu_v13 (GPL, incl. the thingino wedge mitigation) as
+driver/ipu/t31_ipu.ko: DT match ingenic,t31-ipu (reg 0x13080000/0x8000,
+INTC 6, clocks ipu + ahb1), clk_prepare_enable, reinit_completion,
+void remove/misc_deregister on newer kernels, BUF_FLUSH_CACHE a no-op
+where dma_cache_sync() is gone (OpenIMP does not use it), and the
+vendor ahb1 clk_get error check fixed.
+
+Tested on a Wuuk Y0510 (T31X) with thingino kernel 7.3.3 by runtime
+insmod: /dev/ipu (misc), IPU IRQ counting (~19/s), OpenIMP keeps the
+IPU OSD backend, OSD visible in the snapshot, no IPU_START errors.
+Not yet: package build/autoload, 3.10 (vendor built-in owns the name
+there), soak. Refs Lu-Fi/openimp#257.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ driver/ipu/Kbuild        |    2 +
+ driver/ipu/jz_ipu_v13.h  |  218 +++++++
+ driver/ipu/jz_regs_v13.h |  322 ++++++++++
+ driver/ipu/t31_ipu.c     | 1318 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 1860 insertions(+)
+ create mode 100644 driver/ipu/Kbuild
+ create mode 100644 driver/ipu/jz_ipu_v13.h
+ create mode 100644 driver/ipu/jz_regs_v13.h
+ create mode 100644 driver/ipu/t31_ipu.c
+
+diff --git a/driver/ipu/Kbuild b/driver/ipu/Kbuild
+new file mode 100644
+index 00000000..d63dc111
+--- /dev/null
++++ b/driver/ipu/Kbuild
+@@ -0,0 +1,2 @@
++# T31 IPU (OSD blend) driver providing /dev/ipu, see t31_ipu.c.
++obj-m := t31_ipu.o
+diff --git a/driver/ipu/jz_ipu_v13.h b/driver/ipu/jz_ipu_v13.h
+new file mode 100644
+index 00000000..342ce01d
+--- /dev/null
++++ b/driver/ipu/jz_ipu_v13.h
+@@ -0,0 +1,218 @@
++#ifndef _JZ_IPU_H_
++#define _JZ_IPU_H_
++
++#define IPU_LUT_LEN      32
++
++/* ipu output mode */
++#define IPU_OUTPUT_TO_LCD_FG1           0x00000002
++#define IPU_OUTPUT_TO_LCD_FB0           0x00000004
++#define IPU_OUTPUT_TO_LCD_FB1           0x00000008
++#define IPU_OUTPUT_TO_FRAMEBUFFER       0x00000010 /* output to user defined buffer */
++#define IPU_OUTPUT_MODE_MASK            0x000000FF
++#define IPU_DST_USE_COLOR_KEY           0x00000100
++#define IPU_DST_USE_ALPHA               0x00000200
++#define IPU_OUTPUT_BLOCK_MODE           0x00000400
++#define IPU_OUTPUT_MODE_FG0_OFF         0x00000800
++#define IPU_OUTPUT_MODE_FG1_TVOUT       0x00001000
++#define IPU_DST_USE_PERPIXEL_ALPHA      0x00010000
++
++#ifdef __KERNEL__
++
++/* match HAL_PIXEL_FORMAT_ in system/core/include/system/graphics.h */
++enum {
++	HAL_PIXEL_FORMAT_RGBA_8888    = 1,
++	HAL_PIXEL_FORMAT_RGBX_8888    = 2,
++	HAL_PIXEL_FORMAT_RGB_888      = 3,
++	HAL_PIXEL_FORMAT_RGB_565      = 4,
++	HAL_PIXEL_FORMAT_BGRA_8888    = 5,
++	//HAL_PIXEL_FORMAT_BGRX_8888    = 0x8000, /* Add BGRX_8888, Wolfgang, 2010-07-24 */
++	HAL_PIXEL_FORMAT_BGRX_8888  	= 0x1ff, /* 2012-10-23 */
++	HAL_PIXEL_FORMAT_RGBA_5551    = 6,
++	HAL_PIXEL_FORMAT_RGBA_4444    = 7,
++	HAL_PIXEL_FORMAT_ABGR_8888    = 8,
++	HAL_PIXEL_FORMAT_ARGB_8888    = 9,
++	HAL_PIXEL_FORMAT_YCbCr_422_SP = 0x10,
++	HAL_PIXEL_FORMAT_YCbCr_420_SP = 0x11,
++	HAL_PIXEL_FORMAT_YCbCr_422_P  = 0x12,
++	HAL_PIXEL_FORMAT_YCbCr_420_P  = 0x13,
++	HAL_PIXEL_FORMAT_YCbCr_420_B  = 0x24,
++	HAL_PIXEL_FORMAT_YCbCr_422_I  = 0x14,
++	HAL_PIXEL_FORMAT_YCbCr_420_I  = 0x15,
++	HAL_PIXEL_FORMAT_CbYCrY_422_I = 0x16,
++	HAL_PIXEL_FORMAT_CbYCrY_420_I = 0x17,
++	HAL_PIXEL_FORMAT_NV12		  = 0x18,
++	HAL_PIXEL_FORMAT_NV21 		  = 0x19,
++	HAL_PIXEL_FORMAT_BGRA_5551    = 0x1a,
++    HAL_PIXEL_FORMAT_HSV          = 0x1b,/*Add HSV*/
++
++	/* suport for YUV420 */
++	HAL_PIXEL_FORMAT_JZ_YUV_420_P       = 0x47700001, // YUV_420_P
++	HAL_PIXEL_FORMAT_JZ_YUV_420_B       = 0x47700002, // YUV_420_P BLOCK MODE
++};
++
++typedef struct {
++	unsigned int coef;
++	unsigned short int in_n;
++	unsigned short int out_n;
++} rsz_lut;
++
++#endif /* ifdef __KERNEL__ */
++
++enum {
++	ZOOM_MODE_BILINEAR = 0,
++	ZOOM_MODE_BICUBE,
++	ZOOM_MODE_BILINEAR_ENHANCE,
++};
++
++struct YuvCsc
++{									// YUV(default)	or	YCbCr
++	unsigned int csc0;				//	0x400			0x4A8
++	unsigned int csc1;              //	0x59C   		0x662
++	unsigned int csc2;              //	0x161   		0x191
++	unsigned int csc3;              //	0x2DC   		0x341
++	unsigned int csc4;              //	0x718   		0x811
++	unsigned int chrom;             //	128				128
++	unsigned int luma;              //	0				16
++};
++
++struct YuvStride
++{
++	unsigned int y;
++	unsigned int u;
++	unsigned int v;
++	unsigned int out;
++	unsigned int out_uv;
++};
++
++struct ipu_param
++{
++	unsigned int		cmd;			/* IPU command */
++
++	unsigned int 		bg_w;			/* background weight */
++	unsigned int 		bg_h;			/* background hight */
++	unsigned int 		bg_fmt;			/* background format */
++	unsigned int		bg_buf_p;       /* background buffer physical addr */
++
++	unsigned int 		out_fmt;		/* out format */
++
++	unsigned int		osd_ch0_fmt;
++	unsigned int		osd_ch0_para;
++	unsigned int		osd_ch0_bak_argb;
++	unsigned int		osd_ch0_pos_x;
++	unsigned int		osd_ch0_pos_y;
++	unsigned int		osd_ch0_src_w;
++	unsigned int		osd_ch0_src_h;
++	unsigned int		osd_ch0_buf_p;
++
++
++	unsigned int		osd_ch1_fmt;
++	unsigned int		osd_ch1_para;
++	unsigned int		osd_ch1_bak_argb;
++	unsigned int		osd_ch1_pos_x;
++	unsigned int		osd_ch1_pos_y;
++	unsigned int		osd_ch1_src_w;
++	unsigned int		osd_ch1_src_h;
++	unsigned int		osd_ch1_buf_p;
++
++
++	unsigned int		osd_ch2_fmt;
++	unsigned int		osd_ch2_para;
++	unsigned int		osd_ch2_bak_argb;
++	unsigned int		osd_ch2_pos_x;
++	unsigned int		osd_ch2_pos_y;
++	unsigned int		osd_ch2_src_w;
++	unsigned int		osd_ch2_src_h;
++	unsigned int		osd_ch2_buf_p;
++
++	unsigned int		osd_ch3_fmt;
++	unsigned int		osd_ch3_para;
++	unsigned int		osd_ch3_bak_argb;
++	unsigned int		osd_ch3_pos_x;
++	unsigned int		osd_ch3_pos_y;
++	unsigned int		osd_ch3_src_w;
++	unsigned int		osd_ch3_src_h;
++	unsigned int		osd_ch3_buf_p;
++
++};
++
++
++#define IPU_CMD_OSD0		(1<<0)
++#define IPU_CMD_OSD1		(1<<1)
++#define IPU_CMD_OSD2		(1<<2)
++#define IPU_CMD_OSD3		(1<<3)
++#define IPU_CMD_OSD			(0xF<<0)
++#define IPU_CMD_CSC			(1<<4)
++
++#ifdef __KERNEL__
++
++/*
++ * IPU driver's native data
++ */
++
++struct ipu_reg_struct {
++	char *name;
++	unsigned int addr;
++};
++
++struct ipu_buf_info {
++	unsigned int vaddr_alloc;
++	unsigned int paddr;
++	unsigned int paddr_align;
++	unsigned int size;
++};
++
++struct jz_ipu {
++
++	int irq;
++	char name[16];
++
++	struct clk *clk;
++#ifdef CONFIG_SOC_T23
++	struct clk *ahb0_gate; /* T23 IPU mount at AHB0 */
++#else
++	struct clk *ahb1_gate; /* T31 IPU mount at AHB1 */
++#endif
++	void __iomem *iomem;
++	struct device *dev;
++	struct resource *res;
++	struct miscdevice misc_dev;
++
++	struct mutex mutex;
++	struct completion done_ipu;
++	struct completion done_buf;
++	struct ipu_buf_info pbuf;
++
++	/* ipu_start(): clk kept permanently on after first op (refcount-leak fix) */
++	int clk_always_on;
++	/* wedge mitigation bookkeeping, both protected by ipu->mutex */
++	unsigned int wedge_streak;	/* consecutive ops that timed out */
++	unsigned long wedge_total;	/* lifetime wedge count */
++};
++
++struct ipu_flush_cache_para
++{
++	void *addr;
++	unsigned int size;
++};
++
++#define JZIPU_IOC_MAGIC  'I'
++#define IOCTL_IPU_START			_IO(JZIPU_IOC_MAGIC, 106)
++#define IOCTL_IPU_RES_PBUFF		_IO(JZIPU_IOC_MAGIC, 114)
++#define IOCTL_IPU_GET_PBUFF		_IO(JZIPU_IOC_MAGIC, 115)
++#define IOCTL_IPU_BUF_LOCK		_IO(JZIPU_IOC_MAGIC, 116)
++#define IOCTL_IPU_BUF_UNLOCK	_IO(JZIPU_IOC_MAGIC, 117)
++#define IOCTL_IPU_BUF_FLUSH_CACHE	_IO(JZIPU_IOC_MAGIC, 118)
++
++static inline unsigned int reg_read(struct jz_ipu *jzipu, int offset)
++{
++	return readl(jzipu->iomem + offset);
++}
++
++static inline void reg_write(struct jz_ipu *jzipu, int offset, unsigned int val)
++{
++	writel(val, jzipu->iomem + offset);
++}
++
++#endif	/* #ifdef __KERNEL__ */
++
++#endif // _JZ_IPU_H_
+diff --git a/driver/ipu/jz_regs_v13.h b/driver/ipu/jz_regs_v13.h
+new file mode 100644
+index 00000000..16697f74
+--- /dev/null
++++ b/driver/ipu/jz_regs_v13.h
+@@ -0,0 +1,322 @@
++#ifndef _REGS_IPU_H_
++#define _REGS_IPU_H_
++
++#ifdef __KERNEL__
++
++/* Module for CLKGR */
++#define IDCT_CLOCK      (1 << 27)
++#define DBLK_CLOCK      (1 << 26)
++#define ME_CLOCK        (1 << 25)
++#define MC_CLOCK        (1 << 24)
++#define IPU_CLOCK       (1 << 13)
++
++
++/* Register offset */
++#define  IPU_FM_CTRL                0x0
++#define  IPU_STATUS                 0x4
++#define  IPU_D_FMT                  0x8
++#define  IPU_Y_ADDR                 0xc
++#define  IPU_U_ADDR                 0x10
++#define  IPU_IN_FM_GS               0x18
++#define  IPU_Y_STRIDE               0x1c
++#define  IPU_UV_STRIDE              0x20
++
++#define  IPU_OUT_ADDR               0x24
++#define  IPU_OUT_STRIDE             0x2c
++#define  IPU_OUT_V_ADDR             0x30
++#define  IPU_OUT_V_STRIDE           0x34
++
++#define  IPU_REG_CTRL               0x64
++#define  IPU_TRIGGER                0x74
++#define  IPU_GLB_CTRL               0x7C
++
++#define  IPU_NV_OUT_ADDR			0xb4
++#define  IPU_NV_OUT_STRIDE			0xb8
++#define  IPU_OSD_IN_CH0_Y_ADDR		0xbc
++#define  IPU_OSD_IN_CH0_Y_STRIDE	0xc0
++#define  IPU_OSD_IN_CH0_UV_ADDR		0xc4
++#define  IPU_OSD_IN_CH0_UV_STRIDE	0xc8
++#define  IPU_OSD_IN_CH1_Y_ADDR		0xcc
++#define  IPU_OSD_IN_CH1_Y_STRIDE	0xd0
++#define  IPU_OSD_IN_CH1_UV_ADDR		0xd4
++#define  IPU_OSD_IN_CH1_UV_STRIDE	0xd8
++#define  IPU_OSD_IN_CH2_Y_ADDR		0xdc
++#define  IPU_OSD_IN_CH2_Y_STRIDE	0xe0
++#define  IPU_OSD_IN_CH2_UV_ADDR		0xe4
++#define  IPU_OSD_IN_CH2_UV_STRIDE	0xe8
++#define  IPU_OSD_IN_CH3_Y_ADDR		0xec
++#define  IPU_OSD_IN_CH3_Y_STRIDE	0xf0
++#define  IPU_OSD_IN_CH3_UV_ADDR		0xf4
++#define  IPU_OSD_IN_CH3_UV_STRIDE	0xf8
++#define  IPU_OSD_CH0_GS				0xfc
++#define  IPU_OSD_CH1_GS				0x100
++#define  IPU_OSD_CH2_GS				0x104
++#define  IPU_OSD_CH3_GS				0x108
++#define  IPU_OSD_CH0_POS			0x10c
++#define  IPU_OSD_CH1_POS			0x110
++#define  IPU_OSD_CH2_POS			0x114
++#define  IPU_OSD_CH3_POS			0x118
++#define  IPU_OSD_CH0_PARA			0x11c
++#define  IPU_OSD_CH1_PARA			0x120
++#define  IPU_OSD_CH2_PARA			0x124
++#define  IPU_OSD_CH3_PARA			0x128
++#define  IPU_OSD_CH_BK_PARA			0x12c
++
++#define  IPU_OSD_CH0_BAK_ARGB		0x130
++#define  IPU_OSD_CH1_BAK_ARGB		0x134
++#define  IPU_OSD_CH2_BAK_ARGB		0x138
++#define  IPU_OSD_CH3_BAK_ARGB		0x13c
++#define  IPU_OSD_CH_B_BAK_ARGB		0x140
++
++#define  IPU_CH0_CSC_C0_COEF		0x148
++#define  IPU_CH0_CSC_C1_COEF		0x14c
++#define  IPU_CH0_CSC_C2_COEF		0x150
++#define  IPU_CH0_CSC_C3_COEF		0x154
++#define  IPU_CH0_CSC_C4_COEF		0x158
++#define  IPU_CH0_CSC_OFSET_PARA		0x15c
++
++#define  IPU_CH1_CSC_C0_COEF		0x160
++#define  IPU_CH1_CSC_C1_COEF		0x164
++#define  IPU_CH1_CSC_C2_COEF		0x168
++#define  IPU_CH1_CSC_C3_COEF		0x16c
++#define  IPU_CH1_CSC_C4_COEF		0x170
++#define  IPU_CH1_CSC_OFSET_PARA		0x174
++
++#define  IPU_CH2_CSC_C0_COEF		0x178
++#define  IPU_CH2_CSC_C1_COEF		0x17c
++#define  IPU_CH2_CSC_C2_COEF		0x180
++#define  IPU_CH2_CSC_C3_COEF		0x184
++#define  IPU_CH2_CSC_C4_COEF		0x188
++#define  IPU_CH2_CSC_OFSET_PARA		0x18c
++
++#define  IPU_CH3_CSC_C0_COEF		0x190
++#define  IPU_CH3_CSC_C1_COEF		0x194
++#define  IPU_CH3_CSC_C2_COEF		0x198
++#define  IPU_CH3_CSC_C3_COEF		0x19c
++#define  IPU_CH3_CSC_C4_COEF		0x1a0
++#define  IPU_CH3_CSC_OFSET_PARA		0x1a4
++
++#define  IPU_RD_ARB_CTL				0x1a8
++#define  IPU_CLK_NUM_ONE_FRA		0x1ac
++#define  IPU_OSD_LAY_PADDING_ARGB	0x1b0
++#define  IPU_TEST_1B4				0x1b4
++
++
++/* SET CH_BK_PARA Register*/
++#define  CH_BK_EN					(1 << 0)
++#define	 CH_BK_PIXEL_ALPHA			(0 << 2) //default
++#define  CH_BK_GLOBAL_ALPHA			(1 << 1)
++#define  CH_BK_PALPHA_X_GALPHA		(1 << 2)
++#define  CH_BKCH_BK_GLO_A(val)		((val) << 3)
++
++#define  CH_BK_PIC_TYPE				( 11 )
++#define  CH_BK_PIC_TYPE_ARGB		(0 << CH_BK_PIC_TYPE)
++#define  CH_BK_PIC_TYPE_RGB			(1 << CH_BK_PIC_TYPE)
++#define  CH_BK_PIC_TYPE_NV12		(2 << CH_BK_PIC_TYPE)
++#define  CH_BK_PIC_TYPE_NV21		(3 << CH_BK_PIC_TYPE)
++
++/*
++0000: ARGB          0001: ARBG
++0010: AGRB          0011: AGBR
++0100: ABRG          0101: ABGR
++1000: RGBA          1001: RBGA
++1010: GRBA          1011: GBRA
++1100: BRGA          1101: BGRA
++*/
++#define  CH_BK_ARGB_TYPE			( 14 )
++#define  CH_BK_ARGB_TYPE_ARGB		(0 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_ARBG		(1 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_AGRB		(2 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_AGBR		(3 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_ABRG		(4 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_ABGR		(5 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_RGBA		(8 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_RBGA		(9 << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_GRBA		(0xa << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_GBRA		(0xb << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_BRGA		(0xc << CH_BK_ARGB_TYPE)
++#define  CH_BK_ARGB_TYPE_BGRA		(0xd << CH_BK_ARGB_TYPE)
++
++#define  CH_BK_PREM					(1 << 18)
++#define  CH_BK_MASK_EN				(1 << 19)
++#define  CH_BK_WHOLE_PIC_EN			(1 << 20)
++
++/*OSD_CHN_EN*/
++#define CHOOSE_OSD_CHN_RESIZE   (1 << 5)
++
++/* IPU_GLB_CTRL Register */
++#define IRQ_EN          (1 << 0)
++
++/* IPU_OSD_CTRL Register */
++#define OSD_PM          (1 << 2)
++
++/* IPU_TRIG Register */
++#define IPU_RUN         (1 << 0)
++#define IPU_STOP        (1 << 1)
++#define IPU_RESET       (1 << 3)
++
++/* IPU_D_FMT Register */
++#define BLK_SEL         (1 << 4)
++#define RGB_POS			(1 << 5)
++#define AL_PIX_EN		(1 << 6)
++
++/* REG_STATUS field define */
++#define OUT_END         (1 << 0)
++#define SIZE_ERR        (1 << 2)
++#define ID				(1 << 16)
++
++#define MSTATUS_SFT     (4)
++#define MSTATUS_MSK     (3)
++#define MSTATUS_IPU_FREE        (0 << MSTATUS_SFT)
++#define MSTATUS_IPU_RUNNING     (1 << MSTATUS_SFT)
++#define MSTATUS                 (2 << MSTATUS_SFT)
++
++/* REG_IPU_ADDR_CTRL */
++#define Y_RY            (1<<0)
++#define U_RY            (1<<1)
++#define V_RY            (1<<2)
++#define D_RY            (1<<3)
++#define PTS_RY          (1<<4)
++#define CTRL_RY         (1<<6)
++#define DF_RY           (1<<7)
++#define NV_D_RY			(1 << 17)
++#define NV_STR_RY		(1 << 20)
++#define OSD_CH0_RY		(1 << 21)
++#define OSD_CH1_RY		(1 << 22)
++#define OSD_CH2_RY		(1 << 23)
++#define OSD_CH3_RY		(1 << 24)
++#define RD_ARB_RY		(1 << 26)
++#define OSD_BK_RY		(1 << 27)
++
++/* REG_TLB_MONITOR */
++#define MIS_CNT_SFT     (1)
++#define MIS_CNT_MSK     (0x3FF)
++
++/* REG_TLB_CTRL */
++#define SRC_PAGE_SFT        (0)
++#define SRC_PAGE_MSK        (0xF)
++#define SRC_BURST_SFT       (4)
++#define SRC_BURST_MSK       (0xF)
++#define DEST_PAGE_SFT       (16)
++#define DEST_PAGE_MSK       (0xF)
++#define DEST_BURST_SFT      (20)
++#define DEST_BURST_MSK      (0xF)
++
++/* OSD_CTRL field define */
++#define GLB_ALPHA(val)  ((val) << 8)
++#define MOD_OSD(val)    ((val) << 0)
++
++/* FM_XYOFT field define */
++#define SCREEN_YOFT(val)    ((val) << 16)
++#define SCREEN_XOFT(val)    ((val) << 0)
++
++/* REG_IN_GS field define */
++#define IN_FM_W(val)    ((val) << 16)
++#define IN_FM_H(val)    ((val) << 0)
++
++/* REG_OUT_GS field define */
++#define OUT_FM_W(val)    ((val) << 16)
++#define OUT_FM_H(val)    ((val) << 0)
++
++/* REG_UV_STRIDE field define */
++#define U_STRIDE(val)     ((val) << 16)
++#define V_STRIDE(val)     ((val) << 0)
++
++/* REG_RSZ_COEF field definei */
++#define HCOEF(val)			((val) << 16)
++#define VCOEF(val)			((val) << 0)
++
++#if 1
++#define YUV_CSC_C0 0x4A8        /* 1.164 * 1024 */
++#define YUV_CSC_C1 0x662        /* 1.596 * 1024 */
++#define YUV_CSC_C2 0x191        /* 0.392 * 1024 */
++#define YUV_CSC_C3 0x341        /* 0.813 * 1024 */
++#define YUV_CSC_C4 0x811        /* 2.017 * 1024 */
++
++#define YUV_CSC_OFFSET_PARA         0x800010  /* chroma,luma */
++#else
++#define YUV_CSC_C0 0x400
++#define YUV_CSC_C1 0x59C
++#define YUV_CSC_C2 0x161
++#define YUV_CSC_C3 0x2DC
++#define YUV_CSC_C4 0x718
++#endif
++
++/* select ch */
++#define BK_OSD_PIC_MASK				(18)
++#define BK_OSD_PIC_NV21			( 1 << BK_OSD_PIC_MASK )
++#define BK_OSD_PIC_NV12			( 2 << BK_OSD_PIC_MASK )
++#define BK_OSD_PIC_ARGB			( 3 << BK_OSD_PIC_MASK )
++#define CH3_OSD_PIC_MASK			(15)
++#define CH3_OSD_PIC_NV21		( 1 << CH3_OSD_PIC_MASK )
++#define CH3_OSD_PIC_NV12		( 2 << CH3_OSD_PIC_MASK )
++#define CH3_OSD_PIC_ARGB		( 3 << CH3_OSD_PIC_MASK )
++#define CH2_OSD_PIC_MASK			(12)
++#define CH2_OSD_PIC_NV21		( 1 << CH2_OSD_PIC_MASK )
++#define CH2_OSD_PIC_NV12		( 2 << CH2_OSD_PIC_MASK )
++#define CH2_OSD_PIC_ARGB		( 3 << CH2_OSD_PIC_MASK )
++#define CH1_OSD_PIC_MASK			(9)
++#define CH1_OSD_PIC_NV21		( 1 << CH1_OSD_PIC_MASK )
++#define CH1_OSD_PIC_NV12		( 2 << CH1_OSD_PIC_MASK )
++#define CH1_OSD_PIC_ARGB		( 3 << CH1_OSD_PIC_MASK )
++#define CH0_OSD_PIC_MASK			(6)
++#define CH0_OSD_PIC_NV21		( 1 << CH0_OSD_PIC_MASK )
++#define CH0_OSD_PIC_NV12		( 2 << CH0_OSD_PIC_MASK )
++#define CH0_OSD_PIC_ARGB		( 3 << CH0_OSD_PIC_MASK )
++#define OSD_CHN_EN_MASK				(0)
++#define OSD_CHN_EN_CH0			( 1  << OSD_CHN_EN_MASK )
++#define OSD_CHN_EN_CH1			( 2  << OSD_CHN_EN_MASK )
++#define OSD_CHN_EN_CH2			( 4  << OSD_CHN_EN_MASK )
++#define OSD_CHN_EN_CH3			( 8  << OSD_CHN_EN_MASK )
++#define OSD_CHN_EN_BKG			( 16 << OSD_CHN_EN_MASK )
++#define OSD_CHN_EN_DST			( 32 << OSD_CHN_EN_MASK )
++
++#endif	/* #ifdef __KERNEL__ */
++
++///////////////////////////////////////////
++
++/* Data Format Register, export to libipu */
++#define OUT_FMT_RGB555				0
++#define OUT_FMT_RGB565				1
++#define OUT_FMT_RGB888				2
++#define OUT_FMT_YUV422				3
++#define OUT_FMT_RGBAAA				4
++#define OUT_FMT_NV12				5
++#define OUT_FMT_NV21				6
++#define OUT_FMT_HSV                 7
++#define OUT_FMT_ARGB_8888			8
++#define OUT_FMT_ABGR_8888			9
++#define OUT_FMT_RGBA_8888			0xa
++#define OUT_FMT_BGRA_8888			0xb
++
++#define IN_FMT_BIT					0
++#define IN_FMT_YUV420				1
++#define IN_FMT_YUV420_B				2
++#define IN_FMT_YUV422				3
++#define IN_FMT_YUV444				4
++#define IN_FMT_RGB_555				5
++#define IN_FMT_RGB_888			    6
++#define IN_FMT_RGB_565				7
++#define IN_FMT_YUV411				8
++
++//hwang add
++#define NV_SEL						( 1 << 7 )
++#define NV_MODE_NV12				( 0 << 8 )
++#define NV_MODE_NV21				( 1 << 8 )
++
++#define __enable_blk_mode()		reg_bit_set(ipu, IPU_D_FMT, BLK_SEL)
++#define __disable_blk_mode()	reg_bit_clr(ipu, IPU_D_FMT, BLK_SEL)
++#define __clear_ipu_out_end()	reg_bit_clr(ipu, IPU_STATUS, OUT_END)
++#define __ipu_enable_irq()						\
++	do {unsigned int val = IRQ_EN ;				\
++		reg_bit_set(ipu, IPU_GLB_CTRL, val);	\
++	}while(0)
++#define __ipu_disable_irq()						\
++	do {unsigned int val = IRQ_EN ;				\
++		reg_bit_clr(ipu, IPU_GLB_CTRL, val);	\
++	}while(0)
++#define __start_ipu()			reg_bit_set(ipu, IPU_TRIGGER, IPU_RUN)
++#define __reset_ipu()			reg_bit_set(ipu, IPU_TRIGGER, IPU_RESET)
++#define __stop_ipu()			reg_bit_set(ipu, IPU_TRIGGER, IPU_STOP)
++
++#endif // _REGS_IPU_H_
+diff --git a/driver/ipu/t31_ipu.c b/driver/ipu/t31_ipu.c
+new file mode 100644
+index 00000000..e8d0d22a
+--- /dev/null
++++ b/driver/ipu/t31_ipu.c
+@@ -0,0 +1,1318 @@
++/*
++ * Copyright (c) 2015 Ingenic Semiconductor Co., Ltd.
++ *              http://www.ingenic.com/
++ *
++ * Input file for Ingenic IPU driver
++ *
++ * This  program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/errno.h>
++#include <linux/clk.h>
++#include <linux/mutex.h>
++#include <linux/poll.h>
++#include <linux/wait.h>
++#include <linux/fs.h>
++#include <linux/irq.h>
++#include <linux/mm.h>
++#include <linux/fb.h>
++#include <linux/ctype.h>
++#include <linux/dma-mapping.h>
++#include <linux/interrupt.h>
++#include <linux/platform_device.h>
++#include <linux/io.h>
++#include <linux/memory.h>
++#include <linux/suspend.h>
++#include <linux/miscdevice.h>
++#include <linux/proc_fs.h>
++#include <linux/delay.h>
++#include <linux/completion.h>
++#include <linux/time.h>
++#include <linux/version.h>
++#include <linux/of.h>
++#include "jz_regs_v13.h"
++#include "jz_ipu_v13.h"
++
++/*
++ * open-tx-isp: T31 IPU (OSD blend) driver, ported from the vendor 3.10
++ * jz_ipu_v13 driver (incl. the thingino wedge mitigation) so that
++ * /dev/ipu also exists on mainline-based kernels. The module is T31 only;
++ * the ahb1 gate the vendor code guards with CONFIG_SOC_T31 is always used.
++ */
++#define IPU_T31_AHB1 1
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
++#undef INIT_COMPLETION
++#define INIT_COMPLETION(x) reinit_completion(&(x))
++#endif
++
++static inline int ipu_clk_on(struct clk *clk)
++{
++	return clk_prepare_enable(clk);
++}
++
++static inline void ipu_clk_off(struct clk *clk)
++{
++	clk_disable_unprepare(clk);
++}
++
++
++//#define DEBUG
++#ifdef	DEBUG
++static int debug_ipu = 1;
++
++#define IPU_DEBUG(format, ...) { if (debug_ipu) printk(format, ## __VA_ARGS__);}
++#else
++#define IPU_DEBUG(format, ...) do{ } while(0)
++#endif
++
++#define IPU_BUF_SIZE (1024 * 1024 * 2)
++
++/*
++ * Completion timeout for a single IPU op, and the consecutive-wedge fuse
++ * for the reset+retry mitigation in ipu_start().
++ *
++ * The T20-family IPU occasionally wedges mid-frame into an undefined
++ * internal state (MSTATUS=3 in IPU_STATUS[5:4]; hardware documents only
++ * 0/1/2) roughly once per ~500k ops.  The engine clock stays alive and
++ * counting, the IRQ stays enabled, but OUT_END never asserts - a silicon
++ * datapath hang, not a software bug.  There is no software cure; the
++ * existing IPU_STOP/IPU_RESET trigger sequence reliably returns the
++ * engine to a working state, so all we can do is detect fast and recover
++ * fast instead of parking both video channels behind ipu->mutex for the
++ * old 2000 ms wait.
++ *
++ * Timeout budget, from live T20 register evidence (Wyze Cam v2, JXF23):
++ * IPU_CLK_NUM_ONE_FRA counts IPU clocks per frame.  Healthy ops measure
++ * ~0x6E00 (~28k clocks) for small ops and ~0x26500 (~157k clocks) for a
++ * full 1920x1088 composite.  During a wedged 2000 ms wait the same
++ * counter reads 0x17d3df38 (400.1M clocks), which both proves the clock
++ * ran the whole time and directly measures the IPU clock at ~200 MHz.
++ * Worst healthy op is therefore ~0.8 ms; 100 ms is >120x headroom, so a
++ * timeout is a wedge, not a slow frame.
++ */
++#define IPU_DONE_TIMEOUT_MS	100
++
++/*
++ * If this many consecutive ops time out (a transient wedge clears after
++ * one reset; a genuinely dead engine does not), stop paying for the
++ * in-call retry and fail each op after a single timeout instead.  Any
++ * successful op resets the streak.  The retry is already bounded to one
++ * per call, so this fuse only trims worst-case latency on broken
++ * hardware; 16 ops (~a third of a second of stalled ops at 50 ops/s) is
++ * ample evidence the engine is not coming back on its own.
++ */
++#define IPU_WEDGE_STREAK_FUSE	16
++
++struct ipu_reg_struct jz_ipu_regs_name[] = {
++	{"IPU_FM_CTRL", IPU_FM_CTRL},
++	{"IPU_STATUS", IPU_STATUS},
++	{"IPU_D_FMT", IPU_D_FMT},
++	{"IPU_Y_ADDR", IPU_Y_ADDR},
++	{"IPU_U_ADDR", IPU_U_ADDR},
++	{"IPU_IN_FM_GS", IPU_IN_FM_GS},
++	{"IPU_Y_STRIDE", IPU_Y_STRIDE},
++	{"IPU_UV_STRIDE", IPU_UV_STRIDE},
++	{"IPU_OUT_ADDR", IPU_OUT_ADDR},
++	{"IPU_OUT_STRIDE", IPU_OUT_STRIDE},
++	{"IPU_OUT_V_ADDR", IPU_OUT_V_ADDR},
++	{"IPU_OUT_V_STRIDE", IPU_OUT_V_STRIDE},
++	{"IPU_REG_CTRL", IPU_REG_CTRL},
++	{"IPU_TRIGGER", IPU_TRIGGER},
++	{"IPU_GLB_CTRL", IPU_GLB_CTRL},
++
++	{"IPU_NV_OUT_ADDR", IPU_NV_OUT_ADDR},
++	{"IPU_NV_OUT_STRIDE", IPU_NV_OUT_STRIDE},
++	{"IPU_OSD_IN_CH0_Y_ADDR", IPU_OSD_IN_CH0_Y_ADDR},
++	{"IPU_OSD_IN_CH0_Y_STRIDE", IPU_OSD_IN_CH0_Y_STRIDE},
++	{"IPU_OSD_IN_CH0_UV_ADDR", IPU_OSD_IN_CH0_UV_ADDR},
++	{"IPU_OSD_IN_CH0_UV_STRIDE", IPU_OSD_IN_CH0_UV_STRIDE},
++	{"IPU_OSD_IN_CH1_Y_ADDR", IPU_OSD_IN_CH1_Y_ADDR},
++	{"IPU_OSD_IN_CH1_Y_STRIDE", IPU_OSD_IN_CH1_Y_STRIDE},
++	{"IPU_OSD_IN_CH1_UV_ADDR", IPU_OSD_IN_CH1_UV_ADDR},
++	{"IPU_OSD_IN_CH1_UV_STRIDE", IPU_OSD_IN_CH1_UV_STRIDE},
++	{"IPU_OSD_IN_CH2_Y_ADDR", IPU_OSD_IN_CH2_Y_ADDR},
++	{"IPU_OSD_IN_CH2_Y_STRIDE", IPU_OSD_IN_CH2_Y_STRIDE},
++	{"IPU_OSD_IN_CH2_UV_ADDR", IPU_OSD_IN_CH2_UV_ADDR},
++	{"IPU_OSD_IN_CH2_UV_STRIDE", IPU_OSD_IN_CH2_UV_STRIDE},
++	{"IPU_OSD_IN_CH3_Y_ADDR", IPU_OSD_IN_CH3_Y_ADDR},
++	{"IPU_OSD_IN_CH3_Y_STRIDE", IPU_OSD_IN_CH3_Y_STRIDE},
++	{"IPU_OSD_IN_CH3_UV_ADDR", IPU_OSD_IN_CH3_UV_ADDR},
++	{"IPU_OSD_IN_CH3_UV_STRIDE", IPU_OSD_IN_CH3_UV_STRIDE},
++	{"IPU_OSD_CH0_GS", IPU_OSD_CH0_GS},
++	{"IPU_OSD_CH1_GS", IPU_OSD_CH1_GS},
++	{"IPU_OSD_CH2_GS", IPU_OSD_CH2_GS},
++	{"IPU_OSD_CH3_GS", IPU_OSD_CH3_GS},
++	{"IPU_OSD_CH0_POS", IPU_OSD_CH0_POS},
++	{"IPU_OSD_CH1_POS", IPU_OSD_CH1_POS},
++	{"IPU_OSD_CH2_POS", IPU_OSD_CH2_POS},
++	{"IPU_OSD_CH3_POS", IPU_OSD_CH3_POS},
++	{"IPU_OSD_CH0_PARA", IPU_OSD_CH0_PARA},
++	{"IPU_OSD_CH1_PARA", IPU_OSD_CH1_PARA},
++	{"IPU_OSD_CH2_PARA", IPU_OSD_CH2_PARA},
++	{"IPU_OSD_CH3_PARA", IPU_OSD_CH3_PARA},
++	{"IPU_OSD_CH_BK_PARA", IPU_OSD_CH_BK_PARA},
++	{"IPU_OSD_CH0_BAK_ARGB", IPU_OSD_CH0_BAK_ARGB},
++	{"IPU_OSD_CH1_BAK_ARGB", IPU_OSD_CH1_BAK_ARGB},
++	{"IPU_OSD_CH2_BAK_ARGB", IPU_OSD_CH2_BAK_ARGB},
++	{"IPU_OSD_CH3_BAK_ARGB", IPU_OSD_CH3_BAK_ARGB},
++	{"IPU_OSD_CH_B_BAK_ARGB", IPU_OSD_CH_B_BAK_ARGB},
++	{"IPU_CH0_CSC_C0_COEF", IPU_CH0_CSC_C0_COEF},
++	{"IPU_CH0_CSC_C1_COEF", IPU_CH0_CSC_C1_COEF},
++	{"IPU_CH0_CSC_C2_COEF", IPU_CH0_CSC_C2_COEF},
++	{"IPU_CH0_CSC_C3_COEF", IPU_CH0_CSC_C3_COEF},
++	{"IPU_CH0_CSC_C4_COEF", IPU_CH0_CSC_C4_COEF},
++	{"IPU_CH0_CSC_OFSET_PARA", IPU_CH0_CSC_OFSET_PARA},
++	{"IPU_CH1_CSC_C0_COEF", IPU_CH1_CSC_C0_COEF},
++	{"IPU_CH1_CSC_C1_COEF", IPU_CH1_CSC_C1_COEF},
++	{"IPU_CH1_CSC_C2_COEF", IPU_CH1_CSC_C2_COEF},
++	{"IPU_CH1_CSC_C3_COEF", IPU_CH1_CSC_C3_COEF},
++	{"IPU_CH1_CSC_C4_COEF", IPU_CH1_CSC_C4_COEF},
++	{"IPU_CH1_CSC_OFSET_PARA", IPU_CH1_CSC_OFSET_PARA},
++	{"IPU_CH2_CSC_C0_COEF", IPU_CH2_CSC_C0_COEF},
++	{"IPU_CH2_CSC_C1_COEF", IPU_CH2_CSC_C1_COEF},
++	{"IPU_CH2_CSC_C2_COEF", IPU_CH2_CSC_C2_COEF},
++	{"IPU_CH2_CSC_C3_COEF", IPU_CH2_CSC_C3_COEF},
++	{"IPU_CH2_CSC_C4_COEF", IPU_CH2_CSC_C4_COEF},
++	{"IPU_CH2_CSC_OFSET_PARA", IPU_CH2_CSC_OFSET_PARA},
++	{"IPU_CH3_CSC_C0_COEF", IPU_CH3_CSC_C0_COEF},
++	{"IPU_CH3_CSC_C1_COEF", IPU_CH3_CSC_C1_COEF},
++	{"IPU_CH3_CSC_C2_COEF", IPU_CH3_CSC_C2_COEF},
++	{"IPU_CH3_CSC_C3_COEF", IPU_CH3_CSC_C3_COEF},
++	{"IPU_CH3_CSC_C4_COEF", IPU_CH3_CSC_C4_COEF},
++	{"IPU_CH3_CSC_OFSET_PARA", IPU_CH3_CSC_OFSET_PARA},
++	{"IPU_RD_ARB_CTL", IPU_RD_ARB_CTL},
++	{"IPU_CLK_NUM_ONE_FRA", IPU_CLK_NUM_ONE_FRA},
++	{"IPU_OSD_LAY_PADDING_ARGB", IPU_OSD_LAY_PADDING_ARGB},
++	{"IPU_TEST_1B4", IPU_TEST_1B4},
++};
++
++
++static void reg_bit_set(struct jz_ipu *ipu, int offset, unsigned int bit)
++{
++	unsigned int reg = 0;
++	reg = reg_read(ipu, offset);
++	reg |= bit;
++	reg_write(ipu, offset, reg);
++}
++
++static void reg_bit_clr(struct jz_ipu *ipu, int offset, unsigned int bit)
++{
++	unsigned int reg = 0;
++	reg= reg_read(ipu, offset);
++	reg &= ~(bit);
++	reg_write(ipu, offset, reg);
++}
++
++static unsigned int _hal_to_ipu_infmt(int hal_fmt, int *isrgb)
++{
++	unsigned int ipu_fmt = IN_FMT_YUV420;
++	int rgb = 0;
++
++	switch (hal_fmt) {
++		case HAL_PIXEL_FORMAT_YCbCr_422_SP:
++			ipu_fmt = IN_FMT_YUV422;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_420_SP:
++			ipu_fmt = IN_FMT_YUV420;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_422_P:
++			ipu_fmt = IN_FMT_YUV422;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_422_I:
++			ipu_fmt = IN_FMT_YUV422;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_420_I:
++			ipu_fmt = IN_FMT_YUV420;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_420_B:
++		case HAL_PIXEL_FORMAT_JZ_YUV_420_B:
++			ipu_fmt = IN_FMT_YUV420_B;
++			rgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_RGBA_8888:
++		case HAL_PIXEL_FORMAT_RGBX_8888:
++		case HAL_PIXEL_FORMAT_RGB_888:
++		case HAL_PIXEL_FORMAT_BGRA_8888:
++		case HAL_PIXEL_FORMAT_ARGB_8888:
++		case HAL_PIXEL_FORMAT_ABGR_8888:
++		case HAL_PIXEL_FORMAT_BGRX_8888:
++			ipu_fmt = IN_FMT_RGB_888;
++			rgb = 1;
++			break;
++		case HAL_PIXEL_FORMAT_NV12:
++		case HAL_PIXEL_FORMAT_NV21:
++		case HAL_PIXEL_FORMAT_YCbCr_420_P:
++		case HAL_PIXEL_FORMAT_JZ_YUV_420_P:
++		default:
++			ipu_fmt = IN_FMT_YUV420;
++			rgb = 0;
++			break;
++	}
++	if (isrgb != 0)
++		*isrgb = rgb;
++	return ipu_fmt;
++}
++
++static unsigned int _hal_to_ipu_outfmt(int hal_fmt)
++{
++	unsigned int ipu_fmt = OUT_FMT_RGBA_8888;
++
++	switch (hal_fmt) {
++		case HAL_PIXEL_FORMAT_ARGB_8888:
++			ipu_fmt = OUT_FMT_ARGB_8888;
++			break;
++		case HAL_PIXEL_FORMAT_ABGR_8888:
++			ipu_fmt = OUT_FMT_ABGR_8888;
++			break;
++		case HAL_PIXEL_FORMAT_RGBA_8888:
++			ipu_fmt = OUT_FMT_RGBA_8888;
++			break;
++		case HAL_PIXEL_FORMAT_BGRA_8888:
++			ipu_fmt = OUT_FMT_BGRA_8888;
++			break;
++		case HAL_PIXEL_FORMAT_YCbCr_422_I:
++			ipu_fmt = OUT_FMT_YUV422;
++			break;
++		case HAL_PIXEL_FORMAT_NV12:
++			ipu_fmt = OUT_FMT_NV12;
++			break;
++        case HAL_PIXEL_FORMAT_HSV:/*Add HSV*/
++            ipu_fmt = OUT_FMT_HSV;
++            break;
++		case HAL_PIXEL_FORMAT_NV21:
++			ipu_fmt = OUT_FMT_NV21;
++			break;
++	}
++	return ipu_fmt;
++}
++
++#define IPU_OSD_CH_BK_PARA_GLO_A(p, x) ((p)=(((p)&(~(0xff<<3)))|((x&0xff)<<3)))
++#define IPU_OSD_CH_BK_PARA_ALPHA_SEL(p, x) ((p)=(((p)&(~(0x3<<1)))|((x&0x3)<<1)))
++static int _ipu_set_bg_route(struct jz_ipu *ipu, struct ipu_param *ipu_param)
++{
++	int ret = 0;
++	unsigned int reg_val = 0;
++	unsigned int bgrgb = 0;
++	unsigned int srcw = 0;
++	unsigned int srch = 0;
++	unsigned int outw = 0;
++	unsigned int outh = 0;
++	unsigned int infmt = 0;
++	unsigned int outfmt = 0;
++	unsigned int outwstride = 0;
++	struct ipu_param *ip = ipu_param;
++
++	srcw = ip->bg_w;
++	srch = ip->bg_h;
++	outw = ip->bg_w;
++	outh = ip->bg_h;
++
++	IPU_DEBUG("ipu: %s, bgrgb = %d, srcw = %d, srch = %d, outw = %d, outh = %d \n",
++			__func__, bgrgb, srcw, srch, outw, outh);
++	infmt  = _hal_to_ipu_infmt(ip->bg_fmt, &bgrgb);
++	outfmt = _hal_to_ipu_outfmt(ip->out_fmt);
++	switch (outfmt) {
++		case OUT_FMT_ARGB_8888:
++		case OUT_FMT_ABGR_8888:
++		case OUT_FMT_RGBA_8888:
++		case OUT_FMT_BGRA_8888:
++			outwstride = outw << 2;
++			break;
++		default:
++			outwstride = outw;
++			break;
++	}
++	reg_write(ipu, IPU_IN_FM_GS, (IN_FM_W(srcw) | IN_FM_H(srch)));
++
++   if (ip->cmd & IPU_CMD_OSD)
++    {
++	    reg_write(ipu, IPU_OSD_CH_B_BAK_ARGB, 0xffaa7733);
++    }
++
++    /****** Add HSV,ARGB,ABGR,RGBA,BGRA *******/
++    if (outfmt == OUT_FMT_HSV) {/* out format */
++        reg_val = 0x4;
++    } else if (outfmt == OUT_FMT_ARGB_8888) {
++        reg_val = 0x0;
++	} else if (outfmt == OUT_FMT_ABGR_8888) {
++        reg_val = 0x28;
++	} else if (outfmt == OUT_FMT_RGBA_8888) {
++        reg_val = 0x40;
++	} else if (outfmt == OUT_FMT_BGRA_8888) {
++        reg_val = 0x68;
++    } else if (outfmt == OUT_FMT_NV21) {
++        reg_val = 0x3;
++    }
++	reg_write(ipu, IPU_D_FMT, reg_val);
++
++	/*
++	* IPU_D_FMT just use 0~6 bit, if IPU_OSD_CH_BK_PARA set CH_BK_PIC_TYPE ,
++	* and the IPU was use to do OSD, this register OUT_FMT bits was valueless,
++	* the OUT_FMT are automatically set equal to CH_BK_PIC_TYPE value;
++	* and if IPU was use to do conversion format, the OUT_FMT bits must be set to the
++	* format that you want to conversion.
++	*/
++	if (infmt == IN_FMT_YUV420_B) {
++		__enable_blk_mode();
++	}
++
++	if ((ip->out_fmt == HAL_PIXEL_FORMAT_NV12) || (ip->out_fmt == HAL_PIXEL_FORMAT_NV21)) {/*Add NV12 or NV21*/
++		reg_write(ipu, IPU_OUT_STRIDE,	srcw);
++        reg_write(ipu, IPU_NV_OUT_STRIDE, srcw);
++	} else if (ip->out_fmt == HAL_PIXEL_FORMAT_HSV) {/* Add HSV */
++        reg_write(ipu, IPU_OUT_STRIDE, srcw);
++        reg_write(ipu, IPU_NV_OUT_STRIDE, srcw*2);
++        reg_write(ipu, IPU_OUT_V_STRIDE, srcw);
++    } else if (ip->out_fmt == HAL_PIXEL_FORMAT_BGRA_8888 || ip->out_fmt == HAL_PIXEL_FORMAT_RGBA_8888 || ip->out_fmt == HAL_PIXEL_FORMAT_ARGB_8888 || ip->out_fmt == HAL_PIXEL_FORMAT_ABGR_8888) {/* Add ARGB */
++        reg_write(ipu, IPU_OUT_STRIDE, srcw<<2);
++    } else {
++		reg_write(ipu, IPU_OUT_STRIDE, outwstride);
++	}
++
++	if (infmt == IN_FMT_YUV420_B) {
++		reg_write(ipu, IPU_Y_STRIDE, srcw * 16);
++	} else if (reg_read(ipu, IPU_FM_CTRL) & (1 << 10)) {
++		reg_write(ipu, IPU_Y_STRIDE, srcw * 2);
++	} else {
++		reg_write(ipu, IPU_Y_STRIDE, srcw);
++	}
++	switch (infmt) {
++		case IN_FMT_YUV420:
++			reg_val = U_STRIDE(srcw) | V_STRIDE(srcw);
++			reg_write(ipu, IPU_UV_STRIDE, reg_val);
++			break;
++		case IN_FMT_YUV422:
++			reg_val = U_STRIDE(srcw / 2) | V_STRIDE(srcw / 2);
++			reg_write(ipu, IPU_UV_STRIDE, reg_val);
++			break;
++		case IN_FMT_YUV420_B:
++			reg_val = U_STRIDE(8 * srcw) | V_STRIDE(8 * srcw);
++			reg_write(ipu, IPU_UV_STRIDE, reg_val);
++			break;
++		case IN_FMT_YUV444:
++			reg_val = U_STRIDE(srcw) | V_STRIDE(srcw);
++			reg_write(ipu, IPU_UV_STRIDE, reg_val);
++			break;
++		case IN_FMT_YUV411:
++			reg_val = U_STRIDE(srcw / 4) | V_STRIDE(srcw / 4);
++			reg_write(ipu, IPU_UV_STRIDE, reg_val);
++			break;
++		default:
++			dev_err(ipu->dev, "Error: 222 Input data format isn't support\n");
++	}
++
++	reg_val = 0;
++	/*select bk ch input fmt*/
++	if (bgrgb) {
++		switch(ip->bg_fmt) {
++			case HAL_PIXEL_FORMAT_ARGB_8888:
++				reg_val |= CH_BK_ARGB_TYPE_ARGB;
++				break;
++			case HAL_PIXEL_FORMAT_ABGR_8888:
++				reg_val |= CH_BK_ARGB_TYPE_ABGR;
++				break;
++			case HAL_PIXEL_FORMAT_RGBA_8888:
++				reg_val |= CH_BK_ARGB_TYPE_RGBA;
++				break;
++			case HAL_PIXEL_FORMAT_BGRA_8888:
++				reg_val |= CH_BK_ARGB_TYPE_BGRA;
++				break;
++//			case HAL_PIXEL_FORMAT_BGRA_5551:   //bg_fmt is not support 5551
++			default:
++				reg_val |= CH_BK_ARGB_TYPE_BGRA;
++				break;
++		}
++		reg_val |= CH_BK_PIC_TYPE_ARGB;
++//		reg_val |= CH_BK_ARGB_TYPE_BGRA;	//Maybe it's have an other choice, but here I fix it.You can change it.
++	} else {
++		switch(ip->bg_fmt) {
++			case HAL_PIXEL_FORMAT_NV12:
++				reg_val |= CH_BK_PIC_TYPE_NV12;
++				break;
++			case HAL_PIXEL_FORMAT_NV21:
++				reg_val |= CH_BK_PIC_TYPE_NV21;
++				break;
++			default:
++				reg_val |= CH_BK_PIC_TYPE_NV12;
++				break;
++		}
++	}
++	if (ip->cmd & IPU_CMD_OSD) {
++		IPU_DEBUG("ipu: Attention!! Have some OSD CH will ENABLE!!!!\n");
++		reg_val |= CH_BK_PREM;
++	}
++
++	IPU_DEBUG("ipu: enable background ch!!! \n");
++	reg_val |= CH_BK_EN;
++
++	reg_write(ipu, IPU_OSD_CH_BK_PARA, reg_val);/* input bk format */
++	IPU_DEBUG("ipu: Background reg val = 0x%08x\n", reg_read(ipu, IPU_OSD_CH_BK_PARA));
++
++	return ret;
++}
++
++static int _ipu_osd_isrgb(unsigned int fmt)
++{
++	int isrgb = 0;
++	switch(fmt) {
++		case HAL_PIXEL_FORMAT_ARGB_8888:
++		case HAL_PIXEL_FORMAT_ABGR_8888:
++		case HAL_PIXEL_FORMAT_RGBA_8888:
++		case HAL_PIXEL_FORMAT_RGBX_8888:
++		case HAL_PIXEL_FORMAT_BGRA_8888:
++		case HAL_PIXEL_FORMAT_BGRX_8888:
++			isrgb = 1;
++			break;
++		case HAL_PIXEL_FORMAT_NV12:
++			isrgb = 0;
++			break;
++        case HAL_PIXEL_FORMAT_HSV:/*Add HSV*/
++            isrgb = 0;
++            break;
++		case HAL_PIXEL_FORMAT_NV21:
++			isrgb = 0;
++			break;
++		case HAL_PIXEL_FORMAT_BGRA_5551:
++		case HAL_PIXEL_FORMAT_RGBA_5551:
++			isrgb = 2;
++			break;
++		default:
++			isrgb = -1;
++			break;
++	}
++	return isrgb;
++}
++
++static int _ipu_set_osd_chx_route(struct jz_ipu *ipu, struct ipu_param *ip, int ch)
++{
++	unsigned int isrgb = 0;
++	unsigned int posx = 0;
++	unsigned int posy = 0;
++	unsigned int srcw = 0;
++	unsigned int srch = 0;
++	unsigned int para = 0;
++	unsigned int fmt = 0;
++	unsigned int bak_argb = 0;
++
++	if ((ch < 0) || (ch > 3)) {
++		printk("ipu: osd channel num err ch = %d\n", ch);
++		return -1;
++	}
++	switch(ch) {
++		case 0:
++			fmt	= ip->osd_ch0_fmt;
++			posx  = ip->osd_ch0_pos_x;
++			posy  = ip->osd_ch0_pos_y;
++			srcw  = ip->osd_ch0_src_w;
++			srch  = ip->osd_ch0_src_h;
++			para  = ip->osd_ch0_para;
++			bak_argb  = ip->osd_ch0_bak_argb;
++			break;
++		case 1:
++			fmt	= ip->osd_ch1_fmt;
++			posx  = ip->osd_ch1_pos_x;
++			posy  = ip->osd_ch1_pos_y;
++			srcw  = ip->osd_ch1_src_w;
++			srch  = ip->osd_ch1_src_h;
++			para  = ip->osd_ch1_para;
++			bak_argb  = ip->osd_ch1_bak_argb;
++			break;
++		case 2:
++			fmt	= ip->osd_ch2_fmt;
++			posx  = ip->osd_ch2_pos_x;
++			posy  = ip->osd_ch2_pos_y;
++			srcw  = ip->osd_ch2_src_w;
++			srch  = ip->osd_ch2_src_h;
++			para  = ip->osd_ch2_para;
++			bak_argb  = ip->osd_ch2_bak_argb;
++			break;
++		case 3:
++			fmt	= ip->osd_ch3_fmt;
++			posx  = ip->osd_ch3_pos_x;
++			posy  = ip->osd_ch3_pos_y;
++			srcw  = ip->osd_ch3_src_w;
++			srch  = ip->osd_ch3_src_h;
++			para  = ip->osd_ch3_para;
++			bak_argb  = ip->osd_ch3_bak_argb;
++			break;
++		default :
++			printk("ipu: osd channel num err ch = %d\n", ch);
++			return -1;
++			break;
++	}
++
++	isrgb = _ipu_osd_isrgb(fmt);
++	if (isrgb < 0) {
++			printk("ipu: osd fmt err fmt = %d\n", fmt);
++			return -1;
++	}
++	IPU_DEBUG("ipu: ch = %d, isrgb=%d, posx=%d, posy=%d, srcw=%d, srch=%d, para=%d\n",
++			ch, isrgb, posx, posy, srcw, srch, para);
++	if (isrgb == 1) {
++		reg_write(ipu, IPU_OSD_IN_CH0_Y_STRIDE+0x10*ch, srcw*4);
++	} else if (isrgb == 2){        //The format is RGBA5551
++		reg_write(ipu, IPU_OSD_IN_CH0_Y_STRIDE+0x10*ch, srcw*2);
++	} else {
++		reg_write(ipu, IPU_OSD_IN_CH0_Y_STRIDE+0x10*ch, srcw);
++		reg_write(ipu, IPU_OSD_IN_CH0_UV_STRIDE+0x10*ch, srcw);
++	}
++
++    if((srcw > 0) && (srch > 0)) {
++		if (isrgb == 1)
++			reg_write(ipu, IPU_OSD_CH0_GS+4*ch, (srcw << 16 << 2) | (srch << 0));
++		else if (isrgb == 2)       //The format is RGBA1555
++			reg_write(ipu, IPU_OSD_CH0_GS+4*ch, (srcw << 16 << 1) | (srch << 0));
++		else
++			reg_write(ipu, IPU_OSD_CH0_GS+4*ch, (srcw << 16) | (srch << 0));
++	}
++	else
++		reg_write(ipu, IPU_OSD_CH0_GS+4*ch, (100 << 16) | (100 << 0));
++
++	reg_write(ipu, IPU_OSD_CH0_POS+4*ch, (posx << 16) | (posy << 0));
++
++	if (isrgb > 0) {
++		reg_write(ipu, IPU_CH0_CSC_C0_COEF+0x18*ch, (0x133 << 0) | (0x25A << 20));
++		reg_write(ipu, IPU_CH0_CSC_C1_COEF+0x18*ch, (0x75 << 0) | (0x97 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C2_COEF+0x18*ch, (0x128 << 0) | (0x1BF << 20));
++		reg_write(ipu, IPU_CH0_CSC_C3_COEF+0x18*ch, (0x276 << 0) | (0x210 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C4_COEF+0x18*ch, 0x67 );
++		reg_write(ipu, IPU_CH0_CSC_OFSET_PARA+0x18*ch, (0x10 << 0) | (0x80 << 16));
++	} else {
++		reg_write(ipu, IPU_CH0_CSC_C0_COEF+0x18*ch, (0x400 << 0) | (0 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C1_COEF+0x18*ch, (0x490 << 0) | (0x400 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C2_COEF+0x18*ch, (0x190 << 0) | (0x252 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C3_COEF+0x18*ch, (0x400 << 0) | (0x81f << 20));
++		reg_write(ipu, IPU_CH0_CSC_C4_COEF+0x18*ch, 0 );
++		reg_write(ipu, IPU_CH0_CSC_OFSET_PARA+0x18*ch, (0x10 << 0) | (0x80 << 16));
++	}
++	reg_write(ipu, IPU_OSD_CH0_BAK_ARGB+4*ch, bak_argb);
++	if (para > 0)
++		reg_write(ipu, IPU_OSD_CH0_PARA+4*ch, para);
++	else
++		reg_write(ipu, IPU_OSD_CH0_PARA+4*ch, (0x1 | (0x2 << 11) | (0x01 << 1) | (0x32 << 3) | (0 << 19) | (0 << 18)));
++
++    return 0;
++}
++
++static int _ipu_set_bg_buffer(struct jz_ipu *ipu, struct ipu_param *ipu_param)
++{
++	unsigned int bg_y_pbuf = 0;
++	unsigned int bg_u_pbuf = 0;
++	unsigned int bg_v_pbuf = 0;
++    unsigned int out_y_pbuf = 0;
++    unsigned int out_uv_pbuf = 0;
++    unsigned int out_v_pbuf = 0;
++    unsigned int out_nv21_y = 0;
++    unsigned int out_nv21_uv = 0;
++
++	struct ipu_param *ip = ipu_param;
++
++	IPU_DEBUG("ipu: %s:%d \n", __func__, __LINE__);
++	if (ipu == NULL) {
++		dev_err(ipu->dev, "ipu is NULL\n");
++		return -1;
++	}
++
++    /* nv12 */
++	bg_y_pbuf = ((unsigned int)ip->bg_buf_p);
++	bg_u_pbuf = ((unsigned int)ip->bg_buf_p) + ip->bg_w*ip->bg_h;
++	bg_v_pbuf = bg_u_pbuf;
++
++    if(ip->cmd & IPU_CMD_CSC) {
++        /* OUT HSV */
++        out_y_pbuf = ((unsigned int)ip->osd_ch0_buf_p) + (ip->bg_w*ip->bg_h)*2;
++        out_uv_pbuf = ((unsigned int)ip->osd_ch0_buf_p);
++        out_v_pbuf = ((unsigned int)ip->osd_ch0_buf_p) + (ip->bg_w*ip->bg_h)*3;
++
++        /* OUT NV21 */
++        out_nv21_y = ((unsigned int)ip->osd_ch0_buf_p);
++        out_nv21_uv = ((unsigned int)ip->osd_ch0_buf_p) + (ip->bg_w*ip->bg_h);
++    }
++
++	IPU_DEBUG("ipu: bg_y_pbuf = 0x%08x, bg_u_pbuf = 0x%08x, bg_v_pbuf = 0x%08x\n", bg_y_pbuf, bg_u_pbuf, bg_v_pbuf);
++	reg_write(ipu, IPU_Y_ADDR, bg_y_pbuf);
++	reg_write(ipu, IPU_U_ADDR, bg_u_pbuf);
++
++	/* set out buff */
++    if (ip->cmd & IPU_CMD_CSC) {/* out addr */
++        if (ip->out_fmt == HAL_PIXEL_FORMAT_HSV) {
++            reg_write(ipu, IPU_OUT_ADDR, out_y_pbuf);
++            reg_write(ipu, IPU_NV_OUT_ADDR, out_uv_pbuf);
++            reg_write(ipu, IPU_OUT_V_ADDR, out_v_pbuf);
++        } else if (ip->out_fmt == HAL_PIXEL_FORMAT_NV21) {
++            reg_write(ipu, IPU_OUT_ADDR, out_nv21_y);
++            reg_write(ipu, IPU_NV_OUT_ADDR, out_nv21_uv);
++        } else {
++            reg_write(ipu, IPU_OUT_ADDR, out_uv_pbuf);/* OUT BGRA */
++        }
++    } else {
++	    reg_write(ipu, IPU_OUT_ADDR, bg_y_pbuf);
++	    reg_write(ipu, IPU_NV_OUT_ADDR, bg_u_pbuf);
++    }
++
++    return 0;
++}
++
++static int _ipu_set_osdx_buffer(struct jz_ipu *ipu, struct ipu_param *ipu_param, int ch)
++{
++	unsigned int osdx_y_pbuf = 0;
++	unsigned int osdx_uv_pbuf = 0;
++	struct ipu_param *ip = ipu_param;
++
++	IPU_DEBUG("ipu: %s:%d \n", __func__, __LINE__);
++	if (ipu == NULL) {
++		dev_err(ipu->dev, "ipu is NULL\n");
++		return -1;
++	}
++	if ((ch < 0) || (ch > 3)) {
++		printk("ipu: osd channel num err ch = %d\n", ch);
++		return -1;
++	}
++	switch(ch) {
++		case 0:
++			osdx_y_pbuf = (unsigned int)ip->osd_ch0_buf_p;
++			osdx_uv_pbuf = (unsigned int)ip->osd_ch0_buf_p + ip->osd_ch0_src_w * ip->osd_ch0_src_h;
++			break;
++		case 1:
++			osdx_y_pbuf = (unsigned int)ip->osd_ch1_buf_p;
++			osdx_uv_pbuf = (unsigned int)ip->osd_ch1_buf_p + ip->osd_ch1_src_w * ip->osd_ch1_src_h;
++			break;
++		case 2:
++			osdx_y_pbuf = (unsigned int)ip->osd_ch2_buf_p;
++			osdx_uv_pbuf = (unsigned int)ip->osd_ch2_buf_p + ip->osd_ch2_src_w * ip->osd_ch2_src_h;
++			break;
++		case 3:
++			osdx_y_pbuf = (unsigned int)ip->osd_ch3_buf_p;
++			osdx_uv_pbuf = (unsigned int)ip->osd_ch3_buf_p + ip->osd_ch3_src_w * ip->osd_ch3_src_h;
++			break;
++		default :
++			printk("ipu: osd channel num err ch = %d\n", ch);
++			return -1;
++			break;
++	}
++
++    /* set osd chx addr */
++	IPU_DEBUG("ipu: ch = %d, osdx_y_pbuf = 0x%08x, osdx_uv_pbuf = 0x%08x\n", ch, osdx_y_pbuf, osdx_uv_pbuf);
++	reg_write(ipu, IPU_OSD_IN_CH0_Y_ADDR+0x10*ch, osdx_y_pbuf);
++	reg_write(ipu, IPU_OSD_IN_CH0_UV_ADDR+0x10*ch, osdx_uv_pbuf);
++
++	return 0;
++}
++
++static int _ipu_dump_regs(struct jz_ipu *ipu)
++{
++	int i = 0;
++	int num = 0;
++
++	if (ipu == NULL) {
++		dev_err(ipu->dev, "ipu is NULL!\n");
++		return -1;
++	}
++	printk("----- dump regs -----\n");
++
++	num = sizeof(jz_ipu_regs_name) / sizeof(struct ipu_reg_struct);
++	for (i = 0; i < num; i++) {
++		printk("ipu_reg: %s: \t0x%08x\r\n", jz_ipu_regs_name[i].name, reg_read(ipu, jz_ipu_regs_name[i].addr));
++	}
++
++	return 0;
++}
++
++static void _ipu_dump_param(struct jz_ipu *ipu)
++{
++	return;
++}
++
++static int ipu_dump_info(struct jz_ipu *ipu)
++{
++	int ret = 0;
++	if (ipu == NULL) {
++		dev_err(ipu->dev, "ipu is NULL\n");
++		return -1;
++	}
++	printk("ipu: ipu->base: %p\n", ipu->iomem);
++	_ipu_dump_param(ipu);
++	ret = _ipu_dump_regs(ipu);
++
++	return ret;
++}
++
++static int ipu_start(struct jz_ipu *ipu, struct ipu_param *ipu_param)
++{
++	int ret = 0;
++	int attempt = 0;
++	int max_attempts = 0;
++	struct ipu_param *ip = ipu_param;
++
++	if ((ipu == NULL) || (ipu_param == NULL)) {
++		dev_err(ipu->dev, "ipu: ipu is NULL or ipu_param is NULL\n");
++		return -1;
++	}
++	if ((0 == (ip->cmd & IPU_CMD_OSD))&((0 == (ip->cmd & IPU_CMD_CSC)))) {
++
++		printk("ipu: error cmd 0x%08x\n", ip->cmd);
++		ret = -1;
++		goto err_cmd;
++	}
++	IPU_DEBUG("ipu: enter ipu_start %d\n", current->pid);
++
++	/*
++	 * This used to be a bare clk_enable() per op with no matching
++	 * clk_disable() anywhere in the driver, so the clock framework's
++	 * enable refcount climbed by one per op (~50/s while streaming;
++	 * observed at 6.1M and climbing on a live unit) and would
++	 * eventually wrap.  Keep the long-standing effective behavior -
++	 * IPU clock permanently on after the first op - but stop the
++	 * refcount climb.  Actually gating the clock between ops would be
++	 * brand-new behavior for a datapath that already wedges ~1/500k
++	 * ops, and does not belong in a stability fix.
++	 */
++	if (!ipu->clk_always_on) {
++		ipu_clk_on(ipu->clk);
++		ipu->clk_always_on = 1;
++	}
++#ifdef IPU_T31_AHB1
++	ipu_clk_on(ipu->ahb1_gate);
++#endif
++	__stop_ipu();
++	__reset_ipu();
++
++	ret = _ipu_set_bg_route(ipu, ip);
++	if (ret) {
++		printk("ipu: error _ipu_set_bg_route %d\n", ret);
++		goto err_ipu_set_bg_route;
++	}
++	ret = _ipu_set_bg_buffer(ipu, ip);
++	if (ret) {
++		printk("ipu: error _ipu_set_bg_buffer %d\n", ret);
++		goto err_ipu_set_bg_buffer;
++	}
++
++    if (ip->cmd & IPU_CMD_CSC) {
++		reg_write(ipu, IPU_REG_CTRL, 0xffffffff);
++        reg_write(ipu, IPU_OSD_CH0_PARA, 0x010417fa);
++        reg_write(ipu, IPU_OSD_CH_BK_PARA, 0x141000);
++
++		reg_write(ipu, IPU_CH0_CSC_C0_COEF, (0x4ad << 0) | (0 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C1_COEF, (0x669 << 0) | (0x4ad << 20));
++		reg_write(ipu, IPU_CH0_CSC_C2_COEF, (0x193 << 0) | (0x344 << 20));
++		reg_write(ipu, IPU_CH0_CSC_C3_COEF, (0x4ad << 0) | (0x81a << 20));
++		reg_write(ipu, IPU_CH0_CSC_C4_COEF, 0);
++		reg_write(ipu, IPU_CH0_CSC_OFSET_PARA, (0x10 << 0) | (0x80 << 16));
++    }
++
++	if (ip->cmd & IPU_CMD_OSD0) {
++		ret = _ipu_set_osd_chx_route(ipu, ip, 0);
++		if (ret) {
++			printk("ipu: error _ipu_set_osd_ch0_route %d\n", ret);
++			goto err_ipu_set_osd_chx_route;
++		}
++		ret = _ipu_set_osdx_buffer(ipu, ip, 0);
++		if (ret) {
++			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
++			goto err_ipu_set_osdx_buffer;
++		}
++	}
++	if (ip->cmd & IPU_CMD_OSD1) {
++		ret = _ipu_set_osd_chx_route(ipu, ip, 1);
++		if (ret) {
++			printk("ipu: error _ipu_set_osd_ch1_route %d\n", ret);
++			goto err_ipu_set_osd_chx_route;
++		}
++		ret = _ipu_set_osdx_buffer(ipu, ip, 1);
++		if (ret) {
++			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
++			goto err_ipu_set_osdx_buffer;
++		}
++	}
++	if (ip->cmd & IPU_CMD_OSD2) {
++		ret = _ipu_set_osd_chx_route(ipu, ip, 2);
++		if (ret) {
++			printk("ipu: error _ipu_set_osd_ch2_route %d\n", ret);
++			goto err_ipu_set_osd_chx_route;
++		}
++		ret = _ipu_set_osdx_buffer(ipu, ip, 2);
++		if (ret) {
++			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
++			goto err_ipu_set_osdx_buffer;
++		}
++	}
++	if (ip->cmd & IPU_CMD_OSD3) {
++		ret = _ipu_set_osd_chx_route(ipu, ip, 3);
++		if (ret) {
++			printk("ipu: error _ipu_set_osd_ch3_route %d\n", ret);
++			goto err_ipu_set_osd_chx_route;
++		}
++		ret = _ipu_set_osdx_buffer(ipu, ip, 3);
++		if (ret) {
++			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
++			goto err_ipu_set_osdx_buffer;
++		}
++	}
++
++	/*
++	 * Arm, fire, and wait for OUT_END.  On a wedge (see the
++	 * IPU_DONE_TIMEOUT_MS comment block), reset the engine and retry
++	 * the op once within this call, instead of returning an error and
++	 * letting the NEXT unrelated op eat the wedged engine.
++	 */
++	max_attempts = (ipu->wedge_streak >= IPU_WEDGE_STREAK_FUSE) ? 1 : 2;
++
++	for (attempt = 1; attempt <= max_attempts; attempt++) {
++		/*
++		 * Re-arm the completion for THIS op.  Without this, a late
++		 * OUT_END interrupt arriving just after a previous op timed
++		 * out leaves done_ipu already-completed, and the next
++		 * ipu_start() would return "success" immediately without the
++		 * hardware having done that frame's work.  Safe here: the op
++		 * has not been triggered yet, IPU_STATUS.OUT_END is cleared
++		 * below before the IRQ is enabled, so a stale interrupt
++		 * cannot re-complete it behind our back.  A shorter timeout
++		 * makes that stale-completion window MORE likely to be hit,
++		 * so this re-init is a required part of the timeout change.
++		 */
++		INIT_COMPLETION(ipu->done_ipu);
++
++		__clear_ipu_out_end();
++		__ipu_enable_irq();
++
++		reg_write(ipu, IPU_REG_CTRL, 0xffffffff);
++
++		/* reg_bit_set(ipu, IPU_TRIGGER, 6<<6); */
++		/* start ipu */
++		__start_ipu();
++
++#ifdef DEBUG
++		ipu_dump_info(ipu);
++#endif
++		IPU_DEBUG("ipu_start\n");
++
++		ret = wait_for_completion_interruptible_timeout(&ipu->done_ipu,
++				msecs_to_jiffies(IPU_DONE_TIMEOUT_MS));
++		if (ret > 0) {
++			/* completed normally */
++			if (ipu->wedge_streak) {
++				printk("ipu: recovered after reset%s (streak was %u, total wedges %lu)\n",
++						(attempt > 1) ? "+retry" : " by a previous op",
++						ipu->wedge_streak, ipu->wedge_total);
++				ipu->wedge_streak = 0;
++			}
++			break;
++		}
++
++		if (ret < 0) {
++			/* interrupted by a signal: not a hardware fault, no retry */
++			printk("ipu: done_ipu wait_for_completion_interruptible_timeout err %d\n", ret);
++			goto err_ipu_wait_for_done;
++		}
++
++		/* ret == 0: completion timed out - the engine wedged mid-frame */
++		ipu->wedge_total++;
++		ipu->wedge_streak++;
++		printk_ratelimited("ipu: done_ipu timeout after %d ms (attempt %d/%d, streak %u, total %lu) status=0x%08x clk_num=0x%08x - resetting\n",
++				IPU_DONE_TIMEOUT_MS, attempt, max_attempts,
++				ipu->wedge_streak, ipu->wedge_total,
++				reg_read(ipu, IPU_STATUS),
++				reg_read(ipu, IPU_CLK_NUM_ONE_FRA));
++
++		/*
++		 * The IRQ never fired (that is what a wedge is), so it is
++		 * still enabled; mask it before poking the trigger register,
++		 * then run the same stop/reset sequence that already proved
++		 * to unwedge the engine for the next op.  This recovery runs
++		 * even on the final attempt so a failing return still leaves
++		 * the engine reset for the next caller.
++		 */
++		__ipu_disable_irq();
++		__stop_ipu();
++		__reset_ipu();
++	}
++
++	if (ret <= 0) {
++		ret = -1;
++		printk("ipu: op abandoned after %d attempt(s), consecutive wedges %u\n",
++				max_attempts, ipu->wedge_streak);
++		/*
++		 * Full register dump only while the streak is fresh - on a
++		 * genuinely dead engine every op fails and the dump would
++		 * flood the log.
++		 */
++		if (ipu->wedge_streak <= 2)
++			ipu_dump_info(ipu);
++		goto err_ipu_wait_for_done;
++	}
++
++    IPU_DEBUG("ipu: exit ipu_start %d\n", current->pid);
++
++#ifdef IPU_T31_AHB1
++	ipu_clk_off(ipu->ahb1_gate);
++#endif
++
++    return 0;
++
++err_ipu_wait_for_done:
++err_ipu_set_osdx_buffer:
++err_ipu_set_bg_buffer:
++err_ipu_set_osd_chx_route:
++err_ipu_set_bg_route:
++#ifdef IPU_T31_AHB1
++	ipu_clk_off(ipu->ahb1_gate);
++#endif
++err_cmd:
++	return ret;
++
++}
++
++static long ipu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
++{
++	int ret = 0;
++	struct ipu_param iparam;
++	struct miscdevice *dev = filp->private_data;
++	struct jz_ipu *ipu = container_of(dev, struct jz_ipu, misc_dev);
++
++	IPU_DEBUG("ipu: %s pid: %d, tgid: %d file: %p, cmd: 0x%08x\n",
++			__func__, current->pid, current->tgid, filp, cmd);
++
++	if (_IOC_TYPE(cmd) != JZIPU_IOC_MAGIC) {
++		dev_err(ipu->dev, "invalid cmd!\n");
++		return -EFAULT;
++	}
++
++	mutex_lock(&ipu->mutex);
++
++	switch (cmd) {
++		case IOCTL_IPU_START:
++			if (copy_from_user(&iparam, (void *)arg, sizeof(struct ipu_param))) {
++				dev_err(ipu->dev, "copy_from_user error!!!\n");
++				ret = -EFAULT;
++				break;
++			}
++			ret = ipu_start(ipu, &iparam);
++			if (ret) {
++				printk("ipu: error ipu start ret = %d\n", ret);
++			}
++			break;
++		case IOCTL_IPU_GET_PBUFF:
++			if (ipu->pbuf.vaddr_alloc == 0) {
++				unsigned int size = IPU_BUF_SIZE;
++				ipu->pbuf.vaddr_alloc = (unsigned int)kmalloc(size, GFP_KERNEL);
++				if (!ipu->pbuf.vaddr_alloc) {
++					printk("ipu kmalloc is error\n");
++					ret = -ENOMEM;
++				}
++				memset((void*)(ipu->pbuf.vaddr_alloc), 0x00, size);
++				ipu->pbuf.size = size;
++				ipu->pbuf.paddr = virt_to_phys((void *)(ipu->pbuf.vaddr_alloc));
++				ipu->pbuf.paddr_align = ((unsigned long)(ipu->pbuf.paddr));
++			}
++			IPU_DEBUG("ipu: %s ipu->pbuf.vaddr_alloc = 0x%08x\nipu->pbuf.vaddr_align = 0x%08x\nipu->pbuf.size = 0x%x\nipu->pbuf.paddr = 0x%08x\n"
++					, __func__, ipu->pbuf.vaddr_alloc, ipu->pbuf.paddr_align, ipu->pbuf.size, ipu->pbuf.paddr);
++			if (copy_to_user((void *)arg, &ipu->pbuf, sizeof(struct ipu_buf_info))) {
++				dev_err(ipu->dev, "copy_to_user error!!!\n");
++				ret = -EFAULT;
++			}
++			break;
++		case IOCTL_IPU_RES_PBUFF:
++			if (ipu->pbuf.vaddr_alloc != 0) {
++				kfree((void *)ipu->pbuf.vaddr_alloc);
++				ipu->pbuf.vaddr_alloc = 0;
++				ipu->pbuf.size = 0;
++				ipu->pbuf.paddr = 0;
++				ipu->pbuf.paddr_align = 0;
++			} else {
++				dev_warn(ipu->dev, "buffer wanted to free is null\n");
++			}
++			break;
++		case IOCTL_IPU_BUF_LOCK:
++			ret = wait_for_completion_interruptible_timeout(&ipu->done_buf, msecs_to_jiffies(2000));
++			if (ret < 0) {
++				printk("ipu: done_buf wait_for_completion_interruptible_timeout err %d\n", ret);
++			} else if (ret == 0 ) {
++				printk("ipu: done_buf wait_for_completion_interruptible_timeout timeout %d\n", ret);
++				ret = -1;
++				ipu_dump_info(ipu);
++			} else {
++				ret = 0;
++			}
++			break;
++		case IOCTL_IPU_BUF_UNLOCK:
++			complete(&ipu->done_buf);
++			break;
++		case IOCTL_IPU_BUF_FLUSH_CACHE:
++			{
++				struct ipu_flush_cache_para fc;
++				if (copy_from_user(&fc, (void *)arg, sizeof(fc))) {
++					dev_err(ipu->dev, "copy_from_user error!!!\n");
++					ret = -EFAULT;
++					break;
++				}
++				//dma_sync_single_for_device(NULL, fc.addr, fc.size, DMA_TO_DEVICE);
++				//dma_sync_single_for_device(NULL, fc.addr, fc.size, DMA_FROM_DEVICE);
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
++				dma_cache_sync(NULL, fc.addr, fc.size, DMA_BIDIRECTIONAL);
++#else
++				/*
++				 * dma_cache_sync() on user addresses is gone. OpenIMP
++				 * does its own cache maintenance and uses uncached rmem;
++				 * only the vendor libimp issues this ioctl.
++				 */
++				(void)fc;
++#endif
++			}
++			break;
++	    default:
++			dev_err(ipu->dev, "invalid command: 0x%08x\n", cmd);
++			ret = -EINVAL;
++	}
++
++	mutex_unlock(&ipu->mutex);
++	return ret;
++}
++
++static int ipu_open(struct inode *inode, struct file *filp)
++{
++	int ret = 0;
++
++	struct miscdevice *dev = filp->private_data;
++	struct jz_ipu *ipu = container_of(dev, struct jz_ipu, misc_dev);
++
++	IPU_DEBUG("ipu: %s pid: %d, tgid: %d filp: %p\n",
++			__func__, current->pid, current->tgid, filp);
++	mutex_lock(&ipu->mutex);
++
++	mutex_unlock(&ipu->mutex);
++	return ret;
++}
++
++static int ipu_release(struct inode *inode, struct file *filp)
++{
++	int ret = 0;
++
++	struct miscdevice *dev = filp->private_data;
++	struct jz_ipu *ipu = container_of(dev, struct jz_ipu, misc_dev);
++
++	IPU_DEBUG("ipu: %s  pid: %d, tgid: %d filp: %p\n",
++			__func__, current->pid, current->tgid, filp);
++	mutex_lock(&ipu->mutex);
++
++	mutex_unlock(&ipu->mutex);
++	return ret;
++}
++
++static struct file_operations ipu_ops = {
++	.owner = THIS_MODULE,
++	.open = ipu_open,
++	.release = ipu_release,
++	.unlocked_ioctl = ipu_ioctl,
++};
++
++static irqreturn_t ipu_irq_handler(int irq, void *data)
++{
++	struct jz_ipu *ipu;
++	unsigned int status;
++
++	IPU_DEBUG("ipu: %s\n", __func__);
++	ipu = (struct jz_ipu *)data;
++	__ipu_disable_irq();
++	status = reg_read(ipu, IPU_STATUS);
++	IPU_DEBUG("----- %s, status= 0x%08x\n", __func__, status);
++	/* t10 supports 720P and max width 1280, but t20 supports 1080P and max width
++	 * is 1920; the width is limited to 1280 in hardware, so t20 status is 0x4,
++	 * and this status doesn't do anything including trigger interrupt,
++	 * just give a hint */
++    if (status & 0x1){
++        complete(&ipu->done_ipu);
++    }
++	return IRQ_HANDLED;
++}
++
++static int ipu_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++	struct jz_ipu *ipu;
++
++	IPU_DEBUG("%s\n", __func__);
++	ipu = (struct jz_ipu *)kzalloc(sizeof(struct jz_ipu), GFP_KERNEL);
++	if (!ipu) {
++		dev_err(&pdev->dev, "alloc jz_ipu failed!\n");
++		return -ENOMEM;
++	}
++
++	sprintf(ipu->name, "ipu");
++
++	ipu->misc_dev.minor = MISC_DYNAMIC_MINOR;
++	ipu->misc_dev.name = ipu->name;
++	ipu->misc_dev.fops = &ipu_ops;
++	ipu->dev = &pdev->dev;
++
++	mutex_init(&ipu->mutex);
++	init_completion(&ipu->done_ipu);
++	init_completion(&ipu->done_buf);
++	complete(&ipu->done_buf);
++
++	ipu->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!ipu->res) {
++		dev_err(&pdev->dev, "failed to get dev resources: %d\n", ret);
++		ret = -EINVAL;
++		goto err_get_res;
++	}
++	ipu->res = request_mem_region(ipu->res->start,
++			ipu->res->end - ipu->res->start + 1,
++			pdev->name);
++	if (!ipu->res) {
++		dev_err(&pdev->dev, "failed to request regs memory region");
++		ret = -EINVAL;
++		goto err_get_res;
++	}
++	ipu->iomem = ioremap(ipu->res->start, resource_size(ipu->res));
++	if (!ipu->iomem) {
++		dev_err(&pdev->dev, "failed to remap regs memory region: %d\n",ret);
++		ret = -EINVAL;
++		goto err_ioremap;
++	}
++
++	ipu->irq = platform_get_irq(pdev, 0);
++	if (request_irq(ipu->irq, ipu_irq_handler, IRQF_SHARED, ipu->name, ipu)) {
++		dev_err(&pdev->dev, "request irq failed\n");
++		ret = -EINVAL;
++		goto err_req_irq;
++	}
++
++	ipu->clk = clk_get(ipu->dev, ipu->name);
++	if (IS_ERR(ipu->clk)) {
++		dev_err(&pdev->dev, "ipu clk get failed!\n");
++		ret = PTR_ERR(ipu->clk);
++		goto err_get_clk;
++	}
++
++#ifdef IPU_T31_AHB1
++	ipu->ahb1_gate = clk_get(ipu->dev, "ahb1");
++	if (IS_ERR(ipu->ahb1_gate)) {
++		dev_err(&pdev->dev, "ipu ahb1 clk get failed!\n");
++		ret = PTR_ERR(ipu->ahb1_gate);
++		clk_put(ipu->clk);
++		goto err_get_clk;
++	}
++#endif
++
++	dev_set_drvdata(&pdev->dev, ipu);
++
++	__stop_ipu();
++	__reset_ipu();
++
++    ret = misc_register(&ipu->misc_dev);
++	if (ret < 0) {
++		dev_err(&pdev->dev, "register misc device failed!\n");
++		goto err_set_drvdata;
++	}
++
++	return 0;
++
++err_set_drvdata:
++	clk_put(ipu->ahb1_gate);
++	clk_put(ipu->clk);
++err_get_clk:
++	free_irq(ipu->irq, ipu);
++err_req_irq:
++	iounmap(ipu->iomem);
++err_ioremap:
++err_get_res:
++	kfree(ipu);
++
++	return ret;
++}
++
++static int ipu_do_remove(struct platform_device *pdev)
++{
++	int ret __maybe_unused = 0;
++	struct jz_ipu *ipu;
++	struct resource *res;
++	IPU_DEBUG("%s\n", __func__);
++
++	ipu = dev_get_drvdata(&pdev->dev);
++	res = ipu->res;
++	free_irq(ipu->irq, ipu);
++	iounmap(ipu->iomem);
++	release_mem_region(res->start, res->end - res->start + 1);
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
++	ret = misc_deregister(&ipu->misc_dev);
++	if (ret < 0) {
++		dev_err(ipu->dev, "misc_deregister error %d\n", ret);
++		return ret;
++	}
++#else
++	misc_deregister(&ipu->misc_dev);
++#endif
++	if (ipu->clk_always_on)
++		ipu_clk_off(ipu->clk);
++	clk_put(ipu->ahb1_gate);
++	clk_put(ipu->clk);
++	if (ipu->pbuf.vaddr_alloc) {
++		kfree((void *)(ipu->pbuf.vaddr_alloc));
++		ipu->pbuf.vaddr_alloc = 0;
++	}
++	if (ipu) {
++		kfree(ipu);
++	}
++
++	return 0;
++}
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
++static void ipu_remove(struct platform_device *pdev)
++{
++	ipu_do_remove(pdev);
++}
++#else
++static int ipu_remove(struct platform_device *pdev)
++{
++	return ipu_do_remove(pdev);
++}
++#endif
++
++static const struct of_device_id jz_ipu_of_match[] = {
++	{ .compatible = "ingenic,t31-ipu" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, jz_ipu_of_match);
++
++static struct platform_driver jz_ipu_driver = {
++	.probe	= ipu_probe,
++	.remove = ipu_remove,
++	.driver = {
++		.name = "jz-ipu",
++		.of_match_table = jz_ipu_of_match,
++	},
++};
++
++static int __init ipudev_init(void)
++{
++	IPU_DEBUG("%s\n", __func__);
++	platform_driver_register(&jz_ipu_driver);
++	return 0;
++}
++
++static void __exit ipudev_exit(void)
++{
++	IPU_DEBUG("%s\n", __func__);
++	platform_driver_unregister(&jz_ipu_driver);
++}
++
++module_init(ipudev_init);
++module_exit(ipudev_exit);
++
++MODULE_DESCRIPTION("JZ IPU driver");
++MODULE_AUTHOR("Ferdinand Jia <bcjia@ingenic.cn>");
++MODULE_LICENSE("GPL");
+-- 
+2.56.0
+
