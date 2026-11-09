@@ -67,6 +67,13 @@
 	};
 };
 
+/* Speaker amplifier enable: PA7, active high (aperto BR2_THINGINO_AUDIO_GPIO=7,
+   /etc/modules.d/40-audio "spk_gpio=7 spk_level=1"). The t31 codec drives it
+   only while a playback stream runs. */
+&codec {
+	speaker-enable-gpios = <&gpa 7 GPIO_ACTIVE_HIGH>;
+};
+
 /* PTZ stepper motors: pan PB29/PB30/PB31/PB19, tilt PB22/PB20/PB21/PC0.
    The pins and step counts come from thingino.json gpio_pan/gpio_tilt
    ("61 62 63 51", "54 52 53 64") and steps_pan/steps_tilt. */
