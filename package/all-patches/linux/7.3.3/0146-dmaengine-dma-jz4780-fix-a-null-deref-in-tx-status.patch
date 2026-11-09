@@ -1,0 +1,27 @@
+Subject: [PATCH] dmaengine: dma-jz4780: fix a NULL dereference in tx_status
+
+terminate_all() clears jzchan->desc. A cyclic cookie never completes,
+so a later tx_status() (ALSA calls it from sync_stop/hw_free when the
+PCM is closed after a STOP, and from PREPARE after an XRUN) skips the
+DMA_COMPLETE exit, does not find the descriptor on the issued list and
+dereferences jzchan->desc:
+
+  CPU 0 Unable to handle kernel paging request at virtual address 00000000
+  epc in jz4780_dma_tx_status
+
+With CONFIG_PANIC_ON_OOPS this reboots the SoC on every ALSA capture or
+playback close after a start. Check jzchan->desc before using it.
+
+Seen on a T31X (kernel 7.3.3, t31-aic capture).
+---
+--- a/drivers/dma/dma-jz4780.c
++++ b/drivers/dma/dma-jz4780.c
+@@ -658,7 +658,7 @@
+ 		/* On the issued list, so hasn't been processed yet */
+ 		residue = jz4780_dma_desc_residue(jzchan,
+ 					to_jz4780_dma_desc(vdesc), 0);
+-	} else if (cookie == jzchan->desc->vdesc.tx.cookie) {
++	} else if (jzchan->desc && cookie == jzchan->desc->vdesc.tx.cookie) {
+ 		residue = jz4780_dma_desc_residue(jzchan, jzchan->desc,
+ 					jzchan->curr_hwdesc + 1);
+ 	}
