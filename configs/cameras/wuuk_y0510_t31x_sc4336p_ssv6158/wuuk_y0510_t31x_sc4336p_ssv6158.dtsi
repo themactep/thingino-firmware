@@ -28,6 +28,32 @@
 	ingenic,cd-gpios = <&gpb 17 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
 };
 
+/* SDIO WLAN (ssv6158) hangs off MMC1 on PB8-11/PB13-14; the family tree
+   disables msc1 because it uses MSC0 for the card slot. The WLAN power pin
+   (gpio.wlan = 8) is raised from userspace, so poll for the card instead of
+   scanning once at boot (broken-cd), as on the Cinnado D1. */
+&msc1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&msc1_pb>;
+	ingenic,sdio_clk = <1>;
+	max-frequency = <24000000>;
+	broken-cd;
+};
+
+/* This board is WiFi-only, but the generic T31 tree enables the MAC, whose
+   RMII pinmux claims PB6-14 - the same pins MSC1/SDIO needs. Disable it. */
+&mac {
+	status = "disabled";
+};
+
+/* The reference tree enables I2C1 on PB25/PB26 (i2c1_pb); this board wires
+   those pins to the IR-CUT (gpio.ircut = "57 58"), so i2c1 must not hold the
+   pinmux. */
+&i2c1 {
+	status = "disabled";
+};
+
 / {
 	gpio-keys {
 		compatible = "gpio-keys";
