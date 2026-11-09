@@ -77,6 +77,7 @@
   function readField(el) {
     if (el.type === "checkbox") return el.checked;
     if (el.tagName === "SELECT") return el.value;
+    if (el.value.trim() === "") return null;
     const n = Number(el.value);
     return Number.isFinite(n) ? n : null;
   }
@@ -138,18 +139,7 @@
     });
     const reload = document.getElementById("audio-reload");
     if (reload) reload.addEventListener("click", loadAudioConfig);
-    const save = document.getElementById("save-config");
-    if (save) {
-      save.addEventListener("click", async () => {
-        const helper = api();
-        try {
-          if (helper && helper.saveConfig) await helper.saveConfig();
-          showAlert("success", "Audio configuration saved", 4000);
-        } catch (err) {
-          showAlert("danger", "Failed to save: " + (err.message || err), 6000);
-        }
-      });
-    }
+    // #save-config is already bound by streamer-config.js on this page.
     loadAudioConfig();
   });
 })();

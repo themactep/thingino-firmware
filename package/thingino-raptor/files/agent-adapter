@@ -501,10 +501,18 @@ agent_motion_enabled() {
 # A running rmd answers config reads itself and keeps detecting, so it is
 # stopped before false is written and started after true is written.
 agent_motion_set_enabled() {
-	[ "$1" = false ] && agent_ctl rmd stop >/dev/null 2>&1
-	agent_config_set motion enabled "$1" || return 1
+	if [ "$1" = false ]; then
+		agent_ctl rmd stop >/dev/null 2>&1
+	fi
+	if ! agent_config_set motion enabled "$1"; then
+		# Put detection back if the write failed after stopping rmd.
+		[ "$1" = false ] && agent_ctl rmd start >/dev/null 2>&1
+		return 1
+	fi
 	agent_config_save
-	[ "$1" = true ] && agent_ctl rmd start >/dev/null 2>&1
+	if [ "$1" = true ]; then
+		agent_ctl rmd start >/dev/null 2>&1 || return 1
+	fi
 	return 0
 }
 
