@@ -4,8 +4,8 @@
 # PTZ preset manager backed by the motors.presets array in /etc/thingino.json.
 # Each entry is {"id":N,"description":"..","x":N,"y":N}. The id is the
 # automation handle (cruise paths, ONVIF tokens) and is never renumbered;
-# the description is the user-facing label. The machine name "Preset_<id>"
-# is derived for ONVIF and never stored.
+# the description is the user-facing label, reported to ONVIF clients as the
+# preset Name while the token stays derived from the id.
 
 MOTORS_CONFIG="/etc/thingino.json"
 PRESETS='$.motors.presets'
@@ -145,9 +145,11 @@ case "$1" in
 			id=$(jct "$MOTORS_CONFIG" get motors.presets.$i.id 2>/dev/null)
 			x=$(jct "$MOTORS_CONFIG" get motors.presets.$i.x 2>/dev/null)
 			y=$(jct "$MOTORS_CONFIG" get motors.presets.$i.y 2>/dev/null)
-			# ONVIF name is derived from the id; the description never leaves
-			# the web UI.
-			echo "$id=Preset_$id,$x,$y"
+			description=$(jct "$MOTORS_CONFIG" get motors.presets.$i.description 2>/dev/null)
+			# One preset per line, description last: it may contain spaces
+			# and commas, so the consumer splits on the first three commas.
+			description=$(printf '%s' "$description" | tr '\n\r\t' ' ')
+			printf '%s,%s,%s,%s\n' "$id" "$x" "$y" "$description"
 			i=$((i + 1))
 		done
 		exit 0

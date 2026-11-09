@@ -1,62 +1,53 @@
-/* streamer-encoder.js - NATIVE RTSP main/substream encoder page. Talks directly
- * to the timps streamer over window.timpsApi (GET/POST /control on timps's own
- * port, per-boot token) - no /x/json-prudynt.cgi bridge (a/streamer-config.js
- * is no longer loaded here). One file drives both pages; the stream index is
- * derived from the body id (page-streamer-main -> 0, page-streamer-substream
- * -> 1).
- *
- * Load:  timpsApi.get() -> populate from json.video[idx] (+ the global
- *        json.audio.enabled for the "Audio in stream" switch).
- * Save:  every change goes to timpsApi.set({video:{idx:{key:val}}}) (audio
- *        switch -> {audio:{enabled}}). timps persists immediately, but ALL
- *        video/sensor keys are restart-required (caps.restart lists "video"),
- *        so each change shows the "restart the streamer" hint.
- * Offline: if timps is unreachable the controls stay disabled + a notice.
- *
- * Kept lean on purpose (embedded target): no libraries, no polling, changes
- * fire on 'change' only, text fields are debounced through timpsApi.
- */
 (function () {
   "use strict";
 
-  var body = document.body;
-  if (!body) return;
-  var idx =
-    body.id === "page-streamer-main" ? 0 :
-    body.id === "page-streamer-substream" ? 1 : -1;
-  if (idx < 0) return;
+  if (!document.body || document.body.id !== "page-streamer-video") return;
 
-  var P = "stream" + idx + "_"; // page field id prefix
+  var idx = 0;
+  var last = null;
+  var stats = null;
+  var videoLive = null;
+  var curMode = "";
+  var rotPred = [0, 0];
+  var ROT_KEYS = ["rotation", "width", "height", "fps", "enabled"];
 
-  // page field id (without prefix) -> timps video.* key + value type.
-  // "int": parseInt, "str": raw string, "bool": checkbox 0/1.
   var FIELD_MAP = {
     width: { key: "width", type: "int" },
     height: { key: "height", type: "int" },
     format: { key: "codec", type: "codec" },
     fps: { key: "fps", type: "int" },
     gop: { key: "gop", type: "int" },
-    max_gop: { key: "max_gop", type: "int" },
-    mode: { key: "rc_mode", type: "rc" },
     bitrate: { key: "bitrate", type: "int" },
     profile: { key: "profile", type: "int" },
     buffers: { key: "buffers", type: "int" },
     rtsp_endpoint: { key: "rtsp_path", type: "str" },
     enabled: { key: "enabled", type: "bool" },
+    qp: { key: "qp", type: "int" },
+    min_qp: { key: "min_qp", type: "int" },
+    max_qp: { key: "max_qp", type: "int" },
+    quality_lvl: { key: "quality_lvl", type: "int" },
+    change_pos: { key: "change_pos", type: "int" },
+    i_bias_lvl: { key: "i_bias_lvl", type: "int" },
+    fluc_lvl: { key: "fluc_lvl", type: "int" },
+    rotation: { key: "rotation", type: "int" },
+    mbrc: { key: "mbrc", type: "bool" },
   };
+  var KEY_TO_SUFFIX = {};
+  Object.keys(FIELD_MAP).forEach(function (s) { KEY_TO_SUFFIX[FIELD_MAP[s].key] = s; });
 
-  // page codec/mode spelling <-> timps canonical (lowercase) spelling
-  function codecToTimps(v) { return String(v).toLowerCase(); }        // H264 -> h264
-  function codecFromTimps(v) { return String(v).toUpperCase(); }      // h264 -> H264
-  function rcToTimps(v) { return String(v).toLowerCase(); }           // CAPPED_VBR -> capped_vbr
-  function rcFromTimps(v) { return String(v).toUpperCase(); }         // capped_vbr -> CAPPED_VBR
-
-  // per-SoC encoder capability (same matrix streamer-config.js used)
+  var RC_FIELDS = {
+    qp: { modes: ["FIXQP"], name: "Fixed QP" },
+    min_qp: {},
+    quality_lvl: { modes: ["VBR", "SMART"], classicOnly: true, name: "Quality level" },
+    change_pos: { modes: ["VBR", "SMART"], classicOnly: true, name: "Change position" },
+    i_bias_lvl: { name: "I-frame bias" },
+    fluc_lvl: { codecs: ["H265"], classicOnly: true, name: "Fluctuation level" },
+  };
+  var CLASSIC_FAMS = ["t10", "t20", "t21", "t23", "t30"];
+  var NO_IBIAS_FAMS = ["t40", "t41"];
   var SOC_MODE = {
-    t10: ["CBR", "VBR", "FIXQP", "SMART"],
-    t20: ["CBR", "VBR", "FIXQP", "SMART"],
-    t21: ["CBR", "VBR", "FIXQP", "SMART"],
-    t23: ["CBR", "VBR", "FIXQP", "SMART"],
+    t10: ["CBR", "VBR", "FIXQP", "SMART"], t20: ["CBR", "VBR", "FIXQP", "SMART"],
+    t21: ["CBR", "VBR", "FIXQP", "SMART"], t23: ["CBR", "VBR", "FIXQP", "SMART"],
     t30: ["CBR", "VBR", "FIXQP", "SMART"],
     t31: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
     t40: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
@@ -70,217 +61,419 @@
   };
   var DEF_MODE = ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"];
   var DEF_FMT = ["H264", "H265"];
+  var PROFILE = ["Baseline", "Main", "High"];
 
-  function socFamily(soc) {
-    if (!soc) return null;
-    var m = String(soc).toLowerCase().match(/^(t\d+|c\d+)/);
+  function $id(id) { return document.getElementById(id); }
+  function ui() { return window.timpsUi; }
+  function toast(t, m, ms) { ui().toast(t, m, ms); }
+
+  function socFamily() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var m = soc && String(soc).toLowerCase().match(/^(t\d+|c\d+)/);
     return m ? m[1] : null;
   }
 
-  function $id(id) { return document.getElementById(id); }
-
-  function toast(type, message, ms) {
-    if (typeof window.showAlert === "function") window.showAlert(type, message, ms);
-    else console.log("[streamer-encoder]", type + ":", message);
+  function isLive(key) {
+    if (key === "rtsp_path") return true;
+    return !!videoLive && videoLive.indexOf(key) >= 0;
   }
 
-  function restartHint() {
-    toast(
-      "warning",
-      "Setting saved. Encoder changes take effect after a streamer restart (Restart streamer in the menu).",
-      8000,
-    );
+  function streamSummary(v) {
+    if (!v || !v.width) return "";
+    return v.width + "×" + v.height + " · " + String(v.codec || "").toUpperCase() +
+      " · " + v.fps + " fps";
   }
 
-  function setEnabled(id, on) {
-    var el = $id(id);
-    if (!el) return;
-    el.disabled = !on;
-    var wrap = el.closest("p, .col, .form-switch, .select") || el.parentElement;
-    if (wrap) wrap.classList.toggle("disabled", !on);
+  function verdict(r, key) {
+    var full = "video" + idx + "." + key;
+    var deferred = r && Array.isArray(r.deferred_keys)
+      ? r.deferred_keys.indexOf(full) >= 0 : !isLive(key);
+    if (deferred) { if (!r || r.changed !== 0) ui().markPending([full]); return; }
+    if (!r || !r.changed) return;
+    toast("success", key === "rtsp_path"
+      ? "Applied; new RTSP connections use the new path."
+      : "Applied to the running encoder; takes effect at the next keyframe.", 3000);
   }
 
-  function fillSelect(select, values, current) {
-    if (!select) return;
-    select.innerHTML = "";
-    values.forEach(function (v) {
-      var o = document.createElement("option");
-      o.value = v;
-      o.textContent = v.replace(/_/g, " ");
-      select.appendChild(o);
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (corr) Object.keys(corr).forEach(function (k) {
+      var m = /^video(\d)\.(.+)$/.exec(k);
+      if (m && +m[1] === idx && KEY_TO_SUFFIX[m[2]]) {
+        var one = {}; one[m[2]] = corr[k];
+        populate(KEY_TO_SUFFIX[m[2]], one);
+      }
     });
-    if (current && values.indexOf(current) >= 0) select.value = current;
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  function populateSelectors() {
-    var soc =
-      (window.thinginoUIConfig &&
-        window.thinginoUIConfig.device &&
-        window.thinginoUIConfig.device.soc) || null;
-    var fam = socFamily(soc);
-    fillSelect($id(P + "mode"), (fam && SOC_MODE[fam]) || DEF_MODE);
-    fillSelect($id(P + "format"), (fam && SOC_FMT[fam]) || DEF_FMT);
+  function noteErrors(r, s, key) {
+    var E = window.timpsErrors, errs = (r && r.errors) || {};
+    var rk = "video" + s + ".rotation", rest = {}, n = 0;
+    if (ROT_KEYS.indexOf(key) >= 0) rotPred[s] = errs[rk] || 0;
+    Object.keys(errs).forEach(function (k) { if (k !== rk) { rest[k] = errs[k]; n++; } });
+    if (!E) return;
+    if (errs[rk] && ROT_KEYS.indexOf(key) >= 0)
+      toast("warning", "Saved, but after a restart this stream runs unrotated: " + E.text(errs[rk]) + ".");
+    if (n) toast("warning", E.list(rest).join(". "));
   }
 
-  // read one field's timps value; returns undefined when it should be skipped
-  function readValue(suffix, map) {
-    var el = $id(P + suffix);
+  function post(key, value, busyEl) {
+    var inner = {}; inner[key] = value;
+    var video = {}; video[idx] = inner;
+    var s = idx;
+    if (busyEl) busyEl.classList.add("opacity-75");
+    return window.timpsApi.set({ video: video }).then(function (r) {
+      if (s !== idx) return;
+      applyCorrections(r);
+      verdict(r, key);
+      noteErrors(r, s, key);
+      if (last && last.video && last.video[s]) last.video[s][key] = value;
+      renderMeta();
+      renderRot();
+      if (key === "rc_mode" || key === "codec") rcGate();
+      refreshRcHolds();
+    }, function (err) {
+      var errs = err && err.result && err.result.errors;
+      toast("danger", "Failed to save setting: " + (errs && window.timpsErrors
+        ? window.timpsErrors.list(errs).join(". ") : (err.message || err)));
+    }).then(function () { if (busyEl) busyEl.classList.remove("opacity-75"); });
+  }
+
+  function readValue(suffix) {
+    var el = $id("v-" + suffix), map = FIELD_MAP[suffix];
     if (!el) return undefined;
     if (map.type === "bool") return el.checked ? 1 : 0;
-    if (map.type === "codec") return el.value ? codecToTimps(el.value) : undefined;
-    if (map.type === "rc") return el.value ? rcToTimps(el.value) : undefined;
+    if (map.type === "codec") return el.value ? el.value.toLowerCase() : undefined;
     if (map.type === "str") return el.value;
     var n = parseInt(el.value, 10);
     return isNaN(n) ? undefined : n;
   }
 
-  function send(suffix, map) {
-    var value = readValue(suffix, map);
-    if (value === undefined) return;
-    var el = $id(P + suffix);
-    var inner = {};
-    inner[map.key] = value;
-    var video = {};
-    video[idx] = inner;
-    if (el) el.classList.add("opacity-75");
-    window.timpsApi
-      .set({ video: video })
-      .then(restartHint, function (err) {
-        console.error("timps set failed:", err);
-        toast("danger", "Failed to save setting: " + (err.message || err));
-      })
-      .then(function () { if (el) el.classList.remove("opacity-75"); });
-  }
-
-  function sendAudio() {
-    var el = $id(P + "audio_enabled");
-    if (!el) return;
-    el.classList.add("opacity-75");
-    window.timpsApi
-      .set({ audio: { enabled: el.checked ? 1 : 0 } })
-      .then(restartHint, function (err) {
-        console.error("timps set failed:", err);
-        toast("danger", "Failed to save setting: " + (err.message || err));
-      })
-      .then(function () { el.classList.remove("opacity-75"); });
-  }
-
-  function populate(suffix, map, video) {
-    var el = $id(P + suffix);
+  function populate(suffix, video) {
+    var el = $id("v-" + suffix), map = FIELD_MAP[suffix];
     if (!el) return;
     var v = video[map.key];
     if (v === undefined || v === null) return;
     if (map.type === "bool") el.checked = !!Number(v);
-    else if (map.type === "codec") el.value = codecFromTimps(v);
-    else if (map.type === "rc") el.value = rcFromTimps(v);
+    else if (map.type === "codec") el.value = String(v).toUpperCase();
     else el.value = v;
   }
 
-  // reverse of FIELD_MAP (timps "video<idx>.<key>" -> page field suffix), so
-  // another open tab/client changing a setting shows up here live instead of
-  // only on next reload. "Audio in stream" mirrors the global audio.enabled
-  // switch, which both stream pages share.
-  var REVERSE = {};
-  Object.keys(FIELD_MAP).forEach(function (suffix) {
-    REVERSE["video" + idx + "." + FIELD_MAP[suffix].key] = suffix;
-  });
-
-  function onConfigEvent(type, data) {
-    if (!data) return;
-    if (data.resync) { load(); return; }
-    if (data.key === "audio.enabled") {
-      var au = $id(P + "audio_enabled");
-      if (au && document.activeElement !== au) au.checked = !!Number(data.value);
-      return;
-    }
-    var suffix = REVERSE[data.key];
-    if (!suffix) return;
-    var el = $id(P + suffix);
-    if (!el || document.activeElement === el) return;
-    var video = {};
-    video[FIELD_MAP[suffix].key] = data.value;
-    populate(suffix, FIELD_MAP[suffix], video);
-  }
-
-  function wireControls() {
-    populateSelectors();
-    Object.keys(FIELD_MAP).forEach(function (suffix) {
-      var el = $id(P + suffix);
-      if (!el) return;
-      setEnabled(P + suffix, false); // enabled once timps answers
-      el.addEventListener("change", function () { send(suffix, FIELD_MAP[suffix]); });
+  function fillSelect(sel, values) {
+    sel.innerHTML = "";
+    values.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v; o.textContent = v === "H264" ? "H.264" : v === "H265" ? "H.265" : v;
+      sel.appendChild(o);
     });
+  }
 
-    // "Audio in stream" has no per-stream key in timps (audio is global);
-    // bind it to the global audio.enabled switch.
-    var au = $id(P + "audio_enabled");
-    if (au) {
-      setEnabled(P + "audio_enabled", false);
-      au.addEventListener("change", sendAudio);
-    }
+  function noCapped() {
+    return !!(last && last.caps && last.caps.capped_rc === 0);
+  }
 
-    var saveBtn = $id("save-prudynt-config");
-    if (saveBtn) {
-      saveBtn.addEventListener("click", function () {
-        toast(
-          "success",
-          "Encoder settings are saved live to the streamer configuration; restart the streamer to apply them.",
-          5000,
-        );
+  function renderModes() {
+    var box = $id("v-modes"), fam = socFamily();
+    box.innerHTML = "";
+    ((fam && SOC_MODE[fam]) || DEF_MODE).forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn btn-outline-secondary" + (m === curMode ? " active" : "");
+      b.textContent = m.replace(/_/g, " ");
+      if (/^CAPPED/.test(m) && noCapped()) {
+        b.disabled = true;
+        b.title = "Not available with this libimp, runs as VBR";
+      }
+      b.addEventListener("click", function () {
+        if (m === curMode) return;
+        curMode = m; renderModes(); rcGate();
+        post("rc_mode", m.toLowerCase(), box);
       });
+      box.appendChild(b);
+    });
+  }
+
+  function renderRot() {
+    var vals = last && last.caps && last.caps.rotation;
+    var on = Array.isArray(vals) && vals.length > 1;
+    var sel = $id("v-rotation"), note = $id("v-rot-state"), E = window.timpsErrors;
+    $id("v-rot-wrap").hidden = !on;
+    if (on && sel.options.length !== vals.length) {
+      sel.innerHTML = "";
+      vals.forEach(function (d) {
+        var o = document.createElement("option");
+        o.value = String(d); o.textContent = d + "°";
+        sel.appendChild(o);
+      });
+      populate("rotation", (last.video && last.video[idx]) || {});
+    }
+    var v = (last && last.video && last.video[idx]) || {}, t = [];
+    var st = Number(v.rotation_state) || 0;
+    if (on && E) {
+      if (st) t.push("Running unrotated: " + E.text(st) + ".");
+      if (rotPred[idx]) t.push("After a restart it will run unrotated: " + E.text(rotPred[idx]) + ".");
+    }
+    note.textContent = t.join(" ");
+    note.hidden = !t.length;
+    var fx = on && E && E.rotFit ? E.rotFit(rotPred[idx] || st, v) : null;
+    if (fx) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-sm btn-outline-warning d-block mt-2 px-3 py-1";
+      b.textContent = "Use " + fx.width + "×" + fx.height + (fx.fps !== +v.fps ? " @ " + fx.fps + " fps" : "");
+      b.addEventListener("click", function () { applyFit(fx, b); });
+      note.appendChild(b);
     }
   }
 
-  function offlineNotice() {
-    if ($id("timps-offline-notice")) return;
-    var div = document.createElement("div");
-    div.id = "timps-offline-notice";
-    div.className = "alert alert-warning mt-2";
-    div.innerHTML =
-      '<i class="bi bi-exclamation-triangle me-1"></i>' +
-      "The streamer is not reachable, encoder controls are disabled. " +
-      "Check that the timps service is running, then reload this page.";
-    var h3 = document.querySelector("main h3");
-    if (h3 && h3.parentNode) h3.parentNode.insertBefore(div, h3.nextSibling);
-    else {
-      var c = document.querySelector("main .container");
-      if (c) c.appendChild(div);
+  function applyFit(fx, b) {
+    var s = idx, video = {};
+    video[s] = fx;
+    b.disabled = true;
+    window.timpsApi.set({ video: video }).then(function (r) {
+      if (s !== idx) return;
+      applyCorrections(r);
+      var keys = Object.keys(fx).map(function (k) { return "video" + s + "." + k; });
+      var def = r && Array.isArray(r.deferred_keys) ? keys.filter(function (k) { return r.deferred_keys.indexOf(k) >= 0; }) : keys;
+      if (def.length && (!r || r.changed !== 0)) ui().markPending(def);
+      noteErrors(r, s, "width");
+      if (last && last.video && last.video[s]) Object.keys(fx).forEach(function (k) { last.video[s][k] = fx[k]; });
+      ["width", "height", "fps"].forEach(function (k) { populate(k, fx); });
+      renderMeta();
+      renderRot();
+      if (!rotPred[s]) toast("success", "Saved. Restart the streamer to apply the rotation.");
+    }, function (err) {
+      b.disabled = false;
+      toast("danger", "Failed to save setting: " + (err.message || err));
+    });
+  }
+
+  function renderBadges() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-badge]"), function (el) {
+      el.innerHTML = ui().badge(isLive(el.getAttribute("data-badge")));
+    });
+  }
+
+  function chip(label, value) {
+    return '<span class="badge rounded-pill text-bg-dark border fw-normal">' +
+      '<b class="fw-semibold">' + value + "</b> " + label + "</span>";
+  }
+
+  function renderChips() {
+    var box = $id("v-chips");
+    if (!stats) { box.innerHTML = ""; return; }
+    var s = null;
+    (stats.video || []).forEach(function (v) { if (v.chn === idx) s = v; });
+    var h = "";
+    if (s) {
+      h += chip("", s.kbps >= 1000 ? (s.kbps / 1000).toFixed(2) + " Mbit/s" : Math.round(s.kbps) + " kbit/s");
+      h += chip("fps", Number(s.fps).toFixed(1));
+      h += chip(s.subs === 1 ? "subscriber" : "subscribers", s.subs);
+      if (s.drop_frames) h += chip("dropped", s.drop_frames);
     }
+    if (stats.clients !== undefined) h += chip("clients total", stats.clients);
+    box.innerHTML = h;
+  }
+
+  function renderMeta() {
+    if (!last || !last.video) return;
+    [0, 1].forEach(function (i) { ui().setTabSummary(i, streamSummary(last.video[i])); });
+    var v = last.video[idx] || {};
+    $id("v-url").value = "rtsp://" + window.location.hostname + (v.rtsp_path || "");
+    var fps = parseInt(v.fps, 10), gop = parseInt(v.gop, 10);
+    $id("v-gop-s").textContent = fps > 0 && gop > 0
+      ? "frames = " + (gop / fps).toFixed(gop % fps ? 1 : 0) + " s at " + fps + " fps" : "";
+    renderCompare();
+    renderChips();
+  }
+
+  function renderCompare() {
+    var tb = document.querySelector("#v-cmp tbody");
+    if (!tb || !last || !last.video) return;
+    var rows = [
+      ["Resolution", function (v) { return v.width + "×" + v.height; }],
+      ["Frame rate", function (v) { return v.fps + " fps"; }],
+      ["Codec / profile", function (v) { return String(v.codec).toUpperCase() + " " + (PROFILE[v.profile] || v.profile); }],
+      ["Mode", function (v) { return String(v.rc_mode).toUpperCase(); }],
+      ["Bitrate", function (v) { return v.bitrate + " kbit/s"; }],
+      ["QP range", function (v) { return v.min_qp + "–" + v.max_qp; }],
+      ["Keyframe", function (v) { return v.gop + " frames"; }],
+      ["RTSP path", function (v) { return v.rtsp_path; }],
+      ["Enabled", function (v) { return Number(v.enabled) ? "yes" : "no"; }],
+    ];
+    var a = last.video[0] || {}, b = last.video[1] || {};
+    tb.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr"), va = r[1](a), vb = r[1](b);
+      if (va !== vb) tr.className = "diff";
+      [r[0], va, vb].forEach(function (t, i) {
+        var td = document.createElement("td"); td.textContent = t;
+        if (i) td.className = "font-monospace";
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  function rcGate() {
+    var fam = socFamily();
+    var classic = fam ? CLASSIC_FAMS.indexOf(fam) >= 0 : null;
+    var codec = $id("v-format").value;
+    var hidden = [];
+    Object.keys(RC_FIELDS).forEach(function (suffix) {
+      var info = RC_FIELDS[suffix];
+      var wrap = document.querySelector('[data-rc="' + suffix + '"]');
+      if (!wrap) return;
+      var off = null;
+      if (classic === false && info.classicOnly) off = "not on this SoC";
+      else if (classic === false && suffix === "i_bias_lvl" && NO_IBIAS_FAMS.indexOf(fam) >= 0)
+        off = "not on this SoC";
+      else if (info.modes && curMode && info.modes.indexOf(curMode) < 0)
+        off = info.modes.join("/") + " only";
+      else if (info.codecs && codec && info.codecs.indexOf(codec) < 0)
+        off = info.codecs.join("/") + " only";
+      wrap.classList.toggle("d-none", !!off);
+      if (off) hidden.push(info.name + " (" + off + ")");
+    });
+    var t = hidden.length ? "Hidden: " + hidden.join(", ") + "." : "";
+    var modes = fam ? (SOC_MODE[fam] || DEF_MODE) : DEF_MODE;
+    if (noCapped() && modes.indexOf("CAPPED_VBR") >= 0)
+      t += (t ? " " : "") + "Capped modes are not available with this libimp" +
+        (/^CAPPED/.test(curMode) ? "; the stream runs as VBR." : ".");
+    else if (/^CAPPED/.test(curMode) && modes.indexOf(curMode) < 0)
+      t += (t ? " " : "") + curMode.toLowerCase() + " (from timps.conf) runs as VBR on this SoC.";
+    $id("v-hidden").textContent = t;
+  }
+
+  var RC_HOLD_ORDER = ["rc_mode", "bitrate", "max_bitrate", "qp", "min_qp",
+    "max_qp", "quality_lvl", "change_pos", "i_bias_lvl", "fluc_lvl",
+    "static_time", "frm_qp_step", "gop_qp_step", "ip_delta", "pb_delta", "max_psnr"];
+  function renderJpeg(json) {
+    var j = json && json.jpeg_reuse, el = $id("v-jpeg");
+    el.hidden = !(j && Number(j.available));
+    if (el.hidden) return;
+    el.textContent = "Snapshots, all JPEG channels since start: " + (j.reused || 0) +
+      " repeated pictures from the JPEG encoder, " + (j.skipped || 0) + " held back for a fresh one." +
+      (j.reused ? " If this keeps climbing, lower videoN.jpeg_fps or the JPEG size in /etc/timps.conf." : "");
+  }
+
+  function refreshRcHolds() {
+    var el = $id("v-holds"), s = idx;
+    window.timpsApi.get().then(function (json) {
+      renderJpeg(json);
+      if (s !== idx) return;
+      var rc = json.encoder && json.encoder[s] && json.encoder[s].rc;
+      if (!rc) { el.textContent = "Encoder readback: not available (channel not running)."; return; }
+      var parts = [];
+      RC_HOLD_ORDER.forEach(function (k) {
+        if (rc[k] !== undefined) parts.push(k.replace(/_/g, " ") + " " + rc[k]);
+      });
+      el.textContent = "Encoder holds: " + parts.join(", ");
+    }, function () { el.textContent = "Encoder readback: streamer not reachable."; });
+  }
+
+  function fill() {
+    if (!last) return;
+    var video = (last.video && last.video[idx]) || {};
+    Object.keys(FIELD_MAP).forEach(function (s) { populate(s, video); });
+    curMode = String(video.rc_mode || "").toUpperCase();
+    var au = $id("v-audio_enabled");
+    if (last.audio && last.audio.enabled !== undefined) au.checked = !!Number(last.audio.enabled);
+    $id("v-mbrc-wrap").hidden = socFamily() !== "t20" || video.mbrc === undefined;
+    renderModes(); renderMeta(); rcGate(); renderRot(); refreshRcHolds();
+  }
+
+  function setDisabled(off) {
+    Array.prototype.forEach.call(document.querySelectorAll("main input, main select, #v-modes button"),
+      function (el) { if (el.id !== "v-url" && el.id !== "v-compare") el.disabled = off; });
+  }
+
+  function offlineNotice(show) {
+    var n = $id("timps-offline-notice");
+    if (!show) { if (n) n.remove(); return; }
+    if (n) return;
+    n = document.createElement("div");
+    n.id = "timps-offline-notice";
+    n.className = "alert alert-warning";
+    n.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>The streamer is not reachable, ' +
+      "encoder controls are disabled. Check that the timps service is running, then reload this page.";
+    var tabs = document.querySelector(".tv-tabs");
+    tabs.parentNode.insertBefore(n, tabs);
   }
 
   function load() {
-    if (!window.timpsApi) {
-      console.error("timps-api.js not loaded");
-      offlineNotice();
+    if (!window.timpsApi) { offlineNotice(true); setDisabled(true); return; }
+    window.timpsApi.get().then(function (json) {
+      last = json;
+      rotPred = [0, 0];
+      videoLive = (json.caps && json.caps.video_live) || [];
+      renderBadges();
+      setDisabled(false);
+      fill();
+      offlineNotice(false);
+    }, function () { offlineNotice(true); setDisabled(true); });
+  }
+
+  function onEvent(type, data) {
+    if (!data) return;
+    if (type === "stats") { stats = data; renderChips(); return; }
+    if (data.resync) { load(); return; }
+    if (data.key === "audio.enabled") {
+      var au = $id("v-audio_enabled");
+      if (document.activeElement !== au) au.checked = !!Number(data.value);
       return;
     }
-    window.timpsApi
-      .get()
-      .then(function (json) {
-        var video = (json.video && json.video[idx]) || {};
-        var audio = json.audio || {};
-        Object.keys(FIELD_MAP).forEach(function (suffix) {
-          populate(suffix, FIELD_MAP[suffix], video);
-          setEnabled(P + suffix, true);
-        });
-        var au = $id(P + "audio_enabled");
-        if (au) {
-          if (audio.enabled !== undefined) au.checked = !!Number(audio.enabled);
-          setEnabled(P + "audio_enabled", true);
-        }
-        var offline = $id("timps-offline-notice");
-        if (offline) offline.remove();
-      })
-      .catch(function (err) {
-        console.warn("timps unreachable, encoder controls stay disabled:", err);
-        offlineNotice();
+    var m = /^video(\d)\.(.+)$/.exec(data.key || "");
+    if (!m || !last || !last.video) return;
+    if (last.video[m[1]]) last.video[m[1]][m[2]] = data.value;
+    renderMeta();
+    if (+m[1] !== idx) return;
+    if (m[2] === "rc_mode") { curMode = String(data.value).toUpperCase(); renderModes(); rcGate(); return; }
+    var suffix = KEY_TO_SUFFIX[m[2]];
+    if (!suffix || document.activeElement === $id("v-" + suffix)) return;
+    var one = {}; one[m[2]] = data.value;
+    populate(suffix, one);
+    if (suffix === "format") rcGate();
+  }
+
+  function wire() {
+    var fam = socFamily();
+    fillSelect($id("v-format"), (fam && SOC_FMT[fam]) || DEF_FMT);
+    Object.keys(FIELD_MAP).forEach(function (suffix) {
+      var el = $id("v-" + suffix);
+      if (!el) return;
+      el.addEventListener("change", function () {
+        var v = readValue(suffix);
+        if (v !== undefined) post(FIELD_MAP[suffix].key, v, el);
+        if (suffix === "format") rcGate();
       });
+    });
+    $id("v-audio_enabled").addEventListener("change", function () {
+      var el = this;
+      window.timpsApi.set({ audio: { enabled: el.checked ? 1 : 0 } }).then(function (r) {
+        var deferred = !r || !Array.isArray(r.deferred_keys) || r.deferred_keys.indexOf("audio.enabled") >= 0;
+        if (deferred && r && r.changed !== 0) ui().markPending(["audio.enabled"]);
+      }, function (err) { toast("danger", "Failed to save setting: " + (err.message || err)); });
+    });
+    $id("v-compare").addEventListener("change", function () { $id("v-cmp").hidden = !this.checked; });
+    $id("v-copy").addEventListener("click", function () {
+      var el = $id("v-url");
+      var done = function () { toast("success", "RTSP URL copied.", 2000); };
+      if (navigator.clipboard && window.isSecureContext)
+        navigator.clipboard.writeText(el.value).then(done, function () { el.select(); });
+      else { el.select(); try { document.execCommand("copy"); done(); } catch (e) {} }
+    });
   }
 
   function init() {
-    wireControls();
+    if (!window.timpsUi) return;
+    idx = ui().initTabs(function (i) { idx = i; fill(); });
+    ui().onRestarted(load);
+    wire();
     load();
-    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
+    if (window.timpsApi) window.timpsApi.events("config,stats", onEvent);
   }
 
   if (document.readyState === "loading")

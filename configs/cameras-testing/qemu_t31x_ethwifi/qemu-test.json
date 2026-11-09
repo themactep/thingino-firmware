@@ -1,0 +1,8 @@
+{
+  "soc": "t31x",
+  "caps": [
+    "wired",
+    "wifi"
+  ],
+  "net": "tap"
+}

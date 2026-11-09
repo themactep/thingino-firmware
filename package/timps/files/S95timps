@@ -1,36 +1,85 @@
 #!/bin/sh
-#
-# S95timps - start/stop Tiny IMP Streamer
-#
 
 PIDFILE=/var/run/timpsd.pid
 DAEMON=/usr/bin/timpsd
 CONF=/etc/timps.conf
 
-# Read a "key = value" from timps.conf (strips inline comments + quotes).
 conf_get() {
 	sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$CONF" 2>/dev/null |
 		sed 's/[[:space:]]*#.*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/' |
 		head -n1
 }
 
-# If TLS is requested but the cert/key are missing, generate a self-signed pair
-# so timpsd doesn't fail to bind the HTTPS/RTSPS listener on first boot.
+UHTTPD_CRT=/etc/ssl/certs/uhttpd.crt
+UHTTPD_KEY=/etc/ssl/private/uhttpd.key
+
+# link (not copy) the WebUI cert: one browser trust decision then covers both ports
 ensure_tls_certs() {
-	[ "$(conf_get http.https)" = "1" ] || [ "$(conf_get rtsp.tls)" = "1" ] || return 0
+	case "$(conf_get http.https | tr '[:upper:]' '[:lower:]')" in
+		1 | 2 | true | yes | on) ;;
+		*)
+			[ "$(conf_get rtsp.tls)" = "1" ] ||
+				case "$(conf_get webrtc.enabled)" in
+					"" | 1 | 2) ;;
+					*) return 0 ;;
+				esac
+			;;
+	esac
 	crt=$(conf_get http.tls_cert)
 	key=$(conf_get http.tls_key)
-	[ -n "$crt" ] && [ -n "$key" ] || return 0
+	crt=${crt:-/etc/ssl/certs/timps.crt}
+	key=${key:-/etc/ssl/private/timps.key}
 	[ -s "$crt" ] && [ -s "$key" ] && return 0
+
+	if [ "$crt" != "$UHTTPD_CRT" ] && [ "$key" != "$UHTTPD_KEY" ] &&
+		[ -s "$UHTTPD_CRT" ] && [ -s "$UHTTPD_KEY" ]; then
+		mkdir -p "$(dirname "$crt")" "$(dirname "$key")"
+		if ln -sf "$UHTTPD_CRT" "$crt" && ln -sf "$UHTTPD_KEY" "$key"; then
+			logger -t timps "TLS: sharing the web UI certificate ($UHTTPD_CRT)"
+			return 0
+		fi
+		# a half-made link would leave timpsd with a cert and no key
+		rm -f "$crt" "$key"
+		logger -t timps "TLS: could not link $UHTTPD_CRT, generating our own"
+	fi
+
 	[ -x /usr/bin/generate-timps-tls-certs.sh ] || return 0
-	/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" >/dev/null 2>&1
+	out=$(/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" 2>&1) ||
+		logger -t timps "TLS cert generation failed: $out"
 }
 
-# Wait for the daemon to actually exit (IMP/rmem teardown can take a while);
-# starting a new instance too early makes ISP init fail.
+# tr: busybox grep stops at NUL bytes
+preflight() {
+	tr -d '\000' 2>/dev/null <"$DAEMON" | grep -q -- --check-libs || return 0
+	out=$("$DAEMON" --check-libs 2>&1)
+	rc=$?
+	case $rc in
+		0) return 0 ;;
+		78 | 79)
+			echo "$out" | while IFS= read -r l; do
+				[ -n "$l" ] || continue
+				logger -t timps -p daemon.err "$l"
+				echo "$l"
+			done
+			msg="timpsd not started (exit $rc): libimp does not fit this timpsd build"
+			logger -t timps -p daemon.err "$msg"
+			echo "$msg"
+			return 1
+			;;
+		*)
+			[ -z "$out" ] ||
+				logger -t timps -p daemon.warn "timpsd --check-libs exited $rc, starting anyway: $(echo "$out" | head -n 1)"
+			return 0
+			;;
+	esac
+}
+
+# starting a new instance before the old one has exited makes ISP init fail
 wait_stop() {
+	# busybox usleep is optional; without it the loop runs in 1 s steps
+	usleep 1 2>/dev/null && n=50 || n=5
 	i=0
-	while [ $i -lt 50 ]; do
+	while [ "$i" -lt "$n" ]; do
 		[ -f "$PIDFILE" ] || return 0
 		p=$(cat "$PIDFILE" 2>/dev/null)
 		[ -n "$p" ] && kill -0 "$p" 2>/dev/null || return 0
@@ -43,6 +92,7 @@ wait_stop() {
 case "$1" in
 	start)
 		echo "Starting timpsd..."
+		preflight || exit 1
 		ensure_tls_certs
 		start-stop-daemon -S -b -m -p "$PIDFILE" \
 			-x "$DAEMON" -- -c "$CONF"
@@ -50,13 +100,21 @@ case "$1" in
 	stop)
 		echo "Stopping timpsd..."
 		start-stop-daemon -K -p "$PIDFILE" 2>/dev/null
-		wait_stop || echo "timpsd still stopping..."
-		rm -f "$PIDFILE"
+		if ! wait_stop; then
+			echo "timpsd not responding, sending KILL..."
+			start-stop-daemon -K -s KILL -p "$PIDFILE" 2>/dev/null
+		fi
+		# keep the pidfile while the process lives: restart and start-stop-daemon -S rely on it
+		if wait_stop; then
+			rm -f "$PIDFILE"
+		else
+			echo "timpsd still stopping..."
+		fi
 		;;
 	restart)
 		"$0" stop
 		wait_stop
-		"$0" start
+		"$0" start || exit 1
 		;;
 	status)
 		if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then

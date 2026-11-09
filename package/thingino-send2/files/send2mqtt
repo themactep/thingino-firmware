@@ -23,11 +23,6 @@ message_looks_like_json() {
 	esac
 }
 
-escape_single_quotes() {
-	# Escape single quotes for safe inclusion inside single-quoted strings
-	printf "%s" "$1" | sed "s/'/'\\\\''/g"
-}
-
 show_help() {
 	echo "Usage: $0 [options]
 Where:
@@ -58,6 +53,7 @@ read_config() {
 	topic=$(get_value topic)
 	topic_photo=$(get_value topic_photo)
 	topic_video=$(get_value topic_video)
+	use_ssl=$(get_value use_ssl)
 	username=$(get_value username)
 }
 
@@ -112,38 +108,44 @@ fi
 
 message=$(date +"$message")
 
-command="mosquitto_pub -h $host -p $port -i $client_id"
-
-[ "true" = "$verbose" ] && command="$command -d"
-[ -n "$username" ] && command="$command -u $username"
-[ -n "$password" ] && command="$command -P $password"
-if [ "true" = "$(get_value use_ssl)" ]; then
-	command="$command --capath /etc/ssl/certs"
-	[ "true" = "$tls_skip_verify" ] && command="$command --insecure"
-fi
+# mosquitto_pub with the broker settings passed as arguments. Building a
+# shell string and running it through sh -c let a password or message with
+# spaces, quotes or $(...) be re-parsed (and re-expanded) by the shell.
+mqtt_pub() {
+	set -- mosquitto_pub "$@" -h "$host" -p "$port" -i "$client_id"
+	[ "true" = "$verbose" ] && set -- "$@" -d
+	[ -n "$username" ] && set -- "$@" -u "$username"
+	[ -n "$password" ] && set -- "$@" -P "$password"
+	if [ "true" = "$use_ssl" ]; then
+		set -- "$@" --capath /etc/ssl/certs
+		[ "true" = "$tls_skip_verify" ] && set -- "$@" --insecure
+	fi
+	"$@"
+}
 
 failed=0
 
 if message_looks_like_json "$message"; then
 	tmpfile="$(mktemp -u).json"
 	echo "$message" > $tmpfile
-	send_command="$command -t $topic -f $tmpfile"
 	garbage="$garbage $tmpfile"
-else
-	sanitized_message=$(escape_single_quotes "$message")
-	send_command="$command -t $topic -m '$sanitized_message'"
-fi
 
-[ "true" = "$verbose" ] && echo_command "$send_command"
-if ! sh -c "$send_command"; then
-	echo_error "Failed to send MQTT message"
-	failed=1
+	[ "true" = "$verbose" ] && echo_command "publish $tmpfile to $topic"
+	if ! mqtt_pub -t "$topic" -f "$tmpfile"; then
+		echo_error "Failed to send MQTT message"
+		failed=1
+	fi
+else
+	[ "true" = "$verbose" ] && echo_command "publish message to $topic"
+	if ! mqtt_pub -t "$topic" -m "$message"; then
+		echo_error "Failed to send MQTT message"
+		failed=1
+	fi
 fi
 
 if [ -n "$file" ] && [ -f "$file" ]; then
-	send_command="$command -t $topic -f '$file'"
-	[ "true" = "$verbose" ] && echo_command "$send_command"
-	if ! sh -c "$send_command"; then
+	[ "true" = "$verbose" ] && echo_command "publish $file to $topic"
+	if ! mqtt_pub -t "$topic" -f "$file"; then
 		echo_error "Failed to send file via MQTT"
 		failed=1
 	fi
@@ -155,9 +157,8 @@ if [ "true" = "$send_photo" ]; then
 		echo_error "Failed to get photo"
 		failed=1
 	else
-		send_command="$command -t $topic_photo -f '$photo'"
-		[ "true" = "$verbose" ] && echo_command "$send_command"
-		if ! sh -c "$send_command"; then
+		[ "true" = "$verbose" ] && echo_command "publish $photo to $topic_photo"
+		if ! mqtt_pub -t "$topic_photo" -f "$photo"; then
 			echo_error "Failed to send photo via MQTT"
 			failed=1
 		fi
@@ -170,9 +171,8 @@ if [ "true" = "$send_video" ]; then
 		echo_error "Failed to get video"
 		failed=1
 	else
-		send_command="$command -t $topic_video -f '$video'"
-		[ "true" = "$verbose" ] && echo_command "$send_command"
-		if ! sh -c "$send_command"; then
+		[ "true" = "$verbose" ] && echo_command "publish $video to $topic_video"
+		if ! mqtt_pub -t "$topic_video" -f "$video"; then
 			echo_error "Failed to send video via MQTT"
 			failed=1
 		fi

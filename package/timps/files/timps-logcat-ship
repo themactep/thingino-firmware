@@ -1,0 +1,27 @@
+#!/bin/sh
+TAG=logcat
+STATE=/tmp/.logcat-ship
+DUMP=/tmp/.logcat-dump.$$
+
+trap 'rm -f "$DUMP"' EXIT
+if ! logcat -t >"$DUMP" 2>/dev/null; then
+	if [ ! -f /tmp/.logcat-ship-broken ]; then
+		logger -t "$TAG" "logcat -t failed - alog lines are no longer shipped to syslog"
+		touch /tmp/.logcat-ship-broken
+	fi
+	exit 0
+fi
+rm -f /tmp/.logcat-ship-broken
+[ -s "$DUMP" ] || exit 0
+
+last=0
+[ -r "$STATE" ] && read -r last <"$STATE" 2>/dev/null
+case "$last" in '' | *[!0-9.]*) last=0 ;; esac
+
+# numeric compare: the stamps are fractional epoch seconds
+awk -v last="$last" '$1 + 0 > last + 0' "$DUMP" | while IFS= read -r line; do
+	[ -n "$line" ] && logger -t "$TAG" "$line"
+done
+
+newest=$(awk 'BEGIN{m=0} $1 + 0 > m + 0 {m = $1} END{print m}' "$DUMP")
+[ -n "$newest" ] && printf '%s\n' "$newest" >"$STATE"

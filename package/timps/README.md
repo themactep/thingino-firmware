@@ -120,6 +120,14 @@ and `/a/preview-motors.js` are contributed by `thingino-motors`' own manifest
 via the marker above (no hand-copied markup in this package), so PTZ via
 `/x/json-motor.cgi` keeps working.
 
+**WebSocket PTZ:** a timps build with PTZ hardware also has the option of
+a WebSocket-based control path for `thingino-motors` (`ws://`/`wss://`,
+replacing per-move CGI round trips with a persistent socket) instead of
+the CGI-only path above. That daemon and its Kconfig option
+(`BR2_PACKAGE_THINGINO_MOTORS_WS`) live only on
+<https://github.com/Lu-Fi/thingino-firmware> (branch `ciao`) for now, not
+in this tree — build from there if you want it.
+
 The motion-grid overlay (`/a/preview-motion.js`) gets the per-boot token
 from `/x/timps-token.cgi`, probes `GET /control` once (feature detection +
 initial state) and then **subscribes** to
@@ -142,6 +150,61 @@ the motion overlay's single `/x/timps-token.cgi` fetch) to the
 are set in timps.conf. Without a token (endpoint unavailable) the old
 behavior remains: open `http://<ip>:8880/` once to cache Basic credentials,
 or leave timps's HTTP auth empty — the 401 hint in the status line stays.
+
+## Preview-page talk button (browser mic → camera speaker)
+
+`files/www/a/preview-talk.js` adds a microphone button to the preview page's
+control row (`#ms-talk` in `preview.html`, with its own `#ms-talk-status`
+line so it never clobbers the player's status text). Pressed, it captures the
+visitor's microphone, G.711 mu-law-encodes it in the page and streams 20 ms
+binary frames over a WebSocket to `wss://<host>:8880/talk`, where timps
+decodes them into the same `IMP_AO` speaker path the ONVIF/RTSP backchannel
+uses — a browser cannot speak RTSP/RTP, which is the entire reason that
+endpoint exists. Pressed again (or on `pagehide`) it sends a real close frame
+(1000) so `talk_ws.c` runs `bc_release()` immediately instead of waiting out
+its stale-owner timeout.
+
+The script is installed unconditionally with the rest of `files/www/a/*`
+(WebUI + `_CONTROL` builds) and the button is **runtime**-gated, hidden not
+disabled, exactly like `/a/preview-motion.js`: it takes the per-boot token
+from `/x/timps-token.cgi` (or the shared `window.timpsTokenInfo` promise),
+probes `GET /control` and reveals itself only when
+`caps.backchannel.talk_ws == 1` — which the daemon reports only when the
+feature is compiled **and** `audio.talk_ws = 1` **and** the backchannel
+pipeline came up at boot. The probe retries with exponential backoff (1 s to
+30 s) rather than giving up on one transient failure. Three further gates are
+permanent for the page load and skip the probe entirely: `timps-token.cgi`
+reporting `tls: false` (`/talk` answers 426 on a plaintext listener), no
+`navigator.mediaDevices.getUserMedia` (refused outside a secure context), and
+no `AudioContext`. Unlike the motion overlay this reveal is one-way:
+`audio.talk_ws` is restart-only, so once `/control` says the endpoint is
+served it stays served for the life of the page.
+
+Rate handling is worth knowing about when reading the code: the page asks for
+an 8 kHz `AudioContext` (mu-law's native rate) but never assumes it got one —
+iOS Safari commonly forces 48 kHz — so it reads `ctx.sampleRate` back, checks
+it against timps' accepted list (8000/16000/24000/32000/44100/48000; `TALK_RATES`
+in `talk_ws.c`, kept in sync by hand) and passes it as `?rate=`. Capture runs
+through a `ScriptProcessorNode` terminated in a muted gain node (a
+`ScriptProcessorNode` only runs while connected to a destination, and routing
+the mic to the page's own speakers would be an instant feedback loop);
+`getUserMedia` is asked for browser-side `echoCancellation` so the camera's
+own audio playing out of those speakers is not sent back — the camera-side
+half of that is timps' `audio.aec`. Client-side backpressure drops the queue
+past ~200 ms of `bufferedAmount`, on top of the server's own drop-if-behind
+guard. Close codes are reported in the status line: 1008 = another talker
+holds the speaker, 1001 = idle timeout.
+
+Kconfig: `BR2_PACKAGE_TIMPS_BC_WS` (off by default) sets `USE_BC_WS=1` in
+`timps.mk`. It `depends on` `BR2_PACKAGE_TIMPS_BACKCHANNEL`,
+`BR2_PACKAGE_TIMPS_TLS` and `BR2_PACKAGE_TIMPS_CONTROL` — TLS because
+`getUserMedia()` needs a secure context, `_CONTROL` because the per-boot
+token machinery a `WebSocket` constructor depends on (it cannot set request
+headers, so `?token=` is its only credential) compiles only there. mbedTLS is
+deliberately **not** `select`ed here: `_TLS` already selects it, and a second
+select for the same package is what produced the "recursive dependency
+detected" breakage documented in thingino-motors' WS_TLS option. Costs ~8 KB
+of text (RFC 6455 framing, SHA-1, the endpoint itself) and no new library.
 
 ## No snapshot proxy CGIs
 
@@ -182,20 +245,28 @@ the WebUI session auth
 | `json-prudynt-config.cgi` | Config export: streams `GET /control` (timps shape) as a JSON download. |
 | `restart-prudynt.cgi` / `restart-timps.cgi` | `/etc/init.d/S95timps restart` (same ok-JSON as the original; the prudynt name is kept because the WebUI calls it). |
 | `json-heartbeat.cgi` / `json-heartbeat-slow.cgi` | timps-aware control-bar heartbeat (SSE / single shot; payload built by `timps-heartbeat.sh` from `GET /control` + the GPIO tools). Carries the day/night telemetry the control bar reads: `daynight_brightness` (%), `total_gain` (ISP [24.8] linear, 256 = 1x — feeds the `.dnd-gain` display), `daynight_mode` (`day`/`night`), `daynight_enabled`; `null` while unknown, like the stock heartbeat. |
-| `json-timegraph-stream.cgi` | Photosensing data-collector SSE (`tool-sensor-data.html`): polls `GET /control` every second (bounded, default 1 h — the page's EventSource reconnects) and emits `data: {"time_now","total_gain","daynight_brightness","daynight_mode"}` events, plus the `total_gain_*_threshold` chart lines when the photosensing page saved them to `/etc/thingino.json`. The page's history request (`json-prudynt.cgi`, `{"daynight":{"history":null}}`) is answered with the single current sample — timps keeps no sample ring, the graph grows from the live stream. |
+| `json-timegraph-stream.cgi` | **Gone** — neither shipped nor bridged any more (still in `timps.mk`'s purge list for old trees). `tool-sensor-data.html` talks to timps directly via `timps-api.js`: it subscribes to the `daynight` SSE stream for a live-only graph, or, when `daynight.history_s` is non-zero, pages the daemon's in-RAM decision ring with `GET /control?dn_history=1` — which is what lets the graph show hours with no tab open. |
 
 Not bridged (see the CGI headers for details): recording (`mp4`), motion
 toggle, mic/spk mute, `spk_sample_rate`, the G726/OPUS/PCM audio codecs,
 per-stream `audio_enabled`, and the remaining `prudyntctl events` consumers
-(`events.cgi`, `json-send2.cgi` live-apply). The page metrics `ev` and
-`ae_luma` are prudynt-only and stay absent from the timegraph stream.
+(`events.cgi`, `json-send2.cgi` live-apply). The page metric `ev` is
+prudynt-only; `ae_luma` is not — timps reports it in `GET /control`'s
+`daynight` object and as a column of the `?dn_history=1` series.
 
 ### Direct-to-timps token (`timps-token.cgi`)
 
 timps generates a random **per-boot token** and writes it to
 `/run/timps.token` (0640). `timps-token.cgi` (WebUI session auth via
-`auth.sh`) serves it as `{"token":"...","port":8880}` (port/token-file path
-read from `/etc/timps.conf`). With it a WebUI page can skip the localhost
+`auth.sh`) serves it as `{"token":"...","port":8880,"scheme":"..."}`
+(port/token-file path read from `/etc/timps.conf`). `scheme` mirrors the
+`http.https` tri-state — `"http"` (0), `"both"` (1) or `"https"` (2) — and is
+what the JS must use to build the URL: on `"both"` timps answers either scheme
+on that one port, so the page follows **its own** `location.protocol` rather
+than guessing, which is what lets an http:// and an https:// WebUI page both
+reach the preview without a mixed-content block. A legacy `"tls"` bool is
+still emitted (true for 1 and 2) for JS that predates `scheme`.
+With it a WebUI page can skip the localhost
 bridge CGIs and call timps **directly from the browser**: fetch the token
 once, then `fetch('http://<host>:8880/control', {method:'POST', headers:
 {'X-Timps-Token': token}, body: json})` — timps answers the CORS preflight

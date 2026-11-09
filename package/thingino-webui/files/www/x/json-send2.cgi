@@ -25,6 +25,11 @@ default_domain_config() {
 {"url":"","token":"","title":"Thingino Camera","message":"Motion detected at %Y-%m-%d %H:%M:%S","extras":"","priority":5,"send_photo":false,"send_video":false}
 EOF
 			;;
+		pushover)
+			cat <<'EOF'
+{"token":"","user":"","title":"Thingino Camera","message":"Motion detected at %Y-%m-%d %H:%M:%S","priority":0,"send_photo":false,"send_video":false}
+EOF
+			;;
 		*)
 			echo '{}'
 			;;
@@ -33,19 +38,22 @@ EOF
 
 # GET - Load configuration
 if [ "$REQUEST_METHOD" = "GET" ]; then
-	# Prefer agent motion enable; fall back to prudynt.json
+	# The full motion object (enabled, sensitivity, cooldown_time, send2*)
+	# lives in prudynt.json. The agent answers only per-leaf, so a single
+	# motion/enabled query drops the send2* keys and the UI renders every
+	# "On Motion" toggle as off.
 	motion_data=
-	if command -v agentctl >/dev/null 2>&1; then
+	if [ -f "$prudynt_config" ]; then
+		motion_data=$(jct "$prudynt_config" get motion 2>/dev/null)
+	fi
+	case "$motion_data" in
+		'' | null | '{}') motion_data='' ;;
+	esac
+	if [ -z "$motion_data" ] && command -v agentctl >/dev/null 2>&1; then
 		enabled=$(agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
 		[ -n "$enabled" ] && motion_data="{\"enabled\":$enabled}"
 	fi
-	if [ -z "$motion_data" ]; then
-		if [ -f "$prudynt_config" ]; then
-			motion_data=$(jct "$prudynt_config" get motion 2>/dev/null || echo '{}')
-		else
-			motion_data='{}'
-		fi
-	fi
+	[ -n "$motion_data" ] || motion_data='{}'
 
 	# Helper to safely get config values
 	get_domain_config() {
@@ -71,6 +79,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "ftp": $(get_domain_config ftp),
   "telegram": $(get_domain_config telegram),
   "gotify": $(get_domain_config gotify),
+  "pushover": $(get_domain_config pushover),
   "mqtt": $(get_domain_config mqtt),
   "webhook": $(get_domain_config webhook),
   "storage": $(get_domain_config storage),
@@ -170,6 +179,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get gotify >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
+	elif jct "$temp_json" get pushover >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get mqtt >/dev/null 2>&1; then

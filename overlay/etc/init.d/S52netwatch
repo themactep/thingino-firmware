@@ -1,0 +1,119 @@
+#!/bin/sh
+# shellcheck disable=SC1091,SC3043  # busybox ash supports local; POSIX does not define it
+
+# Network watchdog: reboot the camera if it loses connectivity for too long.
+#
+# Unlike the hardware watchdog (which only trips if the kernel stops
+# feeding /dev/watchdog), this watches the *network* path: it pings a
+# target and, after a configurable number of consecutive failures, forces
+# a reboot. The reboot uses the same hardware-watchdog fallback as rcK,
+# so it works even when the network stack (or a wedged driver) has taken
+# the rest of the system down with it.
+
+PIDFILE="/var/run/netwatch.pid"
+
+log_msg() {
+	echo "netwatch: $1" >&2
+	logger -t netwatch "$1" 2>/dev/null
+}
+
+# Opt-in: disabled unless /etc/thingino.json sets netwatch.enabled, since a
+# marginal link drops pings routinely and a reboot loop helps nobody.
+# Defaults (overridable via the "netwatch" object):
+#   target     IPv4 host to ping (default: default-route gateway)
+#   interval   seconds between pings        (default: 30)
+#   fail_count consecutive failures to trip (default: 3)
+#   enabled    true/false                   (default: false)
+get_cfg() {
+	local key="$1" def="$2"
+	jct /etc/thingino.json get "netwatch.$key" 2>/dev/null || echo "$def"
+}
+
+watch_loop() {
+	local target interval fail_count
+	target="$(get_cfg target "")"
+	interval="$(get_cfg interval 30)"
+	fail_count="$(get_cfg fail_count 3)"
+
+	# Sanitise numeric config (defensive; the CGI already validates).
+	case "$interval" in
+		'' | *[!0-9]*) interval=30 ;;
+	esac
+	[ "$interval" -ge 5 ] 2>/dev/null || interval=30
+	case "$fail_count" in
+		'' | *[!0-9]*) fail_count=3 ;;
+	esac
+	[ "$fail_count" -ge 1 ] 2>/dev/null || fail_count=3
+
+	# Fall back to the default-route gateway if no explicit target.
+	if [ -z "$target" ]; then
+		target="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+	fi
+
+	# No target and no default route -> nothing sensible to watch.
+	[ -n "$target" ] || exit 0
+
+	log_msg "watching $target every ${interval}s, rebooting after $fail_count failures"
+
+	local failures=0
+	while true; do
+		if ping -c 1 -W 5 "$target" >/dev/null 2>&1; then
+			failures=0
+		else
+			failures=$((failures + 1))
+			log_msg "ping $target failed ($failures/$fail_count)"
+
+			if [ "$failures" -ge "$fail_count" ]; then
+				log_msg "no connectivity to $target, rebooting"
+				sync
+				# Hardware-watchdog fallback: do NOT feed the watchdog so
+				# its timer expires and forces a hardware reset. This is the
+				# same guaranteed-recovery path rcK uses at shutdown.
+				WD_PID=$(cat /var/run/watchdog.pid 2>/dev/null)
+				[ -n "$WD_PID" ] && kill -9 "$WD_PID" 2>/dev/null
+				killall -9 watchdog 2>/dev/null || true
+				reboot -f 2>/dev/null || echo b >/proc/sysrq-trigger 2>/dev/null
+				exit 0
+			fi
+		fi
+		sleep "$interval"
+	done
+}
+
+start() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		return 0
+	fi
+
+	# Opt-in: only an explicit truthy value arms the watchdog.
+	case "$(get_cfg enabled false)" in
+		true | 1 | yes) ;;
+		*) exit 0 ;;
+	esac
+
+	watch_loop &
+	echo $! >"$PIDFILE"
+}
+
+stop() {
+	if [ -f "$PIDFILE" ]; then
+		kill "$(cat "$PIDFILE")" 2>/dev/null
+	fi
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

@@ -142,7 +142,7 @@ define THINGINO_UBOOT_RMEM_SET_VALUE
 			nmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
 			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
+			[ $(ISP_NMEM_MB) -eq 0 ] || grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
 		else \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
@@ -164,7 +164,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE" = "y" ]; then grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=false/" $(THINGINO_UENV_TXT) || echo "disable_eth=false" >> $(THINGINO_UENV_TXT); else grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=true/" $(THINGINO_UENV_TXT) || echo "disable_eth=true" >> $(THINGINO_UENV_TXT); fi'
 	@env THINGINO_UBOOT_NETCONSOLE='$(THINGINO_UBOOT_NETCONSOLE)' THINGINO_UBOOT_NETCONSOLE_USB='$(THINGINO_UBOOT_NETCONSOLE_USB)' IP='$(strip $(IP))' sh -c 'if [ "$$THINGINO_UBOOT_NETCONSOLE" = "y" ]; then if [ "$$THINGINO_UBOOT_NETCONSOLE_USB" = "y" ]; then NC_PREBOOT="usb start;setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; else NC_PREBOOT="setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; fi; case "$$IP" in [0-9]*.[0-9]*.[0-9]*.[0-9]*) NC_IPADDR="$$IP" ;; *) NC_IPADDR=192.168.1.10 ;; esac; grep -q "^preboot=" $(THINGINO_UENV_TXT) || echo "preboot=$$NC_PREBOOT" >> $(THINGINO_UENV_TXT); grep -q "^bootdelay=" $(THINGINO_UENV_TXT) || echo "bootdelay=5" >> $(THINGINO_UENV_TXT); grep -q "^ipaddr=" $(THINGINO_UENV_TXT) || echo "ipaddr=$$NC_IPADDR" >> $(THINGINO_UENV_TXT); fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
-	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
+	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && [ $(ISP_NMEM_MB) -ne 0 ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV

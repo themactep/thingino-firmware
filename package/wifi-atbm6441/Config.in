@@ -1,7 +1,12 @@
 config BR2_PACKAGE_WIFI_ATBM6441
 	bool "AltoBeam ATBM6441"
 	select BR2_LINUX_KERNEL
-	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	select BR2_PACKAGE_ATBM6441_TOOLS
+	select BR2_PACKAGE_THINGINO_MMC
 	help
-	  Wireless driver atbm6441
-	  altobeam hare atbm6441 WiFi driver
+	  AltoBeam ATBM6441 SDIO WiFi driver.
+
+	  The thingino-mmc init script loads the module, and the IoT tools
+	  drive the MCU WiFi stack, so both are selected here. The board
+	  must still select the MMC kernel support separately; this package
+	  does not select BR2_PACKAGE_THINGINO_KOPT_MMC.

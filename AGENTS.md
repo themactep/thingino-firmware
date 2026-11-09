@@ -58,9 +58,32 @@ should be done on a real disk. See `docs/build/makefile.md`.
   As with the output dir, read these from the environment
   (`echo $BR2_DL_DIR $THINGINO_USER_DIR`) before assuming they live in the
   checkout.
-- No CI-integrated test suite for builds; validation is CI-only. A dev-side
-  QEMU test suite exists for the sysupgrade partition-fitting logic:
-  `scripts/ota-tests/` (see its README).
+- No CI-integrated test suite for builds; validation is CI-only. Two QEMU
+  test suites exist, each with its own README:
+  - `scripts/qemu-test/` boots a real image and asserts the network surface
+    (services, portal/provisioning, DHCPv4/v6, DNS, web UI, ONVIF, mDNS,
+    NTP, syslog, link flap, persistence) with Playwright browser flows.
+    Build with `make GROUP=testing CAMERA=qemu_t31x_eth fast`, run with
+    `scripts/qemu-test/run.sh qemu_t31x_eth`. A profile is a directory
+    under `configs/cameras-testing/` with a `qemu-test.json` and its
+    `expected-checks.txt` contract; wifi profiles carry no wired MAC and
+    reach the host over a serial link (the UART0 and SLIP kopts), so never
+    add JZ_MAC to one; add a check by adding one row to the `SUITES`
+    table in `scripts/qemu-test/qemutest/plan.py`.
+  - `scripts/ota-tests/` covers the sysupgrade partition-fitting logic.
+
+## Running images in QEMU
+
+`scripts/qemu-dev` boots a built or release image under the Ingenic QEMU
+fork and drives it one command at a time, so a change can be tried without
+a camera; it only ever touches the emulated one, and nothing needs a
+terminal. See `docs/dev/qemu.md`.
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth             # boot the newest build; returns at a root shell
+scripts/qemu-dev sh -- 'cat /proc/cmdline'    # run a command; exits with its status
+scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, gpio, adc, down
+```
 
 ## Repo layout
 
@@ -113,10 +136,18 @@ All of them are included and each opens with a `$(filter)` on its own models,
 so exactly one file's body applies. Kconfig cannot run make and `thingino.mk`
 needs the family before `.config` exists, so the map is stated in both places;
 adding a SoC means adding it to both.
+Family files describe hardware only. Which kernels a vendor's SoCs run lives in
+`kernels/<vendor>.mk`, because a family runs two or three of them and the branch
+is mostly decided by the architecture. That file sets `KERNEL_VERSION` when the
+defconfig set neither `KERNEL_VERSION_4` nor `_7`, then sets `KERNEL_BRANCH`,
+and `KERNEL_HASH` for a branch that is pinned. It is one chain per version,
+naming the families that differ and ending in the branch the rest of the
+architecture shares. Leaving `KERNEL_BRANCH` unset is how a combination is
+rejected: `thingino.mk` makes that an error, not a fallback. A vendor with no
+such file names its kernel through Buildroot symbols instead.
 `thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
-Kernel branches are mapped from SOC family + version in `thingino.mk`.
 Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
 Kernel source: `github.com/gtxaspec/thingino-linux`.
 
@@ -126,6 +157,11 @@ Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
 `ciao` still defaults to `prudynt`. Select explicitly via the Streamer choice
 in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 `BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
+
+Raptor's runtime config (`/etc/raptor.conf`) has its own Kconfig and
+`.config`, not Buildroot symbols: `CAMERA=<cam> make raptor-menuconfig` and
+`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.config`.
+See [docs/dev/raptor-config.md](docs/dev/raptor-config.md).
 
 ## Firmware image
 

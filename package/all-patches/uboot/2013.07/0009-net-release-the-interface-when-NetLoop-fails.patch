@@ -1,0 +1,56 @@
+From 4188acb471ea306cd11399118d3d887f24ce94de Mon Sep 17 00:00:00 2001
+From: spamcop <5637111+spamcop@users.noreply.github.com>
+Date: Tue, 25 Aug 2026 15:12:18 +0200
+Subject: [PATCH] net: release the interface when NetLoop fails
+
+The success path halts the interface on the way out; the failure path did
+not, leaving it ETH_STATE_ACTIVE.
+
+That wedges netconsole input permanently. nc_tstc() reads an active
+interface as "we are already inside a net loop" and returns 0 without
+polling, so once a NetLoop(NETCONS) fails no keystroke is ever seen again.
+Output keeps working, because nc_send_packet() transmits whatever the
+state is, so the console looks alive while accepting nothing.
+
+It also explains the recovery: any command that runs a NetLoop of its own
+ends in NETLOOP_SUCCESS and halts on the way out, clearing the state and
+bringing input back. Running ping from the serial console did exactly
+that.
+
+Release it the same way the success path does.
+
+Signed-off-by: spamcop <5637111+spamcop@users.noreply.github.com>
+---
+ net/net.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/net/net.c b/net/net.c
+index f5c55c6..5b4b1e1 100644
+--- a/net/net.c
++++ b/net/net.c
+@@ -549,6 +549,22 @@ restart:
+ 
+ 		case NETLOOP_FAIL:
+ 			net_cleanup_loop();
++			/*
++			 * Release the interface exactly as the success path does.
++			 * Leaving it ETH_STATE_ACTIVE wedges netconsole input for
++			 * good: nc_tstc() takes an active interface to mean "we
++			 * are already inside a net loop" and returns 0 without
++			 * ever polling again. Output still works, because
++			 * nc_send_packet() transmits regardless, so the console
++			 * looks alive while accepting nothing -- until some other
++			 * command runs a NetLoop of its own and halts on the way
++			 * out, which is why a ping from the serial console
++			 * appeared to fix it.
++			 */
++			if (protocol != NETCONS)
++				eth_halt();
++			else
++				eth_halt_state_only();
+ 			/* Invalidate the last protocol */
+ 			eth_set_last_protocol(BOOTP);
+ 			debug_cond(DEBUG_INT_STATE, "--- NetLoop Fail!\n");
+-- 
+2.55.0
+

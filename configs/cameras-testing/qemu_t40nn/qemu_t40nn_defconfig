@@ -1,6 +1,8 @@
 # NAME: QEMU T40NN (virtual WiFi)
 # FRAG: soc-xburst2 core
 BR2_ETHERNET=y
+# the tap lab reaches the guest through the GMAC as eth0
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC=y
 BR2_INGENIC_SOC_MODEL="t40n"
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG=y

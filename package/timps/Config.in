@@ -4,13 +4,17 @@ config BR2_PACKAGE_TIMPS
 	depends on BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP
-	select BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS if !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	select BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS if !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS && !BR2_PACKAGE_OPENIMP
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
 	select BR2_PACKAGE_THINGINO_SEND2
 	select BR2_PACKAGE_THINGINO_AGENT
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Tiny IMP Streamer — a minimal, dependency-light RTSP /
 	  fragmented-MP4 / MJPEG streamer for Ingenic SoC IP cameras.
@@ -99,8 +103,62 @@ config BR2_PACKAGE_TIMPS_TLS
 	select BR2_PACKAGE_MBEDTLS
 	help
 	  Enable mbedTLS for HTTPS (HTTP preview port) and RTSPS (RTSP
-	  over TLS on port 322). Requires TLS certificates at
-	  /etc/ssl/certs/httpd.crt and /etc/ssl/private/httpd.key.
+	  over TLS on port 322). Certificates come from the paths in
+	  timps.conf (http.tls_cert / http.tls_key, default
+	  /etc/ssl/certs/timps.crt and /etc/ssl/private/timps.key).
+	  S95timps sets them up before timpsd starts: on an image with
+	  the web UI it symlinks them to uhttpd's own certificate, so
+	  :443 and the preview port present the same cert to the browser
+	  (self-signed trust is per host+PORT); otherwise it generates a
+	  self-signed pair.
+
+config BR2_PACKAGE_TIMPS_WEBRTC
+	bool "WebRTC/WHEP endpoint (ICE-lite + DTLS-SRTP, H264 + G.711)"
+	depends on BR2_PACKAGE_TIMPS_TLS
+	depends on BR2_PACKAGE_TIMPS_CONTROL
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
+	default y
+	help
+	  Serve a WHEP-shaped signalling endpoint at POST /webrtc/whep on the
+	  http port: the browser posts its SDP offer, the camera answers as an
+	  ICE-lite peer with a single host candidate and completes the DTLS
+	  handshake as the passive side.
+
+	  timps's own runtime default for webrtc.enabled is 2 (on, plaintext
+	  signalling accepted) whenever this is compiled in: most cameras have
+	  no http->https redirect configured, so defaulting to 1 (TLS
+	  required) would silently 426 the very feature this turns on - see
+	  the Configuration Reference wiki page.
+
+	  Media is H264 video over SRTP (SRTP_AES128_CM_HMAC_SHA1_80), plus
+	  G.711 audio via a second encode of the captured PCM (audio.codec2,
+	  defaults to pcmu on these builds) independent of the primary
+	  audio.codec used for recording/RTSP/fMP4 - an audio m-section is
+	  answered with port 0 only when codec2 is none. No Opus, no H265, no
+	  NACK/retransmission, no FEC, no congestion control, no IPv6 and no
+	  NAT traversal beyond the single host candidate - LAN or VPN only.
+	  DELETE /webrtc/whep/<id> frees a session immediately; one left open
+	  is reclaimed after 30 s of silence. At most 4 concurrent sessions.
+
+	  No new library: the ICE side is an ICE-lite RESPONDER (no STUN/TURN
+	  client, no candidate gathering, no connectivity checks of our own -
+	  the browser does all of that and we only answer its checks), and DTLS
+	  is the same mbedTLS that BR2_PACKAGE_TIMPS_TLS already links.
+
+	  BR2_PACKAGE_MBEDTLS_DTLS_SRTP is selected because a browser's
+	  ClientHello always carries the use_srtp extension and its DTLS stack
+	  aborts when the server answers without one - an mbedTLS built without
+	  it cannot complete this handshake at all. Note this changes the
+	  mbedTLS build, so mbedtls needs a dirclean/rebuild when turning this
+	  on in an existing output directory.
+
+	  mbedTLS itself is NOT selected here: BR2_PACKAGE_TIMPS_TLS already
+	  carries that select, and a second one for the same package is what
+	  produced the "recursive dependency detected" breakage documented in
+	  BR2_PACKAGE_TIMPS_BC_WS above.
+
+	  Gated at runtime by webrtc.enabled in timps.conf (default 2,
+	  restart-required), so enabling this is not a one-way door.
 
 config BR2_PACKAGE_TIMPS_SRT
 	bool "SRT output (libsrt)"
@@ -112,7 +170,7 @@ config BR2_PACKAGE_TIMPS_SRT
 
 config BR2_PACKAGE_TIMPS_OSD_HINTING
 	bool "OSD text autohinting (geometric stem snapping)"
-	default y
+	default n
 	help
 	  Enable the opt-in geometric autohinting pass in the TTF rasterizer
 	  (msttf.c), which snaps long, near-vertical/near-horizontal glyph
@@ -128,37 +186,6 @@ config BR2_PACKAGE_TIMPS_OSD_HINTING
 	  save binary size on boards that don't need it (measured ~2.1KB of
 	  .text on T31/GCC 16.1.0/-Os). With this off, setting osd.hinting=1
 	  in timps.conf is accepted but has no effect.
-
-config BR2_PACKAGE_TIMPS_ROTATE
-	bool "Image rotation (90/270, plus 180 on T40/T41)"
-	default n
-	help
-	  Enable per-stream image rotation. Real 90/270 transpose: hardware
-	  90/270 on T40/T41 (I2D) and T31 (FrameSource rotate), or the opt-in
-	  software path below for T23. On SoCs with no 90/270 path
-	  (T10/T20/T21/T30/C100, and T23 without SW_ROTATE) 90/270 has no
-	  usable effect - rotation accepts no non-zero value there.
-	  rotation=180 IS still offered, but only takes effect as a real,
-	  distinct rotation on T40/T41: there it is a per-channel hardware
-	  I2D flip scoped to just that video stream. On every other SoC
-	  requesting rotation=180 has no effect (it coerces to 0) - it was a
-	  redundant GLOBAL ISP Hflip+Vflip that also flipped every sibling
-	  stream, so use image.hflip=1 + image.vflip=1 there instead for the
-	  equivalent (global) flip (always available, independent of this
-	  option). Rotation is restart-required.
-	  Disabled by default: when off, no rotation code is compiled in
-	  (byte-identical build).
-
-config BR2_PACKAGE_TIMPS_SW_ROTATE
-	bool "Software 90/270 on SoCs without hardware rotate (T23)"
-	depends on BR2_PACKAGE_TIMPS_ROTATE
-	default n
-	help
-	  Enable software 90/270 rotation on SoCs that lack a hardware
-	  rotate path (T23). The frame is transposed in software per frame
-	  and fed to the unbound YuvEncode API. CPU-heavy on the single-core
-	  T23, H264 only, software OSD only (no hardware OSD/privacy on the
-	  rotated stream), and enlarges the binary. Leave off unless needed.
 
 config BR2_PACKAGE_TIMPS_BACKCHANNEL
 	bool "ONVIF audio backchannel (client -> speaker)"
@@ -182,6 +209,86 @@ config BR2_PACKAGE_TIMPS_BC_AAC
 	  libhelix-aac (the same decoder prudynt uses). Better audio quality
 	  than G.711 but higher latency and an extra dependency. Leave off
 	  for a G.711-only, dependency-light backchannel.
+
+config BR2_PACKAGE_TIMPS_BC_WS
+	bool "Browser-microphone backchannel (WebSocket talk endpoint)"
+	depends on BR2_PACKAGE_TIMPS_BACKCHANNEL
+	depends on BR2_PACKAGE_TIMPS_CONTROL
+	default y if BR2_PACKAGE_TIMPS_TLS
+	help
+	  On by default on TLS builds, where it works out of the box - a
+	  browser is the only client most people actually have for talk-back
+	  (few run an ONVIF client or NVR that speaks the RTSP backchannel),
+	  and this only compiles the endpoint in. It stays dormant at runtime
+	  until audio.talk_ws is set in timps.conf, so enabling this is not a
+	  one-way door. Without TLS it is buildable but off by default, since
+	  it then needs both a manual audio.talk_ws=2 and a browser-side
+	  secure-context override to be of any use (see below).
+
+	  Serve the audio backchannel to a browser over a WebSocket at
+	  wss://<camera>:<http_port>/talk, in addition to the ONVIF/RTSP
+	  path the backchannel already offers. The page captures the
+	  visitor's microphone with getUserMedia(), encodes G.711 mu-law
+	  in an AudioWorklet and sends 20 ms binary frames; timps decodes
+	  them with the G.711 decoder it already has and hands the PCM to
+	  the same IMP_AO speaker path the RTSP backchannel uses.
+
+	  A browser cannot speak RTSP/RTP, so without this the backchannel
+	  is reachable only from an ONVIF client or an NVR.
+
+	  Enabling this compiles three extra source files into timpsd (the
+	  RFC 6455 framing, SHA-1, and the talk endpoint itself) and costs
+	  roughly 8KB of text. No new library: the framing rides on the
+	  connection httpd.c hands it (already TLS-terminated, or a plain
+	  socket), and mu-law decode is the pure-C g711.c that the
+	  backchannel already builds.
+
+	  TLS is strongly recommended but no longer a build dependency.
+	  Which transports are served is a runtime decision, audio.talk_ws
+	  in timps.conf:
+
+	    0  off (the default until something sets it)
+	    1  on, TLS REQUIRED - /talk answers 426 on a plaintext port.
+	       This is what BR2_PACKAGE_TIMPS_TLS builds get preset to, and
+	       what "on" has always meant. In a build without TLS it can
+	       never be satisfied, so timpsd logs a warning at startup and
+	       behaves as if it were 0.
+	    2  on, TLS preferred but not required - wss:// when the port is
+	       TLS, and a plain ws:// upgrade accepted when it is not.
+
+	  Value 2 exists because the real constraint is the BROWSER, not the
+	  camera: getUserMedia() is refused outside a secure context, so a
+	  plain-http:// preview page normally cannot obtain a microphone at
+	  all. An operator can lift that themselves for a camera they own
+	  (Chrome's unsafely-treat-insecure-origin-as-secure, a trusted
+	  tunnel, localhost), and 2 is how they tell timpsd so. Understand
+	  the tradeoff before setting it: the microphone audio and the
+	  per-boot token that authorizes it then cross the network in the
+	  clear. Prefer TLS wherever it is an option; 2 is never enabled
+	  automatically, only by hand.
+
+	  The control endpoint is an equally hard requirement, for the
+	  auth story: a browser's WebSocket constructor cannot set request
+	  headers, so the ONLY credential it can present is the per-boot
+	  ?token= that /events already relies on - and the whole token
+	  machinery (http_header, http_check_token, http_cors, and the
+	  tok_ok that unlocks the global auth gate) is compiled only under
+	  the control endpoint. Without it this endpoint still builds, but
+	  every browser reaching it on a camera that HAS credentials
+	  configured gets a 401 demanding Digest or Basic, which a
+	  WebSocket cannot answer. Hence "depends on
+	  BR2_PACKAGE_TIMPS_CONTROL" rather than a silently unreachable
+	  endpoint.
+
+	  mbedTLS is NOT selected here. BR2_PACKAGE_TIMPS_TLS already
+	  carries "select BR2_PACKAGE_MBEDTLS", so depending on that symbol
+	  transitively guarantees the library; adding a second select for
+	  the same package is what produced the "recursive dependency
+	  detected" breakage documented in thingino-motors' WS_TLS option,
+	  where kconfig responded by silently ignoring defaults.
+
+	  Gated at runtime by audio.talk_ws in timps.conf (default 0,
+	  restart-required), so turning this on is not a one-way door.
 
 config BR2_PACKAGE_TIMPS_PLAY
 	bool "System-sound play queue (/usr/sbin/play)"
@@ -257,3 +364,52 @@ config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MINIMAL
 endchoice
 
 endif # BR2_PACKAGE_TIMPS
+
+config BR2_PACKAGE_TIMPS_DIAG_TOOLS
+	bool "Diagnostic scripts (self-test, log shipping, exposure log)"
+	default n
+	help
+	  Install the shell helpers used to investigate a camera rather than
+	  to run it: timps-selftest, timps-logcat-ship (forwards the vendor
+	  alog into syslog) and timps-dn-isp-log (samples the ISP exposure
+	  state once a minute for day/night analysis).
+
+	  Nothing on the camera calls any of them - they are driven by cron
+	  or by hand, and the last two only make sense when something is
+	  collecting what they emit. Off by default: together they are about
+	  9 KB of shell on a device whose writable partition is under a
+	  megabyte, and a normal installation has no use for them.
+
+	  This is separate from TIMPS_TRACE, which instruments the daemon
+	  itself and is deliberately not reachable from menuconfig.
+
+config BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP
+	bool "Drop libstdc++.so from the image when nothing links it"
+	# Only timps.mk implements this, and this symbol sits outside the
+	# "if BR2_PACKAGE_TIMPS" block above - so without this it is offered
+	# on prudynt/raptor/strero images too, where it does nothing.
+	depends on BR2_PACKAGE_TIMPS
+	help
+	  libstdc++.so.6 is 2130 KB - on a 5 MB rootfs the largest single
+	  file, bigger than libimp.so or the ISP driver. Two things put it
+	  there. With SRT, libsrt is C++; timps links that runtime
+	  statically (-static-libstdc++), so the shared copy is not needed
+	  for it. And Ingenic's proprietary libaudioProcess.so is C++ too.
+	  Replace that one with libaudioprocess-neo (pure C, same ABI,
+	  75056 bytes against 671472) and nothing links libstdc++ at all -
+	  with or without SRT. Without SRT it is the clearer case: timpsd
+	  is then pure C and never touches the runtime.
+
+	  Note this removes the C++ runtime, not the audio filters.
+	  aec/ns/agc/high_pass need libaudioProcess.so itself, which neo
+	  provides - measured: with it stubbed out IMP_AI_EnableAec fails
+	  and timps logs one WARN and runs unfiltered.
+
+	  This removes it in a target-finalize hook, but only after
+	  checking that no ELF in the image has a NEEDED entry for it - if
+	  anything still does, the file stays and the build prints why.
+	  The check cannot see dlopen, which is why this is opt-in.
+
+	  Do NOT extend this to libgcc_s.so.1: uClibc dlopens that one for
+	  pthread_cancel with no NEEDED entry, and removing it aborts the
+	  daemon right after audio init.

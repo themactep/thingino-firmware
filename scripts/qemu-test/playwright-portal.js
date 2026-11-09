@@ -2,20 +2,26 @@
 // Screenshots every meaningful step, outputs JSON results for the report.
 //
 // Usage: npx playwright test playwright-portal.js
-// Env:   PORTAL_URL (default http://localhost:19080)
-//        REPORT_DIR (default ./test-report)
+// Env:   PW_MANIFEST  JSON written by the harness saying which scenarios
+//                     to run and their URLs (see qemutest/playwright.py);
+//                     without it, everything runs against localhost
+//        REPORT_DIR   (default ./test-report)
 
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
-const PORTAL_URL = process.env.PORTAL_URL || 'http://localhost:19080';
 const REPORT_DIR = process.env.REPORT_DIR || path.join(__dirname, 'test-report');
+const M = process.env.PW_MANIFEST
+  ? JSON.parse(fs.readFileSync(process.env.PW_MANIFEST, 'utf8'))
+  : { portal: { url: 'http://localhost:19080' }, provision: true,
+      webui: { url: 'http://localhost:19081' } };
+const PORTAL_URL = M.portal ? M.portal.url : '';
 
 function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
 
 test.describe('WiFi Portal', () => {
-  test.skip(process.env.SKIP_PORTAL === '1', 'No portal in this mode');
+  test.skip(!M.portal, 'No portal in this run');
   test.beforeAll(() => { ensureDir(REPORT_DIR); });
 
   test('portal loads and has form', async ({ page }) => {
@@ -42,7 +48,7 @@ test.describe('WiFi Portal', () => {
   });
 
   test('fill credentials and submit', async ({ page }) => {
-    test.skip(process.env.SKIP_PROVISION === '1', 'Provisioning test disabled');
+    test.skip(!M.provision, 'Provisioning not requested');
     test.setTimeout(60000);
 
     await page.goto(PORTAL_URL, { waitUntil: 'networkidle', timeout: 15000 });
@@ -95,11 +101,9 @@ test.describe('WiFi Portal', () => {
 });
 
 test.describe('Main Web UI', () => {
-  const WEBUI_URL = process.env.WEBUI_URL || `http://localhost:${parseInt(process.env.WEBUI_PORT || '19081')}`;
-
   test('web UI loads', async ({ page }) => {
-    test.skip(process.env.SKIP_WEBUI === '1', 'Web UI not available in this mode');
-    await page.goto(WEBUI_URL, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    test.skip(!M.webui, 'Web UI not in this run');
+    await page.goto(M.webui.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.screenshot({ path: path.join(REPORT_DIR, '07-webui-loaded.png'), fullPage: true });
 
     const html = await page.content();
@@ -108,18 +112,16 @@ test.describe('Main Web UI', () => {
 });
 
 test.describe('WebUI Login', () => {
-  const WEBUI_URL = process.env.WEBUI_URL || 'http://localhost:19081';
-
   test('provisioned password opens the web UI', async ({ page }) => {
-    test.skip(process.env.WEBUI_LOGIN !== '1', 'Login test not requested');
+    test.skip(!M.login, 'Login not in this run');
     test.setTimeout(60000);
 
     // Unauthenticated / redirects to the login form
-    await page.goto(WEBUI_URL + '/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(M.login.url + '/', { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.waitForSelector('#password', { timeout: 10000 });
     await page.screenshot({ path: path.join(REPORT_DIR, '20-webui-login.png'), fullPage: true });
 
-    await page.fill('#password', process.env.WEBUI_PASS || 'root');
+    await page.fill('#password', M.login.password || 'root');
     await page.click('#loginBtn');
 
     // A non-default password lands on the preview page

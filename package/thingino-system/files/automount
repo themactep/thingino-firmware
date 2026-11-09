@@ -12,13 +12,11 @@ echo -c 240 -e "- Device node: $device_node"
 mount_point="/mnt/$MDEV"
 echo -c 240 -e "- Mount point: $mount_point"
 
-# Camera SD cards favor immediate persistence. SATA and USB block storage are
-# also used by NVRs, where a synchronous mount would serialize every database
-# and recording write and needlessly wear the drive.
-mount_options="noatime,sync"
-case "$MDEV" in
-	sd[a-z][0-9]*) mount_options="noatime" ;;
-esac
+# Mount removable media async: sync serializes every write, so card-internal
+# GC pauses propagate straight into writers (dropped frames in the recorder).
+# Dirty pages are bounded globally by sysctl.conf (vm.dirty_bytes); do_umount
+# syncs before releasing the card on graceful removal.
+mount_options="noatime"
 
 diag="$mount_point/.diag"
 run="$mount_point/run.sh"
@@ -101,6 +99,7 @@ do_umount() {
 	if grep -qs "^$device_node " /proc/mounts; then
 		if umount -l "$mount_point"; then
 			echo -c 240 -e "- Unmounted $mount_point"
+			sync
 		else
 			echo -c 142 -e "Failed to unmount $mount_point" >&2
 		fi

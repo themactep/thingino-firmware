@@ -47,11 +47,7 @@ performs the Thingino-specific setup that a fresh worktree needs:
    The script runs `git submodule update --init --reference` against the main
    checkout's module store (`.git/modules/buildroot`), so no network clone is
    needed and objects are shared via alternates.
-2. **Buildroot override patches.** `make update` normally applies the patches
-   from `package/all-patches/buildroot/` to the submodule. The script applies
-   them directly (idempotently), because you must *not* run `make update` in
-   a feature worktree (see below).
-3. **Shared download cache.** `BR2_DL_DIR` defaults to `<tree>/dl`, which
+2. **Shared download cache.** `BR2_DL_DIR` defaults to `<tree>/dl`, which
    would be empty in a new worktree. If the main checkout has a `dl/`
    directory, the script symlinks it. Buildroot's download logic is safe for
    concurrent use of a shared `dl/`. (Container builds get the dl cache from
@@ -83,8 +79,8 @@ designed for the main checkout tracking `master`. In a feature worktree use:
 scripts/worktree.sh sync        # commit a checkpoint first if dirty
 ```
 
-This rebases onto `origin/master`, re-syncs the buildroot submodule pointer,
-and re-applies the buildroot override patches. Sync at the end of every
+This rebases onto `origin/master` and re-syncs the buildroot submodule
+pointer. Sync at the end of every
 significant session — a worktree that drifts for days becomes a merge
 project of its own.
 

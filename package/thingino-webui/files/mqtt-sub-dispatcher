@@ -88,14 +88,26 @@ tls_skip_verify=$(jct "$CONFIG_FILE" get mqtt_sub.tls_skip_verify 2>/dev/null)
 
 port="${port:-1883}"
 
-# Build topic arguments and precompile dispatch rules from enabled
-# subscriptions. Doing this once at startup keeps the per-message loop free
-# of jct forks — previously the config was re-read (3 jct invocations per
-# subscription) for every incoming message, which is expensive on chatty
-# topics. Config changes require a service restart, matching the existing
-# behavior for broker settings.
-TOPICS=""
+# Build the mosquitto_sub argv. Broker settings and topics come from
+# config, so they are passed as arguments and never pasted into a shell
+# command string: a password with spaces, quotes or $(...) has to stay
+# data, not code.
+#
+# Dispatch rules are compiled from the enabled subscriptions here, once,
+# so the per-message loop stays free of jct forks — previously the config
+# was re-read (3 jct invocations per subscription) for every incoming
+# message, which is expensive on chatty topics. Config changes require a
+# service restart, matching the broker settings.
+set -- mosquitto_sub -h "$host" -p "$port" -v -F "%t %p"
+[ -n "$username" ] && set -- "$@" -u "$username"
+[ -n "$password" ] && set -- "$@" -P "$password"
+if [ "$use_ssl" = "true" ]; then
+	set -- "$@" --capath /etc/ssl/certs
+	[ "$tls_skip_verify" = "true" ] && set -- "$@" --insecure
+fi
+
 RULE_COUNT=0
+TOPIC_COUNT=0
 i=0
 while true; do
 	topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.topic" 2>/dev/null | tr -d '"')
@@ -104,7 +116,8 @@ while true; do
 	qos=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.qos" 2>/dev/null | tr -d '"')
 	if [ "$enabled" = "true" ]; then
 		expanded=$(expand_topic "$topic")
-		TOPICS="$TOPICS -t $expanded -q ${qos:-0}"
+		set -- "$@" -t "$expanded" -q "${qos:-0}"
+		TOPIC_COUNT=$((TOPIC_COUNT + 1))
 
 		action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.action" 2>/dev/null)
 		action=$(json_unquote "$action")
@@ -119,23 +132,13 @@ while true; do
 	i=$((i + 1))
 done
 
-[ -n "$TOPICS" ] || die "No enabled subscriptions configured"
-
-# Assemble mosquitto_sub command
-CMD="mosquitto_sub -h $host -p $port -v -F \"%t %p\""
-[ -n "$username" ] && CMD="$CMD -u $username"
-[ -n "$password" ] && CMD="$CMD -P $password"
-if [ "$use_ssl" = "true" ]; then
-	CMD="$CMD --capath /etc/ssl/certs"
-	[ "$tls_skip_verify" = "true" ] && CMD="$CMD --insecure"
-fi
-CMD="$CMD $TOPICS"
+[ "$TOPIC_COUNT" -gt 0 ] || die "No enabled subscriptions configured"
 
 start_presence_heartbeat
 
 # Run subscriber loop. Matching uses only shell builtins against the rules
 # precompiled at startup — no process is forked unless an action fires.
-sh -c "$CMD" | while IFS= read -r line; do
+"$@" | while IFS= read -r line; do
 	mqtt_topic="${line%% *}"
 	mqtt_payload="${line#* }"
 	[ -n "$mqtt_topic" ] || continue

@@ -3,7 +3,7 @@ config BR2_PACKAGE_THINGINO_SEND2
 	select BR2_PACKAGE_THINGINO_JCT
 	help
 	  Shared send-to-* notification toolkit (email, FTP, Telegram, MQTT,
-	  ntfy, webhook, storage, Google Photos, Gotify).
+	  ntfy, Pushover, webhook, storage, Google Photos, Gotify).
 
 	  Provides /usr/sbin/send2* plus /etc/send2.json and shared helpers.
 	  Default send2common is prudynt capture; raptor and timps install

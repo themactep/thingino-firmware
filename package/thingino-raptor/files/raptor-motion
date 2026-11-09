@@ -16,7 +16,7 @@ MOTION_ALARM="${MOTION_ALARM:-/run/motion/motion_alarm}"
 CHAN="${MOTION_CHANNEL:-0}"
 CLIP_SECS="${MOTION_CLIP_SECS:-10}"
 
-SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
+SERVICES="email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook"
 MOTOR_ACTIVE_FLAG="${MOTOR_ACTIVE_FLAG:-/run/motors-active}"
 
 motor_active() {
