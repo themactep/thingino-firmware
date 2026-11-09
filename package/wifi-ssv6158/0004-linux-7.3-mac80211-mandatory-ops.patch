@@ -1,0 +1,34 @@
+From: Lu-Fi
+Subject: [PATCH] ssv6158: register the mac80211 ops that Linux 6.2+/6.9+ require
+
+ieee80211_alloc_hw_nm() refuses an ops table without wake_tx_queue
+(mandatory since 6.2) and, for drivers without channel contexts,
+without the ieee80211_emulate_*_chanctx helpers (since 6.9). The
+SSV6158 driver sets neither, so on 7.3 the probe stops with
+
+  WARNING: net/mac80211/main.c:802 ... modprobe
+  SSV WLAN driver SSV6020C: No memory for ieee80211_hw
+  probe with driver SSV WLAN driver failed with error -12
+
+and wlan0 never appears. Use the generic mac80211 helpers.
+
+Seen on a Wuuk Y0510 (T31X, SSV6020C on MSC1) with kernel 7.3.3.
+---
+--- a/smac/dev.c
++++ b/smac/dev.c
+@@ -3311,6 +3311,15 @@
+ {
+     /* MUST callback function: */
+     .tx                 = ssv6200_tx,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,2,0)
++    .wake_tx_queue      = ieee80211_handle_wake_tx_queue,
++#endif
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,9,0)
++    .add_chanctx        = ieee80211_emulate_add_chanctx,
++    .remove_chanctx     = ieee80211_emulate_remove_chanctx,
++    .change_chanctx     = ieee80211_emulate_change_chanctx,
++    .switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
++#endif
+     .start              = ssv6200_start,
+     .stop               = ssv6200_stop,
+     .add_interface      = ssv6200_add_interface,
