@@ -4,7 +4,8 @@
 
 soc   key into config.SOC_MACHINES
 caps  what the camera has: "wired" (an uplink), "wifi" (a radio),
-      "usb_direct" / "usb_direct_client" (an NCM gadget, server or client)
+      "usb_direct" / "usb_direct_client" (an NCM gadget, server or client),
+      "usb_webcam" (a UVC gadget, streamed to by a host that saves frames)
 net   default backend: "tap" for the full lab, "slirp" for port forwards
 """
 import glob
