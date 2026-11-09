@@ -30,8 +30,9 @@ This section is self-contained; the 4.4 material below is a different branch.
   (see the SDK reference below) - a port, not a tweak.
 - **ISP / video**: the `.dtsi` applies and the `isp` node is enabled, but the open
   ISP stack has not been brought up on 7.x.
-- The `ttyS1` boot-console handover works on 7.3.3, so the `keep_bootcon`
-  workaround was removed from the t31 fragment (it printed every line twice).
+- The `ttyS1` boot-console handover still hangs the console when the boot
+  console is deregistered on 7.3.3. `keep_bootcon` stays in the t31 fragment;
+  it prints every line twice. The root cause is still open.
 
 **Kernel patches** (`package/all-patches/linux/7.1.13/`):
 `0001` FIT image, `0002` thingino-t31 SFC partition map, `0003` mtdblock
@@ -780,11 +781,11 @@ The earlier "wedged at ~0.036 s" was **not** the 4 KiB change: the config
 regeneration that came with it dropped the local `keep_bootcon` tweak that had
 been living only in the output tree, so the boot stopped at the 8250 handover
 (`printk: legacy bootconsole [t31_uart0] disabled`) and needed a power cycle.
-It was carried in the fragment until the 7.3.3 tree, where `dmesg` shows the
-real console registering (`printk: console [ttyS1] enabled`) and printing
-after the handover. The doubled lines were the `t31_uart0` boot console plus
-`ttyS1`, so `keep_bootcon` was dropped from
-`board/ingenic/xburst1/kernel/7.3.3/t31.generic.config`.
+A 7.3.3 attempt to drop it was reverted: without `keep_bootcon` the log stops
+at `printk: legacy bootconsole [t31_uart0] disabled` and the system never
+comes up. It stays in `board/ingenic/xburst1/kernel/7.3.3/t31.generic.config`
+(`CONFIG_CMDLINE="earlycon keep_bootcon"`) until the real `ttyS1` console is
+fixed; the cost is that every line prints twice.
 
 ## Recovering / reflashing the camera
 
