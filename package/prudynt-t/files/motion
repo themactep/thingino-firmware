@@ -4,8 +4,6 @@
 
 . /usr/share/prudynt-helpers
 
-# Only enforce singleton for start; stop must always be allowed to run
-# even if a start invocation is still in progress (e.g. waiting for video).
 [ "$1" != "stop" ] && singleton "$0"
 
 MOTION_ALARM="/run/motion/motion_alarm"
@@ -15,11 +13,9 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 MOTOR_ACTIVE_FLAG="/run/motors-active"
 
 MOTION_VIDEO_CHANNEL=0
-# Duration for motion clips (seconds). Read from config or default to 10.
 MOTION_VIDEO_LENGTH=$(prudynt-config get motion.video_length 2>/dev/null)
 [ -z "$MOTION_VIDEO_LENGTH" ] && MOTION_VIDEO_LENGTH=$(prudynt-config get recorder.duration 2>/dev/null)
 [ -z "$MOTION_VIDEO_LENGTH" ] && MOTION_VIDEO_LENGTH=10
-# Ensure it's a number
 [ "$MOTION_VIDEO_LENGTH" -eq "$MOTION_VIDEO_LENGTH" ] 2>/dev/null || MOTION_VIDEO_LENGTH=10
 
 domain=motion
@@ -80,6 +76,8 @@ start() {
 	MOTION_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 	MOTION_PHOTO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.jpg"
 	MOTION_VIDEO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.mp4"
+	# Captured-state markers consumed by send2storage
+	SEND2_SKIP_VIDEO=false
 
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
@@ -134,26 +132,19 @@ start() {
 		unset MOTION_PHOTO_FILE
 	fi
 
-	# A channel already running a recorder (continuous recording, another
-	# motion event, anything) rejects a second START, and a rejected START
-	# used to end in a bare STOP — which is global and kills every
-	# recorder on the box. Gate the whole capture on the channel's .active
-	# flag before any START is attempted, on /tmp too, not just SD.
+	# A busy channel rejects a second START; gate the whole capture on
+	# the channel's .active flag before any START is attempted.
 	active_flag="/run/prudynt/mp4ctl-ch${MOTION_VIDEO_CHANNEL}.active"
 	if [ "$need_video" = "true" ] && [ -f "$active_flag" ]; then
 		echo_info "Channel ${MOTION_VIDEO_CHANNEL} is busy; skipping motion video"
 		need_video=false
 		unset MOTION_VIDEO_FILE
+		SEND2_SKIP_VIDEO=true
 	fi
 
-	# When storage is the only service that wants the video, record it onto the
-	# storage mount itself instead of /tmp (RAM). send2storage then renames it
-	# into place, so the destination is exactly what the Storage page says.
-	# The mount must prove itself first: prudynt rejects a START to a
-	# read-only or overlay filesystem, and a rejected start would hang the
-	# wait loop below forever while motion holds the singleton lock. A write
-	# probe plus a non-root check filters those out; on any failure keep the
-	# /tmp path silently.
+	# When storage is the only video consumer, record onto the mount
+	# itself (send2storage renames into place). A rejected START would
+	# wedge the wait below, so the mount must prove itself first.
 	use_sd=false
 	if [ "$need_video" = "true" ] && [ "$other_video" != "true" ]; then
 		sd_mount=$(jct /etc/send2.json get storage.mount 2>/dev/null)
@@ -162,9 +153,8 @@ start() {
 			[ "$(id -u)" = "0" ] &&
 			touch "$sd_mount/.motion_write_test" 2>/dev/null; then
 			rm -f "$sd_mount/.motion_write_test"
-			# Busy was checked above; a race between the check and this
-			# START is the only way .active can exist here, so keep the
-			# /tmp path instead of stealing the channel.
+			# Busy was checked above; a race in between means keep /tmp
+			# rather than steal the channel.
 			if [ ! -f "$active_flag" ]; then
 				MOTION_VIDEO_FILE="$sd_mount/.motion_${MOTION_TIMESTAMP}.mp4"
 				use_sd=true
@@ -178,10 +168,8 @@ start() {
 		echo_info "Start recording $MOTION_VIDEO_FILE"
 		echo "START $MOTION_VIDEO_FILE $MOTION_VIDEO_LENGTH $MOTION_VIDEO_CHANNEL" >/run/prudynt/mp4ctl
 
-		# Wait for the file to appear, bounded. A rejected START never
-		# creates the file (read-only/overlay mount, recorder race, ...),
-		# and waiting forever here would wedge motion — which holds the
-		# singleton lock — until reboot.
+		# Wait for the file to appear, bounded — a rejected START never
+		# creates the file, and motion holds the singleton lock.
 		start_timeout=10
 		while [ ! -f "$MOTION_VIDEO_FILE" ] && [ $start_timeout -gt 0 ]; do
 			sleep 1
@@ -189,18 +177,13 @@ start() {
 		done
 
 		if [ ! -f "$MOTION_VIDEO_FILE" ]; then
-			# Channel-scoped cleanup only. The bare global STOP form would
-			# terminate every recorder on the box (docs/mp4-control.md).
-			# A rejected START left nothing to clean up, so only stop when
-			# the channel actually ran (START accepted, file never showed)
-			# and is still active; if .active is gone the session already
-			# ended on its own.
-			if [ -f "$active_flag" ]; then
+			# Stop only a recorder we own (.active records path=); a foreign
+			# recorder wins a check→START race and must be left alone.
+			if grep -qx "path=$MOTION_VIDEO_FILE" "$active_flag" 2>/dev/null; then
 				printf 'STOP ch=%s\n' "$MOTION_VIDEO_CHANNEL" >/run/prudynt/mp4ctl
 			fi
 			if [ "$use_sd" = "true" ]; then
-				# Mount refused the recording: drop the partial file and
-				# degrade to the original /tmp path.
+				# Mount refused the recording; degrade to the /tmp path.
 				rm -f "$MOTION_VIDEO_FILE"
 				MOTION_VIDEO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.mp4"
 				echo_info "Storage mount refused the recording, falling back to /tmp: $MOTION_VIDEO_FILE"
@@ -213,10 +196,7 @@ start() {
 			fi
 		fi
 
-		# Bounded completion wait: the .active flag file is the reliable
-		# end-of-recording signal (docs/mp4-control.md). Polling the file
-		# size was tuned for tmpfs; on a slow card a write stall looks like
-		# a stable file and would truncate the clip.
+		# .active is the end-of-recording signal (docs/mp4-control.md).
 		if [ -f "$MOTION_VIDEO_FILE" ]; then
 			active_flag="/run/prudynt/mp4ctl-ch${MOTION_VIDEO_CHANNEL}.active"
 			finish_timeout=$((MOTION_VIDEO_LENGTH + 10))
@@ -226,21 +206,22 @@ start() {
 				finish_timeout=$((finish_timeout - 1))
 			done
 
-			# The bounded wait can expire while the clip is still being
-			# written (a slow card can stretch the stop flush past
-			# MOTION_VIDEO_LENGTH + 10). Final settle before handing the
-			# file to the send2 services: one second, then require the
-			# size to stop growing while .active persists (5 s budget).
+			# Final settle: require the size to stop growing while
+			# .active persists (a slow card can outlast the wait above).
 			sleep 1
-			prev_size=$(wc -c <"$MOTION_VIDEO_FILE" 2>/dev/null)
+			prev_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
 			stability=5
 			while [ -f "$active_flag" ] && [ $stability -gt 0 ]; do
 				sleep 1
-				cur_size=$(wc -c <"$MOTION_VIDEO_FILE" 2>/dev/null)
+				cur_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
 				[ "$cur_size" = "$prev_size" ] && break
 				prev_size=$cur_size
 				stability=$((stability - 1))
 			done
+
+			# A write-aborted recording leaves a truncated or empty
+			# file; do not hand a corpse to the send2 services.
+			[ -s "$MOTION_VIDEO_FILE" ] || unset MOTION_VIDEO_FILE
 
 			echo_info "Motion video is ready."
 			export MOTION_VIDEO_FILE
@@ -252,6 +233,8 @@ start() {
 		echo_info "Skipping video recording (not needed by any send2 service)"
 		unset MOTION_VIDEO_FILE
 	fi
+
+	export SEND2_SKIP_VIDEO
 
 	# Media-bound send2 actions, after the capture above.
 	for service in $send2_deferred; do
