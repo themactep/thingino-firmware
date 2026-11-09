@@ -41,9 +41,9 @@ Kernel side and userspace side are cleanly split:
   miscdevice (`/dev/tx-isp`), one miscdevice per subdev that has an ops table
   (`/dev/isp-w00`, `/dev/isp-m0`, ...), and debug proc nodes under
   `/proc/jz/isp/`.
-- **Userspace**: `libimp.so` (proprietary blob, or OpenIMP) drives the
-  kernel nodes through ioctls and exposes the `IMP_*` API that streamers link
-  against. Companion blobs are `libalog`, `libsysutils`, `libaudioProcess`.
+- **Userspace**: OpenIMP's `libimp.so` drives the kernel nodes through
+  ioctls and exposes the `IMP_*` API that streamers link against. Companion
+  replacements are the neo `libalog`, `libsysutils`, and `libaudioProcess`.
 
 The ISP is the Apical ISP IP core licensed into the Tomahawk SoCs; the
 "apical-isp" directory in the SDK carries its calibration/tuning code.
@@ -55,8 +55,11 @@ package (menuconfig: `Thingino Firmware → System Packages → ISP stack`):
 
 | Provider | Kernel driver | Userspace libimp | Status |
 | --- | --- | --- | --- |
-| `THINGINO_ISP_PROPRIETARY` | Ingenic `tx-isp` | Ingenic `libimp.so` | default |
-| `THINGINO_ISP_OPEN` | `open-tx-isp` | OpenIMP (`libimp.so`) | experimental |
+| `THINGINO_ISP_OPEN` | `open-tx-isp` | OpenIMP (`libimp.so`) | only provider |
+
+The proprietary Ingenic ISP/libimp path and the vendor-libimp fallback have
+been removed. A board whose SoC or kernel cannot build the open stack has no
+usable ISP provider; it does not fall back to the blob.
 
 See `package/thingino-isp/Config.in` and `docs/media/open-isp-stack.md`.
 
