@@ -1,0 +1,21 @@
+Subject: [PATCH] media: sc4336p: accept the T31 CIM xclk
+
+The T31 CGU derives the CIM MCLK from VPLL: 1200 MHz / 45 = 26.667 MHz,
+not 27 MHz, so the exact-rate check fails probe with -EINVAL and no
+sensor registers. The 1.2% error is inside the sensor's xclk tolerance;
+accept a 2% window, as gc4023/gc8613 already accept a window.
+
+Measured: /proc/jz/clock cgu_cim 26.666MHz on a T31X (Wuuk Y0510).
+---
+--- a/drivers/media/i2c/sc4336p.c
++++ b/drivers/media/i2c/sc4336p.c
+@@ -923,7 +923,8 @@
+ 				     "failed to get xclk\n");
+ 
+ 	xclk_freq = clk_get_rate(sc4336p->xclk);
+-	if (xclk_freq != SC4336P_XCLK_FREQ)
++	if (xclk_freq < SC4336P_XCLK_FREQ - SC4336P_XCLK_FREQ / 50 ||
++	    xclk_freq > SC4336P_XCLK_FREQ + SC4336P_XCLK_FREQ / 50)
+ 		return dev_err_probe(dev, -EINVAL,
+ 				     "xclk frequency %lu Hz not supported\n",
+ 				     xclk_freq);
