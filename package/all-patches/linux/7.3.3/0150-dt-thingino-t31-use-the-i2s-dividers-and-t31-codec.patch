@@ -1,0 +1,67 @@
+Subject: [PATCH] dt: thingino-t31: use the T31 I2S dividers and the T31 codec
+
+- aic: "ingenic,t31-i2s", clocks aic + the CGU dividers i2s_spk/i2s_mic
+  instead of the fixed 12 MHz stub (removed from thingino-t31.dts)
+- codec: "ingenic,t31-codec"
+- simple-card: the codec is bitclock/frame master. The phandle is
+  compared with the codec sub-node of the dai-link, so it must point at
+  the sub-node label, not at the codec itself.
+---
+--- a/arch/mips/boot/dts/ingenic/t31.dtsi
++++ b/arch/mips/boot/dts/ingenic/t31.dtsi
+@@ -280,7 +280,7 @@
+ 	};
+ 
+ 	aic: audio-controller@10020000 {
+-		compatible = "ingenic,jz4780-i2s";
++		compatible = "ingenic,t31-i2s";
+ 		reg = <0x10020000 0x1000>;
+ 
+ 		#sound-dai-cells = <0>;
+@@ -289,8 +289,9 @@
+ 		interrupts = <1>;
+ 
+ 		clocks = <&cgu T31_CLK_AIC>,
+-			 <&aic_12m>;
+-		clock-names = "aic", "i2s";
++			 <&cgu T31_CLK_I2S_SPK>,
++			 <&cgu T31_CLK_I2S_MIC>;
++		clock-names = "aic", "i2s", "i2s-rx";
+ 
+ 		dmas = <&pdma 0x07 0xffffffff>,
+ 		       <&pdma 0x06 0xffffffff>;
+@@ -298,7 +299,7 @@
+ 	};
+ 
+ 	codec: audio-codec@10021000 {
+-		compatible = "ingenic,jz4740-codec";
++		compatible = "ingenic,t31-codec";
+ 		reg = <0x10021000 0x1000>;
+ 
+ 		#sound-dai-cells = <0>;
+--- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -7,12 +7,6 @@
+ 	compatible = "thingino,t31", "ingenic,t31";
+ 	model = "Thingino T31 Generic Board";
+ 
+-	aic_12m: aic-clock {
+-		compatible = "fixed-clock";
+-		#clock-cells = <0>;
+-		clock-frequency = <12000000>;
+-	};
+-
+ 	aliases {
+ 		serial1 = &uart1;
+ 	};
+@@ -62,8 +56,8 @@
+ 		simple-audio-card,dai-link@0 {
+ 			link-name = "t31-aic";
+ 			format = "i2s";
+-			bitclock-master = <&aic>;
+-			frame-master = <&aic>;
++			bitclock-master = <&dailink0_codec>;
++			frame-master = <&dailink0_codec>;
+ 
+ 			cpu {
+ 				sound-dai = <&aic>;
