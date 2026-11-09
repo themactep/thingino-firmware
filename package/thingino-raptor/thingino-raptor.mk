@@ -182,6 +182,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Install same-origin WHIP proxy used by native preview (no iframe).
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/zoom.cgi \
+		$(TARGET_DIR)/var/www/x/zoom.cgi
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/zoom.js \
+		$(TARGET_DIR)/var/www/a/zoom.js
 
 	# WebUI plugin (streamer pages, audio, save/restart CGIs)
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/raptor.webui.json \
