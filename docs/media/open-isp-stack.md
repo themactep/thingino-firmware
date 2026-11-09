@@ -28,19 +28,16 @@ The Thingino Kconfig gates mirror that, minus the T10 odd case:
 
 - `OPEN_TX_ISP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on
   4.4.94).
-- `OPENIMP_SUPPORTED` (T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
+- `OPENIMP` (T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
 
-**T10** has an open-tx-isp driver but no OpenIMP build target, so it stays
-out of the OpenIMP gate and keeps the Ingenic libimp provider.
+OpenIMP is the only userspace libimp provider. There is no
+`BR2_PACKAGE_INGENIC_LIB_LIBIMP` and no vendor-libimp fallback: a target or
+kernel without an OpenIMP build fails the build instead of silently using
+the proprietary library.
 
-**T23** is a hybrid build: a partial `libimp.so` with no audio entry points
-plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the
-proprietary Helix encoder, while RAD keeps using OEM `libimp.so` for audio.
-`openimp.mk` selects `BR2_PACKAGE_INGENIC_LIB_LIBIMP`, copies that OEM
-`libimp.so` to `/opt/openimp-t23/libimp.so` next to the helixd worker, and
-installs OpenIMP's `libimp.so` as `/usr/lib/libimp.so` for RAD.
+**T23** uses OpenIMP's `libimp.so` directly; the OEM Helix bridge is gone.
 
-C100 is not covered by either component.
+C100 is not covered and therefore fails the open-stack build.
 
 Kernel focus:
 
@@ -185,24 +182,11 @@ Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
 long-duration stability lack OEM-comparable validation, and some tuning tables
 remain synthetic or partially reconstructed.
 
-Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to return to the Ingenic
-driver and libimp provider.
+There is no proprietary ISP choice and no vendor-libimp provider to fall
+back to. A profile whose SoC or kernel cannot build open-tx-isp/OpenIMP has
+no usable ISP stack.
 
-## Open kernel driver with the Ingenic libimp.so
-
-`BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP` keeps the stock libimp.so as
-the userspace on top of open-tx-isp instead of OpenIMP. The driver is built
-for both (upstream device-tests T20 and T31 with each), and the split
-matters: OpenIMP exports no `IMP_AENC_*`/`IMP_ADEC_*`, so prudynt cannot run
-under it, while the stock libimp keeps the audio codecs and, on T23, avoids
-the OpenIMP Helix encoder hybrid.
-
-The two userspaces also read the sensor through different procfs layouts, so
-the sensor module build is keyed accordingly (`package/ingenic-sdk`):
-`SENSOR_PROC_OWNED_BY_ISP` (the `sensor-common.h` hook that feeds the ISP's
-`sensorN/` registry) is set for every `ISP_OPEN` build, because both
-providers resolve a sensor through `IMP_ISP_AddSensor` -> `driver_add`/bind.
-`SENSOR_PROC_PUBLISH_FLAT_TREE` is set when the vendor libimp is the
-provider, so the sensor modules also publish the flat
-`/proc/jz/sensor/{width,height,max_fps,...}` tree prudynt reads (it carries
-`max_fps`, which the T23 open driver's registry does not).
+The sensor module build always sets `SENSOR_PROC_OWNED_BY_ISP` (the
+`sensor-common.h` hook that feeds the ISP's `sensorN/` registry), because
+OpenIMP resolves a sensor through `IMP_ISP_AddSensor` -> `driver_add`/bind.
+The flat `/proc/jz/sensor/` tree is not published.

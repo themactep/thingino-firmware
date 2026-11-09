@@ -360,6 +360,7 @@
     let mode = "mse";
     let lastBufferedValue = String(DEFAULT_MARGIN_S);
     const PREF_KEY = "ms.format";
+    const hadNoSavedLatencyPref = localStorage.getItem(PREF_KEY) === null;
     (function readLatencyPref() {
       const saved = localStorage.getItem(PREF_KEY);
       if (saved === RT_VALUE) { mode = "rt"; return; }
@@ -1446,7 +1447,7 @@
       const st = {
         dead: false, pc: null, resource: null, token: token, statsTimer: null,
         bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0,
-        prevV: null, camMs: -1, tick: 0, startedAt: performance.now()
+        prevV: null, camMs: -1, tick: 0
       };
       whep = st;
 
@@ -1626,20 +1627,7 @@
         if (tr && tr.selectedCandidatePairId) pair = report.get(tr.selectedCandidatePairId) || pair;
         const bytes = (v ? v.bytesReceived || 0 : 0) + (a ? a.bytesReceived || 0 : 0);
         if (bytes > st.bytes) { st.bytes = bytes; noteProgress(); }
-        const whepAge = performance.now() - st.startedAt;
-        if (!v) {
-          if (whepAge > 6000)
-            whepFallbackToMse("WebRTC signalling is up but no video track " +
-              "arrived - using buffered playback.", false);
-          return;
-        }
-        /* SDP accepts the camera's High-profile H.264, but some browser
-         * WebRTC stacks cannot decode it: connected, no frame ever decoded. */
-        if (!(v.framesDecoded > 0) && whepAge > 6000) {
-          whepFallbackToMse("WebRTC is connected but this browser cannot " +
-            "decode the camera's H.264 stream - using buffered playback.", false);
-          return;
-        }
+        if (!v) return;
         const now = performance.now();
         let rate = "";
         if (st.lastBytes >= 0 && now > st.lastAt)

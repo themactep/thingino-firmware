@@ -7,28 +7,19 @@ choice
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_SOC_FAMILY = "a1"
 	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_THINGINO_DEV_CAMERA
 	default BR2_PACKAGE_THINGINO_ISP_OPEN if BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
-	default BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	help
 	  Select the ISP kernel and userspace implementation used by the
-	  camera stack.
+	  camera stack.  The open stack is the only provider; boards whose
+	  SoC or kernel has no open-tx-isp support cannot select it.
 
 config BR2_PACKAGE_THINGINO_ISP_NONE
 	bool "None"
+	# Ingenic camera profiles must use the open stack; a SoC/kernel with
+	# no open-tx-isp support has no valid provider and fails the build.
+	depends on !BR2_THINGINO_DEV_CAMERA || BR2_SOC_FAMILY = "a1"
 	help
-	  Do not select an ISP provider.
-
-config BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
-	bool "Proprietary Ingenic ISP stack"
-	depends on !BR2_SOC_FAMILY = "a1"
-	depends on BR2_THINGINO_DEV_CAMERA
-	# The Ingenic SDK is legacy-only; modern kernels use the open stack.
-	depends on !KERNEL_MODERN
-	select BR2_PACKAGE_THINGINO_ISP
-	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_MODERN
-	select BR2_PACKAGE_INGENIC_LIB
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
-	help
-	  Use the Ingenic SDK TX-ISP driver and libimp userspace ABI.
+	  Do not select an ISP provider. Available only for non-camera
+	  builds and the non-Ingenic A1 family.
 
 config BR2_PACKAGE_THINGINO_ISP_OPEN
 	bool "Open ISP stack (experimental)"
@@ -40,35 +31,17 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_MODERN
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_OPEN_TX_ISP
-	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED && !BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
+	select BR2_PACKAGE_OPENIMP
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
 	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
-	  T40, and T41 targets. OpenIMP supplies the userspace ABI on
-	  T20, T21, T23, T30, T31, T40, and T41; the T23 build is a
-	  hybrid that keeps the OEM libimp.so under /opt/openimp-t23/
-	  for the proprietary Helix encoder. T10 has no OpenIMP build
-	  and retains the Ingenic libimp provider.
+	  T40, and T41 targets. OpenIMP always supplies the userspace
+	  ABI; there is no proprietary libimp fallback. A target or
+	  kernel without OpenIMP support fails the build instead.
 
 	  Image tuning and sensor coverage remain experimental.
 
 endchoice
-
-config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
-	bool "Use the Ingenic libimp.so userspace with the open kernel driver"
-	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
-	help
-	  Keep Ingenic's proprietary libimp.so as the userspace ABI on top
-	  of open-tx-isp instead of OpenIMP. The open driver preserves
-	  libimp.so compatibility (device-tested on T20 and T31), so the
-	  stock userspace - and the streamers that need it, notably
-	  prudynt's IMP_AENC/IMP_ADEC audio codecs - run unchanged on the
-	  open kernel driver.
-
-	  Turn this on to tell a kernel problem apart from an OpenIMP one,
-	  and on T23 to skip the OpenIMP Helix encoder hybrid. Off means
-	  OpenIMP supplies the userspace wherever it is supported.

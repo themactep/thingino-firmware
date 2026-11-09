@@ -1,27 +1,7 @@
-config BR2_PACKAGE_OPENIMP_SUPPORTED
-	bool
-	# The audio-capable OpenIMP builds (the lufi override) export the
-	# IMP_AENC/IMP_ADEC and fisheye entry points prudynt links, so the
-	# open libimp can serve prudynt as well as timps and raptor. The
-	# vendor libimp remains selectable via
-	# BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP.
-	default y if BR2_SOC_FAMILY = "t10" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_7
-	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_7
-	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
-	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
-
 config BR2_PACKAGE_OPENIMP
 	bool
-	depends on BR2_PACKAGE_OPENIMP_SUPPORTED
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
 	depends on BR2_THINGINO_DEV_CAMERA
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if BR2_SOC_FAMILY = "t23"
 	select BR2_PACKAGE_TINYALSA if BR2_SOC_FAMILY = "t31" && KERNEL_VERSION_7
 	help
 	  OpenIMP is an open-source implementation of the Ingenic IMP
@@ -34,16 +14,11 @@ config BR2_PACKAGE_OPENIMP
 	  in staging and on the target, then preserves that replacement
 	  during target finalization.
 
-	  T23 is a hybrid: OpenIMP's libimp.so serves RAD from
-	  /usr/lib/libimp.so, while the OEM libimp.so and the
-	  openimp-t23-helixd worker are installed under /opt/openimp-t23/
-	  for the proprietary Helix encoder. T30 is video-only: its build
-	  deliberately refuses to export the IMP audio entry points.
-	  T20/T21 reuse the T31 audio implementation; T31/T40/T41 export the
-	  IMP_AI/IMP_AO capture and playback paths. The audio-capable builds
-	  also export IMP_AENC/IMP_ADEC and the encoder fisheye controls, so
-	  prudynt links against OpenIMP; the vendor libimp remains available
-	  via BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP. Some optional
-	  OSD/IVS entry points remain incomplete.
+	  T30 is video-only: its build deliberately refuses to export the
+	  IMP audio entry points. T20/T21 reuse the T31 audio implementation;
+	  T31/T40/T41 export the IMP_AI/IMP_AO capture and playback paths.
+	  The audio-capable builds also export IMP_AENC/IMP_ADEC and the
+	  encoder fisheye controls, so prudynt links against OpenIMP. Some
+	  optional OSD/IVS entry points remain incomplete.
 
 	  https://github.com/opensensor/openimp

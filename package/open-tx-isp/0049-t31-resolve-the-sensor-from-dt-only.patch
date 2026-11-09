@@ -1,0 +1,61 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: resolve the sensor from DT only
+
+On mainline kernels the sensor is described in the device tree and the
+V4L2 driver owns its i2c client. The bridge still instantiated a vendor
+client from the address carried in the streamer's register info when the
+DT client had not probed yet. On the Cinnado D1 the registry was empty at
+the first ISP open, timps fell back to its 0x37 default, and the bridge
+created a sc2336 client at 0x37; the driver probed it, found no endpoint
+and failed -22 before the real camera@30 node bound seconds later.
+
+Treat the DT node as the single source of truth: look the client up by
+name and, when it is not ready, defer. Never create a client from an
+address supplied by userspace. The vendor path stays for the pre-5.0
+kernels that do not have a mainline sensor driver.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t31/tx_isp_module.c
++++ b/driver/t31/tx_isp_module.c
+@@ -552,7 +552,6 @@
+         struct tx_isp_sensor_register_info *reg_info =
+                 (struct tx_isp_sensor_register_info *)arg;
+         struct i2c_adapter *adapter;
+-        struct i2c_board_info sensor_board_info;
+         struct tx_isp_subdev *sensor_sd = NULL;
+         struct tx_isp_sensor *sensor = NULL;
+         int ret;
+@@ -579,24 +578,18 @@
+                     reg_info->i2c.type, reg_info->i2c.addr, i2c_adapter_num);
+ 
+             /*
+-             * Prefer the mainline V4L2 subdev that already probed from DT.
+-             * Creating the vendor i2c client below would collide with the
+-             * DT client at the same address and would not speak V4L2.
++             * On mainline kernels the sensor is described in DT and its V4L2
++             * driver owns the i2c client. Never instantiate a client from the
++             * address the streamer sent: if the DT node has not probed yet,
++             * defer until it does. A vendor client at a guessed address would
++             * probe the wrong device and would not speak V4L2.
+              */
+             sensor_sd = tx_isp_v4l2_sensor_get(adapter, reg_info->i2c.type);
+-            if (sensor_sd) {
++            if (sensor_sd)
+                 global_v4l2_sensor_sd = sensor_sd;
+-            } else {
+-                /* Stock: Build board_info from sensor_register_info */
+-                memset(&sensor_board_info, 0, sizeof(sensor_board_info));
+-                memcpy(sensor_board_info.type, reg_info->i2c.type,
+-                       sizeof(sensor_board_info.type));
+-                sensor_board_info.addr = reg_info->i2c.addr;
+-
+-                /* Stock: isp_i2c_new_subdev_board returns the SUBDEV, not client */
+-                sensor_sd = isp_i2c_new_subdev_board(adapter, &sensor_board_info);
+-            }
+ #else
++            struct i2c_board_info sensor_board_info;
++
+             /* Stock: Build board_info from sensor_register_info */
+             memset(&sensor_board_info, 0, sizeof(sensor_board_info));
+             memcpy(sensor_board_info.type, reg_info->i2c.type,

@@ -1,0 +1,17 @@
+Subject: [PATCH] mtd: spi-nor: drop the duplicated fmsh object
+
+0141 adds "spi-nor-objs += fmsh.o" twice, so the composite spi-nor
+object lists fmsh.o twice. It links today because make deduplicates
+prerequisites through $^, but the duplicate is unintended; keep a
+single entry.
+
+Fixes: 0141-mtd-spi-nor-add-fudan-fm25q64-fm25q128.patch
+---
+--- a/drivers/mtd/spi-nor/Makefile
++++ b/drivers/mtd/spi-nor/Makefile
+@@ -5,5 +5,4 @@
+ spi-nor-objs			+= eon.o
+ spi-nor-objs			+= fmsh.o
+-spi-nor-objs			+= fmsh.o
+ spi-nor-objs			+= esmt.o
+ spi-nor-objs			+= everspin.o

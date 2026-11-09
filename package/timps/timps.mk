@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.12.0
+TIMPS_VERSION = v1.12.1
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -228,8 +228,6 @@ define TIMPS_BUILD_CMDS
 		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
-		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
-		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
@@ -334,19 +332,6 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# deliberate hand edit - never something an image ships pre-enabled.
 	if [ "$(BR2_PACKAGE_TIMPS_BC_WS)" = "y" ]; then \
 		$(SED) 's|^# audio.talk_ws *=.*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
-			$(TARGET_DIR)/etc/timps.conf; \
-	fi
-	# Same again for the WHEP endpoint, and here the value is timps's own
-	# compiled default rather than a conservative one: 2, not 1. 1 requires a
-	# TLS signalling POST, and most of these cameras serve the WebUI over plain
-	# http with no http->https redirect, so 1 would answer 426 to the preview
-	# page's own POST - the endpoint would be compiled in and unusable. Media is
-	# DTLS-SRTP either way; the flag only grades the signalling request. Written
-	# out rather than left to the compiled default so the enabled endpoint is
-	# visible in /etc/timps.conf and a future default change cannot switch it
-	# off silently.
-	if [ "$(BR2_PACKAGE_TIMPS_WEBRTC)" = "y" ]; then \
-		$(SED) 's|^# webrtc.enabled *=.*|webrtc.enabled = 2                   # 0 off, 1 TLS required, 2 http+https signalling|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 

@@ -25,7 +25,6 @@ OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
 OPENIMP_TOOLCHAIN_PREFIX = $(patsubst %-,%,$(TARGET_CROSS))
 OPENIMP_OUTPUT_DIR = $(@D)/build/$(OPENIMP_PLATFORM_LOWER)
-OPENIMP_BUILT_LIB = $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/build/$(OPENIMP_PLATFORM_LOWER)/libimp.so
 
 ifneq ($(filter t40 t41,$(SOC_FAMILY)),)
 OPENIMP_DEPENDENCIES += thingino-raptor-hal
@@ -60,18 +59,6 @@ define OPENIMP_BUILD_CMDS
 		$(@D)/build-for-device.sh $(OPENIMP_PLATFORM)
 endef
 
-ifeq ($(SOC_FAMILY),t23)
-# Hybrid T23 build: the OEM libimp.so (installed by ingenic-lib) and the
-# Helix worker live under /opt/openimp-t23/, while OpenIMP's libimp.so takes
-# /usr/lib/libimp.so for RAD.
-define OPENIMP_INSTALL_T23_TARGET
-	$(INSTALL) -D -m 0755 $(TARGET_DIR)/usr/lib/libimp.so \
-		$(TARGET_DIR)/opt/openimp-t23/libimp.so
-	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-t23-helixd \
-		$(TARGET_DIR)/opt/openimp-t23/openimp-t23-helixd
-endef
-endif
-
 define OPENIMP_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(STAGING_DIR)/usr/lib/libimp.so
@@ -84,7 +71,6 @@ define OPENIMP_INSTALL_STAGING_CMDS
 endef
 
 define OPENIMP_INSTALL_TARGET_CMDS
-	$(OPENIMP_INSTALL_T23_TARGET)
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(TARGET_DIR)/usr/lib/libimp.so
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-tuningd \
@@ -94,11 +80,5 @@ define OPENIMP_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(OPENIMP_PKGDIR)/files/openimp-tuning.conf \
 		$(TARGET_DIR)/etc/openimp-tuning.conf
 endef
-
-define OPENIMP_FINALIZE_TARGET
-	$(INSTALL) -D -m 0755 $(OPENIMP_BUILT_LIB) \
-		$(TARGET_DIR)/usr/lib/libimp.so
-endef
-OPENIMP_TARGET_FINALIZE_HOOKS += OPENIMP_FINALIZE_TARGET
 
 $(eval $(generic-package))
