@@ -1,0 +1,31 @@
+Subject: [PATCH] media: sc4336p: keep the native flip for VFLIP = 0
+
+The init table writes 0x3221 = 0x66 (flip + mirror), the upright
+picture on the Wuuk Y0510; the vendor driver leaves those bits alone for
+vflip = 0. The VFLIP control defaults to 0 and is applied at stream on,
+where it cleared the flip bits (0x3221 = 0x06), so the picture came out
+upside down although timps has image.vflip = 0.
+
+Treat the init value as the native orientation: VFLIP = 1 clears the
+flip bits, VFLIP = 0 keeps them. Mirror bits (0x06) stay untouched.
+
+Seen on a Wuuk Y0510 (T31X): with 0x3221 = 0x66 the picture is upright.
+---
+--- a/drivers/media/i2c/sc4336p.c
++++ b/drivers/media/i2c/sc4336p.c
+@@ -612,9 +612,14 @@
+ 				(vts >> 8) & 0xff, &ret);
+ 		break;
+ 	case V4L2_CID_VFLIP:
++		/*
++		 * The init table sets 0x3221 = 0x66 (flip + mirror), which is
++		 * the upright picture on the Wuuk Y0510 and what the vendor driver
++		 * keeps for vflip = 0, so VFLIP = 1 clears the flip bits.
++		 */
+ 		ret = cci_update_bits(sc4336p->regmap, SC4336P_REG_FLIP,
+ 				      SC4336P_FLIP_MASK,
+-				      ctrl->val ? SC4336P_FLIP_MASK : 0, NULL);
++				      ctrl->val ? 0 : SC4336P_FLIP_MASK, NULL);
+ 		break;
+ 	default:
+ 		ret = -EINVAL;
