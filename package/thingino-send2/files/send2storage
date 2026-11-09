@@ -76,18 +76,21 @@ read_config
 
 # A clip that motion recorded on the mount itself is renamed into place (no
 # copy, no RAM); anything else takes the normal copy_video route. Motion
-# stages the clip as a hidden dotfile (.<template basename>.mp4) in the
-# destination directory, so nothing half-written is ever visible on NFS/SMB
-# shares; the rename is same-directory and atomic. A crash mid-recording
-# would leave a stale dotfile behind — sweep those older than an hour.
+# stages the clip as a hidden dotfile (.motion_<ts>.mp4) at the root of the
+# mount, so nothing half-written is ever visible on NFS/SMB shares and the
+# rename stays atomic on one filesystem. A crash mid-recording would leave
+# a stale dotfile behind — sweep those older than an hour, on the mount
+# root and (for the copy path) in the destination directory.
 sweep_stale_staging() {
-	for stale_file in "$dest_dir"/.motion_*.mp4; do
-		[ -f "$stale_file" ] || continue
-		find "$stale_file" -maxdepth 0 -mmin +60 -exec rm -f {} \; 2>/dev/null
+	for sweep_dir in "$mount" "$dest_dir"; do
+		[ -d "$sweep_dir" ] || continue
+		find "$sweep_dir" -maxdepth 1 -type f -name '.motion_*.mp4' \
+			-mmin +60 -exec rm -f {} \; 2>/dev/null
 	done
 }
 
 process_video() {
+	sweep_stale_staging
 	case "$MOTION_VIDEO_FILE" in
 		"$mount"/*)
 			[ -f "$MOTION_VIDEO_FILE" ] || return 0
