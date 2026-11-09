@@ -13,6 +13,11 @@ from .config import (PORTAL_PORT, SSH_FWD_PORT, USB_HTTP_PORT,
 
 # Frames saved per format by the webcam profile's host.
 UVC_FRAMES = 20
+# The sensor's rate. At the default 25 fps about half the runs hand the host
+# H.264 pictures whose slice header is the next job's (an IDR header over a P
+# picture's data, seen in the NAL bytes), as rvd reads them late in the slow
+# emulated guest; 12 runs at 5 fps had none.
+UVC_SENSOR_FPS = 5
 
 
 def find_qemu():
@@ -39,7 +44,8 @@ def usb_args(mode, report_dir=None):
         os.makedirs(out, exist_ok=True)
         tap = os.path.join(report_dir, "tap")
         os.makedirs(tap, exist_ok=True)
-        return ["-device", "image-sensor,model=gc2053,bus=i2c0",
+        sensor = f"image-sensor,model=gc2053,bus=i2c0,fps={UVC_SENSOR_FPS}"
+        return ["-device", sensor,
                 "-device", f"dwc2-uvc-host,id=usbhost,x-out={out},"
                 f"x-format=mjpeg+h264,x-frames={UVC_FRAMES}",
                 "-global", f"ingenic-avpu.x-stream-tap={tap}"]
