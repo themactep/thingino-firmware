@@ -27,6 +27,8 @@
     ],
   ];
 
+  const COLOR_IDS = new Set(COLORS.map((c) => c[2]));
+
   const $id = (id) => document.getElementById(id);
   const onBoot = $id("privacy_on_boot");
   const saveBtn = $id("save-privacy");
@@ -112,6 +114,7 @@
       const n = Number(v);
       return v && Number.isFinite(n) && n > 0 ? n : null;
     }
+    if (COLOR_IDS.has(id)) return normalizeHex(v);
     return v || null;
   }
 
@@ -134,6 +137,7 @@
       onBoot.checked = loadedOnBoot;
     } catch (err) {
       console.warn("Failed to load privacy startup setting", err);
+      loadedOnBoot = onBoot.checked;
     }
     for (const [id, [leaf, key, fallback]] of Object.entries(FIELDS)) {
       try {
@@ -161,7 +165,11 @@
         loadedOnBoot = onBoot.checked;
       }
       for (const [id, [leaf, key]] of Object.entries(FIELDS)) {
+        const raw = $id(id).value.trim();
         const now = fieldValue(id);
+        if (COLOR_IDS.has(id) && raw && now === null) {
+          throw new Error(id.replace(/_/g, " ") + " must be #RRGGBBAA");
+        }
         if (now === null || now === loaded[id]) continue;
         await patch(OSD + leaf, { [key]: now });
         loaded[id] = now;

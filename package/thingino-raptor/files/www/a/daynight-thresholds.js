@@ -112,6 +112,9 @@
 
   trigger.addEventListener("change", showTriggerCards);
   saveBtn.addEventListener("click", save);
+  // Seed from the rendered defaults so a failed GET cannot turn Save into a
+  // write of trigger=luma and both IR banks off.
+  loaded = read();
   load();
   refreshLive();
   setInterval(refreshLive, 3000);
