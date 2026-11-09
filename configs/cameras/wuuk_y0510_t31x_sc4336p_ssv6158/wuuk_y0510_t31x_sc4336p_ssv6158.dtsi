@@ -66,3 +66,24 @@
 		};
 	};
 };
+
+/* PTZ stepper motors: pan PB29/PB30/PB31/PB19, tilt PB22/PB20/PB21/PC0.
+   The pins and step counts come from thingino.json gpio_pan/gpio_tilt
+   ("61 62 63 51", "54 52 53 64") and steps_pan/steps_tilt. */
+/ {
+	ptz_motor: motor {
+		compatible = "ingenic,motor";
+
+		hst-gpios = <&gpb 29 GPIO_ACTIVE_HIGH>,
+			    <&gpb 30 GPIO_ACTIVE_HIGH>,
+			    <&gpb 31 GPIO_ACTIVE_HIGH>,
+			    <&gpb 19 GPIO_ACTIVE_HIGH>;
+		vst-gpios = <&gpb 22 GPIO_ACTIVE_HIGH>,
+			    <&gpb 20 GPIO_ACTIVE_HIGH>,
+			    <&gpb 21 GPIO_ACTIVE_HIGH>,
+			    <&gpc 0 GPIO_ACTIVE_HIGH>;
+
+		ingenic,hmaxstep = <4050>;
+		ingenic,vmaxstep = <1000>;
+	};
+};
