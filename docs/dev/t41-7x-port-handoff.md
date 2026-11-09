@@ -110,9 +110,12 @@ Root causes, in the order they were found:
 6. `supports_op` still rejected unaligned RX reads above 256 bytes -- the
    exact size of a JFFS2 node (389/262/275 bytes). The PIO limits are now
    gated on `!dma_only`, so those reads run through the DMA bounce buffer.
-7. `data.jffs2` was built with the default 256-byte page size while the T41
-   SFC advertises `writesize 1`. It is now formatted with `--pagesize=1`
-   (`JFFS2_PAGE_SIZE` in the Makefile).
+7. ~~`data.jffs2` was built with the default page size while the T41 SFC
+   advertises `writesize 1`. It is now formatted with `--pagesize=1`.~~
+   Reverted: `mkfs.jffs2 --pagesize` is the maximum data-node size, not the
+   MTD `writesize`. Setting it to 1 emits one node per byte, which fills the
+   data partition on small-flash boards. The unaligned reads are handled by
+   fix 6, so the packer keeps the 4 KiB default.
 
 Verified on hardware after a whole-flash erase: clean xattr build, zero
 `xdatum`/`xref`, and 389/275/262-byte reads from `/dev/mtd5` return valid
