@@ -94,6 +94,7 @@
     "/x/json-config-save.cgi",
     "/x/restart-streamer.cgi",
     "/x/webrtc-whip.cgi",
+    "/x/zoom.cgi",
     "/x/json-sensor-upload.cgi",
     "/x/dl0.jpg",
     "/x/dl1.jpg",
