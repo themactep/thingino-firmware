@@ -75,7 +75,18 @@ process_file() {
 read_config
 
 # A clip that motion recorded on the mount itself is renamed into place (no
-# copy, no RAM); anything else takes the normal copy_video route.
+# copy, no RAM); anything else takes the normal copy_video route. Motion
+# stages the clip as a hidden dotfile (.<template basename>.mp4) in the
+# destination directory, so nothing half-written is ever visible on NFS/SMB
+# shares; the rename is same-directory and atomic. A crash mid-recording
+# would leave a stale dotfile behind — sweep those older than an hour.
+sweep_stale_staging() {
+	for stale_file in "$dest_dir"/.motion_*.mp4; do
+		[ -f "$stale_file" ] || continue
+		find "$stale_file" -maxdepth 0 -mmin +60 -exec rm -f {} \; 2>/dev/null
+	done
+}
+
 process_video() {
 	case "$MOTION_VIDEO_FILE" in
 		"$mount"/*)
@@ -83,10 +94,15 @@ process_video() {
 			local dest_file
 			dest_file="$dest_dir/$(target_path video)"
 			mkdir -p "$(dirname "$dest_file")" || return 1
-			mv "$MOTION_VIDEO_FILE" "$dest_file" || return 1
+			# The recording is finished here; only the rename can fail now.
+			if ! mv "$MOTION_VIDEO_FILE" "$dest_file"; then
+				echo_error "Failed to move $MOTION_VIDEO_FILE to $dest_file"
+				return 1
+			fi
 			chmod 644 "$dest_file"
 			;;
 		*)
+			sweep_stale_staging
 			process_file "$(copy_video)" video
 			;;
 	esac
@@ -114,6 +130,13 @@ fi
 # Validate mount point
 if [ -z "$mount" ]; then
 	echo_error "Mount point not configured"
+	exit 1
+fi
+
+# -d alone only proves the directory exists; on an unmounted /mnt/mmc the
+# copy path would silently write into the overlay.
+if ! mountpoint -q "$mount" 2>/dev/null; then
+	echo_error "Mount point is not a mountpoint: $mount"
 	exit 1
 fi
 
