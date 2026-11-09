@@ -111,7 +111,9 @@ Timezone data is based on files from the OpenWrt project:
 names replaced by spaces, sorted by name. Six names LuCI no longer lists
 (America/Nipigon, America/Thunder Bay, America/Rainy River, America/Pangnirtung,
 America/Yellowknife, Asia/Choibalsan) are kept with the string of the zone tzdb links
-them to, so a camera that stored one of them still resolves.
+them to, so a camera that stored one of them still resolves. The tz 2026f Cuba
+change is applied ahead of LuCI: America/Havana stays on -04 through
+2027-11-07 and its entry is updated accordingly.
 
 Thingino's libc, uClibc-ng, accepts less of the POSIX TZ syntax than glibc or musl:
 a rule time after `/` must be 0 to 24 hours with no sign. It discards any string it
@@ -124,15 +126,22 @@ use the nearest string uClibc-ng accepts:
 | Asia/Jerusalem | `IST-2IDT,M3.4.4/26,M10.5.0` | `IST-2IDT,M3.4.4/24,M10.5.0` | DST starts 2 h early (Friday 00:00 instead of 02:00) |
 | Asia/Gaza, Asia/Hebron | `EET-2EEST,M3.4.4/50,M10.4.4/50` | `EET-2EEST,M3.5.6/2,M10.5.6/2` | Exact, except in a March or October that ends on a Saturday, when the change comes a week late |
 
+One entry is updated ahead of LuCI, because POSIX M-rules cannot skip a single
+year's fall-back: while Cuba stays on DST through 2027, its entry is static:
+
+| Zone | tzdb 2026f | tz.json | Difference |
+| --- | --- | --- | --- |
+| America/Havana | `CDT-4` through 2027-11-07, alternating rules after | `<-04>4` | Exact until Cuba's planned 2027-11-07 fall-back; shows `-04` instead of `CDT` |
+
 `scripts/check-tz-json.sh` (part of `make lint`) fails on any `tz.json` string that
 uClibc-ng cannot parse.
 
 ### IANA Time Zone Database
 
 - [GitHub Repository](https://github.com/eggert/tz)
-- [Complete Distribution](https://data.iana.org/time-zones/releases/tzdb-2026e.tar.lz)
-- [Data Only Distribution](https://data.iana.org/time-zones/releases/tzdata2026e.tar.gz)
-- [Code Only Distribution](https://data.iana.org/time-zones/releases/tzcode2026e.tar.gz)
+- [Complete Distribution](https://data.iana.org/time-zones/releases/tzdb-2026f.tar.lz)
+- [Data Only Distribution](https://data.iana.org/time-zones/releases/tzdata2026f.tar.gz)
+- [Code Only Distribution](https://data.iana.org/time-zones/releases/tzcode2026f.tar.gz)
 
 - [NODA Time Zone Database](https://nodatime.org/TimeZones)
-- [NODA TZDB in JSON](https://nodatime.org/TimeZones?version=2026e&format=json)
+- [NODA TZDB in JSON](https://nodatime.org/TimeZones?version=2026f&format=json)
