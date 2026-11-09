@@ -1,0 +1,80 @@
+Subject: [PATCH] mtd: spi-nor: add Fudan Microelectronics FM25Q64/FM25Q128
+
+Several T31 cameras (e.g. Wuuk Y0510) ship a Fudan FM25Q128A
+(JEDEC a1 40 18). The part is not in the spi-nor tables and the
+generic SFDP fallback does not pick it up on this board, so probe
+fails with "unrecognized JEDEC id bytes: a1 40 18", no MTD partitions
+are created and the kernel panics on the squashfs root and reboots in
+a loop. The thingino U-Boot already knows the part, so the board looks
+bricked only after the kernel starts.
+
+Add both densities with single-I/O reads only (SECT_4K); dual/quad
+needs the QE handling verified on hardware first.
+
+Reproduced in QEMU (ingenic-t31-sfc.jedec-id=0xa14018); confirmed on
+hardware by the reset loop of a Wuuk Y0510 on kernel 7.3.3.
+---
+diff -ruN a/drivers/mtd/spi-nor/core.c b/drivers/mtd/spi-nor/core.c
+--- a/drivers/mtd/spi-nor/core.c
++++ b/drivers/mtd/spi-nor/core.c
+@@ -2007,6 +2007,7 @@
+ static const struct spi_nor_manufacturer *manufacturers[] = {
+ 	&spi_nor_atmel,
+ 	&spi_nor_eon,
++	&spi_nor_fmsh,
+ 	&spi_nor_esmt,
+ 	&spi_nor_everspin,
+ 	&spi_nor_gigadevice,
+diff -ruN a/drivers/mtd/spi-nor/core.h b/drivers/mtd/spi-nor/core.h
+--- a/drivers/mtd/spi-nor/core.h
++++ b/drivers/mtd/spi-nor/core.h
+@@ -604,6 +604,7 @@
+ /* Manufacturer drivers. */
+ extern const struct spi_nor_manufacturer spi_nor_atmel;
+ extern const struct spi_nor_manufacturer spi_nor_eon;
++extern const struct spi_nor_manufacturer spi_nor_fmsh;
+ extern const struct spi_nor_manufacturer spi_nor_esmt;
+ extern const struct spi_nor_manufacturer spi_nor_everspin;
+ extern const struct spi_nor_manufacturer spi_nor_gigadevice;
+diff -ruN a/drivers/mtd/spi-nor/fmsh.c b/drivers/mtd/spi-nor/fmsh.c
+--- a/drivers/mtd/spi-nor/fmsh.c
++++ b/drivers/mtd/spi-nor/fmsh.c
+@@ -0,0 +1,26 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#include <linux/mtd/spi-nor.h>
++
++#include "core.h"
++
++static const struct flash_info fmsh_nor_parts[] = {
++	{
++		.id = SNOR_ID(0xa1, 0x40, 0x17),
++		.name = "fm25q64",
++		.size = SZ_8M,
++		.no_sfdp_flags = SECT_4K,
++	}, {
++		.id = SNOR_ID(0xa1, 0x40, 0x18),
++		.name = "fm25q128",
++		.size = SZ_16M,
++		.no_sfdp_flags = SECT_4K,
++	},
++};
++
++/* Shanghai Fudan Microelectronics (FMSH) */
++const struct spi_nor_manufacturer spi_nor_fmsh = {
++	.name = "fmsh",
++	.parts = fmsh_nor_parts,
++	.nparts = ARRAY_SIZE(fmsh_nor_parts),
++};
+diff -ruN a/drivers/mtd/spi-nor/Makefile b/drivers/mtd/spi-nor/Makefile
+--- a/drivers/mtd/spi-nor/Makefile
++++ b/drivers/mtd/spi-nor/Makefile
+@@ -3,6 +3,8 @@
+ spi-nor-objs			:= core.o sfdp.o swp.o otp.o sysfs.o
+ spi-nor-objs			+= atmel.o
+ spi-nor-objs			+= eon.o
++spi-nor-objs			+= fmsh.o
++spi-nor-objs			+= fmsh.o
+ spi-nor-objs			+= esmt.o
+ spi-nor-objs			+= everspin.o
+ spi-nor-objs			+= gigadevice.o

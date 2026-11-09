@@ -1,0 +1,33 @@
+Subject: [PATCH] clk: ingenic: t31: fix the MSC0/MSC1 divider
+
+The T31 MSCxCDR divider is (CDR + 1) * 2, as on X1000/JZ4780
+(x1000-cgu.c, jz4780-cgu.c) and as the Ingenic programming manual
+states ("division ratio = (MSC0CDR + 1)*2"); the vendor 3.10 CGU uses
+coe = 2 as well. The table used * 4, so the clock framework believes
+the MSC runs at half its real rate: a 24 MHz request yields ~48 MHz on
+the bus. Commands and short responses survive, but 512-byte data
+blocks fail: an SD card enumerates without its partitions and an SDIO
+WiFi function binds without bringing up its interface.
+
+Seen on a Wuuk Y0510 (T31X, SD on MSC0, SSV6158 on MSC1); QEMU does
+not model the divider and hides it.
+---
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -273,14 +273,14 @@
+ 	[T31_CLK_MSC0] = {
+ 		"msc0", CGU_CLK_DIV | CGU_CLK_GATE,
+ 		.parents = { T31_CLK_MSCMUX, -1, -1, -1 },
+-		.div = { CGU_REG_MSC0CDR, 0, 4, 8, 29, 28, 27 },
++		.div = { CGU_REG_MSC0CDR, 0, 2, 8, 29, 28, 27 },
+ 		.gate = { CGU_REG_CLKGR0, 4 },
+ 	},
+ 
+ 	[T31_CLK_MSC1] = {
+ 		"msc1", CGU_CLK_DIV | CGU_CLK_GATE,
+ 		.parents = { T31_CLK_MSCMUX, -1, -1, -1 },
+-		.div = { CGU_REG_MSC1CDR, 0, 4, 8, 29, 28, 27 },
++		.div = { CGU_REG_MSC1CDR, 0, 2, 8, 29, 28, 27 },
+ 		.gate = { CGU_REG_CLKGR0, 5 },
+ 	},
+ 

@@ -86,27 +86,6 @@ diff --git a/driver/t31/tx_isp_module.c b/driver/t31/tx_isp_module.c
  void tx_isp_enable_irq(struct tx_isp_dev *isp_dev)
  {
      if (!isp_dev || isp_dev->isp_irq <= 0) {
-@@ -3450,7 +3479,7 @@
-         isp_dev->irq_disable_func = tx_isp_disable_irq; /* arg2[2] = tx_isp_disable_irq */
- 
-         /* Binary Ninja: tx_isp_disable_irq(arg2) */
--        tx_isp_disable_irq(isp_dev);
-+        disable_irq(irq_num);
- 
-         pr_info("*** tx_isp_request_irq: IRQ %d registered, stored, and left disabled until stream enable ***\n", irq_num);
- 
-diff --git a/driver/t31/tx_isp_subdev.c b/driver/t31/tx_isp_subdev.c
---- a/driver/t31/tx_isp_subdev.c
-+++ b/driver/t31/tx_isp_subdev.c
-@@ -847,7 +847,7 @@
- 	irq_info->irq = irq_num;
- 	irq_info->handler = (void *)tx_isp_irq_info_enable;
- 	irq_info->data = (void *)tx_isp_irq_info_disable;
--	tx_isp_irq_info_disable(irq_info);
-+	disable_irq(irq_num);
- 	pr_info("tx_isp_request_irq: registered irq %d for %s (dev_id=%p, left disabled)\n",
- 		irq_num, dev_name(&pdev->dev), irq_info);
- 
 diff --git a/driver/t31/tx_isp_v4l2_sensor.c b/driver/t31/tx_isp_v4l2_sensor.c
 --- a/driver/t31/tx_isp_v4l2_sensor.c
 +++ b/driver/t31/tx_isp_v4l2_sensor.c
