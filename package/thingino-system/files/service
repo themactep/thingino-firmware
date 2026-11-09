@@ -53,10 +53,10 @@ case "$ACTION" in
 			awk -F/ '{gsub(/[FKS]\d{2}/,"",$4);print $4}' | sort
 		;;
 	enable)
-		chmod +x $SCRIPT
+		chmod a+x $SCRIPT
 		;;
 	disable)
-		chmod -x $SCRIPT
+		chmod a-x $SCRIPT
 		;;
 	status)
 		case "$(stat -c%a $SCRIPT)" in

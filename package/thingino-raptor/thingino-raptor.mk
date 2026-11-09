@@ -188,6 +188,12 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/plugins/raptor.webui.json
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-privacy.html \
+		$(TARGET_DIR)/var/www/config-privacy.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/privacy-screen.js \
+		$(TARGET_DIR)/var/www/a/privacy-screen.js
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S33raptor-privacy \
+		$(TARGET_DIR)/etc/init.d/S33raptor-privacy
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-image.html \
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-main.html \
@@ -242,6 +248,13 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
+	# Photosensing page for ric; daynightd ships its own under the same name.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-photosensing.html \
+			$(TARGET_DIR)/var/www/config-photosensing.html; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/daynight-thresholds.js \
+			$(TARGET_DIR)/var/www/a/daynight-thresholds.js; \
+	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/microphone \
@@ -285,8 +298,6 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		ln -sf raptor-motion $(TARGET_DIR)/usr/sbin/motion; \
 	fi
 
-	# Patch raptor.conf with buildroot config overrides
-	$(call THINGINO_RAPTOR_PATCH_CONF)
 
 endef
 
@@ -314,6 +325,5 @@ define THINGINO_RAPTOR_INSTALL_SEND2COMMON
 endef
 THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_SEND2COMMON
 
-include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 
 $(eval $(generic-package))

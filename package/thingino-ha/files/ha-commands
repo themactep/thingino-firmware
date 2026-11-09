@@ -16,10 +16,10 @@
 	exit 1
 }
 
-# Disable prudynt's automatic day/night management before manual hardware control.
-# Without this, prudynt may immediately undo hardware changes.
-prudynt_disable_auto() {
-	printf '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+# Disable the streamer's automatic day/night switching before manual hardware
+# control, otherwise it may immediately undo the change.
+daynight_disable_auto() {
+	ha_agent_set daynight/enabled enabled false
 }
 
 # ---------------------------------------------------------------------------
@@ -53,25 +53,22 @@ dispatch() {
 	case "$entity" in
 
 		motion_guard)
-			# Use prudyntctl directly — calling 'motion enable' goes through the
-			# motion event script which has a singleton guard and may fail silently
-			# if a motion event is already in progress.
+			# Not the 'motion enable' wrapper: it goes through the motion event
+			# script, whose singleton guard fails silently during an event.
 			case "$payload" in
 				on | ON | 1 | true)
-					printf '{"motion":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
-					jct /etc/prudynt.json set motion.enabled true >/dev/null 2>&1
+					ha_agent_set motion/enabled enabled true
 					ha_pub_state motion_guard ON
 					;;
 				off | OFF | 0 | false)
-					printf '{"motion":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
-					jct /etc/prudynt.json set motion.enabled false >/dev/null 2>&1
+					ha_agent_set motion/enabled enabled false
 					ha_pub_state motion_guard OFF
 					;;
 			esac
 			;;
 
 		ircut)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | day | 1)
 					ircut on
@@ -85,14 +82,8 @@ dispatch() {
 			;;
 
 		daynight)
-			# Use prudyntctl to set force_mode — this controls both ISP processing
-			# and hardware (ircut, LEDs, color) through prudynt's day/night engine.
 			case "$payload" in
-				day | night)
-					printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$payload" |
-						prudyntctl json - >/dev/null 2>&1
-					ha_pub_state daynight "$payload"
-					;;
+				auto | day | night) ha_daynight_set "$payload" ;;
 			esac
 			# Daynight changes ircut/color/ir850 — re-sync all states after settle
 			{
@@ -115,23 +106,23 @@ dispatch() {
 			;;
 
 		color)
-			# running_mode: 0 = color, 1 = monochrome
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":0}}' |
-						prudyntctl json - >/dev/null 2>&1
+					color on
+					echo ON >"$HA_COLOR_OVERRIDE"
 					ha_pub_state color ON
 					;;
 				off | OFF | 0)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":1}}' |
-						prudyntctl json - >/dev/null 2>&1
+					color off
+					echo OFF >"$HA_COLOR_OVERRIDE"
 					ha_pub_state color OFF
 					;;
 			esac
 			;;
 
 		ir850)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light ir850 on
@@ -145,7 +136,7 @@ dispatch() {
 			;;
 
 		ir940)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light ir940 on
@@ -159,7 +150,7 @@ dispatch() {
 			;;
 
 		white)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light white on
@@ -168,6 +159,43 @@ dispatch() {
 				off | OFF | 0)
 					light white off
 					ha_pub_state white OFF
+					;;
+			esac
+			;;
+
+		floodlight)
+			case "$payload" in
+				on | ON | 1 | true)
+					if "$HA_FLOODLIGHT_CTL" on >/dev/null 2>&1; then
+						ha_pub_state floodlight ON
+						brightness=$(ha_floodlight_brightness 2>/dev/null)
+						[ -n "$brightness" ] && ha_pub_state floodlight_brightness "$brightness"
+					else
+						echo "ha-commands: floodlight controller unavailable" >&2
+					fi
+					;;
+				off | OFF | 0 | false)
+					if "$HA_FLOODLIGHT_CTL" off >/dev/null 2>&1; then
+						ha_pub_state floodlight OFF
+					else
+						echo "ha-commands: floodlight controller unavailable" >&2
+					fi
+					;;
+			esac
+			;;
+
+		floodlight_brightness)
+			case "$payload" in
+				'' | *[!0-9]*)
+					echo "ha-commands: invalid floodlight brightness '$payload'" >&2
+					;;
+				*)
+					if "$HA_FLOODLIGHT_CTL" on "$payload" >/dev/null 2>&1; then
+						ha_pub_state floodlight ON
+						ha_pub_state floodlight_brightness "$payload"
+					else
+						echo "ha-commands: floodlight brightness '$payload' rejected" >&2
+					fi
 					;;
 			esac
 			;;
@@ -185,7 +213,7 @@ dispatch() {
 			;;
 
 		snapshot)
-			prudyntctl snapshot -c 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
+			ha_agent snapshot 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
 			;;
 
 		reboot)
@@ -193,16 +221,17 @@ dispatch() {
 			;;
 
 		firmware)
-			# Partial upgrade (preserves config): sysupgrade -p fetches the
-			# latest release from GitHub, flashes rootfs+data+backup and
-			# reboots. Run in background — it takes minutes and the camera
-			# will drop off MQTT.
+			# Full upgrade with a config backup: sysupgrade -f -B fetches the
+			# latest release from GitHub, flashes the whole image while keeping
+			# the backup partition, and reboots; S37cfg-autorestore restores the
+			# config. Run in background: it takes minutes and the camera will
+			# drop off MQTT.
 			case "$payload" in
 				UPDATE | update | 1 | true)
-					echo "ha-commands: starting partial firmware upgrade" >&2
-					logger -t ha-commands "starting partial firmware upgrade"
+					echo "ha-commands: starting full firmware upgrade" >&2
+					logger -t ha-commands "starting full firmware upgrade"
 					if command -v sysupgrade >/dev/null 2>&1; then
-						sysupgrade -p >/dev/null 2>&1 &
+						sysupgrade -f -B >/dev/null 2>&1 &
 					else
 						echo "ha-commands: sysupgrade not installed" >&2
 					fi

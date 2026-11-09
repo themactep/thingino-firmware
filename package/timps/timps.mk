@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.29
+TIMPS_VERSION = v1.12.1
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -45,6 +45,10 @@ TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/tim
 # version otherwise.
 ifneq ($(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)),)
 TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
+endif
+# agg31: pinned commit from a local git checkout (TIMPS_SITE=/path): describe it
+ifneq ($(wildcard $(call qstrip,$(TIMPS_SITE))/.git),)
+TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_SITE)) describe --tags --always $(TIMPS_VERSION) 2>/dev/null)
 endif
 ifneq ($(TIMPS_GIT_DESCRIBE),)
 TIMPS_BUILD_VERSION = $(TIMPS_GIT_DESCRIBE)
@@ -153,6 +157,11 @@ endif
 # The upstream Makefile defaults to static: -l:libimp.a etc.
 # We override to use the shared libraries installed by ingenic-lib.
 TIMPS_IMPLIBS = -limp -lalog -lsysutils
+# timps imports no SU_*/alog symbol itself and OpenIMP's libimp does not link
+# libalog/libsysutils: with OpenIMP no Ingenic/neo blob is linked or shipped.
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+TIMPS_IMPLIBS = -limp
+endif
 
 # Additional system libs (extended from upstream -lpthread -lrt -lm)
 TIMPS_LIBS = -lpthread -lrt -lm
@@ -211,6 +220,7 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
+		USE_OPENIMP=$(if $(BR2_PACKAGE_OPENIMP),1,0) \
 		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
@@ -218,8 +228,6 @@ define TIMPS_BUILD_CMDS
 		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
-		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
-		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
@@ -843,6 +851,15 @@ define TIMPS_PREVIEW_PLUGINS
 		m and p.write_text(a.inject_preview_scripts(a.inject_preview_body(s, m), m, ts), encoding="utf-8")'
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_PREVIEW_PLUGINS
+
+# thingino-webui tags its pages before timps installs, so timps pages and
+# changed timps scripts kept stale ?ts= cache keys
+TIMPS_ASSET_TAG := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a $(TIMPS_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
+define TIMPS_APPLY_ASSET_TAG
+	python3 $(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py \
+		"$(if $(TIMPS_ASSET_TAG),$(TIMPS_ASSET_TAG),$(shell date +%s))" $(TARGET_DIR)/var/www
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_APPLY_ASSET_TAG
 endif
 
 # NOTE: send-to-* notification toolkit now lives in package/thingino-send2.

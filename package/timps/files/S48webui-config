@@ -1,5 +1,4 @@
 #!/bin/sh
-#set -euo pipefail
 
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
 WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
@@ -27,13 +26,7 @@ start() {
 	image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
-	# NOTE (timps overlay): configs/common.thingino.json ships a "motors"
-	# object with empty gpio_pan/gpio_tilt as a disabled-by-default
-	# placeholder, merged into EVERY board's /etc/thingino.json unless that
-	# board overrides it. The stock check here was `jct get motors` succeeding
-	# on key PRESENCE alone, so it read "true" for that placeholder too - any
-	# non-PTZ board without its own motors override got the preview joystick
-	# overlay. Check the actual GPIO pins are configured instead.
+	# common.thingino.json ships an empty motors placeholder on every board: check the pins
 	motors_enabled="false"
 	motors_pan="$(jct /etc/thingino.json get motors.gpio_pan 2>/dev/null)"
 	motors_tilt="$(jct /etc/thingino.json get motors.gpio_tilt 2>/dev/null)"

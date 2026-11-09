@@ -1,0 +1,13 @@
+#!/bin/sh
+# Print the sensor IQ file name the Ingenic SDK loads for a sensor and SoC.
+# T10/T20/T30 SDKs install <sensor>.bin; newer families <sensor>-<soc>.bin.
+
+if [ $# -ne 2 ]; then
+	echo "usage: sensor-iq-name <sensor> <soc>" >&2
+	exit 1
+fi
+
+case "$2" in
+	t10 | t20 | t30) printf '%s.bin\n' "$1" ;;
+	*) printf '%s-%s.bin\n' "$1" "$2" ;;
+esac

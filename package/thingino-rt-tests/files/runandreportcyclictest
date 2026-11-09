@@ -62,7 +62,7 @@ log "Report generated at: $FULL_REPORT_FILE"
 # Send the email using curl
 log "Attempting to send report via email to $TO_ADDR..."
 
-curl -v --ssl-reqd \
+curl -v --ssl-reqd --tls-max 1.2 \
 	--url "$SMTP_URL" \
 	--user "$SMTP_USER:$SMTP_PASS" \
 	--mail-from "$FROM_ADDR" \

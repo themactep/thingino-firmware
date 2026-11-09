@@ -30,7 +30,7 @@ env:
 
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
         with:
@@ -114,7 +114,7 @@ jobs:
           echo "Changed /bin/sh scripts are shfmt-formatted."
 
       - name: Install shellcheck
-        # Pin the exact release instead of apt (ubuntu-latest ships an older
+        # Pin the exact release instead of apt (the runner image ships an older
         # shellcheck). Keeps pr-format in lockstep with lint.yml and local
         # dev, both of which run 0.11.0.
         run: |

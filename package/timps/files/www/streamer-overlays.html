@@ -28,6 +28,8 @@
     <ul class="nav nav-pills nav-pills-sm mb-3 gap-1" role="tablist">
       <li class="nav-item"><button type="button" class="nav-link py-1" role="tab" data-page-tab="text">Text &amp; logo</button></li>
       <li class="nav-item"><button type="button" class="nav-link py-1" role="tab" data-page-tab="privacy">Privacy masks</button></li>
+      <li class="nav-item"><button type="button" class="nav-link py-1" role="tab" data-page-tab="roi">ROI</button></li>
+      <li class="nav-item"><button type="button" class="nav-link py-1" role="tab" data-page-tab="crop">Crop / zoom</button></li>
     </ul>
     <div class="row g-3">
       <div class="col-12 col-xl-5">
@@ -35,17 +37,24 @@
           <span><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> 1 px</span><span><kbd>Shift</kbd>+arrows 10 px</span></div>
         <div class="tv-hint mb-1 tv-hint-privacy"><span>Click a mask to select</span><span>Drag to move, corner to resize</span>
           <span><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> 1 px</span><span><kbd>Shift</kbd>+arrows 10 px</span><span><kbd>Ctrl</kbd>+arrows resize</span></div>
+        <div class="tv-hint mb-1 tv-hint-roi"><span>Click a region to select</span><span>Drag to move, corner to resize</span><span>Snaps to 16 px macroblocks</span></div>
+        <div class="tv-hint mb-1 tv-hint-crop"><span>Drag the frame to pan, corner to zoom</span><span>Wheel over the frame: zoom</span><span>Crop on: the live picture sits in the frame</span></div>
         <div id="frame" class="tv-frame" tabindex="0" aria-label="Preview; arrow keys move the selected overlay">
           <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch0">
           <div id="osd-boxes"></div>
         </div>
+        <div id="tv-frame-note" class="small text-warning mt-1" hidden></div>
       </div>
       <div class="col-12 col-xl-7">
-        <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2 small mb-2" style="--bs-alert-bg:rgb(255 136 0 / .08)">
+        <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2 small mb-2 tv-link" style="--bs-alert-bg:rgb(255 136 0 / .08)">
           <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" role="switch" id="osd-link"></div>
           <span id="osd-link-txt"></span>
         </div>
         <div data-page-pane="text">
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>Text and logo overlays are drawn into the video itself, so every viewer and every recording sees them. Each stream has its own list. Drag an overlay on the preview or edit its position in the list.</p>
+            <p>Overlays that are larger than the picture are clipped, so keep the text short on the substream. Font and the global on/off switch affect all streams and need a restart.</p>
+          </details>
           <div id="osd-items" class="d-grid gap-2"></div>
           <p id="osd-items-empty" class="text-body-secondary d-none">No overlays on this stream. Use &ldquo;Add overlay&rdquo; to create one.</p>
           <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
@@ -73,6 +82,10 @@
           </div>
         </div>
         <div data-page-pane="privacy" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>A privacy mask is a solid rectangle burned into the stream before it is encoded. It hides that part of the picture for every viewer and recording; it cannot be removed on the client side.</p>
+            <p>Masks belong to one stream, are applied live, and stay in place on the picture when the sensor crop changes.</p>
+          </details>
           <div class="alert alert-warning d-none" id="privacy-unavailable" role="alert">
             <i class="bi bi-exclamation-triangle me-1"></i>The streamer does not report privacy support (or is unreachable); the editor is disabled.
           </div>
@@ -81,6 +94,60 @@
           <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
             <button type="button" id="pm-add" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Add mask</button>
             <span class="small text-body-secondary">Up to <span id="privacy-max">4</span> per stream, applied live.</span>
+          </div>
+        </div>
+        <div data-page-pane="roi" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>A region of interest (ROI) gives part of the picture its own encoder quality (QP) while the rest keeps the normal rate control. A lower QP is sharper and costs more bits; a higher QP is coarser and saves bits. Use it to keep a door or a plate sharp, or to spend fewer bits on sky or foliage.</p>
+            <p><b>Delta</b> adds or subtracts QP relative to the stream (negative = sharper). <b>Absolute</b> sets a fixed QP; some cameras convert it to a delta internally.</p>
+            <p>Regions snap to 16&nbsp;px macroblocks and apply to H.264 streams only; H.265 and rotated streams ignore them. Under constant bitrate (CBR) the effect can be weak, and the usable QP range differs per SoC (the badge above shows how well it is supported on this camera).</p>
+          </details>
+          <div class="alert alert-warning small py-2 d-none" id="roi-note" role="alert"></div>
+          <div id="roi-list"></div>
+          <p id="roi-empty" class="text-body-secondary d-none">No ROI regions on this stream. A region gets its own encoder QP: lower = sharper, higher = coarser.</p>
+          <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
+            <button type="button" id="roi-add" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Add region</button>
+            <span class="small text-body-secondary">Up to <span id="roi-max">4</span> per stream, H.264 only, applied live.</span>
+          </div>
+        </div>
+        <div data-page-pane="crop" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>Sensor crop selects a window of the sensor and scales it to the stream size. This is a digital zoom/pan that happens before encoding, so the zoomed picture keeps full stream resolution as long as the window is at least as large as the stream.</p>
+            <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64 or the smallest window this camera takes). Drag the frame on the preview to pan, its corner to zoom; the mouse wheel over the frame zooms around the pointer. The preview is the whole sensor. While crop is off it shows the live picture with the frame on it. While crop is on the stream only contains the window, so the live picture is shown inside the frame and the rest of the sensor is dimmed: the last picture taken while crop was off (kept in this browser) or a grid if there is none.</p>
+            <p>The zoom slider runs from 1&times; to the largest zoom this camera allows. Up to the white mark the window is at least as large as every zoomed stream: <b>Crop</b>, full resolution. Above it (amber) the stream scales the window up: <b>Crop + zoom</b>, a softer picture. Without the amber part the camera only crops.</p>
+            <p><b>Allow upscaling</b> (where the camera offers it) lets a stream scale the window up to 2&times;, so the smallest window is half the largest zoomed stream, e.g. 960&times;540 for a 1920&times;1080 stream. While it is on, the upscaling follows the frame: it rises when the frame gets smaller and comes down again when the frame gets larger, but never below the lowest step (1.1&times;) while the switch is on. For still more zoom, lower the stream resolution on the Video page (restart needed): on a 1920&times;1080 sensor 1280&times;720 allows 3&times;, 960&times;540 4&times;. Masks, overlays and ROI are in stream pixels, so check them after a resolution change.</p>
+            <p>The lines under the fields show how each stream scales the window. A window smaller than the stream is upscaled and looks soft; a lower stream resolution lets you zoom tighter onto an object without upscaling.</p>
+            <p>On some cameras only the substream is zoomed and the main stream keeps the full frame; some cameras apply the window only after a restart (see the badge). <b>State</b>: <i>on</i> = active; <i>off</i> = disabled; <i>waiting</i> = accepted, applies as soon as a stream that can show it is running; <i>rejected</i> = invalid window; <i>failed</i> = the camera refused it.</p>
+          </details>
+          <div class="alert alert-warning small py-2 d-none" id="crop-note" role="alert"></div>
+          <div class="tv-card">
+            <h6>Sensor crop (all streams) <span class="tv-badge live" id="crop-live">live</span><span class="tv-badge ms-auto" id="crop-tier"></span></h6>
+            <div class="form-check form-switch mb-3">
+              <input type="checkbox" id="crop-en" role="switch" class="form-check-input">
+              <label for="crop-en" class="form-check-label">Crop enabled</label>
+            </div>
+            <div id="crop-up-w" hidden>
+              <div class="form-check form-switch mb-1">
+                <input type="checkbox" id="crop-up" role="switch" class="form-check-input rc-up">
+                <label for="crop-up" class="form-check-label">Allow upscaling</label>
+              </div>
+              <div id="crop-up-r" hidden><label for="crop-up-v">Zoom up to <output id="crop-up-o"></output></label><input type="range" class="form-range rc-up" id="crop-up-v" min="10" max="100" step="10" value="50"></div>
+              <div class="small text-body-secondary mb-3" id="crop-up-h"></div>
+            </div>
+            <div class="tv-fields">
+              <div class="grid-column-full"><label for="crop-zoom">Zoom <output id="crop-zoom-v"></output></label><input type="range" class="form-range rc-zoom" id="crop-zoom" min="1" max="8" step="any" value="1">
+                <div class="small text-body-secondary" id="crop-zoom-h"></div></div>
+              <div><label for="crop-px">Pan horizontal</label><input type="range" class="form-range" id="crop-px" min="0" max="100" value="50"></div>
+              <div><label for="crop-py">Pan vertical</label><input type="range" class="form-range" id="crop-py" min="0" max="100" value="50"></div>
+            </div>
+            <div class="tv-fields mt-3">
+              <div><label for="crop-x">Left</label><input type="number" min="0" step="2" class="form-control" id="crop-x"></div>
+              <div><label for="crop-y">Top</label><input type="number" min="0" step="2" class="form-control" id="crop-y"></div>
+              <div><label for="crop-w">Width</label><input type="number" min="64" step="2" class="form-control" id="crop-w"></div>
+              <div><label for="crop-h">Height</label><input type="number" min="64" step="2" class="form-control" id="crop-h"></div>
+            </div>
+            <div class="small text-body-secondary mt-2" id="crop-scale"></div>
+            <p class="small text-body-secondary mt-2 mb-0">Sensor pixels (<span id="crop-sensor">?</span>). Every stream scales the window to its size; privacy masks, overlays and ROI stay where they are in the picture. <span class="tv-cfg" id="crop-state"></span></p>
           </div>
         </div>
       </div>
@@ -99,9 +166,11 @@
 <script src="/a/footer.js"></script>
 <script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
+<script src="/a/timps-errors.js"></script>
 <script src="/a/timps-version.js"></script>
 <script src="/a/timps-ui.js"></script>
 <script src="/a/streamer-osd.js"></script>
 <script src="/a/privacy.js"></script>
+<script src="/a/roi-crop.js"></script>
 </body>
 </html>

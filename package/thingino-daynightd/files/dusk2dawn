@@ -2,7 +2,7 @@
 # shellcheck disable=SC2086,SC3043
 
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
-CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2"
 
 # Exit early if paranoid mode is enabled (no internet access)
 if [ "$(jct "$CONFIG_JSON" get webui.paranoid 2>/dev/null)" = "true" ]; then
