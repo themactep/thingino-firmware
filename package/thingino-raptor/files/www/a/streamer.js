@@ -13,6 +13,19 @@
     if (!preferAgent()) {
       throw new Error("agentJsonRequest is not available");
     }
+    // Several scripts on one page read the full config, which takes seconds
+    // on T20, so they share one request.
+    const method = ((options && options.method) || "GET").toUpperCase();
+    if (method === "GET" && path === "/api/v1/config") {
+      if (typeof global.getThinginoAgentConfig === "function") {
+        return global.getThinginoAgentConfig();
+      }
+    } else if (
+      method !== "GET" &&
+      typeof global.invalidateThinginoAgentConfig === "function"
+    ) {
+      global.invalidateThinginoAgentConfig();
+    }
     return global.agentJsonRequest(path, options);
   }
 

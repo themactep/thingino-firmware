@@ -325,17 +325,12 @@ thingino_heartbeat_raptor_payload() {
 			_v=$(cat /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n')
 			[ -n "$_v" ] && daynight_brightness=$_v
 		fi
-		total_gain="null"
-		if [ -r /run/thingino/daynight_sensors ] && command -v jct >/dev/null 2>&1; then
-			_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null | tr -d '\n"')
-			[ -n "$_bp" ] && [ "$_bp" != "null" ] && total_gain=$_bp
-		fi
 	else
-		daynight_brightness=$(thingino_heartbeat_json_number_field ae_luma "$ric_status")
-		total_gain=$(thingino_heartbeat_json_number_field total_gain "$ric_status")
+		daynight_brightness=$(thingino_heartbeat_json_number_field daynight_brightness "$(agentctl runtime heartbeat 2>/dev/null || true)")
 		[ -n "$daynight_brightness" ] || daynight_brightness=null
-		[ -n "$total_gain" ] || total_gain=null
 	fi
+	total_gain=$(thingino_heartbeat_json_number_field total_gain "$(raptorctl rvd get-exposure 2>/dev/null || true)")
+	[ -n "$total_gain" ] || total_gain=null
 
 	color_mode=$(thingino_heartbeat_raptor_color_mode "$daynight_mode")
 
