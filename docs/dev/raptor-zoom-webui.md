@@ -2,7 +2,7 @@
 
 ## Summary
 
-Adds `1x 2x 3x 4x 8x` buttons to the Raptor live preview page. Each button
+Adds `1x 2x 3x 4x` buttons to the Raptor live preview page. Each button
 calls `GET /x/zoom.cgi?f=<factor_mille>` and then reloads the page so the
 WebRTC preview reconnects at the new resolution.
 
