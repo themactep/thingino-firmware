@@ -8,14 +8,14 @@ on:
 
 env:
   # Pin shellcheck so CI results match local dev (0.11.0) regardless of
-  # what the ubuntu-latest runner's apt cache happens to ship. Distro
+  # what the runner image's apt cache happens to ship. Distro
   # versions (e.g. 0.9.0) emit different info-level findings (SC2015,
   # SC2317) that are false/no-ops on 0.11.0 but still make lint exit 1.
   SHELLCHECK_VERSION: 0.11.0
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@v5
