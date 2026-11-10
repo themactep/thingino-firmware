@@ -68,6 +68,12 @@ TFTP_ROOT ?=
 # export BR2_DL_DIR=/path/to/your/local/storage
 BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
 
+# Shared source mirror (network storage). Used as Buildroot's primary
+# download site and as the write-back target for upstream downloads.
+DL_MIRROR_DIR ?=
+DL_SYNC ?= 1
+export DL_MIRROR_DIR DL_SYNC
+
 THINGINO_USER_DIR ?= $(BR2_EXTERNAL)/user
 ifdef PRISTINE
 THINGINO_USER_DIR := /dev/null
@@ -543,7 +549,8 @@ endef
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
 	backup-overlay user-dirs user-push \
-	dfu scriba ota run setup-hooks show-vars
+	dfu scriba ota run setup-hooks show-vars \
+	dl-pull dl-push dl-sync
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)

@@ -86,11 +86,47 @@ IP= make
 
 ### Build Paths
 
-**`BR2_DL_DIR`** - Buildroot downloads directory (default: `~/dl`)
+**`BR2_DL_DIR`** - Buildroot downloads directory (default: `$(BR2_EXTERNAL)/dl`)
 ```bash
-export BR2_DL_DIR=/path/to/shared/downloads
+export BR2_DL_DIR=/path/to/local/downloads
 make
 ```
+
+Point this at fast local storage. Buildroot reads it on every download, so a
+network filesystem here makes even cache hits slow.
+
+**`DL_MIRROR_DIR`** - shared source mirror (default: empty)
+```bash
+export BR2_DL_DIR=/mnt/fastdisk/thingino/dl
+export DL_MIRROR_DIR=/path/to/network/downloads
+make
+```
+
+`DL_MIRROR_DIR` is honored only when it lives on a network filesystem
+(NFS, CIFS/SMB, sshfs, 9p, davfs). When it does, `make` adds it to the
+generated `.config` as Buildroot's `BR2_PRIMARY_SITE`, so a local cache miss
+is copied from the mirror instead of downloaded from upstream.
+`BR2_PRIMARY_SITE_ONLY` stays unset, so upstream still serves anything the
+mirror lacks.
+
+A local directory is not a mirror: point `BR2_DL_DIR` at it directly instead.
+`DL_MIRROR_DIR` on local storage is ignored and reported, never used.
+
+After a successful `make`/`fast`/`dev`/`cleanbuild`, files downloaded during
+the build are pushed back to the mirror. The push only covers names not
+already recorded for this cache, and neither side ever deletes anything.
+
+- `make dl-pull` - bulk pre-warm: copy the whole mirror into `BR2_DL_DIR`.
+  Not needed for normal builds; lazy fill on cache misses is the default.
+- `make dl-push` - push local files missing from the mirror.
+- `make dl-sync` - `dl-pull` followed by `dl-push`.
+
+The mirror is probed only when the configuration is regenerated, never on every
+`make` invocation (an unavailable autofs mount must not stall parsing). If the
+mirror was unreachable when `.config` was generated, run `make force-config`
+once it is back to pick it up.
+
+**`DL_SYNC`** - set to `0` to disable the automatic push (default: `1`)
 
 **`OUTPUT_DIR`** - Build output directory
 - Auto-generated based on `CAMERA` and git branch
@@ -1020,7 +1056,9 @@ make help                     # Show help
 export CAMERA=t31_gc2053_lite        # Camera profile
 export GROUP=github                  # Camera group
 export IP=192.168.1.10               # Camera IP / device-specific build scope
-export BR2_DL_DIR=/path/to/downloads # Download cache
+export BR2_DL_DIR=/path/to/downloads # Local download cache
+export DL_MIRROR_DIR=/path/to/mirror  # Shared source mirror (read-through + write-back)
+export DL_SYNC=0                      # Disable the automatic mirror push
 export OUTPUT_DIR=/custom/path       # Build output
 export THINGINO_OUTPUT_ROOT_DIR=/custom/root  # Output root (safe globally, keeps layout)
 export THINGINO_OUTPUT_DIR=/custom/path       # Exact output dir (namespaced)
