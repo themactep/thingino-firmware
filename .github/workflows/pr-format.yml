@@ -33,7 +33,10 @@ env:
 
 jobs:
   format:
-    runs-on: ubuntu-latest
+    # Pinned instead of ubuntu-latest: GitHub migrates the label to a new
+    # Ubuntu release on its own schedule, which would change the tools and
+    # apt cache under a formatting gate that only uses pinned versions.
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
         with:
