@@ -61,6 +61,7 @@ require_network_mirror() {
 list_local() {
 	find "$BR2_DL_DIR" -type f \
 		! -name '.mirror-*' \
+		! -name '.lock' \
 		! -name '*.github-updated-at' \
 		! -name '*.zip*' \
 		-printf '%P\n' | LC_ALL=C sort
