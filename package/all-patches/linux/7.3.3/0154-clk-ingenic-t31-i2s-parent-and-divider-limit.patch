@@ -1,0 +1,94 @@
+Subject: [PATCH] clk: ingenic: t31: let the DT choose the I2S parent,
+ document the divider limit
+
+The I2S dividers inherited the parent mux from the bootloader, and
+t31_i2s_calc() rejected N < 2 * M without saying why. Add .set_parent
+(the mux is in I2SSPKCDR[31:30] only; I2SMICCDR follows it), pin
+SCLK_A in the aic node with assigned-clock-parents as the vendor kernel
+does, and explain the limit: a fractional M/N divider cannot produce
+more than parent / 2. Audio rates stay far below it (16 kHz is 32/10875
+of the 1392 MHz APLL).
+---
+ arch/mips/boot/dts/ingenic/t31.dtsi |  3 +++
+ drivers/clk/ingenic/t31-cgu.c       | 33 ++++++++++++++++++++++++++---
+ 2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/arch/mips/boot/dts/ingenic/t31.dtsi b/arch/mips/boot/dts/ingenic/t31.dtsi
+index 62d2c9bf6..76db50bb1 100644
+--- a/arch/mips/boot/dts/ingenic/t31.dtsi
++++ b/arch/mips/boot/dts/ingenic/t31.dtsi
+@@ -292,6 +292,9 @@ aic: audio-controller@10020000 {
+ 			 <&cgu T31_CLK_I2S_SPK>,
+ 			 <&cgu T31_CLK_I2S_MIC>;
+ 		clock-names = "aic", "i2s", "i2s-rx";
++		/* SCLK_A (APLL) as the vendor kernel; the mic divider follows */
++		assigned-clocks = <&cgu T31_CLK_I2S_SPK>;
++		assigned-clock-parents = <&cgu T31_CLK_SCLKA>;
+ 
+ 		dmas = <&pdma 0x07 0xffffffff>,
+ 		       <&pdma 0x06 0xffffffff>;
+diff --git a/drivers/clk/ingenic/t31-cgu.c b/drivers/clk/ingenic/t31-cgu.c
+index e6375048f..64466738c 100644
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -97,8 +97,9 @@ static const struct clk_ops t31_otg_phy_ops = {
+  * The two I2S dividers (speaker/playback and microphone/capture) are M/N
+  * fractional dividers without a stop bit.  The vendor kernel never clears
+  * CE, so there is no .disable.  The parent select [31:30] of I2SSPKCDR is
+- * shared: I2SMICCDR[31:30] is read-only and follows it.  The mux is left
+- * as the bootloader set it.
++ * shared: I2SMICCDR[31:30] is read-only and follows it, so setting the
++ * parent of either clock moves both.  The DT picks it with
++ * assigned-clock-parents; without that the bootloader's choice stays.
+  */
+ static void __iomem *t31_i2s_reg(struct clk_hw *hw)
+ {
+@@ -129,7 +130,15 @@ static int t31_i2s_calc(unsigned long rate, unsigned long parent_rate,
+ 
+ 	rational_best_approximation(rate, parent_rate, 0x1ff, 0xfffff, m, n);
+ 
+-	/* keep the duty cycle sane: N >= 2 * M */
++	/*
++	 * Fout = parent * M / N.  The divider is fractional: its output edges
++	 * fall on parent edges, so an output above parent / 2 cannot have two
++	 * edges per period.  This is a limit of the method, not one the
++	 * Ingenic manual states.  Audio rates are far below it: 16 kHz runs at
++	 * M/N = 32/10875 from the 1392 MHz APLL (register 0x22002a7b, the same
++	 * value the vendor kernel writes).  Only a much slower parent would
++	 * hit the -EINVAL here.
++	 */
+ 	if (!*m || !*n || *n < 2 * *m)
+ 		return -EINVAL;
+ 
+@@ -196,6 +205,23 @@ static u8 t31_i2s_get_parent(struct clk_hw *hw)
+ 	return sel > 2 ? 2 : sel;
+ }
+ 
++static int t31_i2s_set_parent(struct clk_hw *hw, u8 index)
++{
++	unsigned long flags;
++	u32 v;
++
++	if (index > 2)
++		return -EINVAL;
++
++	/* the mux lives in I2SSPKCDR only; I2SMICCDR follows it */
++	spin_lock_irqsave(&cgu->lock, flags);
++	v = readl(cgu->base + CGU_REG_I2SSPKCDR) & ~GENMASK(31, 30);
++	writel(v | ((u32)index << 30), cgu->base + CGU_REG_I2SSPKCDR);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
+ static const struct clk_ops t31_i2s_ops = {
+ 	.recalc_rate	= t31_i2s_recalc_rate,
+ 	.determine_rate	= t31_i2s_determine_rate,
+@@ -203,6 +229,7 @@ static const struct clk_ops t31_i2s_ops = {
+ 	.enable		= t31_i2s_enable,
+ 	.is_enabled	= t31_i2s_is_enabled,
+ 	.get_parent	= t31_i2s_get_parent,
++	.set_parent	= t31_i2s_set_parent,
+ };
+ 
+ /*
