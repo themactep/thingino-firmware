@@ -2,6 +2,7 @@
 # shellcheck disable=SC2018,SC2019
 
 THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
+THINGINO_NETWORK_RESTART_FLAG="${THINGINO_NETWORK_RESTART_FLAG:-/tmp/network-restart.txt}"
 THINGINO_RAPTOR_CONFIG="${THINGINO_RAPTOR_CONFIG:-/etc/raptor.conf}"
 THINGINO_RAPTOR_PRIVACY_STATE="${THINGINO_RAPTOR_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 THINGINO_IRCUT_MODE_FILE="${THINGINO_IRCUT_MODE_FILE:-/tmp/ircutmode.txt}"
@@ -209,6 +210,10 @@ thingino_heartbeat_has_daynightd() {
 	command -v daynightd >/dev/null 2>&1
 }
 
+thingino_heartbeat_network_restart_pending() {
+	[ -f "$THINGINO_NETWORK_RESTART_FLAG" ] && printf 'true' || printf 'false'
+}
+
 # daynightd replaces ric as the day/night engine when selected (Kconfig
 # makes RIC and daynightd mutually exclusive), so the raptor payload
 # sources the daynight fields from daynightd the same way json-imp.cgi
@@ -352,7 +357,7 @@ thingino_heartbeat_raptor_payload() {
 			;;
 	esac
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s,"network_restart_pending":%s}\n' \
 		"$now" \
 		"$uptime" \
 		"$daynight_brightness" \
@@ -370,7 +375,8 @@ thingino_heartbeat_raptor_payload() {
 		"$(thingino_heartbeat_light_state ir850)" \
 		"$(thingino_heartbeat_light_state ir940)" \
 		"$(thingino_heartbeat_light_state white)" \
-		"$(thingino_heartbeat_wireguard_status)"
+		"$(thingino_heartbeat_wireguard_status)" \
+		"$(thingino_heartbeat_network_restart_pending)"
 }
 
 thingino_heartbeat_native_payload() {
@@ -469,10 +475,11 @@ thingino_heartbeat_native_payload() {
 	case "${_hb_ir940:-}" in 0 | 1) ;; *) _hb_ir940=null ;; esac
 	case "${_hb_white:-}" in 0 | 1) ;; *) _hb_white=null ;; esac
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s,"network_restart_pending":%s}\n' \
 		"$now" "$uptime" "$daynight_brightness" "$total_gain" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
 		"$motion_enabled" "$privacy_enabled" "$_color_mode" "$mic_enabled" "$spk_enabled" \
-		"$daynight_enabled" "$ircut_state" "${_hb_ir850}" "${_hb_ir940}" "${_hb_white}" "${_hb_wg:-0}"
+		"$daynight_enabled" "$ircut_state" "${_hb_ir850}" "${_hb_ir940}" "${_hb_white}" "${_hb_wg:-0}" \
+		"$(thingino_heartbeat_network_restart_pending)"
 }
 
 thingino_heartbeat_payload() {
