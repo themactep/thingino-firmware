@@ -86,7 +86,7 @@ index 000000000..093e65509
 +  It is the I2S bit-clock and frame master towards the T31 AIC.
 +
 +maintainers:
-+  - Paul Cercueil <paul@crapouillou.net>
++  - Lutz Fiebach <lutz@fiebach.de>
 +
 +allOf:
 +  - $ref: dai-common.yaml#
