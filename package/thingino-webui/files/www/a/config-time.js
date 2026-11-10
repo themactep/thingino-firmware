@@ -60,7 +60,12 @@
 
   function updateTimezone() {
     const tz = findTimezone(tzNameInput.value);
-    tzDataInput.value = tz ? tz.v : "";
+    // A raw POSIX TZ string set via `timectl set-timezone-raw` is not in
+    // tz.json. Leave the populated zone string alone so the page shows
+    // what is actually in effect; only a recognized name updates it.
+    if (tz) {
+      tzDataInput.value = tz.v;
+    }
   }
 
   function useBrowserTimezone(event) {

@@ -13,16 +13,104 @@ NTP_WORKING_FILE="/tmp/ntp.conf"
 NTP_SOURCE_FILE="/etc/ntp.source"
 
 TZ_MAX=67
-# uClibc-ng parses a POSIX TZ string only if the names obey its rules, so the
-# whitelist is close to check-tz-json.sh. 67 is the /etc/TZ buffer size minus
-# newline; a longer string is truncated silently, so reject it instead.
+# uClibc-ng drops a POSIX TZ string it cannot parse and runs in UTC, so a
+# character whitelist is not enough: "America/Toronto2" or "A" contain only
+# legal characters but are discarded. Validate the structure instead, with
+# the same checks as scripts/check-tz-json.sh: zone names of 3-6 characters
+# (letters, or digits/+/- when quoted in <...>), offsets with hours below 25
+# and minutes/seconds below 60, no signed rule times, and month/week limits.
+# 67 is the /etc/TZ buffer size minus the newline; uClibc truncates longer
+# strings silently, so reject them.
 valid_tz_string() {
-	# < and > are redirection operators in an unquoted case pattern, so the
-	# whitelist is enforced by stripping allowed characters instead.
 	[ -n "$1" ] || return 1
-	strip=$(printf '%s' "$1" | tr -d 'A-Za-z0-9+.,:/<>-')
-	[ -z "$strip" ] || return 1
-	[ "${#1}" -le "$TZ_MAX" ]
+	[ "${#1}" -le "$TZ_MAX" ] || return 1
+	# BusyBox awk (CONFIG_AWK=y) parses one string per process; all state
+	# lives inside the awk invocation, nothing leaks into this scope.
+	printf '%s' "$1" | awk '
+		function fail() { bad = 1; return 0 }
+		function isdigit(c) { return c ~ /^[0-9]$/ }
+		function isalpha(c) { return c ~ /^[A-Za-z]$/ }
+		# hh[:mm[:ss]], hours below 25, minutes and seconds below 60, no
+		# sign: the same four passes as uClibc-ng getoffset()
+		function offset(    i, lim, f, d) {
+			split("25 60 60 1", lim, " ")
+			f = -1
+			for (i = 1; i <= 4; i++) {
+				d = 0
+				while (d < 2 && isdigit(substr(s, p, 1))) {
+					f = (d ? f * 10 : 0) + substr(s, p, 1)
+					p++; d++
+				}
+				if (f < 0 || f >= lim[i]) return 0
+				f = 0
+				if (substr(s, p, 1) == ":") { p++; f = -1 }
+			}
+			return 1
+		}
+		function number(lo, hi,    d, f) {
+			f = 0
+			for (d = 0; d < 3 && isdigit(substr(s, p, 1)); d++) {
+				f = f * 10 + substr(s, p, 1)
+				p++
+			}
+			return d > 0 && f >= lo && f <= hi
+		}
+		function tzname(    q, n, c) {
+			q = substr(s, p, 1) == "<"
+			if (q) p++
+			for (n = 0; ; n++) {
+				c = substr(s, p, 1)
+				if (!(isalpha(c) || (q && (isdigit(c) || c == "+" || c == "-")))) break
+				p++
+			}
+			if (n < 3 || n > 6) return 0
+			if (q && substr(s, p++, 1) != ">") return 0
+			return 1
+		}
+		# ,Mm.w.d / ,Jn / ,n with optional /time, uClibc accepts 0-24 only
+		function rule(    c) {
+			if (substr(s, p++, 1) != ",") return fail()
+			c = substr(s, p, 1)
+			if (c == "M") {
+				p++
+				if (!number(1, 12) || substr(s, p++, 1) != "." ||
+				    !number(1, 5) || substr(s, p++, 1) != "." || !number(0, 6))
+					return fail()
+			} else if (c == "J") {
+				p++
+				if (!number(1, 365)) return fail()
+			} else if (!number(0, 365)) {
+				return fail()
+			}
+			if (substr(s, p, 1) == "/") {
+				p++
+				if (substr(s, p, 1) == "-" || substr(s, p, 1) == "+")
+					return fail()
+				if (!offset()) return fail()
+			}
+			return 1
+		}
+		function check(    c) {
+			p = 1
+			if (length(s) > 67) return fail()
+			if (substr(s, p, 1) == ":") p++
+			if (!tzname()) return fail()
+			c = substr(s, p, 1)
+			if (c == "+" || c == "-") p++
+			if (!offset()) return fail()
+			if (p > length(s)) return
+			if (!tzname()) return fail()
+			c = substr(s, p, 1)
+			if (c == "+" || c == "-") { p++; if (!offset()) return fail() }
+			else if (isdigit(c) && !offset()) return fail()
+			if (p > length(s)) return
+			if (!rule() || !rule()) return
+			if (p <= length(s)) return fail()
+		}
+		NR == 1 { s = $0; check() }
+		NR > 1 { bad = 1 }
+	END { exit (bad ? 1 : 0) }
+	'
 }
 
 usage() {
@@ -31,7 +119,7 @@ usage() {
 	echo "  status                      print resolved state as key=value" >&2
 	echo "  refresh                     boot: re-resolve /etc/timezone to /etc/TZ" >&2
 	echo "  set-timezone <name> [--source user|dhcp]" >&2
-	echo "  set-timezone-raw <posix-tz> set a raw POSIX TZ string (bypasses tz.json)" >&2
+	echo "  set-timezone-raw <posix-tz>  raw POSIX TZ string not in tz.json" >&2
 	echo "  set-ntp <srv>... [--source user|dhcp]" >&2
 	echo "  set-time <date>             manual clock hint, then NTP reconcile" >&2
 	echo "  pin-timezone                keep the current timezone, ignore DHCP" >&2
@@ -183,8 +271,12 @@ cmd_set_timezone_raw() {
 		return 1
 	fi
 
+	# All three must match, including the source: a matching string with
+	# source dhcp|default is not a raw selection, and returning early here
+	# would leave it overridable by DHCP option 101.
 	if [ "$tz" = "$(cat "$TZCODE_FILE" 2>/dev/null)" ] &&
-		[ "$tz" = "$(cat "$TZNAME_FILE" 2>/dev/null)" ]; then
+		[ "$tz" = "$(cat "$TZNAME_FILE" 2>/dev/null)" ] &&
+		[ "user" = "$(current_source "$TZ_SOURCE_FILE")" ]; then
 		echo "timectl: timezone already set to '$tz' [user]" >&2
 		return 0
 	fi

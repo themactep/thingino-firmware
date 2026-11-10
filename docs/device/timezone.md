@@ -34,6 +34,7 @@ state with `timectl status`.
 timectl status                      # key=value dump for observers
 timectl refresh                     # boot: re-resolve /etc/timezone -> /etc/TZ
 timectl set-timezone <name> [--source user|dhcp]
+timectl set-timezone-raw <posix-tz>  # raw POSIX TZ string not in tz.json
 timectl set-ntp <srv>...   [--source user|dhcp]
 timectl set-time <date>             # hint + NTP reconcile
 timectl pin-timezone                # keep current timezone, ignore DHCP
@@ -68,7 +69,7 @@ value; this is what the WebUI's "Ignore time zone sent by DHCP" toggle does.
 
 | Writer | Calls |
 |--------|-------|
-| WebUI time config | `timectl set-timezone / set-ntp / set-time / pin-timezone / unpin-timezone` |
+| WebUI time config | `timectl set-timezone / set-timezone-raw / set-ntp / set-time / pin-timezone / unpin-timezone` |
 | DHCP `tz` hook | `timectl set-timezone --source dhcp "$tzdbstr"` |
 | DHCP `ntp` hook | `timectl set-ntp --source dhcp "$ntpsrv"`, `timectl sync` |
 | `tzselect` (interactive) | `timectl set-timezone --source user` |
