@@ -171,7 +171,7 @@ function renderPreviewEndpoints() {
   const dropdownMenu = $("#preview-endpoint-dropdown-menu");
   if (!list && !dropdownMenu) return;
   const host =
-    window.network_address || window.location.hostname || "localhost";
+    window.location.hostname || window.network_address || "localhost";
   const httpOrigin = buildPreviewOrigin();
   const rtspHost = formatPreviewHostWithPort(
     wrapIpv6Host(host),

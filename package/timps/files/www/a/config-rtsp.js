@@ -83,7 +83,7 @@
   }
 
   function renderUrls(d) {
-    var host = ipv6Wrap(window.network_address || window.location.hostname || "localhost");
+    var host = ipv6Wrap(window.location.hostname || window.network_address || "localhost");
     var auth = credential(d.username, d.password);
     var onvifTarget = hostWithPort(host, d.onvif_port, [80, 443]);
     var rtspTarget = hostWithPort(host, d.rtsp_port, d.rtsp_scheme === "rtsps" ? [322] : [554]);

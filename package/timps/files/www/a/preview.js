@@ -245,7 +245,7 @@ function renderPreviewEndpoints() {
   const list = $("#preview-endpoint-list");
   if (!list) return;
   const host =
-    window.network_address || window.location.hostname || "localhost";
+    window.location.hostname || window.network_address || "localhost";
   const rtspHost = formatPreviewHostWithPort(
     wrapIpv6Host(host),
     previewEndpointState.rtsp.port,
