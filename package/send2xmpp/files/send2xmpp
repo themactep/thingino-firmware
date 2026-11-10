@@ -86,8 +86,10 @@ bosh_connect() {
       xmpp:version='1.0'
       xmlns:xmpp='urn:xmpp:xmpp-bosh'/>")
 
-	# Extract SID from response
-	SID=$(echo "$response" | grep -oE "sid='[^']+'" | cut -d"'" -f2)
+	# Extract SID from response.  Servers quote attributes with either
+	# single or double quotes; Openfire 5 uses double quotes.
+	SID=$(echo "$response" | grep -oE "sid=['\"][^'\"]+['\"]" |
+		head -n1 | sed -E "s/^sid=['\"]([^'\"]+)['\"]$/\1/")
 
 	if [ -z "$SID" ]; then
 		echo "Error: Failed to establish BOSH session" >&2
@@ -192,8 +194,11 @@ discover_upload_component() {
   </iq>
 </body>")
 
-	# Extract upload component (usually upload.domain or http-upload.domain)
-	upload_component=$(echo "$response" | grep -oE "jid='[^']*upload[^']*'" | head -n1 | cut -d"'" -f2)
+	# Extract upload component (usually upload.domain or http-upload.domain).
+	# Accept both quote styles, as in the SID parser.
+	upload_component=$(echo "$response" |
+		grep -oE "jid=['\"][^'\"]*upload[^'\"]*['\"]" | head -n1 |
+		sed -E "s/^jid=['\"]([^'\"]+)['\"]$/\1/")
 
 	if [ -z "$upload_component" ]; then
 		# Try common upload component names
