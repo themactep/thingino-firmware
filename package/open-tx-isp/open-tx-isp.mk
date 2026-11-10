@@ -41,6 +41,11 @@ OPEN_TX_ISP_MODULE_SUBDIRS = driver/t41
 else
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY) sensor-src/$(SOC_FAMILY)
 endif
+# T31 on kernel 7: /dev/ipu (OSD blend) comes from the open t31_ipu module;
+# the vendor 3.10 kernel keeps its built-in jz_ipu_v13.
+ifeq ($(SOC_FAMILY)-$(KERNEL_VERSION),t31-7.3.3)
+OPEN_TX_ISP_MODULE_SUBDIRS += driver/ipu
+endif
 else
 OPEN_TX_ISP_DEPENDENCIES = ingenic-sdk linux
 # Build as out-of-tree kernel module
@@ -243,6 +248,14 @@ define OPEN_TX_ISP_INSTALL_MODULES_D
 endef
 OPEN_TX_ISP_POST_INSTALL_TARGET_HOOKS += OPEN_TX_ISP_INSTALL_MODULES_D
 endif
+endif
+
+ifeq ($(SOC_FAMILY)-$(KERNEL_VERSION),t31-7.3.3)
+define OPEN_TX_ISP_INSTALL_IPU_MODULES_D
+	$(INSTALL) -d $(TARGET_DIR)/etc/modules.d
+	echo "t31_ipu" > $(TARGET_DIR)/etc/modules.d/25-ipu
+endef
+OPEN_TX_ISP_POST_INSTALL_TARGET_HOOKS += OPEN_TX_ISP_INSTALL_IPU_MODULES_D
 endif
 
 $(eval $(kernel-module))

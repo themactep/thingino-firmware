@@ -1,0 +1,27 @@
+Subject: [PATCH] dt: thingino-t31: add the IPU node
+
+The T31 IPU at 0x13080000 (INTC 6, gates ipu + ahb1) blends the OSD for
+OpenIMP through /dev/ipu. The vendor 3.10 kernel has it built in
+(jz_ipu_v13); on kernel 7 the open-tx-isp t31_ipu module binds to this
+node.
+---
+--- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -38,6 +38,17 @@
+ 		status = "okay";
+ 	};
+ 
++	/* IPU (OSD blend), /dev/ipu from open-tx-isp t31_ipu.ko. */
++	ipu: ipu@13080000 {
++		compatible = "ingenic,t31-ipu";
++		reg = <0x13080000 0x8000>;
++		interrupt-parent = <&intc>;
++		interrupts = <6>;
++		clocks = <&cgu T31_CLK_IPU>, <&cgu T31_CLK_AHB1>;
++		clock-names = "ipu", "ahb1";
++		status = "okay";
++	};
++
+ 	isp: isp@13300000 {
+ 		compatible = "ingenic,t31-isp";
+ 		reg = <0x13300000 0x100000>;
