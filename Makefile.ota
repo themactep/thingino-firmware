@@ -1,6 +1,6 @@
 clean-config:
 	@$(TEAL) "$@"
-	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original $(DL_MIRROR_STAMP)
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
@@ -15,6 +15,10 @@ nconfig: check-config $(OUTPUT_DIR)/.config
 saveconfig:
 	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+	@if [ -n "$(DL_MIRROR_DIR)" ]; then \
+		sed -i '\|^BR2_PRIMARY_SITE="file://$(DL_MIRROR_DIR)"$$|d' \
+			"$(CAMERA_CONFIG_REAL)"; \
+	fi
 
 ### Files
 
