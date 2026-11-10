@@ -223,6 +223,9 @@
         "Network settings updated. A reboot may be required to apply everything.",
         "success",
       );
+      if (typeof window.updateNetworkRestartNotice === "function") {
+        window.updateNetworkRestartNotice(true, true);
+      }
       await loadConfig();
     } catch (err) {
       showAlert("danger", err.message || "Failed to save network settings.");
