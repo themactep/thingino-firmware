@@ -330,10 +330,10 @@ export ISP_NMEM_MB
 # which emits osmem=0M and builds an unbootable image.
 ISP_RESERVED_MB := $(ISP_RMEM_MB)
 ifneq ($(filter $(SOC_FAMILY),t10 t20),)
-ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_ISPMEM_MB))
+ISP_RESERVED_MB := $(shell echo $$(( $(ISP_RMEM_MB) + $(ISP_ISPMEM_MB) )))
 endif
 ifneq ($(filter $(SOC_FAMILY),t40 t41),)
-ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_NMEM_MB))
+ISP_RESERVED_MB := $(shell echo $$(( $(ISP_RMEM_MB) + $(ISP_NMEM_MB) )))
 endif
 ifeq ($(shell test $(ISP_RESERVED_MB) -ge $(SOC_RAM_MB) 2>/dev/null && echo yes),yes)
 $(error $(CAMERA): ISP reservation $(ISP_RESERVED_MB)MB (rmem=$(ISP_RMEM_MB)MB) leaves no RAM for Linux on $(SOC_MODEL) with $(SOC_RAM_MB)MB - lower BR2_THINGINO_RMEM_MB in the camera defconfig)
@@ -453,7 +453,7 @@ ISP_CONFIG_HZ           := $(call isp_param,ISP_CONFIG_HZ,isp_config_hz)
 ISP_PRINT_LEVEL := $(call resolve_choice,ISP_PRINT_LEVEL,print_level,\
   0:0 1:1 2:2 3:3)
 ifeq ($(ISP_PRINT_LEVEL),)
-	ifeq ($(shell echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21" && echo true),true)
+	ifneq ($(filter t10 t20 t21,$(SOC_FAMILY)),)
 		ISP_PRINT_LEVEL :=
 	else
 		ISP_PRINT_LEVEL := print_level=1
