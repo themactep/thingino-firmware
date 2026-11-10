@@ -36,11 +36,21 @@ to the **applied** factor, so the choice stays correct across clicks and boots.
 The restart is done by the CGI, not by `rvd`: forking the init script from
 inside `rvd` leaves the daemons stopped.
 
+## Capability and state
+
+The page first calls `GET /x/zoom.cgi?info=1`, which reports the applied factor
+and whether the running raptor provides `get-zoom`. The buttons are only
+rendered when zoom is supported, the current level is marked active, and a
+click on the current level is a no-op. Requests are serialised (buttons are
+disabled until the response arrives), and a failed request shows an error
+instead of reloading.
+
 ## Files
 
 - `files/www/x/zoom.cgi` — auth'd endpoint, direction logic above.
-- `files/www/a/zoom.js` — buttons before `#raptor-webrtc-video`; reload after
-  an in-place change (~1.8 s) or a restart (~12 s).
+- `files/www/a/zoom.js` — buttons above the video wrapper (`#raptor-webrtc-video`
+  is inside a fixed-aspect, overflow-hidden box, so the bar goes before the
+  wrapper); reload after an in-place change (~1.8 s) or a restart (~12 s).
 - `files/www/preview.html` — loads `/a/zoom.js`.
 - `thingino-raptor.mk` — installs the two files.
 - `files/raptor.webui.json` — registers `/x/zoom.cgi`.
