@@ -53,6 +53,11 @@ performs the Thingino-specific setup that a fresh worktree needs:
    concurrent use of a shared `dl/`. (Container builds get the dl cache from
    the named volume instead — nothing to do.)
 
+   An exported `BR2_DL_DIR` in your shell overrides the per-worktree `dl/`
+   symlink, so the local cache (and its `DL_MIRROR_DIR` mirror) is shared
+   machine-wide across all worktrees. Per-file locking in `dl-sync.sh` keeps
+   concurrent pushes from duplicating work.
+
 ## What is shared vs. per-worktree
 
 | Thing | Shared? | Notes |

@@ -381,6 +381,8 @@ show-vars:
 	@echo "BR2_TOOLCHAIN_EXTERNAL_URL = $(BR2_TOOLCHAIN_EXTERNAL_URL)";
 	@echo "CAMERA = $(CAMERA)";
 	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
+	@echo "DL_MIRROR_DIR = $(DL_MIRROR_DIR)";
+	@echo "DL_SYNC = $(DL_SYNC)";
 	@echo "FLASH_SIZE = $(FLASH_SIZE)";
 	@echo "FLASH_SIZE_KB = $(FLASH_SIZE_KB)";
 	@echo "FLASH_SIZE_MB = $(FLASH_SIZE_MB)";
