@@ -14,7 +14,7 @@ node.
 +	/* IPU (OSD blend), /dev/ipu from open-tx-isp t31_ipu.ko. */
 +	ipu: ipu@13080000 {
 +		compatible = "ingenic,t31-ipu";
-+		reg = <0x13080000 0x8000>;
++		reg = <0x13080000 0x10000>;
 +		interrupt-parent = <&intc>;
 +		interrupts = <6>;
 +		clocks = <&cgu T31_CLK_IPU>, <&cgu T31_CLK_AHB1>;
