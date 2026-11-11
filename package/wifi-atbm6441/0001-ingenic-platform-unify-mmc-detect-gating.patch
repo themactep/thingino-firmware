@@ -1,0 +1,161 @@
+From: thamesview <thamesview3@gmail.com>
+Date: Wed, 11 Nov 2026 01:35:12 +0000
+Subject: [PATCH] Migrate back to PLATFORM_INGENIC instead of per-Txx branches
+
+Removed PLATFORM_INGENIC_T31, PLATFORM_INGENIC_T40 and
+PLATFORM_INGENIC_T41 to simplify the code and Makefile logic. A single
+PLATFORM_INGENIC definition is sufficient for all Txx variants.
+
+jzmmc_manual_detect() is no longer called unconditionally. It is only
+built when CONFIG_ATBM_WIFI_JZ_DETECT_MMC1_APPOLO_SDIO or
+CONFIG_ATBM_WIFI_JZ_DETECT_MMC1_ATBM_PLATFORM is enabled. The Ingenic
+build sets ATBM_NO_MMC_DETECT_CHANGE so the driver does not call
+mmc_detect_change() on a host it allocated only for enumeration.
+
+Original author: thamesview <thamesview3@gmail.com>
+Original pull request: https://github.com/gtxaspec/atbm6441/pull/1
+
+Backported to thingino-firmware. Changes from the original commit: the
+hardcoded vendor KERDIR/CROSS_COMPILE paths and the vendor-specific
+include paths are dropped, and the README hunk is omitted. The source
+changes are otherwise unchanged. The original author notes that
+hal_apollo/atbm_platform.c uses CRLF line endings, so the added lines in
+that file carry CRLF.
+---
+diff --git a/Makefile b/Makefile
+index f11a8a0..bb5dff5 100755
+--- a/Makefile
++++ b/Makefile
+@@ -29,10 +29,9 @@ CUSTOMER_SUPPORT_USED=y
+ #PLATFORM_HI3516EV200                         19
+ #PLATFORM_XUNWEI_2G                            20
+ #PLATFORM_NVT98517       21
+-#PLATFORM_INGENIC_T40  22
+-#PLATFORM_INGENIC_T41  23
++#PLATFORM_INGENIC			22
+ export
+-platform ?=PLATFORM_INGENIC_T41
++platform ?= PLATFORM_INGENIC
+ #Android
+ #Linux
+ sys ?= linux
+@@ -48,22 +47,21 @@ MAKEFILE_SUB ?= Makefile.build
+ endif
+ 
+ 
+-ifeq ($(platform),PLATFORM_INGENIC_T41)
+-#KERDIR:=/wifi_prj/staff/zhouzhanchao/iTop4412_Kernel_3.0/
+-#KERDIR:=/home/xzq/svn_nvt_sdk/new_ipc_sdk/sdk_2.0/98517/6032i/NA51023_BSP_v1.1.1/linux-kernel/OUTPUT
+-#KERDIR:=/wifi_prj/staff/wangsiyao/baichuan/linux-kernel/OUTPUT/
+-#CROSS_COMPILE:=/wifi_prj/staff/wangsiyao/baichuan/mipsel-24kec-linux-uclibc-4.9-2017.07/usr/bin/mipsel-24kec-linux-uclibc-
+-#KERDIR:=/home/chenhao/Ingenic/T41/Zeratul_T41_Release_20220914/Software/tools/toolchain/gcc_720/mips-gcc720-glibc229-r5.1.4/bin/mips-linux-gnu-
+-KERDIR:=/home/chenhao/Ingenic/T41/Zeratul_T41_Release_20221130/Software/os/kernel-4.4.94
+-CROSS_COMPILE:=/home/chenhao/Ingenic/T41/mips-gcc720-glibc226/bin/mips-linux-uclibc-gnu-
++ifeq ($(platform),PLATFORM_INGENIC)
++CROSS_COMPILE ?= mips-linux-uclibc-
++ATBM_WIFI__EXT_CCFLAGS = -DATBM_WIFI_PLATFORM=22
+ arch = mips
++ifeq ($(CONFIG_ATBM_WIFI_JZ_DETECT_MMC1_APPOLO_SDIO), y)
++  ATBM_WIFI__EXT_CCFLAGS += -DATBM_WIFI_JZ_DETECT_MMC1_APPOLO_SDIO
+ endif
+ 
+-ifeq ($(platform),PLATFORM_INGENIC_T31)
+-KERDIR:=/usr/lchome/zouchunlai/T31/Zeratul_T31_Release_20210730/Zeratul_Release_20210730/os/kernel
+-CROSS_COMPILE:=mips-linux-uclibc-gnu-
+-ATBM_WIFI__EXT_CCFLAGS = -DATBM_WIFI_PLATFORM=22
+-arch = mips
++ifeq ($(CONFIG_ATBM_WIFI_JZ_DETECT_MMC1_ATBM_PLATFORM), y)
++  ATBM_WIFI__EXT_CCFLAGS += -DATBM_WIFI_JZ_DETECT_MMC1_ATBM_PLATFORM
++endif
++
++#Don't run mmc_detect_change() on Ingenic platforms, instead use jzmmc_manual_detect() if needed
++ATBM_WIFI__EXT_CCFLAGS += -DATBM_NO_MMC_DETECT_CHANGE
++
+ endif
+ 
+ 
+@@ -369,10 +367,7 @@ ifeq ($(platform),PLATFORM_NVT98517)
+ export
+ ATBM_WIFI__EXT_CCFLAGS = -DATBM_WIFI_PLATFORM=14
+ endif
+-ifeq ($(platform),PLATFORM_INGENIC_T41)
+-export
+-ATBM_WIFI__EXT_CCFLAGS = -DATBM_WIFI_PLATFORM=23
+-endif
++
+ export 
+ include $(src)/Makefile.build.kernel
+ #obj-y += wifi_sdio/
+diff --git a/hal_apollo/apollo_plat.h b/hal_apollo/apollo_plat.h
+index 215ac9d..8c3a9fa 100755
+--- a/hal_apollo/apollo_plat.h
++++ b/hal_apollo/apollo_plat.h
+@@ -31,8 +31,7 @@
+ #define PLATFORM_AMLOGIC_S805		(13)	
+ #define PLATFORM_AMLOGIC_905		(8)	
+ #define PLATFORM_ANKAI_RTOS         (20)
+-#define PLATFORM_INGENIC_T40             (22)
+-#define PLATFORM_INGENIC_T41             (23)
++#define PLATFORM_INGENIC			(22)
+ 
+ #ifndef  ATBM_WIFI_PLATFORM
+ #define ATBM_WIFI_PLATFORM			PLATFORM_XUNWEI
+diff --git a/hal_apollo/apollo_sdio.c b/hal_apollo/apollo_sdio.c
+index 77c0b06..eca4b40 100755
+--- a/hal_apollo/apollo_sdio.c
++++ b/hal_apollo/apollo_sdio.c
+@@ -954,10 +954,17 @@ static int atbm_detect_card(const struct atbm_platform_data *pdata)
+ 
+ 			if(host->card == NULL)
+ 			{
+-				#if (ATBM_WIFI_PLATFORM == PLATFORM_INGENIC_T31)
++				#ifdef ATBM_WIFI_JZ_DETECT_MMC1_APPOLO_SDIO
++					//Call jzmmc_manual_detect() only if explicitly configured
+ 			 	    extern int jzmmc_manual_detect(int index, int on);
+ 					jzmmc_manual_detect(1,1);
+-				#else
++				#endif
++
++				#ifndef ATBM_NO_MMC_DETECT_CHANGE
++					//The driver calls mmc_detect() by default
++					//but it's not used on Ingenic targets where
++					//ATBM_NO_MMC_DETECT_CHANGE will be set
++					//by default for all Ingenic targets.
+ 					printk("mmc detect change\n");
+ 					mmc_detect_change(host, 10);
+ 				#endif
+diff --git a/hal_apollo/atbm_platform.c b/hal_apollo/atbm_platform.c
+index f9c810f..00ba8d3 100755
+--- a/hal_apollo/atbm_platform.c
++++ b/hal_apollo/atbm_platform.c
+@@ -39,10 +39,7 @@
+ #define PLATFORMINF     "rockchip"
+ #endif
+ #if (ATBM_WIFI_PLATFORM == 22)
+-#define PLATFORMINF     "XM"
+-#endif
+-#if (ATBM_WIFI_PLATFORM == 23)
+-#define PLATFORMINF     "INGENIC_T41"
++#define PLATFORMINF     "ingenic"
+ #endif
+ #if (ATBM_WIFI_PLATFORM == 9)
+ #define PLATFORMINF     "amlogic_905X"
+@@ -245,14 +242,10 @@ static int atbm_platform_insert_crtl(const struct atbm_platform_data *pdata,bool
+ 		}
+ 	}
+ 	#endif
+-	#if (ATBM_WIFI_PLATFORM == PLATFORM_INGENIC_T41)
+-	//	extern int jzmmc_manual_detect(int index, int on);
+-		printk("++ scan sdio card0 ++\n");
+-	//	jzmmc_manual_detect(0,enabled);
+-		msleep(100);
+-		printk("++ scan sdio card1 ++\n");	
+-	//	jzmmc_manual_detect(1,enabled);
+-		
++	#ifdef ATBM_WIFI_JZ_DETECT_MMC1_ATBM_PLATFORM
++		//Call jzmmc_manual_detect() only if explicitly configured
++		extern int jzmmc_manual_detect(int index, int on);
++		jzmmc_manual_detect(1,enabled);
+ 	#endif
+ 	#if (ATBM_WIFI_PLATFORM == PLATFORM_SUN6I)
+ 	{
