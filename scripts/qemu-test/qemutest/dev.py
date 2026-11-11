@@ -1440,6 +1440,9 @@ def cmd_up(args, extra):
             argv += ["-trace", ev]
     if ports:
         argv += ["-netdev", "user,id=n0"]
+    else:
+        # without it QEMU adds its default user NIC, which reaches the internet
+        argv += ["-nic", "none"]
     if wifi:
         bus = "msc1" if wifi["model"] in SDIO_WIFI else "usb-bus.0,port=1"
         dev = [wifi["model"], f"bus={bus}", "netdev=w0"]
