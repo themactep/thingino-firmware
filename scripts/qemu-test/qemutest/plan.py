@@ -7,6 +7,7 @@ from .suites.common import setup_ssh, test_boot, test_health, test_services
 from .suites.net import test_dns_and_pref, test_dual_stack_listeners, test_ethernet, test_ethwifi_behavior, test_ipv4_dhcp, test_ipv6, test_link_flap, test_mdns, test_ntp, test_persist_reboot, test_syslog_remote
 from .suites.onvif import test_onvif
 from .suites.usb import test_usb_direct, test_usb_direct_client
+from .suites.webcam import test_usb_webcam
 from .suites.webui import test_host_http, test_host_webui_access, test_webui
 from .suites.wifi import portal_url, test_host_portal_access, test_provision_reboot_sta, test_slip_setup, test_wifi_bridge_setup, test_wifi_modules, test_wifi_portal
 
@@ -112,6 +113,9 @@ SUITES = [
     Suite("usb", test_usb_direct, ("usb_direct",), header="USB direct"),
     Suite("usb", test_usb_direct_client, ("usb_direct_client",),
           header="USB direct client"),
+
+    Suite("webcam", test_usb_webcam, ("usb_webcam",), header="USB webcam",
+          optional=False),
 
     Suite("webui", test_webui, WIRED, header="Web UI"),
     Suite("webui", test_host_http, WIRED + ("lab", "v4")),

@@ -178,6 +178,14 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  Enable MMC support for SD/MMC and SDIO devices
 
+config BR2_PACKAGE_THINGINO_KOPT_MMC_BUILTIN
+	bool "Build the MMC host driver into the kernel"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Build the jzmmc host driver into the kernel instead of as a module.
+	  Some XBurst1 boards crash when jzmmc is loaded as a module because
+	  the platform data is not available at probe time.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC0
 	bool "Enable MMC0"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC

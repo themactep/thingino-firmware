@@ -10,7 +10,7 @@ no_internet() {
 }
 
 portal_is_up() {
-	[ -f "$PORTAL_MODE_FLAG" ] || return 0
+	[ -f "$PORTAL_MODE_FLAG" ] || return 1
 	return 0
 }
 

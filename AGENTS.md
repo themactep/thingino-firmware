@@ -82,7 +82,7 @@ terminal. See `docs/dev/qemu.md`.
 ```bash
 scripts/qemu-dev up qemu_t31x_eth             # boot the newest build; returns at a root shell
 scripts/qemu-dev sh -- 'cat /proc/cmdline'    # run a command; exits with its status
-scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, down
+scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, gpio, adc, down
 ```
 
 ## Repo layout
@@ -157,6 +157,11 @@ Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
 `ciao` still defaults to `prudynt`. Select explicitly via the Streamer choice
 in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 `BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
+
+Raptor's runtime config (`/etc/raptor.conf`) has its own Kconfig and
+`.config`, not Buildroot symbols: `CAMERA=<cam> make raptor-menuconfig` and
+`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.config`.
+See [docs/dev/raptor-config.md](docs/dev/raptor-config.md).
 
 ## Firmware image
 

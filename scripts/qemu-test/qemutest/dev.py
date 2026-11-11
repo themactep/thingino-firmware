@@ -12,6 +12,11 @@ running in the background and driven one command at a time.
   qemu-dev wait [NAME]                     the shell, after --no-wait
   qemu-dev send [NAME] -- TEXT             type at the console (--expect RE)
   qemu-dev monitor [NAME] -- COMMAND       a QEMU monitor command
+  qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
+  qemu-dev gpio [NAME] --log|--serve       pin changes (--watch, --vcd FILE)
+  qemu-dev isp [NAME] --log|--serve        the ISP trace (up --isp-trace)
+  qemu-dev pwm [NAME] --log|--serve        the PWM outputs (--vcd FILE)
+  qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
 
@@ -46,10 +51,16 @@ import tempfile
 import time
 
 from .config import REPO_ROOT, SCRIPT_DIR, SOC_MACHINES, SSH_OPTS
+from .fdt import msc0_card_detect
 from .qmp import Qmp
 from .serial import QemuSerial
 
 PROG = sys.argv[0] or "qemu-dev"
+
+# SPI NAND images run on a 128 MiB GigaDevice GD5F1GQ5UE: the SPL, U-Boot
+# and Linux of thingino and vendor NAND builds all know it
+NAND_ID = 0xc851
+NAND_SIZE = 128 << 20
 
 # The soc-variant names the pinned fork knows; any other model boots as
 # its machine's default variant.
@@ -57,11 +68,73 @@ FORK_VARIANTS = set("""
     t10 t10l t20n t20x t20l t21n t21l t21z t23n t23x t23dl t23zn
     t30n t30x t30l t30a t30z t31n t31x t31l t31a t31zl t31zx t31al t31zc
     t31lc t32nq t32lq t32xq t32zn t33n t40n t40nn t40xp t40a t41nq t41lq
-    t41zx a1n a1l a1x a1a a1nt""".split())
+    t41zx a1n a1l a1x a1a a1nt t10n t10a c100 t33zl t33zn t41xq t32prozl
+    t32prozn t32prozx t32provl t32provn t32provx t32provnp t32proa cw080sn
+    cw080snp""".split())
 
-# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100
-SOC = re.compile(r"(t[1-4]\d|a1|c100)[a-z]*")
+# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100,
+# cw080sn
+SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
+# The fork's model of each Wi-Fi package, by package or camera-name suffix
+WIFI_CHIPS = {
+    "aic8800_usb_8800": "aic8800", "aic8800d": "aic8800",
+    "aic8800_usb_8800d80": "aic8800d80", "aic8800u": "aic8800d80",
+    "aic8800_sdio_8800d80": "aic8800d80-sdio",
+    "aic8800d40": "aic8800d80-sdio",
+    "aic8800_usb_8800dc": "aic8800dc", "aic8800dc": "aic8800dc",
+    "aic8800dw": "aic8800dw",
+    "atbm6031": "atbm6031", "atbm6031x": "atbm6031",
+    "atbm6062s": "atbm6062s", "atbm6162s": "atbm6162s",
+    "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
+    "atbm6032": "atbm6032", "atbm6132u": "atbm6132u",
+    "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
+    "atbm6062u": "atbm6062u", "atbm6062cu": "atbm6062cu",
+    "atbm6132cu": "atbm6132cu", "atbm6132cu_6162": "atbm6132cu-6162",
+    "rtl8189fs": "rtl8189fs", "rtl8189ftv": "rtl8189fs",
+    "rtl8189es": "rtl8189es", "rtl8189etv": "rtl8189es",
+    "rtl8192fs": "rtl8192fs",
+    "rtl8188fu": "rtl8188fu", "rtl8188ftv": "rtl8188fu",
+    "rtl8188eus": "rtl8188eu", "rtl8188eu": "rtl8188eu",
+    "rtl8733bu": "rtl8733bu", "rtl8731bu": "rtl8733bu",
+    "rtl8131bu": "rtl8733bu", "rtl8731": "rtl8733bu",
+    "mt7601u": "mt7601u", "mt7601": "mt7601u", "mt7601sta": "mt7601u",
+    "wq9001": "wq9001",
+    "hi3881": "hi3881",
+    "txw901u": "txw901u",
+    "ws73v100": "ws73v100",
+    "swt6621s": "swt6621s",
+    "syn4343": "bcm43438",
+    "ssv6155": "ssv6155p", "ssv6155p": "ssv6155p",
+    "ssv6x5x_sv6155p": "ssv6155p",
+    "ssv6256p": "ssv6155p", "ssv6x5x_sv6256p": "ssv6155p",
+    "ssv6355": "ssv6355", "ssv6x5x_sv6355": "ssv6355",
+    "ssv6158": "ssv6158",
+}
+# SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
+SDIO_WIFI = {"aic8800d80-sdio", "atbm6031", "atbm6062s", "atbm6162s",
+             "rtl8189fs", "rtl8189es", "rtl8192fs", "bcm43438", "bcm43436",
+             "hi3881", "ssv6158"}
+# --mic's digital microphone per family; every SoC's codec is ingenic-aic
+DMIC_TYPES = {"t30": "ingenic-dmic", "t31": "ingenic-dmic",
+              "t40": "ingenic-dmic", "t32": "ingenic-as-dmic",
+              "t33": "ingenic-as-dmic", "t41": "ingenic-as-dmic"}
+# --speaker names a host backend or a WAV file
+AUDIO_BACKENDS = {"alsa", "coreaudio", "dsound", "jack", "none", "oss", "pa",
+                  "pipewire", "sdl"}
+TONE = re.compile(r"tone(:\d+(\.\d+)?(:-?\d+(\.\d+)?)?)?")
+# --riscv's core machine per family (the T10, T20, T21 and T30 run none)
+RISCV_MACHINES = {"t23": "ingenic-t23-riscv", "t31": "ingenic-t31-riscv",
+                  "t32": "ingenic-t32-riscv", "t33": "ingenic-t32-riscv",
+                  "t40": "ingenic-t40-riscv", "t41": "ingenic-t41-riscv",
+                  "a1": "ingenic-a1-riscv"}
+# thingino's setup portal network (S38wpa_supplicant). --portal's phone is
+# the user netdev's host address on it, and takes the MAC that netdev sends
+# from: 52:55, then the address.
+PORTAL_NET = "172.16.0"
+PORTAL_IP = PORTAL_NET + ".1"
+PORTAL_PHONE = PORTAL_NET + ".250"
+PORTAL_PSK = "thingino"
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
 PROMPT = re.compile(r"root@[\w.-]+ \S*# ")
@@ -163,10 +236,212 @@ def resolve_soc(image, cfg, soc):
     return m.group(0), m.group(1)
 
 
+def spi_nand(image):
+    """Whether the image boots from SPI NAND: the boot ROM reads that
+    from byte 8 of the SPL header, 0x00 for NAND, 0xaa for NOR."""
+    with open(image, "rb") as f:
+        head = f.read(9)
+    return len(head) == 9 and head[:4] == b"\x06\x05\x04\x03" and not head[8]
+
+
+def pad_nand(flash):
+    """Fill the copy out to the whole chip, erased, so what the guest
+    writes past the image (UBI grows into it) outlasts QEMU."""
+    size = os.path.getsize(flash)
+    if size > NAND_SIZE:
+        die(f"the image is larger than the emulated {NAND_SIZE >> 20} MiB "
+            f"SPI NAND")
+    with open(flash, "ab") as f:
+        while size < NAND_SIZE:
+            n = min(NAND_SIZE - size, 1 << 20)
+            f.write(b"\xff" * n)
+            size += n
+
+
 def soc_type(family):
     """The device -global soc-variant= applies to."""
     return {"t40": "ingenic-t40", "t41": "ingenic-t40",
             "a1": "ingenic-a1"}.get(family, "ingenic-t31")
+
+
+def sfc_type(family):
+    """The flash controller device -global nand-id= applies to."""
+    return ("ingenic-a1-sfc" if family in ("t40", "t41", "a1")
+            else "ingenic-t31-sfc")
+
+
+_GPIO_TRACE = {}
+_DEVICES = {}
+_PROPS = {}
+_AUDIO = {}
+
+
+def gpio_trace_supported(qemu):
+    """Whether this QEMU can log pin changes (ingenic-gpio's trace)."""
+    if qemu not in _GPIO_TRACE:
+        try:
+            out = subprocess.run([qemu, "-device", "ingenic-gpio,help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _GPIO_TRACE[qemu] = "trace=" in out
+    return _GPIO_TRACE[qemu]
+
+
+_ISP_TRACE = {}
+
+# The ISP's, the Apical ISP's and the image sensor's events; their reads
+# would be most of the log
+ISP_TRACE_EVENTS = ("ingenic_isp_*", "-ingenic_isp_read", "ingenic_t20_isp_*",
+                    "-ingenic_t20_isp_read", "ingenic_t30_ncu_*",
+                    "image_sensor_*", "-image_sensor_read")
+
+
+def isp_trace_supported(qemu):
+    """Whether this QEMU traces its ISP (ingenic-0.6.23 on)."""
+    if qemu not in _ISP_TRACE:
+        try:
+            out = subprocess.run([qemu, "-trace", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _ISP_TRACE[qemu] = "ingenic_isp_write" in out
+    return _ISP_TRACE[qemu]
+
+
+def contrib_tool(qemu, name):
+    """One of the fork's tools for this QEMU: in a release's ingenic/, a
+    build's share/qemu-ingenic or a source tree's contrib/ingenic."""
+    d = os.path.dirname(os.path.abspath(qemu))
+    for rel in ("ingenic", "../share/qemu-ingenic", "../contrib/ingenic"):
+        tool = os.path.normpath(os.path.join(d, rel, name))
+        if os.path.exists(tool):
+            return tool
+    return None
+
+
+def isp_trace_tool(qemu):
+    return contrib_tool(qemu, "isp-trace.py")
+
+
+_PWM_TRACE = {}
+
+# The families with the PWM block; the timer unit's channels are on all
+PWM_BLOCK = ("t32", "t33", "t41", "a1")
+
+# The encoders each SoC family's machine has, for --tap (the T41's JPEG
+# engine is a HELIX); QEMU applies a -global to their subtypes too
+TAP_ENCODERS = {
+    "t10": ("ingenic-helix",), "t20": ("ingenic-helix",),
+    "t21": ("ingenic-helix",), "t23": ("ingenic-helix",),
+    "t30": ("ingenic-helix", "ingenic-radix"),
+    "t31": ("ingenic-avpu",), "t40": ("ingenic-avpu",),
+    "t41": ("ingenic-avpu", "ingenic-helix"),
+    "t32": ("ingenic-hera", "ingenic-jpeg"),
+    "t33": ("ingenic-hera", "ingenic-jpeg"),
+}
+
+
+def pwm_trace_supported(qemu):
+    """Whether this QEMU traces its PWM outputs (ingenic-tcu's trace)."""
+    if qemu not in _PWM_TRACE:
+        try:
+            out = subprocess.run([qemu, "-device", "ingenic-tcu,help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _PWM_TRACE[qemu] = "trace=" in out
+    return _PWM_TRACE[qemu]
+
+
+def qemu_devices(qemu):
+    """The device types this QEMU has."""
+    if qemu not in _DEVICES:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _DEVICES[qemu] = set(re.findall(r'^name "([^"]+)"', out, re.M))
+    return _DEVICES[qemu]
+
+
+def qemu_audio_drivers(qemu):
+    """The audio drivers this QEMU was built with."""
+    if qemu not in _AUDIO:
+        try:
+            out = subprocess.run([qemu, "-audiodev", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _AUDIO[qemu] = set(out.partition("drivers:")[2].split())
+    return _AUDIO[qemu]
+
+
+def qemu_device_props(qemu, model):
+    """The properties of one of this QEMU's device types."""
+    if (qemu, model) not in _PROPS:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device",
+                                  f"{model},help"], capture_output=True,
+                                 text=True, timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _PROPS[qemu, model] = set(re.findall(r"^\s+([\w-]+)=", out, re.M))
+    return _PROPS[qemu, model]
+
+
+def wifi_model(image, cfg, explicit):
+    """The model of the camera's Wi-Fi: --wifi-chip, else the build's
+    .config, else the Wi-Fi in the camera name (release images)."""
+    if explicit:
+        return explicit
+    names = sorted((k[len("BR2_PACKAGE_WIFI_"):].lower()
+                    for k, v in cfg.items()
+                    if k.startswith("BR2_PACKAGE_WIFI_") and v == "y"),
+                   key=len, reverse=True)       # ATBM6132CU_6162 first
+    names += re.split(r"[_.+-]", os.path.basename(image).lower())
+    hits = [WIFI_CHIPS[n] for n in names if n in WIFI_CHIPS]
+    if not hits:
+        die("no Wi-Fi model for this image; pass --wifi-chip ("
+            + ", ".join(sorted(set(WIFI_CHIPS.values()))) + ")")
+    return hits[0]
+
+
+def card_detect(image, explicit):
+    """(port, pin) of the SD slot's card-detect switch, which holds the pin
+    low while a card is in: --sd-cd, else gpio.mmc_cd in the camera's
+    thingino.json (a bare number is active low, as U-Boot and S09mmc take
+    it), else MSC0's in the image's own device tree (stock 4.4 firmware).
+    None when there is none, or it reads high with a card in."""
+    if explicit:
+        return None if explicit == "none" else gpio_pin(explicit)
+    m = re.fullmatch(r"thingino-(.+)\.bin", os.path.basename(image))
+    found = glob.glob(os.path.join(REPO_ROOT, "configs", "cameras*",
+                                   m.group(1), "thingino.json")) if m else []
+    try:
+        with open(found[0]) as f:
+            cd = json.load(f).get("gpio", {}).get("mmc_cd")
+    except (IndexError, OSError, ValueError, AttributeError):
+        cd = None
+    if isinstance(cd, dict):
+        if cd.get("active_low") is False:
+            return None
+        cd = cd.get("pin")
+    if isinstance(cd, int) and not isinstance(cd, bool) and cd >= 0:
+        return cd // 32, cd % 32
+    tree = msc0_card_detect(image)
+    if tree:
+        return tree[:2] if tree[2] else None
+    if not found:
+        print(f"{PROG}: no card-detect pin known for this image; if the "
+              f"firmware waits for one, pass --sd-cd PIN", file=sys.stderr)
+    return None
 
 
 def find_qemu(image, explicit):
@@ -458,7 +733,10 @@ def relay(name):
                 client.close()
             client = srv.accept()[0]
         elif client and client in ready:
-            data = client.recv(65536)
+            try:
+                data = client.recv(65536)
+            except OSError:
+                data = b""
             if not data:
                 client.close()
                 client = None
@@ -484,6 +762,36 @@ def start_relay(s):
         time.sleep(0.02)
     s.info["relay"] = p.pid
     s.save()
+
+
+def stop_relay(s):
+    with contextlib.suppress(OSError, KeyError, TypeError):
+        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
+            if b"qemutest.dev" in f.read():
+                os.kill(s.info["relay"], signal.SIGTERM)
+
+
+def follow_kernel(s, con, timeout):
+    """The console the shell is on: U-Boot can print on one UART and
+    Linux on the other, so the relay moves to whichever the kernel's banner
+    reaches. Returns the console to use."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for k in (0, 1):
+            with contextlib.suppress(OSError):
+                with open(s.path(f"uart{k}.log"), "rb") as f:
+                    if b"Linux version" not in f.read():
+                        continue
+                if k == s.info["uart"]:
+                    return con
+                con.close()
+                stop_relay(s)
+                s.info["uart"] = k
+                s.save()
+                start_relay(s)
+                return s.connect()
+        time.sleep(0.2)
+    return con
 
 
 def sessions():
@@ -524,12 +832,29 @@ def qmp(s, command, **args):
         q.close()
 
 
+def riscv_alive(s):
+    rv = s.info.get("riscv") or {}
+    try:
+        with open(f"/proc/{rv['pid']}/cmdline", "rb") as f:
+            return s.dir.encode() in f.read()
+    except (OSError, KeyError):
+        return False
+
+
 def stop(s):
     # The relay ends with QEMU; this is for one whose QEMU was killed
-    with contextlib.suppress(OSError, KeyError, TypeError):
-        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
-            if b"qemutest.dev" in f.read():
-                os.kill(s.info["relay"], signal.SIGTERM)
+    stop_relay(s)
+    stop_qemu(s)
+    # The core quits with its SoC's QEMU; this is for one that did not
+    for _ in range(30):
+        if not riscv_alive(s):
+            return
+        time.sleep(0.1)
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(s.info["riscv"]["pid"], signal.SIGKILL)
+
+
+def stop_qemu(s):
     if not s.alive():
         return
     try:
@@ -622,6 +947,35 @@ def serial_run(con, cmd, timeout):
     return rc, out[:-1] if out.endswith("\n") else out
 
 
+@contextlib.contextmanager
+def console_unpaced(s):
+    """The fork's UARTs send at the line rate the guest sets, 115200 baud
+    on the console; a file copy over it goes unpaced, then pacing comes
+    back. An older QEMU has no switch and the copy keeps its pace."""
+    paced = []
+    q = None
+    try:
+        q = Qmp(s.path("qmp"))
+        for c in q.cmd("qom-list", path="/machine"):
+            path = "/machine/" + c["name"]
+            if (c.get("type") == "child<ingenic-uart>" and
+                    q.cmd("qom-get", path=path, property="line-rate")):
+                q.cmd("qom-set", path=path, property="line-rate", value=False)
+                paced.append(path)
+    except RuntimeError:
+        pass
+    try:
+        yield
+    finally:
+        for path in paced:
+            try:
+                q.cmd("qom-set", path=path, property="line-rate", value=True)
+            except RuntimeError:
+                pass
+        if q:
+            q.close()
+
+
 def serial_upload(con, data, remote, timeout):
     """Write data to a file on the camera, one line of base64 per shell
     command; returns the exit status. The console has no flow control:
@@ -657,20 +1011,41 @@ def serial_upload(con, data, remote, timeout):
 def attach_network(s, con):
     """Point the host forwards at the camera's slirp address and install
     the session's key, so file copies go over SSH. The address can change
-    from boot to boot (the MAC does), so this runs after every login."""
+    from boot to boot (the MAC does), so this runs after every login. A
+    wired interface carries them if it has an address, else the Wi-Fi, else
+    the setup portal for --portal's phone."""
     s.info["ssh"] = False
     if not s.info.get("ports"):
         return
-    ip = None
-    deadline = time.time() + 30
+    wifi = s.info.get("wifi") or {}
+    joins = False                           # set up to join the AP
+    if wifi.get("ssid"):
+        conf = shlex.quote(f'ssid="{wifi["ssid"]}"')
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        joins = rc == 0
+    ip = netdev = None
+    deadline = time.time() + (60 if joins else 30)
     while time.time() < deadline:
         _, out = serial_run(con, "ip -4 -o addr show; "
                                  "cat /sys/class/net/eth*/operstate", 20)
-        m = re.search(r"inet (10\.0\.2\.\d+)/", out)
-        if m:
-            ip = m.group(1)
+        found = re.findall(r"^\d+: (\S+)\s+inet ([\d.]+)/", out, re.M)
+        wired = [a for i, a in found
+                 if not i.startswith("wlan") and a.startswith("10.0.2.")]
+        wlan = [a for i, a in found
+                if i.startswith("wlan") and a.startswith("10.0.2.")]
+        # the HI3881 runs its portal on ap0
+        portal = wifi.get("portal") and any(
+            i.startswith(("wlan", "ap")) and a == PORTAL_IP
+            for i, a in found)
+        if wired or (joins and wlan):
+            ip, netdev = (wired[0], "n0") if wired else (wlan[0], "w0")
             break
-        if not re.search(r"^(up|unknown)$", out, re.M):
+        if portal and not joins:
+            ip, netdev = PORTAL_IP, "c0"
+            break
+        if not (joins or wifi.get("portal")) and \
+                not re.search(r"^(up|unknown)$", out, re.M):
             break                           # no wired interface up
         time.sleep(2)
     if not ip:
@@ -680,10 +1055,11 @@ def attach_network(s, con):
         for svc, port in s.info["ports"].items():
             if s.info.get("guest_ip"):
                 q.cmd("human-monitor-command", **{
-                    "command-line": f"hostfwd_remove n0 tcp:127.0.0.1:{port}"})
+                    "command-line": "hostfwd_remove "
+                    f"{s.info.get('fwd_netdev', 'n0')} tcp:127.0.0.1:{port}"})
             guest = GUEST_PORTS.get(svc) or int(svc)
             err = q.cmd("human-monitor-command", **{
-                "command-line": f"hostfwd_add n0 tcp:127.0.0.1:{port}-"
+                "command-line": f"hostfwd_add {netdev} tcp:127.0.0.1:{port}-"
                                 f"{ip}:{guest}"})
             if err.strip():
                 print(f"{PROG}: forwarding {svc}: {err.strip()}",
@@ -691,6 +1067,7 @@ def attach_network(s, con):
     finally:
         q.close()
     s.info["guest_ip"] = ip
+    s.info["fwd_netdev"] = netdev
     if not (shutil.which("ssh") and os.path.exists(s.path("id_ed25519"))):
         return
     with open(s.path("id_ed25519.pub")) as f:
@@ -717,6 +1094,30 @@ def boot_to_shell(s, con, timeout):
     s.info.update(state="shell", mark=s.log_size())
     s.save()
     return True
+
+
+def join_wifi(s, ssid, psk, timeout):
+    """Set the camera up to join the access point and reboot it onto it,
+    unless it already is: thingino picks its Wi-Fi mode at boot."""
+    conf = shlex.quote(f'ssid="{ssid}"')
+    with s.console(timeout) as con:
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        if rc == 0:
+            return
+        rc, out = serial_run(con, f"wlan configure {shlex.quote(ssid)} "
+                                  f"{shlex.quote(psk)}", 60)
+        if rc:
+            die(f"{s.name}: wlan configure failed: {out.strip()}")
+        con.drain()
+        con.write("reboot\n")
+        con.read(0.5)
+        con.state = "rebooting"
+        s.info.update(state="booting", ssh=False)
+        s.save()
+        if not boot_to_shell(s, con, timeout):
+            die(f"{s.name}: no shell after setting up the Wi-Fi "
+                f"(`{PROG} log {s.name}`)", 2)
 
 
 def stop_in_uboot(s, con, timeout, gated):
@@ -807,6 +1208,11 @@ def describe(s, as_json=False):
     view = {k: i.get(k) for k in ("name", "machine", "variant", "model",
                                   "image", "qemu", "pid", "password")}
     view.update(state=state, ssh=bool(i.get("ssh")), console_log=s.log)
+    if i.get("audio"):
+        view["audio"] = i["audio"]
+    if i.get("riscv"):
+        view["riscv"] = dict(i["riscv"], alive=riscv_alive(s),
+                             log=s.path("riscv.log"))
     if i.get("ssh"):
         view["ssh_command"] = " ".join(shlex.quote(a) for a in ssh_argv(s))
     if ports and i.get("guest_ip") and state != "uboot":
@@ -820,7 +1226,9 @@ def describe(s, as_json=False):
            f"  run      {PROG} {run} {s.name} -- <command>"]
     if "ssh_command" in view:
         out.append(f"  ssh      {view['ssh_command']}")
-    if "web" in view:
+    if "web" in view and i.get("fwd_netdev") == "c0":
+        out.append(f"  portal   {view['web']}  (the camera's setup page)")
+    elif "web" in view:
         out.append(f"  web      {view['web']}  https://127.0.0.1:"
                    f"{ports['https']}/  (root / {i['password']})")
         extra = [f"{port} -> {svc}" for svc, port in ports.items()
@@ -830,6 +1238,30 @@ def describe(s, as_json=False):
     elif i.get("state") == "shell":
         out.append("  network  none: no wired interface, so files go over "
                    "the serial console too")
+    w = i.get("wifi")
+    if w and i.get("fwd_netdev") == "c0" and i.get("ssh"):
+        out.append(f"  wifi     {w['model']}, running the setup portal a "
+                   f"phone has joined (forwards go over it)")
+    elif w and i.get("fwd_netdev") == "c0":
+        out.append(f"  wifi     {w['model']}, running the setup portal; SSH "
+                   f"did not get through the phone, so files go over the "
+                   f"serial console")
+    elif w and w.get("ssid"):
+        out.append(f"  wifi     {w['model']}, on the access point "
+                   f"{w['ssid']}" + (" (forwards go over it)"
+                                     if i.get("fwd_netdev") == "w0" else ""))
+    elif w:
+        out.append(f"  wifi     {w['model']}")
+    a = i.get("audio")
+    if a:
+        out.append("  audio    " + ", ".join(
+            f"{k} {v}" for k, v in (("speaker", a.get("speaker")),
+                                    ("mic", a.get("mic"))) if v))
+    rv = i.get("riscv")
+    if rv:
+        out.append(f"  riscv    {rv['machine']} "
+                   + (f"(pid {rv['pid']})" if riscv_alive(s) else "(gone)")
+                   + f", log {s.path('riscv.log')}")
     out.append(f"  console  {s.log}")
     return "\n".join(out)
 
@@ -859,7 +1291,46 @@ def cmd_images(args):
     return 0
 
 
+def audio_argv(qemu, family, speaker, mic):
+    """--speaker's audiodev and --mic's microphone properties."""
+    argv = []
+    # a microphone alone plays to nowhere rather than to the host
+    if mic and not speaker:
+        speaker = "none"
+    if speaker in AUDIO_BACKENDS:
+        have = qemu_audio_drivers(qemu)
+        if speaker not in have:
+            die(f"{qemu} has no {speaker} audio driver (it has "
+                f"{', '.join(sorted(have)) or 'none'}); give --speaker a WAV "
+                f"file, or --qemu one built with {speaker}")
+        argv += ["-audiodev", f"{speaker},id=snd0"]
+    elif speaker:
+        path = os.path.abspath(speaker).replace(",", ",,")
+        argv += ["-audiodev", f"wav,id=snd0,path={path}"]
+    if speaker:
+        argv += ["-machine", "audiodev=snd0"]
+    if mic == "host":
+        if speaker not in AUDIO_BACKENDS - {"none"}:
+            die("--mic host records the --speaker backend's input; pass "
+                "--speaker pa, pipewire, alsa, ...")
+    elif mic:
+        if not TONE.fullmatch(mic):
+            if not os.path.isfile(mic):
+                die(f"--mic wants tone[:HZ[:DBFS]], a WAV file or host; "
+                    f"there is no file {mic}")
+            mic = os.path.abspath(mic).replace(",", ",,")
+        if "mic" not in qemu_device_props(qemu, "ingenic-aic"):
+            die(f"{qemu} has no microphone for --mic; pass --qemu with "
+                f"ingenic-0.6.12 or a newer build of the fork")
+        for dev in ("ingenic-aic", DMIC_TYPES.get(family)):
+            if dev:
+                argv += ["-global", f"{dev}.mic={mic}"]
+    return argv
+
+
 def cmd_up(args, extra):
+    if args.console:
+        args.no_wait = True
     if args.no_wait and args.uboot:
         die("--uboot needs to watch the boot, so it cannot be --no-wait")
     image = resolve_image(args.target)
@@ -869,6 +1340,7 @@ def cmd_up(args, extra):
     machine = args.machine or machine
     if not machine:
         die(f"no QEMU machine for {model}; pass --machine")
+    nand = spi_nand(image)
     if args.variant is not None:
         variant = args.variant or None
     else:
@@ -878,6 +1350,36 @@ def cmd_up(args, extra):
     if not re.fullmatch(r"[\w.+-]+", name):
         die(f"bad session name {name!r}; pass --name")
     qemu = find_qemu(image, args.qemu)
+    wifi = None
+    if args.wifi or args.portal:
+        ssid, _, psk = (args.wifi or "").partition(":")
+        if args.wifi and (not ssid or not 8 <= len(psk) <= 63):
+            die("--wifi wants SSID:PASSPHRASE, a passphrase of 8 to 63 "
+                "characters")
+        wifi = {"model": wifi_model(image, cfg, args.wifi_chip),
+                "ssid": ssid or None, "portal": args.portal}
+        if wifi["model"] not in qemu_devices(qemu):
+            die(f"{qemu} has no {wifi['model']} model; pass --qemu with "
+                f"ingenic-0.6.16 or a newer build of the fork")
+        if args.portal and \
+                "client-netdev" not in qemu_device_props(qemu, wifi["model"]):
+            die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu "
+                f"with ingenic-0.6.16 or a newer build of the fork")
+    if args.isp_trace and not isp_trace_supported(qemu):
+        die(f"{qemu} has no ISP trace; pass --qemu with ingenic-0.6.23 or "
+            f"a newer build of the fork")
+
+    rv_qemu = None
+    if args.riscv:
+        if family not in RISCV_MACHINES:
+            die(f"the {model} has no RISC-V core for --riscv")
+        rv_qemu = os.path.join(os.path.dirname(os.path.abspath(qemu)),
+                               "qemu-system-riscv32")
+        if not os.access(rv_qemu, os.X_OK):
+            die(f"no qemu-system-riscv32 beside {qemu} for --riscv; the "
+                f"fork's Linux and macOS builds ship one from ingenic-0.6.18")
+        if not (args.ram or ram):
+            die("--riscv shares the camera's RAM with the core; pass --ram")
 
     s = Session(name)
     old_ports = {}
@@ -888,12 +1390,14 @@ def cmd_up(args, extra):
             print(f"replacing the running {name} session", file=sys.stderr)
             stop(s)
     os.makedirs(s.dir, mode=0o700, exist_ok=True)
-    if len(s.path("qmp")) > 107:
+    if len(s.path("riscv.sock" if rv_qemu else "qmp")) > 107:
         die(f"{s.dir} is too long for a unix socket; set QEMU_DEV_DIR")
     flash = s.path("flash.bin")
     if not (args.keep and os.path.exists(flash)):
         shutil.copyfile(image, flash)
-    for leaf in ("qmp", "uart0.log", "uart1.log"):
+        if nand:
+            pad_nand(flash)
+    for leaf in ("qmp", "riscv.sock", "uart0.log", "uart1.log", "isp.log"):
         with contextlib.suppress(FileNotFoundError):
             os.unlink(s.path(leaf))
     if shutil.which("ssh-keygen") and not os.path.exists(s.path("id_ed25519")):
@@ -918,11 +1422,77 @@ def cmd_up(args, extra):
         argv += ["-m", f"{args.ram or ram}M"]
     if variant:
         argv += ["-global", f"{soc_type(family)}.soc-variant={variant}"]
+    if nand:
+        argv += ["-global", f"{sfc_type(family)}.nand-id={NAND_ID:#x}"]
+    if gpio_trace_supported(qemu):
+        argv += ["-chardev", f"file,id=gpiotrace,path={s.path('gpio.jsonl')}",
+                 "-global", "ingenic-gpio.trace=gpiotrace"]
+    if pwm_trace_supported(qemu):
+        argv += ["-chardev", f"file,id=tcutrace,path={s.path('tcu.jsonl')}",
+                 "-global", "ingenic-tcu.trace=tcutrace"]
+        if family in PWM_BLOCK:
+            argv += ["-chardev",
+                     f"file,id=pwmtrace,path={s.path('pwm.jsonl')}",
+                     "-global", "ingenic-pwm.trace=pwmtrace"]
+    if args.isp_trace:
+        argv += ["-msg", "timestamp=on", "-D", s.path("isp.log")]
+        for ev in ISP_TRACE_EVENTS:
+            argv += ["-trace", ev]
     if ports:
         argv += ["-netdev", "user,id=n0"]
+    if wifi:
+        bus = "msc1" if wifi["model"] in SDIO_WIFI else "usb-bus.0,port=1"
+        dev = [wifi["model"], f"bus={bus}", "netdev=w0"]
+        argv += ["-netdev", "user,id=w0"]
+        if args.portal:
+            mac = "52:55:" + ":".join(f"{int(b):02x}"
+                                      for b in PORTAL_PHONE.split("."))
+            argv += ["-netdev", f"user,id=c0,net={PORTAL_NET}.0/24,"
+                     f"host={PORTAL_PHONE},ipv6=off"]
+            dev += ["client-netdev=c0", f"client-mac={mac}"]
+            # where the driver runs no open AP, the portal's passphrase
+            # (package/wifi/wifi.mk) for the phone
+            if "client-psk" in qemu_device_props(qemu, wifi["model"]):
+                dev += [f"client-psk={PORTAL_PSK}"]
+        # the passphrase last: the saved argv drops it from there on
+        if args.wifi:
+            dev += [f"{k}={v.replace(',', ',,')}"
+                    for k, v in (("ssid", ssid), ("psk", psk))]
+        argv += ["-device", ",".join(dev)]
+    argv += audio_argv(qemu, family, args.speaker, args.mic)
+    if args.tap:
+        encoders = TAP_ENCODERS.get(family[:3], ())
+        if not encoders:
+            die(f"no encoder to tap on {model}")
+        if "x-stream-tap" not in qemu_device_props(qemu, encoders[0]):
+            die(f"{qemu} has no stream tap (ingenic-0.7.11 has it)")
+        tap = os.path.abspath(args.tap)
+        os.makedirs(tap, exist_ok=True)
+        for enc in encoders:
+            argv += ["-global",
+                     f"{enc}.x-stream-tap={tap.replace(',', ',,')}"]
+    if rv_qemu:
+        # The core shares the DDR and reaches the rest over the socket;
+        # this QEMU waits for it to connect before it starts
+        mb, sock = args.ram or ram, s.path("riscv.sock")
+        argv += ["-object", f"memory-backend-shm,id=ingenic-ddr,size={mb}M",
+                 "-machine", "memory-backend=ingenic-ddr",
+                 "-chardev", f"socket,id=ingenic-rv,path={sock},server=on,"
+                 "wait=on", "-global", "ingenic-riscv.chardev=ingenic-rv"]
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
+        cd = card_detect(image, args.sd_cd)
+        if cd and "in-pa" in qemu_device_props(qemu, "ingenic-gpio"):
+            port, pin = cd
+            argv += ["-global", f"ingenic-gpio.in-p{chr(ord('a') + port)}="
+                     f"{0xffffffff & ~(1 << pin):#x}"]
+        elif cd:
+            name = f"P{chr(ord('A') + cd[0])}{cd[1]}"
+            print(f"{qemu} cannot hold the card-detect pin {name} low from "
+                  f"the start (ingenic-0.6.17 can), so U-Boot will not see "
+                  f"the card; `{PROG} gpio {name}=0` inserts it for Linux",
+                  file=sys.stderr)
     argv += extra
 
     with open(s.path("qemu.log"), "wb") as log:
@@ -935,7 +1505,13 @@ def cmd_up(args, extra):
               "password": args.password
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
-              "started": int(time.time()), "argv": argv}
+              "wifi": wifi, "started": int(time.time()),
+              "isp_trace": args.isp_trace,
+              "audio": {"speaker": args.speaker
+                        if args.speaker in AUDIO_BACKENDS | {None}
+                        else os.path.abspath(args.speaker), "mic": args.mic}
+              if args.speaker or args.mic else None,
+              "argv": [re.sub(r",psk=.*", ",psk=...", a) for a in argv]}
     s.save()
 
     def failed(what):
@@ -944,6 +1520,24 @@ def cmd_up(args, extra):
         die(f"QEMU {what}; the command was: {shlex.join(argv)}", 2)
 
     t0 = time.time()
+    if rv_qemu:
+        while not os.path.exists(s.path("riscv.sock")):
+            if proc.poll() is not None:
+                failed("exited")
+            if time.time() - t0 > 15:
+                stop(s)
+                failed("did not open the RISC-V core's socket")
+            time.sleep(0.1)
+        rv_argv = [rv_qemu, "-M",
+                   f"{RISCV_MACHINES[family]},socket={s.path('riscv.sock')}",
+                   "-display", "none", "-monitor", "none", "-serial", "none"]
+        with open(s.path("riscv.log"), "wb") as log:
+            rv = subprocess.Popen(rv_argv, stdin=subprocess.DEVNULL,
+                                  stdout=log, stderr=subprocess.STDOUT,
+                                  start_new_session=True)
+        s.info["riscv"] = {"machine": RISCV_MACHINES[family], "pid": rv.pid,
+                           "argv": rv_argv}
+        s.save()
     with s.locked(10):
         while not os.path.exists(s.path("qmp")):
             if proc.poll() is not None:
@@ -955,6 +1549,9 @@ def cmd_up(args, extra):
         s.info["pty"] = {c["label"][-1]: c["filename"][len("pty:"):]
                          for c in qmp(s, "query-chardev")
                          if re.fullmatch(r"uart[01]", c["label"])}
+        # thingino stops Wi-Fi on a camera whose wired port has a link
+        if wifi:
+            qmp(s, "set_link", name="n0", up=False)
         qmp(s, "cont")
         n = None
         while n is None:
@@ -979,6 +1576,7 @@ def cmd_up(args, extra):
             elif args.uboot:
                 ok = stop_in_uboot(s, con, args.timeout, gated=False)
             else:
+                con = follow_kernel(s, con, args.timeout)
                 ok = boot_to_shell(s, con, args.timeout)
         finally:
             con.close()
@@ -988,9 +1586,14 @@ def cmd_up(args, extra):
         die(f"{name}: no {'U-Boot prompt' if args.uboot else 'shell'} in "
             f"{args.timeout} s; the session is left running for a look "
             f"(`{PROG} log`, `{PROG} console`, `{PROG} down {name}`)", 2)
+    if args.wifi and not (args.portal or args.no_wait or args.uboot):
+        join_wifi(s, ssid, psk, args.timeout)
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
     print(describe(s, args.json))
+    if args.console:
+        args.name, args.all = name, True
+        return cmd_console(args)
     return 0
 
 
@@ -1044,7 +1647,8 @@ def cmd_put(args):
         remote = args.remote
         if serial_run(con, f"[ -d {shlex.quote(remote)} ]", 20)[0] == 0:
             remote = remote.rstrip("/") + "/" + os.path.basename(args.local)
-        rc = serial_upload(con, data, remote, args.timeout)
+        with console_unpaced(s):
+            rc = serial_upload(con, data, remote, args.timeout)
         _, out = serial_run(con, f"chmod {mode:o} {shlex.quote(remote)} && "
                                  f"md5sum {shlex.quote(remote)}", 20)
         s.info["mark"] = s.log_size()
@@ -1076,7 +1680,8 @@ def cmd_get(args):
     with s.console(args.timeout) as con:
         if needs_settle(s):
             settle(s, con, args.timeout)
-        rc, out = serial_run(con, f"base64 {q}", args.timeout)
+        with console_unpaced(s):
+            rc, out = serial_run(con, f"base64 {q}", args.timeout)
         _, sums = serial_run(con, f"md5sum {q}", 20)
         s.info["mark"] = s.log_size()
         s.save()
@@ -1252,6 +1857,288 @@ def cmd_monitor(args, words):
     return 0
 
 
+def gpio_pin(word):
+    """(port, pin) from PB14 or a Linux GPIO number (46)."""
+    m = re.fullmatch(r"p([a-f])(\d{1,2})", word.lower())
+    if m and int(m.group(2)) < 32:
+        return ord(m.group(1)) - ord("a"), int(m.group(2))
+    if word.isdigit():
+        return int(word) // 32, int(word) % 32
+    die(f"not a pin: {word} (PB14 or a GPIO number)")
+
+
+def gpio_mode(regs, b):
+    """What a pin is, from its INT, MSK, PAT1 and PAT0 bits."""
+    intr, msk, pat1, pat0 = ((regs[r] >> b) & 1
+                             for r in ("int", "msk", "pat1", "pat0"))
+    if intr:
+        trig = ("low", "high", "falling", "rising")[pat1 << 1 | pat0]
+        return f"irq {trig}" + (" masked" if msk else "")
+    if msk:
+        return "in" if pat1 else "out"
+    return f"func{pat1 << 1 | pat0}"
+
+
+def qom_props(q, path, want):
+    """The properties at path, or a clear stop when this QEMU predates
+    the one wanted."""
+    try:
+        props = {p["name"] for p in q.cmd("qom-list", path=path)}
+    except RuntimeError:
+        props = set()
+    if want not in props:
+        die(f"this QEMU cannot do that ({path} has no {want}); it needs "
+            f"a qemu-ingenic release newer than ingenic-0.6.11")
+    return props
+
+
+def gpio_events(path, follow):
+    """The pin changes QEMU logged, and while following, those to come."""
+    with open(path) as f:
+        part = ""
+        while True:
+            part += f.readline()
+            if part.endswith("\n"):
+                yield json.loads(part)
+                part = ""
+            elif follow:
+                time.sleep(0.2)
+            else:
+                return
+
+
+def gpio_event_mode(e):
+    """A logged pin state in gpio_mode()'s words, with its level."""
+    if e["fn"] == "func":
+        return f"func{e['func']}"
+    if e["fn"] == "irq":
+        return (f"irq {e['trig']}" + (" masked" if e["mask"] else "")
+                + f" {e['lvl']}")
+    return f"{e['fn']} {e['lvl']}"
+
+
+PINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pins")
+
+
+def pin_table(model):
+    """The pins of a SoC from Ingenic's documents (make-pin-tables.py), by
+    name: functions 0-3, state out of reset, packages; {} if none. The
+    longest table name the model starts with wins: t32pro over t32."""
+    try:
+        names = [f[:-5] for f in os.listdir(PINS_DIR) if f.endswith(".json")]
+        name = max((n for n in names if (model or "").startswith(n)),
+                   key=len)
+        with open(os.path.join(PINS_DIR, f"{name}.json")) as f:
+            return json.load(f)["pins"]
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+def gpio_print_log(events, pins):
+    state = {}
+    for e in events:
+        if e.get("reset"):
+            state.clear()
+            print(f"{e['t'] / 1e9:11.6f}  reset")
+            continue
+        now = gpio_event_mode(e)
+        if e["fn"] == "func":
+            name = pins.get(e["pin"], {}).get("func", [""] * 4)[e["func"]]
+            now += f" ({name})" if name else ""
+        was = state.get(e["pin"], "reset state")
+        state[e["pin"]] = now
+        who = e.get("pc") or e.get("src", "")
+        print(f"{e['t'] / 1e9:11.6f}  {e['pin']:<5}{e['gpio']:>4}  "
+              f"{was} -> {now}  {who}", flush=True)
+
+
+def gpio_write_vcd(events, path):
+    """Each pin's level for a waveform viewer; z while in a device
+    function; a reset wire pulses at each reset."""
+    events = list(events)
+    pins = list(dict.fromkeys(e["pin"] for e in events if "pin" in e))
+    ids = {}
+    for i, pin in enumerate(["reset"] + pins):
+        n, code = i, ""
+        while True:
+            n, r = divmod(n, 94)
+            code = chr(33 + r) + code
+            if not n:
+                break
+            n -= 1
+        ids[pin] = code
+    with open(path, "w") as f:
+        f.write("$timescale 1ns $end\n$scope module gpio $end\n")
+        for pin in ["reset"] + pins:
+            f.write(f"$var wire 1 {ids[pin]} {pin} $end\n")
+        f.write("$upscope $end\n$enddefinitions $end\n#0\n$dumpvars\n")
+        f.write("".join(f"x{ids[p]}\n" for p in pins) + f"0{ids['reset']}\n")
+        f.write("$end\n")
+        last = 0
+        for e in events:
+            t = max(e["t"], last)
+            if e.get("reset"):
+                f.write(f"#{t}\n1{ids['reset']}\n#{t + 1}\n"
+                        f"0{ids['reset']}\n")
+                last = t + 1
+                continue
+            value = "z" if e["fn"] == "func" else str(e["lvl"])
+            f.write(f"#{t}\n{value}{ids[e['pin']]}\n")
+            last = t
+    return len(pins)
+
+
+def cmd_isp(args, extra):
+    """Read a session's ISP trace (up --isp-trace) with the fork's
+    isp-trace.py; arguments after -- go to it."""
+    s = pick(args.name, live=False)
+    trace = s.path("isp.log")
+    if not os.path.exists(trace):
+        die("this session traces no ISP: boot it with up --isp-trace "
+            "(QEMU ingenic-0.6.23 or newer)")
+    tool = isp_trace_tool(s.info["qemu"])
+    if not tool:
+        die(f"no isp-trace.py beside {s.info['qemu']}: the fork's releases "
+            f"carry it in ingenic/, its source tree in contrib/ingenic/")
+    opts = (["--match", args.match] if args.match else []) + \
+        (["--all"] if args.all else [])
+    if args.serve is not None:
+        cmd = ["serve", trace, "--port", str(args.serve)] + \
+            (["--all"] if args.all else [])
+    elif args.vcd:
+        cmd = ["vcd", trace, "-o", args.vcd] + opts
+    elif args.diff:
+        # another session's trace, or a trace file
+        other = args.diff
+        if re.fullmatch(r"[\w.+-]+", other) and \
+                os.path.isdir(Session(other).dir):
+            other = Session(other).path("isp.log")
+        if not os.path.exists(other):
+            die(f"{args.diff}: no session with an ISP trace, nor a trace file")
+        cmd = ["diff", trace, other, "--at", args.at or "stream",
+               "--no-addresses"] + opts
+    elif args.at:
+        cmd = ["snapshot", trace, "--at", args.at] + opts
+    else:
+        cmd = ["log", trace] + opts + (["-f"] if args.watch else []) + \
+            (["--pc"] if args.pc else [])
+    # the tool in this process: Ctrl-C and signals reach it, as --serve wants
+    os.execv(sys.executable, [sys.executable, tool] + cmd + extra)
+
+
+def cmd_pwm(args, extra):
+    """Read a session's PWM outputs, the timer unit's and the PWM block's,
+    with the fork's pin-trace.py; arguments after -- go to it."""
+    s = pick(args.name, live=False)
+    traces = [s.path(f) for f in ("tcu.jsonl", "pwm.jsonl")
+              if os.path.exists(s.path(f))]
+    if not traces:
+        die("this session traces no PWM output: its QEMU predates the "
+            "timer unit's trace")
+    tool = contrib_tool(s.info["qemu"], "pin-trace.py")
+    if not tool:
+        die(f"no pin-trace.py beside {s.info['qemu']}: the fork's releases "
+            f"carry it in ingenic/, its source tree in contrib/ingenic/")
+    if args.serve is not None:
+        cmd = ["serve", *traces, "--port", str(args.serve)]
+    elif args.vcd:
+        cmd = ["vcd", *traces, "-o", args.vcd]
+    else:
+        cmd = ["log", *traces]
+    os.execv(sys.executable, [sys.executable, tool] + cmd + extra)
+
+
+def cmd_gpio(args, words):
+    """Read pins, or drive inputs from outside: GPIO outputs read what
+    the camera drives, every other pin what was last driven here (high
+    until then); a driven change fires the pin's interrupt if it has
+    one. --log, --watch and --vcd read the log of pin changes instead."""
+    if args.log or args.watch or args.vcd or args.serve is not None:
+        s = pick(args.name, live=False)
+        trace = s.path("gpio.jsonl")
+        if not os.path.exists(trace):
+            die("this session logs no pin changes: its QEMU predates "
+                "ingenic-gpio's trace (ingenic-0.6.15)")
+        if args.serve is not None:
+            from .gpioview import serve
+            serve(s, args.serve, pin_table(s.info.get("model")), clean,
+                  gpio_pin)
+            return 0
+        if args.vcd:
+            n = gpio_write_vcd(gpio_events(trace, False), args.vcd)
+            print(f"{args.vcd}: {n} pins")
+            return 0
+        try:
+            gpio_print_log(gpio_events(trace, args.watch),
+                           pin_table(s.info.get("model")))
+        except KeyboardInterrupt:
+            pass
+        return 0
+    s = pick(args.name)
+    path = "/machine/soc/gpio"
+    q = Qmp(s.path("qmp"))
+    try:
+        props = qom_props(q, path, "in-pa")
+        ports = sum(f"in-p{c}" in props for c in "abcdef")
+
+        def get(field, port):
+            return q.cmd("qom-get", path=path,
+                         property=f"{field}-p{chr(97 + port)}")
+
+        sets = [w for w in words if "=" in w]
+        for w in sets:
+            name, value = w.split("=", 1)
+            port, pin = gpio_pin(name)
+            if port >= ports or value not in ("0", "1"):
+                die(f"cannot drive {w}")
+            level = get("in", port) & ~(1 << pin) | int(value) << pin
+            q.cmd("qom-set", path=path, property=f"in-p{chr(97 + port)}",
+                  value=level)
+        want = {gpio_pin(w.split("=")[0]) for w in words}
+        rows = []
+        for port in range(ports):
+            regs = {f: get(f, port)
+                    for f in ("int", "msk", "pat1", "pat0", "pin", "flg")}
+            for b in range(32):
+                mode = gpio_mode(regs, b)
+                if want and (port, b) not in want or not want and \
+                        mode.startswith("func") and not args.all:
+                    continue
+                rows.append(f"P{chr(65 + port)}{b:<3} {port * 32 + b:>3}  "
+                            f"{mode:<20} {regs['pin'] >> b & 1}"
+                            + ("  flag" if regs["flg"] >> b & 1 else ""))
+    finally:
+        q.close()
+    print("\n".join(rows) if rows else "no GPIO pins configured (--all "
+          "lists the pins in device functions too)")
+    return 0
+
+
+def cmd_adc(args, words):
+    """Read or set the samples the SADC's channels convert (0-4095), as
+    a photoresistor or a battery divider would present them."""
+    s = pick(args.name)
+    path = "/machine/soc/sadc"
+    q = Qmp(s.path("qmp"))
+    try:
+        qom_props(q, path, "aux0")
+        want = []
+        for w in words:
+            ch, _, value = w.partition("=")
+            if not ch.isdigit() or int(ch) > 7 or value and not (
+                    value.isdigit() and int(value) < 4096):
+                die(f"not a channel (0-7) or a sample (0-4095): {w}")
+            if value:
+                q.cmd("qom-set", path=path, property=f"aux{ch}",
+                      value=int(value))
+            want.append(int(ch))
+        for ch in want or range(8):
+            print(f"{ch} {q.cmd('qom-get', path=path, property=f'aux{ch}')}")
+    finally:
+        q.close()
+    return 0
+
+
 def cmd_wait(args):
     s = pick(args.name)
     ensure_shell(s, args.timeout)
@@ -1266,8 +2153,16 @@ def cmd_console(args):
     if not sys.stdin.isatty():
         die(f"console needs a terminal; without one, `{PROG} sh`, "
             f"`send` and `uboot` do the same")
+    start = os.path.getsize(s.log) if args.all else 0
     with s.console(5) as con:
         print(f"{s.name}: attached, Ctrl-] detaches", file=sys.stderr)
+        skip = 0
+        if args.all:
+            # What the log gained while attaching also comes down the
+            # console: print the log, then drop that much of the stream
+            done = s.log_bytes(0)
+            os.write(1, done)
+            skip = max(len(done) - start, 0)
         saved = termios.tcgetattr(0)
         tty.setraw(0)
         try:
@@ -1286,6 +2181,7 @@ def cmd_console(args):
                         break
                     if not data:
                         break
+                    data, skip = data[skip:], max(skip - len(data), 0)
                     os.write(1, data)
         finally:
             termios.tcsetattr(0, termios.TCSADRAIN, saved)
@@ -1360,6 +2256,9 @@ def main(argv=None):
                     help="stop at the U-Boot prompt")
     sp.add_argument("--no-wait", action="store_true",
                     help="return once QEMU runs; `wait` logs in later")
+    sp.add_argument("--console", action="store_true",
+                    help="attach this terminal to the console from power-on "
+                    "(implies --no-wait)")
     sp.add_argument("--keep", action="store_true",
                     help="boot the session's flash as the last run left it "
                          "instead of a fresh copy of the image")
@@ -1376,6 +2275,36 @@ def main(argv=None):
                     metavar="PORT", help="also forward this guest TCP port")
     sp.add_argument("--sd", metavar="IMAGE", help="an SD card in MSC0 "
                     "(the image is written in place)")
+    sp.add_argument("--sd-cd", metavar="PIN", help="the slot's card-detect "
+                    "pin, held low with --sd (PB26 or 58; default: gpio."
+                    "mmc_cd in the camera's thingino.json; none for no pin)")
+    sp.add_argument("--wifi", metavar="SSID:PASS",
+                    help="the camera's Wi-Fi chip, with a WPA2 access point "
+                    "the camera is set up to join (a reboot the first time)")
+    sp.add_argument("--wifi-chip", choices=sorted(set(WIFI_CHIPS.values())),
+                    help="the Wi-Fi model, when the image cannot tell")
+    sp.add_argument("--portal", action="store_true",
+                    help="leave the camera in its setup portal, joined by "
+                    "an emulated phone the web forwards go through; --wifi "
+                    "then names the network to set it up on")
+    sp.add_argument("--speaker", metavar="FILE.wav|BACKEND",
+                    help="where the camera's speaker plays: a WAV file, or "
+                    "a host audio backend (pa, pipewire, alsa, sdl, ...)")
+    sp.add_argument("--mic", metavar="SPEC",
+                    help="what its microphones hear: tone[:HZ[:DBFS]] (1 kHz "
+                    "at -20 dBFS by default), a 16-bit PCM WAV file to loop, "
+                    "or host (the --speaker backend's input)")
+    sp.add_argument("--tap", metavar="DIR",
+                    help="write every stream the encoders code to DIR, "
+                    "files a player follows as they grow (ffplay -f h264 "
+                    "-follow 1 -i file:DIR/avpu-0.h264) or FIFOs made "
+                    "there first")
+    sp.add_argument("--riscv", action="store_true",
+                    help="run the SoC's RISC-V core beside it in "
+                    "qemu-system-riscv32, for stock fast-boot firmware")
+    sp.add_argument("--isp-trace", action="store_true",
+                    help="trace the ISP and the image sensor into the "
+                    "session, for isp (QEMU ingenic-0.6.23 on)")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")
@@ -1440,6 +2369,82 @@ def main(argv=None):
     sp.add_argument("--raw", action="store_true",
                     help="keep escape sequences and carriage returns")
 
+    sp = add("gpio", "read pins, or drive inputs", None,
+             "%(prog)s [NAME] [--all] [PIN[=0|1] ...]",
+             "List the pins set up as GPIO (with --all, every pin), show "
+             "the PINs named, or drive inputs from outside: PB14=0 pulls "
+             "PB14 low, as a pressed button or an inserted card would. "
+             "A PIN is PB14 or a Linux GPIO number (46). Columns: pin, "
+             "GPIO number, mode, level.")
+    sp.add_argument("words", nargs="*", metavar="NAME")
+    sp.add_argument("--all", action="store_true",
+                    help="also list pins in device functions")
+    sp.add_argument("--log", action="store_true",
+                    help="every pin change since the session came up")
+    sp.add_argument("--watch", action="store_true",
+                    help="as --log, then the changes as they happen")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the pin changes as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the pins on 127.0.0.1 "
+                         "(a free port unless PORT)")
+
+    sp = add("isp", "read the ISP trace", None,
+             "%(prog)s [NAME] [--log|--watch|--at POINT|--diff OTHER|"
+             "--vcd FILE|--serve [PORT]] [-- ARGS]",
+             "Read the trace of a session booted with up --isp-trace, with "
+             "the fork's isp-trace.py: what each frame changed (--log, the "
+             "default), the registers at a point (--at stream, frame:N or "
+             "end), where they differ from another session's or a trace "
+             "file's (--diff; at stream unless --at), a waveform or a live "
+             "page. Registers that hold no state are left out unless "
+             "--all; arguments after -- go to isp-trace.py.")
+    sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--log", action="store_true",
+                    help="each frame's events, then the registers it changed")
+    sp.add_argument("--watch", action="store_true",
+                    help="as --log, then the frames as they come")
+    sp.add_argument("--at", metavar="POINT",
+                    help="the registers at stream (a VIC starts), frame:N or "
+                    "end")
+    sp.add_argument("--diff", metavar="OTHER",
+                    help="where they differ from another session's or a "
+                    "trace file's")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the registers that change as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the registers on 127.0.0.1 "
+                         "(a free port unless PORT)")
+    sp.add_argument("--match", metavar="RE",
+                    help="only registers whose name or offset matches")
+    sp.add_argument("--pc", action="store_true",
+                    help="the guest PC behind each change (--log)")
+    sp.add_argument("--all", action="store_true",
+                    help="also the registers that hold no state")
+
+    sp = add("pwm", "read the PWM outputs", None,
+             "%(prog)s [NAME] [--log|--vcd FILE|--serve [PORT]] [-- ARGS]",
+             "Read the outputs the timer unit's channels and the PWM block "
+             "drive, with the fork's pin-trace.py: each change with its "
+             "frequency and duty (--log, the default), every edge as a "
+             "waveform, or a live page. Arguments after -- go to "
+             "pin-trace.py.")
+    sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--log", action="store_true",
+                    help="each change since the session came up")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the outputs as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the outputs on 127.0.0.1 "
+                         "(a free port unless PORT)")
+
+    sp = add("adc", "read or set ADC channels", None,
+             "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",
+             "Show the samples the camera's SADC channels convert, or set "
+             "them: 0=150 makes channel 0 read 150 of 4095, a dark room "
+             "to a photoresistor. Lines: channel, sample.")
+    sp.add_argument("words", nargs="*", metavar="NAME")
+
     sp = add("monitor", "run a QEMU monitor command", None,
              "%(prog)s [NAME] -- COMMAND",
              "Run a QEMU monitor command, such as info registers, set_link "
@@ -1450,6 +2455,8 @@ def main(argv=None):
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp = add("console", "attach this terminal to the console")
     sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--all", action="store_true",
+                    help="print everything since power-on first")
     sp = add("info", "show a session")
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp.add_argument("--json", action="store_true")
@@ -1463,7 +2470,12 @@ def main(argv=None):
     try:
         if args.command == "up":
             return cmd_up(args, tail)
-        if args.command in ("sh", "uboot", "send", "monitor"):
+        if args.command == "isp":
+            return cmd_isp(args, tail)
+        if args.command == "pwm":
+            return cmd_pwm(args, tail)
+        if args.command in ("sh", "uboot", "send", "monitor", "gpio",
+                            "adc"):
             # [NAME] -- WORDS, or [NAME] 'WORDS'
             words = args.words
             named = words and os.path.exists(Session(words[0]).dir)

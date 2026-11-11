@@ -12,6 +12,22 @@ br-%: check-config
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst br-,,$@)
 
+### Raptor runtime configuration (own Kconfig and .config)
+
+raptor-menuconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-menuconfig
+
+# Buildroot's own -update-defconfig refuses to run while KCONFIG_FRAGMENT_FILES
+# is set, so the minimal config is placed as the camera's fragment here.
+raptor-saveconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-savedefconfig
+	@mkdir -p $(CAMERA_SUBDIR)/$(CAMERA)
+	@install -m 0644 $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig \
+		$(CAMERA_SUBDIR)/$(CAMERA)/raptor.config
+	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.config"
+
 # checkout buidroot submodule
 buildroot/Makefile:
 	@$(TEAL) "$@"
@@ -304,7 +320,7 @@ build-all:
 	echo "Successful: $$success" | tee -a "$$log_dir/summary.log"; \
 	echo "Failed: $$failed" | tee -a "$$log_dir/summary.log"; \
 	echo "Logs saved to: $$log_dir" | tee -a "$$log_dir/summary.log"; \
-	if [ $$failed -gt 0 ]; then \
+	if [ "$$failed" -gt 0 ]; then \
 		echo "" | tee -a "$$log_dir/summary.log"; \
 		echo "Failed cameras:" | tee -a "$$log_dir/summary.log"; \
 		echo -e "$$failed_cameras" | tee -a "$$log_dir/summary.log"; \
@@ -327,7 +343,7 @@ help:
 	  make build-info     generate post-build graphs and package analysis\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
-	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
+	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> (run 'make pack' to finalize)\n\
 	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\

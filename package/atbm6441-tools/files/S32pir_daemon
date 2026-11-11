@@ -1,0 +1,58 @@
+#!/bin/sh
+
+DAEMON="pir_daemon"
+PIDFILE="/var/run/pir_daemon.pid"
+UART_DEV="/dev/ttyS0"
+LOGFILE="/var/log/pir_daemon.log"
+
+start() {
+	[ -c "$UART_DEV" ] || {
+		echo "skipped ($UART_DEV not present)"
+		return 0
+	}
+	# Mux PB19/PB22 to UART0 (func 0), non-flow-control. No Kconfig choice in
+	# this kernel tree ever selects a pinmux for UART0 (same gap exists for
+	# UART1/UART2 - the pins are dead by default), so this board does it
+	# itself, the same way S09mmc/mmc_gpio_pb handles MSC1's pinmux.
+	gpio-diag mode pb19 func0
+	gpio-diag mode pb22 func0
+	printf "Starting %s: " "$DAEMON"
+	if start-stop-daemon -S -q -m -b -p "$PIDFILE" -x /usr/bin/$DAEMON -- "$UART_DEV" >>"$LOGFILE" 2>&1; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+}
+
+stop() {
+	printf "Stopping %s: " "$DAEMON"
+	if start-stop-daemon -K -q -p "$PIDFILE"; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	rm -f "$PIDFILE"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

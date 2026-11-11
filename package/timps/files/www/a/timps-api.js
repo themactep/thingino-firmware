@@ -2,9 +2,9 @@
   "use strict";
 
   var DEFAULT_PORT = 8880;
-  var info = null; // cached {token, port} from /x/timps-token.cgi
-  var infoPending = null; // in-flight token fetch (dedup)
-  var controlCache = null; // last successful GET /control JSON (for caps())
+  var info = null;
+  var infoPending = null;
+  var controlCache = null;
 
   function fetchInfo(force) {
     if (info && !force) return Promise.resolve(info);
@@ -26,7 +26,6 @@
     return infoPending;
   }
 
-  // http.https is a tri-state; timps-token.cgi reports it as "scheme".
   function schemeOf(i) {
     if (!i) return "http";
     if (i.scheme === "both") {
@@ -38,7 +37,7 @@
 
   function base() {
     var host = window.location.hostname || "127.0.0.1";
-    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]"; // IPv6
+    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]";
     return schemeOf(info) + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
   }
 
@@ -59,8 +58,6 @@
         return res.json().catch(function () { return {}; }).then(function (json) {
           if (!res.ok) {
             var reason = json && typeof json.reason === "string" ? json.reason : "";
-            // Pre-split daemons answer 422 to both failures with no "reason";
-            // fall back to the counters only then (never on a current build).
             if (!reason && res.status === 422)
               reason = json.rejected > 0 ? "values_rejected" : "unknown_fields";
             var msg = "timps /control HTTP " + res.status;
@@ -72,9 +69,11 @@
               msg = "malformed /control request (client bug); nothing was applied";
             else if (reason === "oom" || res.status === 503)
               msg = "the streamer is out of memory; nothing was applied - try again shortly";
+            var et = errorsText(json && json.errors);
+            if (et) msg += " (" + et + ")";
             var err = new Error(msg);
             err.status = res.status;
-            err.reason = reason;   // pages that need to branch should use THIS
+            err.reason = reason;
             err.result = json;
             throw err;
           }
@@ -82,6 +81,14 @@
         });
       });
     });
+  }
+
+  function errorsText(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    var E = window.timpsErrors;
+    return (E ? E.list(errors) : Object.keys(errors).map(function (k) {
+      return k + ": error " + errors[k];
+    })).join("; ");
   }
 
   function flattenInto(out, prefix, v) {
@@ -99,14 +106,13 @@
       var v = obj[sec];
       if (v === null || typeof v !== "object") { out[sec] = v; return; }
       Object.keys(v).forEach(function (k) {
-        var pfx = (sec === "video" || sec === "privacy") ? sec + k : sec + "." + k;
+        var pfx = (sec === "video" || sec === "privacy" || sec === "roi") ? sec + k : sec + "." + k;
         flattenInto(out, pfx, v[k]);
       });
     });
     return out;
   }
 
-  // entries of result.applied whose EFFECTIVE (post-clamp) value differs from what this POST sent.
   function computeCorrections(body, result) {
     if (!result || !result.applied) return null;
     var sent = flattenBody(body);
@@ -129,9 +135,10 @@
     return r.corrections;
   }
 
-  // shared wording for a corrections map.
   function correctionsText(corr) {
     return Object.keys(corr).map(function (k) {
+      if (/\.codec$/.test(k) && String(corr[k]).toLowerCase() === "h264")
+        return "H.265 is not available with this libimp - the stream stays H.264";
       return k.split(".").pop().replace(/_/g, " ") +
         " was outside the allowed range - the streamer applied " + corr[k];
     }).join(". ");
@@ -151,7 +158,6 @@
     });
   }
 
-  // merge rapid set() calls (slider drags) into one POST per quiet period.
   var debounceBuf = null, debounceTimer = null, debounceWaiters = [];
   function setDebounced(obj, ms) {
     if (!debounceBuf) debounceBuf = {};
@@ -181,7 +187,6 @@
     });
   }
 
-  // caps object from a cached GET /control (fetches once when not cached)
   function caps() {
     if (controlCache && controlCache.caps)
       return Promise.resolve(controlCache.caps);
@@ -192,7 +197,6 @@
     return request("GET", undefined, false, "?stats=1");
   }
 
-  // who streams what: [{ip, port, proto, chn, since_s, kbps}]
   function clients() {
     return request("GET", undefined, false, "?clients=1");
   }
@@ -205,60 +209,111 @@
     return request("GET", undefined, false, q);
   }
 
-  function events(streams, onEvent, onError) {
-    var es = null, closed = false, down = false;
-    var types = String(streams || "motion,daynight,stats")
-      .split(",").map(function (s) { return s.trim(); })
-      .filter(Boolean);
+  var es = null, esKey = "", esGen = 0, esTimer = null, esWait = 3000, esDown = false;
+  var esSubs = [], esLast = {};
 
-    function open() {
-      fetchInfo(false).then(function (i) {
-        if (closed || document.hidden) return;
-        var url = base() + "/events?stream=" + encodeURIComponent(types.join(","));
-        if (i.token) url += "&token=" + encodeURIComponent(i.token);
-        try { es = new EventSource(url); } catch (e) {
-          if (onError) onError(e);
-          return;
-        }
-        es.onopen = function () {
-          // after a streamer restart: tell the page (preview reconnect etc.)
-          if (down) { down = false; document.dispatchEvent(new Event("timps-back")); }
-        };
-        types.forEach(function (t) {
-          es.addEventListener(t, function (ev) {
-            var data = null;
-            try { data = JSON.parse(ev.data); } catch (e) { /* keep null */ }
-            if (onEvent) onEvent(t, data);
-          });
-        });
-        es.onerror = function (err) {
-          if (closed) return;
-          stop();
-          down = true;
-          if (onError) onError(err);
-          fetchInfo(true).then(function () {
-            if (!closed && !document.hidden) setTimeout(open, 3000);
-          });
-        };
+  function esWanted() {
+    if (document.hidden) return "";
+    var seen = {};
+    esSubs.forEach(function (s) { s.types.forEach(function (t) { seen[t] = 1; }); });
+    return Object.keys(seen).sort().join(",");
+  }
+
+  function esCovers(s) {
+    var have = esKey.split(",");
+    return s.types.every(function (t) { return have.indexOf(t) >= 0; });
+  }
+
+  function esAttach(s) {
+    s.types.forEach(function (t) { es.addEventListener(t, s.fns[t]); });
+  }
+
+  function esStop() {
+    esGen++;
+    if (es) { es.close(); es = null; }
+    esKey = "";
+    esLast = {};
+  }
+
+  function esSync() {
+    clearTimeout(esTimer);
+    esTimer = null;
+    var want = esWanted();
+    if (want === esKey) return;
+    esStop();
+    if (!want) return;
+    var gen = esGen;
+    esKey = want;
+    fetchInfo(false).then(function (i) {
+      if (gen !== esGen) return;
+      var url = base() + "/events?stream=" + encodeURIComponent(want);
+      if (i.token) url += "&token=" + encodeURIComponent(i.token);
+      try { es = new EventSource(url); } catch (e) {
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(e, true); });
+        return;
+      }
+      var src = es;
+      src.onopen = function () {
+        esWait = 3000;
+        if (esDown) { esDown = false; document.dispatchEvent(new Event("timps-back")); }
+      };
+      want.split(",").forEach(function (t) {
+        if (t !== "config") src.addEventListener(t, function (ev) { esLast[t] = ev.data; });
       });
-    }
+      esSubs.forEach(esAttach);
+      src.onerror = function (err) {
+        if (gen !== esGen) return;
+        var fatal = src.readyState === 2;
+        esStop();
+        esDown = true;
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(err, fatal); });
+        fetchInfo(true);
+        clearTimeout(esTimer);
+        esTimer = setTimeout(esSync, esWait);
+        esWait = Math.min(esWait * 2, 30000);
+      };
+    });
+  }
 
-    function stop() {
-      if (es) { es.close(); es = null; }
-    }
+  function esKick() {
+    if (!esTimer) esTimer = setTimeout(esSync, 0);
+  }
 
-    function onVis() {
-      if (document.hidden) stop();
-      else if (!es && !closed) open();
+  document.addEventListener("visibilitychange", esSync);
+
+  function events(streams, onEvent, onError) {
+    var s = { types: [], fns: {}, onError: onError, closed: false };
+    String(streams || "motion,daynight,stats").split(",").forEach(function (t) {
+      t = t.trim();
+      if (!t || s.fns[t]) return;
+      s.types.push(t);
+      s.fns[t] = function (ev) {
+        if (s.closed) return;
+        var data = null;
+        try { data = JSON.parse(ev.data); } catch (e) {}
+        if (onEvent) onEvent(t, data);
+      };
+    });
+    esSubs.push(s);
+    if (es && esCovers(s)) {
+      esAttach(s);
+      var last = esLast;
+      setTimeout(function () {
+        s.types.forEach(function (t) {
+          if (last === esLast && t in last) s.fns[t]({ data: last[t] });
+        });
+      }, 0);
+    } else {
+      esKick();
     }
-    document.addEventListener("visibilitychange", onVis);
-    open();
 
     return {
       close: function () {
-        closed = true;
-        document.removeEventListener("visibilitychange", onVis);
-        stop();
+        if (s.closed) return;
+        s.closed = true;
+        esSubs.splice(esSubs.indexOf(s), 1);
+        if (es) s.types.forEach(function (t) { es.removeEventListener(t, s.fns[t]); });
+        esKick();
       },
     };
   }

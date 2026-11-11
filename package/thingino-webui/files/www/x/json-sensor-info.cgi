@@ -15,7 +15,7 @@ SOC_MODEL=$(soc -f 2>/dev/null)
 SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
 
 SENSOR_IQ_PATH="/etc/sensor"
-SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
+SENSOR_IQ_FILE=$(sensor-iq-name "$SENSOR_MODEL" "$SOC_MODEL")
 SENSOR_FILE_FULL_PATH="${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}"
 
 if [ -f "$SENSOR_FILE_FULL_PATH" ]; then

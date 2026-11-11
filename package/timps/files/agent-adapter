@@ -5,15 +5,11 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/timps.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_TIMPS_TOKEN_FILE="${AGENT_TIMPS_TOKEN_FILE:-/run/timps.token}"
 AGENT_TMPDIR="${AGENT_TMPDIR:-/tmp}"
+trap 'rm -f "$AGENT_TMPDIR/agent-timps-control.$$"' EXIT
 
 agent_name() {
 	printf 'timps'
 }
-
-# ---- config file access ----
-# timps is a plain "key = value" file; file-only / restart-only keys (rtsp.port,
-# http.port, record.dir, motion.cooldown_ms, motion.on_motion, ...) are read
-# here. Live-persisted keys are read from GET /control instead.
 
 agent_conf_get() {
 	sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$AGENT_CONFIG" 2>/dev/null |
@@ -32,18 +28,12 @@ agent_conf_bool() {
 	esac
 }
 
-# ---- /control HTTP transport ----
-# timps skips auth for loopback (127.0.0.0/8), so the on-device agent reaches
-# /control directly; the per-boot token is still sent when available.
-
 agent_timps_port() {
 	port=$(agent_conf_get http.port | tr -cd '0-9')
 	[ -n "$port" ] || port=8880
 	printf '%s' "$port"
 }
 
-# Tri-state: 0 = plaintext, 1 = http and https on the one port, 2 = TLS only
-# (plaintext answered with 426). Both on-values speak https.
 agent_timps_scheme() {
 	case "$(agent_conf_get http.https | tr 'A-Z' 'a-z')" in
 		1 | 2 | true | yes | on) printf 'https' ;;
@@ -55,7 +45,6 @@ agent_control_url() {
 	printf '%s://127.0.0.1:%s/control' "$(agent_timps_scheme)" "$(agent_timps_port)"
 }
 
-# GET /control -> the full JSON doc, cached once per adapter invocation.
 agent_control_json() {
 	_cache="$AGENT_TMPDIR/agent-timps-control.$$"
 	if [ ! -s "$_cache" ]; then
@@ -71,8 +60,6 @@ agent_control_json() {
 	cat "$_cache" 2>/dev/null
 }
 
-# POST /control with a nested JSON payload. timps applies + persists changed
-# keys. The cached snapshot is invalidated so subsequent reads see the change.
 agent_control_set() {
 	url=$(agent_control_url)
 	curl_k=""
@@ -92,11 +79,7 @@ agent_control_set() {
 	rm -f "$AGENT_TMPDIR/agent-timps-control.$$" 2>/dev/null
 }
 
-# ---- JSON parsing (both helpers are self-contained awk programs) ----
-
 agent_jsec() {
-	# Balances the raw object body for `"<sec>":[ \t]*{ ... }`. Feed the whole
-	# control doc on stdin; prints the balanced object (or nothing).
 	sec=$1
 	awk -v sec="$sec" '
 		{
@@ -128,9 +111,6 @@ agent_jsec() {
 }
 
 agent_jleaf() {
-	# Extracts a unique leaf value for `key` from a single-line JSON object body
-	# on stdin. Feed a section body (from agent_jsec) unless the key is already
-	# globally unique. De-escapes strings; prints numbers/bools/arrays verbatim.
 	key=$1
 	awk -v key="$key" '
 		{
@@ -180,27 +160,22 @@ agent_jleaf() {
 		}'
 }
 
-# Read a section from the cached control doc: `agent_section <name>`.
 agent_section() {
 	agent_control_json | agent_jsec "$1" 2>/dev/null
 }
 
-# Read a leaf from a section object. `agent_leaf <key> <section-json>`.
 agent_leaf() {
 	key=$1
 	section=$2
 	printf '%s\n' "$section" | agent_jleaf "$key" 2>/dev/null
 }
 
-# Convenience: read `section.key` from the live control snapshot.
 agent_ctrl() {
 	path=$1
 	section=${path%%.*}
 	key=${path#*.}
 	case "$path" in
 		*.*.*)
-			# video.N.key / osdN.N.key / privacyN.N.key: scope through the
-			# numeric sub-object first.
 			top=${path%%.*}
 			idx=${path#*.}
 			idx=${idx%%.*}
@@ -221,10 +196,7 @@ agent_ctrl_int() {
 	printf '%s' "$value" | tr -cd '0-9-'
 }
 
-# ---- capability probes ----
-
 agent_has_control() {
-	# The whole adapter depends on the /control endpoint (USE_CONTROL builds).
 	[ -n "$(agent_control_json)" ]
 }
 
@@ -257,18 +229,14 @@ agent_health_status() {
 	fi
 }
 
-# Streamer-built, so capability is not gated on the presence of an external
-# helper binary. Snapshots come from GET /control + a loopback /snapshot.jpg.
 agent_has_snapshot() {
 	agent_has_control && printf 'true' || printf 'false'
 }
 
 agent_has_clip() {
-	# fMP4 recording + one-shot /control clip require USE_RECORD.
 	case "$(agent_ctrl record.available 2>/dev/null)" in
 		1) printf 'true' ;;
 		*)
-			# Classic older builds expose it under caps.record.available.
 			caps=$(agent_section caps)
 			rec=$(printf '%s\n' "$caps" | agent_jsec record 2>/dev/null)
 			case "$(printf '%s\n' "$rec" | agent_jleaf available 2>/dev/null)" in
@@ -280,7 +248,6 @@ agent_has_clip() {
 }
 
 agent_has_privacy() {
-	# Privacy masks need an OSD group on the stream; caps.privacy reports that.
 	caps=$(agent_section caps)
 	priv=$(printf '%s\n' "$caps" | agent_jsec privacy 2>/dev/null)
 	case "$(printf '%s\n' "$priv" | agent_jleaf available 2>/dev/null)" in
@@ -290,7 +257,6 @@ agent_has_privacy() {
 }
 
 agent_has_daynight() {
-	# timps ships its own native day/night thread; anything with /control has it.
 	agent_has_control && printf 'true' || printf 'false'
 }
 
@@ -346,8 +312,6 @@ agent_send2_motion_set() {
 		return 1
 	}
 }
-
-# ---- stream helpers ----
 
 agent_stream_section() {
 	printf '%s' "$1"
@@ -429,8 +393,6 @@ agent_rtsp_listening() {
 	pidof timpsd >/dev/null 2>&1 && printf 'true' || printf 'false'
 }
 
-# ---- motion / daynight / recording ----
-
 agent_motion_enabled() {
 	value=$(agent_ctrl motion.enabled)
 	agent_json_bool "$value"
@@ -466,7 +428,6 @@ agent_daynight_running_mode() {
 		1 | 2) printf 'night' ;;
 		0) printf 'day' ;;
 		*)
-			# fall back to the config file
 			case "$(agent_conf_get image.running_mode | tr -cd '0-9')" in
 				1 | 2) printf 'night' ;;
 				*) printf 'day' ;;
@@ -484,7 +445,6 @@ agent_daynight_target_mode() {
 }
 
 agent_daynight_force_mode() {
-	# Emits a raw JSON value: the quoted mode when forced, or `null` when auto.
 	if [ "$(agent_daynight_enabled)" = true ]; then
 		printf 'null'
 	else
@@ -497,7 +457,6 @@ agent_recording_active() {
 	case "$value" in
 		1 | true) printf 'true' ;;
 		*)
-			# An in-progress one-shot clip or manual override counts as active.
 			case "$(agent_conf_bool record.enabled false)" in
 				true)
 					sp=$(agent_ctrl record.available 2>/dev/null)
@@ -538,8 +497,6 @@ agent_stream_healthy() {
 	}
 	printf 'true'
 }
-
-# ---- storage / recording config ----
 
 agent_storage_path() {
 	path=$(agent_ctrl record.dir 2>/dev/null)
@@ -636,8 +593,6 @@ agent_print_runtime_recording() {
 	printf '}'
 }
 
-# ---- profile / type coercion ----
-
 agent_profile_to_name() {
 	case "$1" in
 		0) printf 'baseline' ;;
@@ -714,8 +669,6 @@ agent_json_bool_to_01() {
 	esac
 }
 
-# ---- firmware / misc ----
-
 agent_firmware_upgrade_supported() {
 	command -v sysupgrade >/dev/null 2>&1 && printf 'true' || printf 'false'
 }
@@ -791,8 +744,6 @@ agent_heartbeat_wg_status() {
 		printf '0'
 	fi
 }
-
-# ---- printer helpers ----
 
 agent_print_stream_runtime() {
 	stream_id=$1
@@ -918,7 +869,6 @@ agent_print_stream_config() {
 }
 
 agent_has_audio() {
-	# timps has a single audio capture pipeline shared across streams.
 	value=$(agent_ctrl audio.enabled 2>/dev/null)
 	case "$value" in
 		0 | false)
@@ -926,7 +876,6 @@ agent_has_audio() {
 			printf 'false'
 			;;
 		*)
-			# default on unless explicitly disabled
 			printf 'true'
 			;;
 	esac
@@ -1315,13 +1264,9 @@ agent_get_config() {
 	printf '}\n'
 }
 
-# ---- privacy ----
-
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/timps-privacy}"
 
 agent_privacy_enabled() {
-	# timps privacy masks are reflected in capslookups; persist a state file so
-	# the privacy toggle round-trips even when a mask is only re-created live.
 	if [ -r "$AGENT_PRIVACY_STATE" ]; then
 		value=$(sed -n '1p' "$AGENT_PRIVACY_STATE" 2>/dev/null | tr -d '\r\n')
 		case "$value" in
@@ -1342,8 +1287,6 @@ agent_privacy_write_state() {
 
 agent_privacy_apply() {
 	state=$1
-	# A single all-channel privacy mask in slot 0: enabled -> show a full-frame
-	# black mask, disabled -> hide it. Uses the canonical privacy.0.0 form.
 	if [ "$state" = true ]; then
 		agent_control_set '{"privacy":{"0":{"0":{"enabled":1,"x":0,"y":0,"w":4096,"h":4096,"color":"0xFF000000"}}}}'
 	else
@@ -1351,8 +1294,6 @@ agent_privacy_apply() {
 	fi
 	agent_privacy_write_state "$state"
 }
-
-# ---- action helpers ----
 
 agent_heartbeat_hw_state() {
 	cmd=${1%% *}
@@ -1366,8 +1307,6 @@ agent_heartbeat_hw_state() {
 		*) printf '%s' "$value" ;;
 	esac
 }
-
-# ---- setting value helpers (mirroring raptor) ----
 
 agent_setting_value() {
 	body_file=$1
@@ -1616,7 +1555,6 @@ agent_get_setting() {
 	esac
 }
 
-# POST one image.kv via /control and echo the accepted update.
 agent_set_image_int() {
 	body_file=$1
 	path=$2
@@ -1689,7 +1627,6 @@ agent_set_setting() {
 			value=$(agent_setting_value "$body_file" mic_enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			raw=$(agent_json_bool_to_01 "$value") || return 1
-			# Share the audio capture pipeline state.
 			agent_control_set "{\"audio\":{\"enabled\":$raw}}" >/dev/null || return 1
 			agent_print_setting_update "$path" mic_enabled "$value"
 			;;
@@ -1728,7 +1665,6 @@ agent_set_setting() {
 			if [ "$value" = true ]; then
 				agent_control_set '{"daynight":{"enabled":true}}' >/dev/null || return 1
 			else
-				# Disabling auto-detection keeps the current running mode fixed.
 				mode=$(agent_daynight_running_mode)
 				raw=0
 				[ "$mode" = night ] && raw=1
@@ -1781,8 +1717,6 @@ agent_set_setting() {
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			raw=$(agent_json_bool_to_01 "$value") || return 1
-			# Restart-only (encoder config); persist and request a streamer restart
-			# so the change takes effect.
 			agent_control_set "{\"video\":{\"$stream_id\":{\"enabled\":$raw}}}" >/dev/null || true
 			agent_print_setting_update "$path" enabled "$value"
 			;;
@@ -1938,7 +1872,6 @@ agent_apply_config() {
 		return 1
 	}
 
-	# image tuning
 	image_payload=
 	for field in brightness contrast saturation sharpness hflip vflip; do
 		value=$(agent_json_config_value "$source_file" "image.$field")
@@ -1959,7 +1892,6 @@ agent_apply_config() {
 		agent_control_set "{\"image\":{$image_payload}}" >/dev/null 2>&1 || true
 	fi
 
-	# motion
 	motion_payload=
 	for field in enabled sensitivity; do
 		value=$(agent_json_config_value "$source_file" "motion.$field")
@@ -1980,7 +1912,6 @@ agent_apply_config() {
 		agent_control_set "{\"motion\":{$motion_payload}}" >/dev/null 2>&1 || true
 	fi
 
-	# daynight
 	dn_enabled=$(agent_json_config_value "$source_file" daynight.enabled)
 	case "$dn_enabled" in
 		true)
@@ -2019,10 +1950,6 @@ agent_snapshot() {
 }
 
 agent_record() {
-	# Usage:
-	#   record stop [channel]
-	#   record continuous [channel]
-	#   record [duration] [channel] [path]   # timed one-shot fMP4 clip
 	arg1=${1:-10}
 	channel=${2:-0}
 	file=${3:-/tmp/clip_$(date +%Y%m%d_%H%M%S).mp4}
@@ -2047,7 +1974,6 @@ agent_record() {
 	esac
 
 	duration=$arg1
-	# One-shot /control clip; timps creates the file with O_EXCL|O_NOFOLLOW.
 	agent_control_set "{\"record\":{\"clip\":\"$file\",\"seconds\":$duration}}" >/dev/null 2>&1 || {
 		echo "record action is not supported on this camera" >&2
 		return 1

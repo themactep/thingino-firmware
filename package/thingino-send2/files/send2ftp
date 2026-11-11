@@ -114,13 +114,10 @@ if [ "true" = "$send_photo" ]; then
 	process_file "$(copy_photo)" photo
 fi
 
-# Explicit FTPS (AUTH TLS on the control port). curl's ftps:// scheme is
-# explicit only; implicit FTPS (port 990) is not supported.
-if [ "true" = "$use_ssl" ]; then
-	url="ftps://"
-else
-	url="ftp://"
-fi
+# Explicit FTPS (AUTH TLS on the control port). Keep the ftp:// scheme:
+# curl's ftps:// scheme means implicit FTPS (port 990), which this does
+# not support. --ssl-reqd below performs the AUTH TLS upgrade instead.
+url="ftp://"
 [ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
 url="$url@$host:$port"
 if [ -n "$path" ]; then

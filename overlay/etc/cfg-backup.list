@@ -24,6 +24,15 @@
 
 # Thingino application configs
 /etc/thingino.json
+/etc/timps.conf
+/etc/onvif.json
+/etc/raptor.conf
+
+# System identity
+/etc/hostname
+
+# Prudynt user layer (deltas over the read-only /etc/prudynt.json)
+/etc/prudynt.user.json
 
 # You can add more paths below, one per line:
 # /etc/prudynt.json

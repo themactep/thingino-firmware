@@ -1,6 +1,5 @@
 #!/bin/sh
 # shellcheck disable=SC1091
-# timps replacement for the stock (prudynt-flavored) snapshot CGIs.
 
 . /var/www/x/auth.sh
 require_auth
@@ -17,7 +16,6 @@ case "$SELF" in
 	dl0.* | dl1.*) ATTACH=1 ;;
 esac
 
-# chn= override (&-separated pairs; only literal 0/1 accepted)
 OLD_IFS=$IFS
 IFS='&'
 for KV in $QUERY_STRING; do
@@ -28,7 +26,6 @@ for KV in $QUERY_STRING; do
 done
 IFS=$OLD_IFS
 
-# Derive timps's HTTP port + scheme from its config (http.port / http.https), fall back to 8880/http.
 TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
 [ -z "$TIMPS_PORT" ] && TIMPS_PORT=8880
 TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)

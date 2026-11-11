@@ -34,6 +34,7 @@ class Ctx:
             "wifi": "wifi" in self.caps,
             "usb_direct": "usb_direct" in self.caps,
             "usb_direct_client": "usb_direct_client" in self.caps,
+            "usb_webcam": "usb_webcam" in self.caps,
             "lab": self.lab is not None,
             "nolab": self.lab is None,
             "slip": self.slip is not None,

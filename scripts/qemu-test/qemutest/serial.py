@@ -25,7 +25,14 @@ class QemuSerial:
         while True:
             r, _, _ = select.select([self.fd], [], [], timeout)
             if r:
-                chunk = os.read(self.fd, 4096)
+                try:
+                    chunk = os.read(self.fd, 4096)
+                except OSError:
+                    chunk = b""
+                if not chunk:
+                    # QEMU closed its end: nothing more will come, and the
+                    # pty stays readable, so waiting on it would spin.
+                    break
                 buf += chunk
                 if self.log:
                     self.log.write(chunk)
@@ -98,6 +105,12 @@ class QemuSerial:
         booted = self.state != "rebooting"
         while time.time() < deadline:
             buf += self.read(1.0)
+            # qemu-dev's console is not given the QEMU process to watch
+            proc = getattr(self, "proc", None)
+            if proc is not None and proc.poll() is not None:
+                print(f"  QEMU exited with status {proc.returncode} "
+                      "during boot")
+                return False
             plain = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", buf)
             if not booted:
                 if re.search(r"Restarting system|U-Boot SPL|Starting kernel",
@@ -122,9 +135,7 @@ class QemuSerial:
                 r"(change your password|Login incorrect|[#\$] )", 15)
             if m and "change your password" in m.group(1):
                 self.wait_for("Password:", 5)
-                self.write("\x03")
-                time.sleep(3)
-                self.read()
+                self._skip_chpasswd()
                 return True
             if m and m.group(1) != "Login incorrect":
                 # Let the shell profile finish (its size probe reads the
@@ -135,6 +146,22 @@ class QemuSerial:
             # wrong password: wait for the next login prompt and retry
             self.wait_for("login:", 10)
         return False
+
+    def _skip_chpasswd(self):
+        """Leave the first-login password change (/etc/profile.d/chpasswd).
+        Ctrl-C ends it where the console is the shell's controlling
+        terminal; where getty could not make it one, ^C is just a character
+        to the prompt, so empty answers run its attempts out instead."""
+        done = r"Interrupted!|No more attempts|root@[\w.-]+ \S*# "
+        self.write("\x03")
+        m, _ = self.wait_for_re(done, 3)
+        for _ in range(12):
+            if m and re.fullmatch(done, m.group(0)):
+                break
+            self.write("\n")
+            m, _ = self.wait_for_re(done + "|Password: |Confirm: ", 5)
+        time.sleep(3)
+        self.read()
 
     def close(self):
         os.close(self.fd)

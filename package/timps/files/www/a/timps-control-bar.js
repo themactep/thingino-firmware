@@ -26,9 +26,6 @@
   }
   window.timpsApiReady = timpsApiReady;
 
-  /* ---- control-bar actions ------------------------------------------ */
-
-  // timps records ONE channel at a time (record.channel).
   function toggleRecording(channel) {
     var button = $("#recorder-ch" + channel);
     var want = button && button.classList.contains("active") ? 0 : 1;
@@ -78,7 +75,6 @@
       });
   }
 
-  // timps motion detection is toggled through /control (live, no restart).
   function toggleMotion(state) {
     var button = $("#motion");
     if (button) button.classList.add("pending");
@@ -96,8 +92,6 @@
       });
   }
 
-  // timps privacy is per-region (no global switch), so this quick toggle
-  // enables/disables ALL configured cover regions on every stream.
   function togglePrivacy(state) {
     var button = $("#privacy");
     if (button) button.classList.add("pending");
@@ -125,8 +119,6 @@
       });
   }
 
-  // Grey out an audio control-bar button the streamer declared unsupported
-  // (the Speaker on timps, which has no audio-output pipeline).
   function disableAudioButton(device, reason) {
     var button = $("#" + device);
     if (!button) return;
@@ -140,7 +132,6 @@
     var button = $("#" + device);
     if (button) button.classList.add("pending");
 
-    // timps has no audio-output (AO) pipeline: grey the speaker button out.
     if (device !== "microphone") {
       disableAudioButton(device, "No speaker output on timps");
       if (typeof window.showOverlayMessage === "function")
@@ -148,7 +139,6 @@
       return;
     }
 
-    // The mic button is the live mute: mic_enabled=false -> audio.mute 1.
     timpsApiReady()
       .then(function (api) {
         return api.set({ audio: { mute: state ? 0 : 1 } });
@@ -162,7 +152,6 @@
       });
   }
 
-  // /x/timps-imp.cgi is timps's own day/night + IR/white-light bridge.
   var IMP_CGI = "/x/timps-imp.cgi";
 
   function impPost(payload) {
@@ -176,8 +165,6 @@
     });
   }
 
-  // Core routes day/night through the thingino agent; timps owns day/night
-  // itself, so the command goes to the timps bridge instead.
   function toggleDayNight(mode) {
     var button = $("#daynight");
     if (button) button.classList.add("pending");
@@ -188,10 +175,8 @@
           try {
             console.log(window.ts ? window.ts() : "", "<===", text);
           } catch (e) {
-            /* logging only */
           }
         }
-        // Update button state immediately from the known target mode
         window.updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
       })
       .catch(function (err) {
@@ -205,7 +190,6 @@
     var currentState = el.classList.contains("active") ? 1 : 0;
     var newState = currentState ? 0 : 1;
 
-    // color button: ISP mode 0=color, 1=b&w, so the value is inverted
     if (el.id === "color") newState = currentState ? 1 : 0;
 
     el.classList.add("pending");
@@ -221,8 +205,6 @@
           auto: { daynight_enabled: newState },
         };
         var update = keyMap[el.id] ? Object.assign({}, keyMap[el.id]) : {};
-        // Leaving auto mode pins the mode the camera is in right now; the
-        // bridge clears daynight.enabled for the manual IR/ircut commands.
         if (el.id === "auto" && !newState) {
           var dn = $("#daynight");
           update.daynight_mode =
@@ -246,8 +228,6 @@
         el.classList.remove("pending");
       });
   }
-
-  /* ---- install ------------------------------------------------------- */
 
   function install() {
     window.toggleRecording = toggleRecording;
@@ -289,7 +269,6 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", install, { once: true });
   } else {
-    // main.js already ran (e.g. script injected late) - override immediately.
     install();
   }
 })();
