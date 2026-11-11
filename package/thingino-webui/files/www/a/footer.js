@@ -197,11 +197,18 @@
     uptime.id = "uptime";
 
     const themeWrap = document.createElement("div");
-    const themeToggle = document.createElement("a");
-    themeToggle.href = "#";
+    const themeToggle = document.createElement("button");
+    themeToggle.type = "button";
+    themeToggle.className = "btn btn-link p-0 border-0 align-baseline";
     themeToggle.id = "theme-toggle";
     themeToggle.title = globalConfig.themeToggleTitle || "Toggle theme";
     themeToggle.textContent = globalConfig.themeToggleLabel || "Toggle theme";
+    themeToggle.setAttribute(
+      "aria-pressed",
+      document.documentElement.getAttribute("data-bs-theme") === "dark"
+        ? "true"
+        : "false",
+    );
     themeWrap.appendChild(themeToggle);
 
     const actionStack = document.createElement("div");

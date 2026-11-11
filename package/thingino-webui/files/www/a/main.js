@@ -494,12 +494,19 @@ function setValue(data, domain, name) {
   }
 }
 
+function setButtonPressed(button, on) {
+  if (!button) return;
+  const pressed = !!on;
+  button.classList.toggle("active", pressed);
+  button.setAttribute("aria-pressed", pressed ? "true" : "false");
+}
+
 function updateRecordingIcons() {
   $$("#recorder-ch0, #recorder-ch1").forEach((button) => {
     const channel = parseInt(button.dataset.channel);
     const isRecording = recordingState[`ch${channel}`];
     button.classList.remove("pending");
-    button.classList.toggle("active", isRecording);
+    setButtonPressed(button, isRecording);
     button.classList.toggle("recorder-active", isRecording);
   });
 }
@@ -537,12 +544,18 @@ function toggleRecording(channel) {
         return;
       }
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      showAlert(
+        "danger",
+        `Failed to ${action} recording on channel ${channel}`,
+      );
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      showAlert(
+        "danger",
+        `Failed to ${action} recording on channel ${channel}`,
+      );
     });
 }
 
@@ -904,8 +917,8 @@ function updateHeartbeatUi(json) {
     const motionBtn = $("#motion");
     if (motionBtn) {
       motionBtn.classList.remove("pending");
-      motionBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        motionBtn,
         json.motion_enabled === true || json.motion_enabled === 1,
       );
     }
@@ -916,8 +929,8 @@ function updateHeartbeatUi(json) {
     const privacyBtn = $("#privacy");
     if (privacyBtn) {
       privacyBtn.classList.remove("pending");
-      privacyBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        privacyBtn,
         json.privacy_enabled === true || json.privacy_enabled === 1,
       );
     }
@@ -928,7 +941,7 @@ function updateHeartbeatUi(json) {
     const wireguardBtn = $("#wireguard");
     if (wireguardBtn) {
       wireguardBtn.classList.remove("pending");
-      wireguardBtn.classList.toggle("active", json.wg_status === 1);
+      setButtonPressed(wireguardBtn, json.wg_status === 1);
     }
   }
 
@@ -940,7 +953,7 @@ function updateHeartbeatUi(json) {
       const isNight = json.daynight_mode === "night";
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
-      daynightBtn.classList.toggle("active", isAutoEnabled);
+      setButtonPressed(daynightBtn, isAutoEnabled);
       daynightBtn.classList.toggle("is-night", isNight);
       daynightBtn.classList.toggle("is-day", !isNight);
 
@@ -967,7 +980,7 @@ function updateHeartbeatUi(json) {
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
       const isDay = json.daynight_mode === "day";
-      dayBtn.classList.toggle("active", !isAutoEnabled && isDay);
+      setButtonPressed(dayBtn, !isAutoEnabled && isDay);
     }
 
     // Update Night button active state
@@ -976,7 +989,7 @@ function updateHeartbeatUi(json) {
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
       const isNight = json.daynight_mode === "night";
-      nightBtn.classList.toggle("active", !isAutoEnabled && isNight);
+      setButtonPressed(nightBtn, !isAutoEnabled && isNight);
     }
   }
 
@@ -986,7 +999,7 @@ function updateHeartbeatUi(json) {
     if (colorBtn) {
       colorBtn.classList.remove("pending");
       // ISP mode: 0 = color, 1 = b&w, so active when 0
-      colorBtn.classList.toggle("active", json.color_mode === 0);
+      setButtonPressed(colorBtn, json.color_mode === 0);
     }
   }
 
@@ -995,7 +1008,7 @@ function updateHeartbeatUi(json) {
     const ircutBtn = $("#ircut");
     if (ircutBtn) {
       ircutBtn.classList.remove("pending");
-      ircutBtn.classList.toggle("active", json.ircut_state === 1);
+      setButtonPressed(ircutBtn, json.ircut_state === 1);
     }
   }
 
@@ -1004,7 +1017,7 @@ function updateHeartbeatUi(json) {
     const ir850Btn = $("#ir850");
     if (ir850Btn) {
       ir850Btn.classList.remove("pending");
-      ir850Btn.classList.toggle("active", json.ir850_state === 1);
+      setButtonPressed(ir850Btn, json.ir850_state === 1);
     }
   }
 
@@ -1013,7 +1026,7 @@ function updateHeartbeatUi(json) {
     const ir940Btn = $("#ir940");
     if (ir940Btn) {
       ir940Btn.classList.remove("pending");
-      ir940Btn.classList.toggle("active", json.ir940_state === 1);
+      setButtonPressed(ir940Btn, json.ir940_state === 1);
     }
   }
 
@@ -1022,7 +1035,7 @@ function updateHeartbeatUi(json) {
     const whiteBtn = $("#white");
     if (whiteBtn) {
       whiteBtn.classList.remove("pending");
-      whiteBtn.classList.toggle("active", json.white_state === 1);
+      setButtonPressed(whiteBtn, json.white_state === 1);
     }
   }
 
@@ -1035,7 +1048,7 @@ function updateHeartbeatUi(json) {
         json.mic_enabled &&
         json.mic_enabled !== 0 &&
         json.mic_enabled !== "false";
-      micBtn.classList.toggle("active", isActive);
+      setButtonPressed(micBtn, isActive);
       const img = micBtn.querySelector("img");
       if (img) {
         img.src = isActive ? "/a/mic.svg" : "/a/mic-mute.svg";
@@ -1052,7 +1065,7 @@ function updateHeartbeatUi(json) {
         json.spk_enabled &&
         json.spk_enabled !== 0 &&
         json.spk_enabled !== "false";
-      spkBtn.classList.toggle("active", isActive);
+      setButtonPressed(spkBtn, isActive);
       const img = spkBtn.querySelector("img");
       if (img) {
         img.src = isActive ? "/a/volume-up.svg" : "/a/volume-mute.svg";
