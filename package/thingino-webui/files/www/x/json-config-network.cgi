@@ -74,7 +74,7 @@ read_json_bool() {
 }
 
 trim_value() {
-	printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+	printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 ensure_config_file() {
@@ -188,7 +188,8 @@ setup_dns() {
 		for ip in $primary $secondary; do
 			[ -n "$ip" ] && echo "nameserver $ip"
 		done
-	} >/etc/default/resolv.conf
+	} >/etc/default/resolv.conf.tmp.$$ &&
+		mv -f /etc/default/resolv.conf.tmp.$$ /etc/default/resolv.conf
 }
 
 setup_iface() {
@@ -210,7 +211,12 @@ setup_iface() {
 			[ -n "$broadcast" ] && printf '\tbroadcast %s\n' "$broadcast"
 		fi
 		printf '\tdhcp-v6-enabled %s\n' "$ipv6"
-	} >"$(iface_path "$interface")"
+	} >"$(iface_path "$interface").tmp.$$" &&
+		mv -f "$(iface_path "$interface").tmp.$$" "$(iface_path "$interface")" ||
+		{
+			rm -f "$(iface_path "$interface").tmp.$$"
+			return 1
+		}
 
 	touch /tmp/network-restart.txt
 }
@@ -226,6 +232,24 @@ normalize_mac() {
 
 valid_mac() {
 	printf '%s' "$1" | grep -qE '^([0-9A-F]{2}:){5}[0-9A-F]{2}$'
+}
+
+valid_ipv4() {
+	local oldifs octet
+	case "$1" in
+		'' | *[!0-9.]*) return 1 ;;
+	esac
+	oldifs="$IFS"
+	IFS=.
+	# shellcheck disable=SC2086
+	set -- $1
+	IFS="$oldifs"
+	[ "$#" -eq 4 ] || return 1
+	for octet in "$1" "$2" "$3" "$4"; do
+		case "$octet" in '' | *[!0-9]*) return 1 ;; esac
+		[ "$octet" -le 255 ] 2>/dev/null || return 1
+	done
+	return 0
 }
 
 mac_json_key() {
@@ -461,7 +485,11 @@ process_interface_input() {
 			[ -n "$mac" ] || json_error "400 Bad Request" "$iface MAC address cannot be empty in static mode" "missing_mac"
 			valid_mac "$mac" || json_error "400 Bad Request" "$iface MAC address format is invalid" "invalid_mac"
 			[ -n "$address" ] || json_error "400 Bad Request" "$iface IP address cannot be empty" "missing_address"
+			valid_ipv4 "$address" || json_error "400 Bad Request" "$iface IP address is not a valid IPv4 address" "invalid_address"
 			[ -n "$netmask" ] || json_error "400 Bad Request" "$iface netmask cannot be empty" "missing_netmask"
+			valid_ipv4 "$netmask" || json_error "400 Bad Request" "$iface netmask is not a valid IPv4 netmask" "invalid_netmask"
+			{ [ -z "$gateway" ] || valid_ipv4 "$gateway"; } || json_error "400 Bad Request" "$iface gateway is not a valid IPv4 address" "invalid_gateway"
+			{ [ -z "$broadcast" ] || valid_ipv4 "$broadcast"; } || json_error "400 Bad Request" "$iface broadcast is not a valid IPv4 address" "invalid_broadcast"
 		else
 			mode="dhcp"
 		fi
