@@ -294,6 +294,10 @@ const ThemeState = {
   endpoint: "/x/json-config-webui.cgi",
   preferenceKey: "thingino-theme-preference",
   activeKey: "thingino-theme-active",
+  // Last webui.theme the server reported, and when this browser last asked.
+  serverKey: "thingino-theme-server",
+  checkedKey: "thingino-theme-checked",
+  refreshMs: 10 * 60 * 1000,
 };
 
 function safeStorageGet(key) {
@@ -341,8 +345,20 @@ function rememberThemeState(activeTheme, preferenceTheme) {
   }
 }
 
-async function refreshThemeFromServer() {
+function adoptServerTheme(preference, active) {
+  if (!preference) return;
+  safeStorageSet(ThemeState.serverKey, preference);
+  safeStorageSet(ThemeState.checkedKey, String(Date.now()));
+  rememberThemeState(active || preference, preference);
+}
+
+// A server theme replaces the local one only when it differs from the last seen.
+async function refreshThemeFromServer(options) {
   if (typeof fetch !== "function") return;
+  const force = options && options.force === true;
+  const checked = parseInt(safeStorageGet(ThemeState.checkedKey), 10) || 0;
+  const age = Date.now() - checked;
+  if (!force && age >= 0 && age < ThemeState.refreshMs) return;
   try {
     const response = await fetch(ThemeState.endpoint, {
       headers: { Accept: "application/json" },
@@ -351,7 +367,11 @@ async function refreshThemeFromServer() {
     const data = await response.json();
     const preference = data && (data.theme || (data.webui && data.webui.theme));
     const active = (data && data.active_theme) || preference;
-    rememberThemeState(active, preference);
+    if (preference && preference === safeStorageGet(ThemeState.serverKey)) {
+      safeStorageSet(ThemeState.checkedKey, String(Date.now()));
+      return;
+    }
+    adoptServerTheme(preference, active);
   } catch (err) {
     if (typeof console !== "undefined" && typeof console.debug === "function") {
       console.debug(
@@ -374,6 +394,7 @@ window.thinginoTheme = {
   apply: applyThemeAttribute,
   remember: rememberThemeState,
   refresh: refreshThemeFromServer,
+  adopt: adoptServerTheme,
   getPreference: () => safeStorageGet(ThemeState.preferenceKey),
   getActive: () => safeStorageGet(ThemeState.activeKey),
 };
@@ -704,6 +725,7 @@ function toggleTheme() {
   const currentTheme = htmlEl.getAttribute("data-bs-theme");
   const newTheme = currentTheme === "dark" ? "light" : "dark";
 
+  // A per-browser choice: the server's theme replaces it only when it changes.
   if (
     window.thinginoTheme &&
     typeof window.thinginoTheme.remember === "function"
