@@ -1,0 +1,86 @@
+Subject: [PATCH] ASoC: jz4740-i2s: allow T31 playback (codec master)
+
+The t31 DAI already has a playback stream (OSS, mono-to-stereo, TX
+divider, ERPL|TDMS in trigger).  Add what the vendor driver does in
+addition for the output path:
+
+- output channel select AICCR[26:24] = channels - 1 (vendor
+  xb47xx_i2s_v12.c i2s_set_channel(), mono also sets mono-to-stereo)
+- TX FIFO flush in prepare(), when the codec bit clock runs, waited for
+  like the RX flush (the flush in startup() is skipped for codec master)
+- TX FIFO request threshold 16 (vendor i2s_set_trigger()) instead of 8
+
+Capture behaviour is unchanged.
+---
+--- a/sound/soc/jz4740/jz4740-i2s.c
++++ b/sound/soc/jz4740/jz4740-i2s.c
+@@ -40,6 +40,7 @@
+ #define JZ_AIC_CONF_SYNC_CLK_MASTER	BIT(1)
+ #define JZ_AIC_CONF_ENABLE		BIT(0)
+ 
++#define JZ_AIC_CTRL_OUT_CHANNEL		GENMASK(26, 24)
+ #define JZ_AIC_CTRL_OUTPUT_SAMPLE_SIZE	GENMASK(21, 19)
+ #define JZ_AIC_CTRL_INPUT_SAMPLE_SIZE	GENMASK(18, 16)
+ #define JZ_AIC_CTRL_ENABLE_RX_DMA	BIT(15)
+@@ -144,26 +145,28 @@
+ }
+ 
+ /*
+- * The receive FIFO flush needs the bit clock of the codec, which runs only
+- * after the codec startup, so it cannot be done in startup().  Wait for the
++ * The FIFO flush needs the bit clock of the codec, which runs only after the
++ * codec startup, so it cannot be done in startup().  Wait for the
+  * self-clearing bit to see that the clock really arrives.
+  */
+ static int jz4740_i2s_prepare(struct snd_pcm_substream *substream,
+ 	struct snd_soc_dai *dai)
+ {
+ 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+-	unsigned int val;
++	unsigned int val, flush;
+ 	int ret;
+ 
+-	if (!i2s->soc_info->codec_master_only ||
+-	    substream->stream != SNDRV_PCM_STREAM_CAPTURE)
++	if (!i2s->soc_info->codec_master_only)
+ 		return 0;
+ 
+-	regmap_set_bits(i2s->regmap, JZ_REG_AIC_CTRL, JZ_AIC_CTRL_RFLUSH);
++	flush = substream->stream == SNDRV_PCM_STREAM_CAPTURE ?
++		JZ_AIC_CTRL_RFLUSH : JZ_AIC_CTRL_TFLUSH;
++
++	regmap_set_bits(i2s->regmap, JZ_REG_AIC_CTRL, flush);
+ 	ret = regmap_read_poll_timeout(i2s->regmap, JZ_REG_AIC_CTRL, val,
+-				       !(val & JZ_AIC_CTRL_RFLUSH), 100, 20000);
++				       !(val & flush), 100, 20000);
+ 	if (ret)
+-		dev_warn(dai->dev, "RX FIFO flush did not finish: no bit clock?\n");
++		dev_warn(dai->dev, "FIFO flush did not finish: no bit clock?\n");
+ 
+ 	return ret;
+ }
+@@ -335,6 +338,13 @@
+ 		else
+ 			ctrl &= ~JZ_AIC_CTRL_MONO_TO_STEREO;
+ 
++		/* vendor: output channel select = channels - 1 (0 mono, 1 stereo) */
++		if (i2s->soc_info->codec_master_only) {
++			ctrl &= ~JZ_AIC_CTRL_OUT_CHANNEL;
++			ctrl |= FIELD_PREP(JZ_AIC_CTRL_OUT_CHANNEL,
++					   params_channels(params) - 1);
++		}
++
+ 		div_field = i2s->field_i2sdiv_playback;
+ 		i2sdiv_max = GENMASK(i2s->soc_info->field_i2sdiv_playback.msb,
+ 				     i2s->soc_info->field_i2sdiv_playback.lsb);
+@@ -581,7 +591,9 @@
+ 	}
+ 
+ 	regmap_field_write(i2s->field_rx_fifo_thresh, 7);
+-	regmap_field_write(i2s->field_tx_fifo_thresh, 8);
++	/* the vendor driver requests the TX DMA at 16 entries (burst 16) */
++	regmap_field_write(i2s->field_tx_fifo_thresh,
++			   i2s->soc_info->codec_master_only ? 16 : 8);
+ 
+ 	return 0;
+ }

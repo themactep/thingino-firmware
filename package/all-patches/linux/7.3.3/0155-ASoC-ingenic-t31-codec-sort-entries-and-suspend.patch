@@ -1,0 +1,100 @@
+Subject: [PATCH] ASoC: ingenic-t31-codec: sort the Kconfig/Makefile
+ entries, drop the amplifier across suspend
+
+Put SND_SOC_INGENIC_T31_CODEC and its Makefile lines in alphabetical
+order. Add component suspend/resume so the speaker-enable GPIO does not
+stay asserted while the system sleeps with a playback stream open (not
+tested on hardware: the thingino kernels build without CONFIG_SUSPEND).
+---
+ sound/soc/codecs/Kconfig             |  2 +-
+ sound/soc/codecs/Makefile            |  4 ++--
+ sound/soc/codecs/ingenic-t31-codec.c | 33 ++++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
+index c0dee8dfc..66930131f 100644
+--- a/sound/soc/codecs/Kconfig
++++ b/sound/soc/codecs/Kconfig
+@@ -133,9 +133,9 @@ config SND_SOC_ALL_CODECS
+ 	imply SND_SOC_HDAC_HDA
+ 	imply SND_SOC_ICS43432
+ 	imply SND_SOC_IDT821034
++	imply SND_SOC_INGENIC_T31_CODEC
+ 	imply SND_SOC_INNO_RK3036
+ 	imply SND_SOC_ISABELLE
+-	imply SND_SOC_INGENIC_T31_CODEC
+ 	imply SND_SOC_JZ4740_CODEC
+ 	imply SND_SOC_JZ4725B_CODEC
+ 	imply SND_SOC_JZ4760_CODEC
+diff --git a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+index 9fe07cdfe..24d37dc9d 100644
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -150,10 +150,10 @@ snd-soc-hdac-hda-y := hdac_hda.o
+ snd-soc-hda-codec-y := hda.o hda-dai.o
+ snd-soc-ics43432-y := ics43432.o
+ snd-soc-idt821034-y := idt821034.o
++snd-soc-ingenic-t31-codec-y := ingenic-t31-codec.o
+ snd-soc-inno-rk3036-y := inno_rk3036.o
+ snd-soc-isabelle-y := isabelle.o
+ snd-soc-jz4740-codec-y := jz4740.o
+-snd-soc-ingenic-t31-codec-y := ingenic-t31-codec.o
+ snd-soc-jz4725b-codec-y := jz4725b.o
+ snd-soc-jz4760-codec-y := jz4760.o
+ snd-soc-jz4770-codec-y := jz4770.o
+@@ -595,9 +595,9 @@ obj-$(CONFIG_SND_SOC_HDAC_HDA) += snd-soc-hdac-hda.o
+ obj-$(CONFIG_SND_SOC_HDA) += snd-soc-hda-codec.o
+ obj-$(CONFIG_SND_SOC_ICS43432)	+= snd-soc-ics43432.o
+ obj-$(CONFIG_SND_SOC_IDT821034)	+= snd-soc-idt821034.o
++obj-$(CONFIG_SND_SOC_INGENIC_T31_CODEC)	+= snd-soc-ingenic-t31-codec.o
+ obj-$(CONFIG_SND_SOC_INNO_RK3036)	+= snd-soc-inno-rk3036.o
+ obj-$(CONFIG_SND_SOC_ISABELLE)	+= snd-soc-isabelle.o
+-obj-$(CONFIG_SND_SOC_INGENIC_T31_CODEC)	+= snd-soc-ingenic-t31-codec.o
+ obj-$(CONFIG_SND_SOC_JZ4740_CODEC)	+= snd-soc-jz4740-codec.o
+ obj-$(CONFIG_SND_SOC_JZ4725B_CODEC)	+= snd-soc-jz4725b-codec.o
+ obj-$(CONFIG_SND_SOC_JZ4760_CODEC)      += snd-soc-jz4760-codec.o
+diff --git a/sound/soc/codecs/ingenic-t31-codec.c b/sound/soc/codecs/ingenic-t31-codec.c
+index 122953f3b..ea71420df 100644
+--- a/sound/soc/codecs/ingenic-t31-codec.c
++++ b/sound/soc/codecs/ingenic-t31-codec.c
+@@ -456,7 +456,40 @@ static const struct snd_kcontrol_new t31_codec_controls[] = {
+ 		       T31_VOL_MAX, 0, t31_codec_ctl_get, t31_codec_ctl_put),
+ };
+ 
++/*
++ * System sleep: drop the speaker amplifier while suspended so it cannot
++ * stay on with a playback stream open, and raise it again on resume.
++ * Whether the codec registers survive a T31 suspend is not known (the
++ * thingino configs build without CONFIG_SUSPEND); if they do not, the
++ * stream needs a fresh prepare after resume.
++ */
++static int t31_codec_suspend(struct snd_soc_component *component)
++{
++	struct t31_codec *c = snd_soc_component_get_drvdata(component);
++
++	mutex_lock(&c->lock);
++	if (c->dac_on)
++		gpiod_set_value_cansleep(c->amp, 0);
++	mutex_unlock(&c->lock);
++
++	return 0;
++}
++
++static int t31_codec_resume(struct snd_soc_component *component)
++{
++	struct t31_codec *c = snd_soc_component_get_drvdata(component);
++
++	mutex_lock(&c->lock);
++	if (c->dac_on)
++		gpiod_set_value_cansleep(c->amp, 1);
++	mutex_unlock(&c->lock);
++
++	return 0;
++}
++
+ static const struct snd_soc_component_driver t31_codec_component = {
++	.suspend		= t31_codec_suspend,
++	.resume			= t31_codec_resume,
+ 	.controls		= t31_codec_controls,
+ 	.num_controls		= ARRAY_SIZE(t31_codec_controls),
+ 	.endianness		= 1,

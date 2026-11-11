@@ -1,0 +1,130 @@
+Subject: [PATCH] ASoC: ingenic-t31-codec: mark state-driven steps with
+ a flag
+
+t31_codec_run() picked the steps whose value comes from the codec state
+(mono, boost, gain, ALC, volume, and the CANACR write that dac_off skips
+while capturing) by comparing the step pointer with fixed array
+elements. Editing or reordering a table would silently move those values
+to another register. Give each step a source field instead and switch
+on it.
+---
+ sound/soc/codecs/ingenic-t31-codec.c | 58 +++++++++++++++++++++-------
+ 1 file changed, 43 insertions(+), 15 deletions(-)
+
+diff --git a/sound/soc/codecs/ingenic-t31-codec.c b/sound/soc/codecs/ingenic-t31-codec.c
+index 5b8664b43..122953f3b 100644
+--- a/sound/soc/codecs/ingenic-t31-codec.c
++++ b/sound/soc/codecs/ingenic-t31-codec.c
+@@ -54,9 +54,26 @@
+ #define T31_VOL_MAX		31
+ #define T31_VOL_DEFAULT		0x18
+ 
++/*
++ * Where a step's value comes from.  T31_V_CONST writes .val; the others take
++ * it from the codec state, so editing or reordering a table cannot silently
++ * move a state value to another register.  T31_V_KEEP_ADC skips the step
++ * while the capture path is on (it would clear bits the ADC still needs).
++ */
++enum t31_codec_vsrc {
++	T31_V_CONST = 0,
++	T31_V_MONO,
++	T31_V_BOOST,
++	T31_V_GAIN,
++	T31_V_ALC,
++	T31_V_VOL,
++	T31_V_KEEP_ADC,
++};
++
+ struct t31_codec_step {
+ 	u16 reg;
+ 	u8 lsb, msb, val, delay_ms;
++	u8 src;		/* enum t31_codec_vsrc */
+ };
+ 
+ /* power-up, once */
+@@ -78,13 +95,13 @@ static const struct t31_codec_step t31_codec_powerup[] = {
+ 	{ T31_CODEC_CCR,	0, 6, 0x7f, 50 },
+ };
+ 
+-/* microphone capture enable; the entries marked below come from the state */
++/* microphone capture enable; T31_V_* entries take their value from the state */
+ static const struct t31_codec_step t31_codec_adc_on[] = {
+ 	{ T31_CODEC_CANACR,	0, 1, 0x02, 10 },
+ 	{ T31_CODEC_CGAINLR,	0, 4, 0x08, 10 },
+ 	{ T31_CODEC_CACR,	5, 6, 0x00, 10 },
+ 	{ T31_CODEC_CACR,	3, 4, 0x02, 10 },
+-	{ T31_CODEC_CACR,	0, 0, 0x00, 10 },	/* mono: from the state */
++	{ T31_CODEC_CACR,	0, 0, 0x00, 10, T31_V_MONO },
+ 	{ T31_CODEC_CACR,	7, 7, 0x01, 10 },
+ 	{ T31_CODEC_CACR2,	0, 7, 0x3e, 10 },
+ 	{ T31_CODEC_CMICCR,	7, 7, 0x01, 10 },
+@@ -99,9 +116,9 @@ static const struct t31_codec_step t31_codec_adc_on[] = {
+ 	{ T31_CODEC_CANACR,	4, 4, 0x01, 10 },
+ 	{ T31_CODEC_CANACR,	7, 7, 0x01, 10 },
+ 	{ T31_CODEC_CMICCR,	6, 6, 0x01, 10 },
+-	{ T31_CODEC_CMICGAINR,	6, 7, 0x02, 10 },	/* boost: from the state */
+-	{ T31_CODEC_CALCGR,	0, 4, 0x0c, 10 },	/* gain: from the state */
+-	{ T31_CODEC_CMICCR,	4, 4, 0x01, 10 },	/* ALC: from the state */
++	{ T31_CODEC_CMICGAINR,	6, 7, 0x02, 10, T31_V_BOOST },
++	{ T31_CODEC_CALCGR,	0, 4, 0x0c, 10, T31_V_GAIN },
++	{ T31_CODEC_CMICCR,	4, 4, 0x01, 10, T31_V_ALC },
+ 	{ T31_CODEC_CCR,	0, 6, 0x01, 10 },
+ };
+ 
+@@ -132,7 +149,7 @@ static const struct t31_codec_step t31_codec_dac_on[] = {
+ 	{ T31_CODEC_CANACR2,	5, 5, 0x01, 10 },
+ 	{ T31_CODEC_CANACR2,	4, 4, 0x01, 10 },
+ 	{ T31_CODEC_CHR,	7, 7, 0x01, 10 },
+-	{ T31_CODEC_CHR,	0, 4, 0x18, 10 },	/* volume: from the state */
++	{ T31_CODEC_CHR,	0, 4, 0x18, 10, T31_V_VOL },
+ 	{ T31_CODEC_CCR,	0, 6, 0x01, 10 },
+ };
+ 
+@@ -145,7 +162,7 @@ static const struct t31_codec_step t31_codec_dac_off[] = {
+ 	{ T31_CODEC_CANACR2,	5, 5, 0x00, 10 },
+ 	{ T31_CODEC_CANACR2,	6, 6, 0x00, 10 },
+ 	{ T31_CODEC_CANACR2,	7, 7, 0x00, 10 },
+-	{ T31_CODEC_CANACR,	0, 1, 0x01, 10 },	/* skipped while capturing */
++	{ T31_CODEC_CANACR,	0, 1, 0x01, 10, T31_V_KEEP_ADC },
+ 	{ T31_CODEC_CANACR,	3, 3, 0x00, 10 },
+ 	{ T31_CODEC_CANACR2,	4, 4, 0x00, 10 },
+ };
+@@ -174,19 +191,30 @@ static int t31_codec_run(struct t31_codec *c, const struct t31_codec_step *s,
+ 	for (i = 0; i < n; i++, s++) {
+ 		unsigned int mask = GENMASK(s->msb, s->lsb);
+ 
+-		val = s->val;
+-		if (s == &t31_codec_adc_on[4])
++		switch (s->src) {
++		case T31_V_MONO:
+ 			val = c->channels == 1;
+-		else if (s == &t31_codec_adc_on[19])
++			break;
++		case T31_V_BOOST:
+ 			val = c->boost;
+-		else if (s == &t31_codec_adc_on[20])
++			break;
++		case T31_V_GAIN:
+ 			val = c->gain;
+-		else if (s == &t31_codec_adc_on[21])
++			break;
++		case T31_V_ALC:
+ 			val = c->alc;
+-		else if (s == &t31_codec_dac_on[12])
++			break;
++		case T31_V_VOL:
+ 			val = c->vol;
+-		else if (s == &t31_codec_dac_off[7] && c->adc_on)
+-			continue;
++			break;
++		case T31_V_KEEP_ADC:
++			if (c->adc_on)
++				continue;
++			fallthrough;
++		default:
++			val = s->val;
++			break;
++		}
+ 
+ 		ret = regmap_update_bits(c->regmap, s->reg, mask, val << s->lsb);
+ 		if (ret)

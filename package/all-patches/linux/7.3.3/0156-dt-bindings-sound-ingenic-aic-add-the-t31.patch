@@ -1,0 +1,65 @@
+Subject: [PATCH] dt-bindings: sound: ingenic,aic: add the T31
+
+Add ingenic,t31-i2s to the AIC binding; the T31 has a third clock, the
+capture divider (i2s-rx).
+---
+ .../bindings/sound/ingenic,aic.yaml           | 25 ++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/sound/ingenic,aic.yaml b/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
+index d15c000f1..ce989d5f3 100644
+--- a/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
++++ b/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
+@@ -23,6 +23,7 @@ properties:
+           - ingenic,jz4760-i2s
+           - ingenic,jz4770-i2s
+           - ingenic,jz4780-i2s
++          - ingenic,t31-i2s
+           - ingenic,x1000-i2s
+       - items:
+           - const: ingenic,jz4725b-i2s
+@@ -38,14 +39,18 @@ properties:
+     maxItems: 1
+ 
+   clocks:
++    minItems: 2
+     items:
+       - description: AIC clock
+-      - description: I2S clock
++      - description: I2S clock (on the T31 the playback divider)
++      - description: I2S capture divider (T31 only)
+ 
+   clock-names:
++    minItems: 2
+     items:
+       - const: aic
+       - const: i2s
++      - const: i2s-rx
+ 
+   dmas:
+     items:
+@@ -57,6 +62,24 @@ properties:
+       - const: rx
+       - const: tx
+ 
++if:
++  properties:
++    compatible:
++      contains:
++        const: ingenic,t31-i2s
++then:
++  properties:
++    clocks:
++      minItems: 3
++    clock-names:
++      minItems: 3
++else:
++  properties:
++    clocks:
++      maxItems: 2
++    clock-names:
++      maxItems: 2
++
+ unevaluatedProperties: false
+ 
+ required:

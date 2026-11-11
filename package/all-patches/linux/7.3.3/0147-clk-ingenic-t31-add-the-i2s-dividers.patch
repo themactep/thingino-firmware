@@ -1,0 +1,231 @@
+Subject: [PATCH] clk: ingenic: t31: add the I2S dividers
+
+The T31 AIC gets its bit/system clock from two M/N dividers in the CPM,
+I2SSPKCDR (0x70, playback) and I2SMICCDR (0x84, capture):
+Fout = Fin * M / N, M = [28:20], N = [19:0], CE = bit 29, parent mux
+[31:30] (SCLK_A, MPLL, VPLL; the mic divider follows the speaker mux).
+The bootloader leaves both with CE clear, so the AIC has no clock and
+a capture never gets a single sample.
+
+Add them as custom clocks i2s_spk (55) and i2s_mic (56) with
+recalc/determine_rate/set_rate/enable/get_parent.  There is no disable
+(the vendor kernel never clears CE).
+
+Index 54 (T31_CLK_VPU) only exists in the T20 table, so the T31 table
+now has a hole.  Let the core skip entries without a type instead of
+failing the whole CGU, and limit the T20 table copy to the T31 clocks
+below the VPU so the T20 does not overflow its allocation.
+---
+--- a/include/dt-bindings/clock/ingenic,t31-cgu.h
++++ b/include/dt-bindings/clock/ingenic,t31-cgu.h
+@@ -67,5 +67,7 @@
+ #define T31_CLK_RTC		52
+ #define T31_CLK_USBPHY		53
+ #define T31_CLK_VPU		54
++#define T31_CLK_I2S_SPK		55
++#define T31_CLK_I2S_MIC		56
+ 
+ #endif /* __DT_BINDINGS_CLOCK_T31_CGU_H__ */
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -5,10 +5,13 @@
+  * Copyright (C) 2026 Alfonso Gamboa <gtxent@gmail.com>
+  */
+ 
++#include <linux/bitfield.h>
+ #include <linux/clk-provider.h>
+ #include <linux/delay.h>
+ #include <linux/io.h>
++#include <linux/math64.h>
+ #include <linux/of.h>
++#include <linux/rational.h>
+ #include <linux/slab.h>
+ 
+ #include <dt-bindings/clock/ingenic,t31-cgu.h>
+@@ -34,9 +37,11 @@
+ #define CGU_REG_MACCDR		0x54
+ #define CGU_REG_LPCDR		0x64
+ #define CGU_REG_MSC0CDR		0x68
++#define CGU_REG_I2SSPKCDR	0x70
+ #define CGU_REG_SSICDR		0x74
+ #define CGU_REG_CIMCDR		0x7c
+ #define CGU_REG_ISPCDR		0x80
++#define CGU_REG_I2SMICCDR	0x84
+ #define CGU_REG_MSC1CDR		0xa4
+ #define CGU_REG_VPLL		0xe0
+ #define CGU_REG_MACPHYC		0xe8
+@@ -45,6 +50,11 @@
+ #define OPCR_GATE_USBPHYCLK	BIT(23)
+ #define OPCR_SPENDN0		BIT(7)
+ 
++/* fields of the I2S dividers I2SSPKCDR/I2SMICCDR: Fout = Fin * M / N */
++#define I2SCDR_CE		BIT(29)
++#define I2SCDR_M_MASK		GENMASK(28, 20)
++#define I2SCDR_N_MASK		GENMASK(19, 0)
++
+ /* bits within the USBPCR register */
+ #define USBPCR_SIDDQ		BIT(21)
+ #define USBPCR_OTG_DISABLE	BIT(20)
+@@ -84,6 +94,118 @@
+ };
+ 
+ /*
++ * The two I2S dividers (speaker/playback and microphone/capture) are M/N
++ * fractional dividers without a stop bit.  The vendor kernel never clears
++ * CE, so there is no .disable.  The parent select [31:30] of I2SSPKCDR is
++ * shared: I2SMICCDR[31:30] is read-only and follows it.  The mux is left
++ * as the bootloader set it.
++ */
++static void __iomem *t31_i2s_reg(struct clk_hw *hw)
++{
++	unsigned int idx = to_ingenic_clk(hw)->idx;
++
++	return cgu->base + (idx == T31_CLK_I2S_MIC ? CGU_REG_I2SMICCDR :
++						     CGU_REG_I2SSPKCDR);
++}
++
++static unsigned long t31_i2s_recalc_rate(struct clk_hw *hw,
++					 unsigned long parent_rate)
++{
++	u32 v = readl(t31_i2s_reg(hw));
++	u32 m = FIELD_GET(I2SCDR_M_MASK, v);
++	u32 n = FIELD_GET(I2SCDR_N_MASK, v);
++
++	if (!m || !n)
++		return 0;
++
++	return div_u64((u64)parent_rate * m, n);
++}
++
++static int t31_i2s_calc(unsigned long rate, unsigned long parent_rate,
++			unsigned long *m, unsigned long *n)
++{
++	if (!rate || !parent_rate)
++		return -EINVAL;
++
++	rational_best_approximation(rate, parent_rate, 0x1ff, 0xfffff, m, n);
++
++	/* keep the duty cycle sane: N >= 2 * M */
++	if (!*m || !*n || *n < 2 * *m)
++		return -EINVAL;
++
++	return 0;
++}
++
++static int t31_i2s_determine_rate(struct clk_hw *hw,
++				  struct clk_rate_request *req)
++{
++	unsigned long m, n;
++	int ret;
++
++	ret = t31_i2s_calc(req->rate, req->best_parent_rate, &m, &n);
++	if (ret)
++		return ret;
++
++	req->rate = div_u64((u64)req->best_parent_rate * m, n);
++	return 0;
++}
++
++static int t31_i2s_set_rate(struct clk_hw *hw, unsigned long rate,
++			    unsigned long parent_rate)
++{
++	void __iomem *reg = t31_i2s_reg(hw);
++	unsigned long m, n, flags;
++	int ret;
++	u32 v;
++
++	ret = t31_i2s_calc(rate, parent_rate, &m, &n);
++	if (ret)
++		return ret;
++
++	spin_lock_irqsave(&cgu->lock, flags);
++	v = readl(reg) & ~(I2SCDR_M_MASK | I2SCDR_N_MASK);
++	v |= FIELD_PREP(I2SCDR_M_MASK, m) | FIELD_PREP(I2SCDR_N_MASK, n);
++	writel(v, reg);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
++static int t31_i2s_enable(struct clk_hw *hw)
++{
++	void __iomem *reg = t31_i2s_reg(hw);
++	unsigned long flags;
++
++	spin_lock_irqsave(&cgu->lock, flags);
++	writel(readl(reg) | I2SCDR_CE, reg);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
++static int t31_i2s_is_enabled(struct clk_hw *hw)
++{
++	return !!(readl(t31_i2s_reg(hw)) & I2SCDR_CE);
++}
++
++static u8 t31_i2s_get_parent(struct clk_hw *hw)
++{
++	u32 sel = readl(cgu->base + CGU_REG_I2SSPKCDR) >> 30;
++
++	/* 3 is invalid in the vendor table, treat like VPLL */
++	return sel > 2 ? 2 : sel;
++}
++
++static const struct clk_ops t31_i2s_ops = {
++	.recalc_rate	= t31_i2s_recalc_rate,
++	.determine_rate	= t31_i2s_determine_rate,
++	.set_rate	= t31_i2s_set_rate,
++	.enable		= t31_i2s_enable,
++	.is_enabled	= t31_i2s_is_enabled,
++	.get_parent	= t31_i2s_get_parent,
++};
++
++/*
+  * T31 PLL OD encoding.
+  *
+  * T31 PLLs have two output divider fields: OD1 (bits 13:11) and OD0
+@@ -511,6 +633,20 @@
+ 		.parents = { T31_CLK_PCLK, -1, -1, -1 },
+ 		.gate = { CGU_REG_OPCR, 23, .clear_to_gate = true },
+ 	},
++
++	/* index 54 (T31_CLK_VPU) only exists in the T20 table */
++
++	[T31_CLK_I2S_SPK] = {
++		"i2s_spk", CGU_CLK_CUSTOM,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL, T31_CLK_VPLL, -1 },
++		.custom = { &t31_i2s_ops },
++	},
++
++	[T31_CLK_I2S_MIC] = {
++		"i2s_mic", CGU_CLK_CUSTOM,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL, T31_CLK_VPLL, -1 },
++		.custom = { &t31_i2s_ops },
++	},
+ };
+ 
+ static void __init t31_cgu_init(struct device_node *np)
+@@ -535,7 +671,8 @@
+ 			return;
+ 		}
+ 
+-		memcpy(t20_clocks, t31_cgu_clocks, sizeof(t31_cgu_clocks));
++		memcpy(t20_clocks, t31_cgu_clocks,
++		       T31_CLK_VPU * sizeof(*t20_clocks));
+ 		t20_clocks[T31_CLK_VPU] = (struct ingenic_cgu_clk_info) {
+ 			.name = "vpu",
+ 			.type = CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
+--- a/drivers/clk/ingenic/cgu.c
++++ b/drivers/clk/ingenic/cgu.c
+@@ -826,6 +826,10 @@
+ 	}
+ 
+ 	for (i = 0; i < cgu->clocks.clk_num; i++) {
++		/* skip holes in sparse clock tables */
++		if (!cgu->clock_info[i].type)
++			continue;
++
+ 		err = ingenic_register_clock(cgu, i);
+ 		if (err)
+ 			goto err_out_unregister;

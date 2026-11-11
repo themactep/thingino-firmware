@@ -1,0 +1,296 @@
+Subject: [PATCH] ASoC: jz4740-i2s: add the T31 (internal codec is the clock master)
+
+On the T31 the internal codec provides bit and frame clock; the AIC only
+receives.  The vendor driver sets AICFR bit 7 (codec master) with
+BCKD = SYNCD = 0 and ESCLK = 1 and never resets the AIC (the reset bit
+needs the bit clock and hangs without it).  The AIC reset in the
+component probe, the master setup of the jz4780 variant and the 12 MHz
+stub clock therefore leave the receiver without any clock: capture never
+delivers a sample and the first hw_params/trigger cannot work.
+
+Add "ingenic,t31-i2s" (codec_master_only):
+- clocks "i2s" and "i2s-rx" are the CPM dividers I2SSPKCDR/I2SMICCDR,
+  initialised to 8 kHz * 256 at probe and set to fs * 256 in hw_params
+  (rx divider for capture);
+- the component probe writes codec-master|LSMP|AUSEL|ICDC and does not
+  reset the AIC;
+- set_fmt only accepts the codec as clock provider and keeps ESCLK;
+- capture accepts mono (AICCR MONOCTR = 01, right channel only);
+- the receive FIFO is flushed in prepare(), when the codec bit clock
+  runs, and waited for;
+- the I2SDIV register is not touched (unused in codec-master mode).
+---
+--- a/sound/soc/jz4740/jz4740-i2s.c
++++ b/sound/soc/jz4740/jz4740-i2s.c
+@@ -9,6 +9,7 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/init.h>
+ #include <linux/io.h>
++#include <linux/iopoll.h>
+ #include <linux/kernel.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+@@ -30,6 +31,7 @@
+ #define JZ_REG_AIC_CLK_DIV	0x30
+ #define JZ_REG_AIC_FIFO		0x34
+ 
++#define JZ_AIC_CONF_CDC_MASTER		BIT(7)
+ #define JZ_AIC_CONF_OVERFLOW_PLAY_LAST	BIT(6)
+ #define JZ_AIC_CONF_INTERNAL_CODEC	BIT(5)
+ #define JZ_AIC_CONF_I2S			BIT(4)
+@@ -42,6 +44,7 @@
+ #define JZ_AIC_CTRL_INPUT_SAMPLE_SIZE	GENMASK(18, 16)
+ #define JZ_AIC_CTRL_ENABLE_RX_DMA	BIT(15)
+ #define JZ_AIC_CTRL_ENABLE_TX_DMA	BIT(14)
++#define JZ_AIC_CTRL_MONO_CTRL		GENMASK(13, 12)
+ #define JZ_AIC_CTRL_MONO_TO_STEREO	BIT(11)
+ #define JZ_AIC_CTRL_SWITCH_ENDIANNESS	BIT(10)
+ #define JZ_AIC_CTRL_SIGNED_TO_UNSIGNED	BIT(9)
+@@ -71,6 +74,9 @@
+ 	struct reg_field field_i2sdiv_playback;
+ 
+ 	bool shared_fifo_flush;
++
++	/* the internal codec is the only clock provider (T31) */
++	bool codec_master_only;
+ };
+ 
+ struct jz4740_i2s {
+@@ -83,6 +89,7 @@
+ 
+ 	struct clk *clk_aic;
+ 	struct clk *clk_i2s;
++	struct clk *clk_i2s_rx;
+ 
+ 	struct snd_dmaengine_dai_dma_data playback_dma_data;
+ 	struct snd_dmaengine_dai_dma_data capture_dma_data;
+@@ -101,7 +108,7 @@
+ 	 * that is starting up. We can do this when the DAI is active
+ 	 * because it does not disturb other active substreams.
+ 	 */
+-	if (!i2s->soc_info->shared_fifo_flush) {
++	if (!i2s->soc_info->shared_fifo_flush && !i2s->soc_info->codec_master_only) {
+ 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+ 			regmap_set_bits(i2s->regmap, JZ_REG_AIC_CTRL, JZ_AIC_CTRL_TFLUSH);
+ 		else
+@@ -124,10 +131,43 @@
+ 	if (ret)
+ 		return ret;
+ 
++	if (i2s->soc_info->codec_master_only) {
++		ret = clk_prepare_enable(i2s->clk_i2s_rx);
++		if (ret) {
++			clk_disable_unprepare(i2s->clk_i2s);
++			return ret;
++		}
++	}
++
+ 	regmap_set_bits(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_ENABLE);
+ 	return 0;
+ }
+ 
++/*
++ * The receive FIFO flush needs the bit clock of the codec, which runs only
++ * after the codec startup, so it cannot be done in startup().  Wait for the
++ * self-clearing bit to see that the clock really arrives.
++ */
++static int jz4740_i2s_prepare(struct snd_pcm_substream *substream,
++	struct snd_soc_dai *dai)
++{
++	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
++	unsigned int val;
++	int ret;
++
++	if (!i2s->soc_info->codec_master_only ||
++	    substream->stream != SNDRV_PCM_STREAM_CAPTURE)
++		return 0;
++
++	regmap_set_bits(i2s->regmap, JZ_REG_AIC_CTRL, JZ_AIC_CTRL_RFLUSH);
++	ret = regmap_read_poll_timeout(i2s->regmap, JZ_REG_AIC_CTRL, val,
++				       !(val & JZ_AIC_CTRL_RFLUSH), 100, 20000);
++	if (ret)
++		dev_warn(dai->dev, "RX FIFO flush did not finish: no bit clock?\n");
++
++	return ret;
++}
++
+ static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
+ 	struct snd_soc_dai *dai)
+ {
+@@ -138,6 +178,8 @@
+ 
+ 	regmap_clear_bits(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_ENABLE);
+ 
++	if (i2s->soc_info->codec_master_only)
++		clk_disable_unprepare(i2s->clk_i2s_rx);
+ 	clk_disable_unprepare(i2s->clk_i2s);
+ }
+ 
+@@ -177,6 +219,13 @@
+ 				       JZ_AIC_CONF_SYNC_CLK_MASTER;
+ 	unsigned int conf = 0, format = 0;
+ 
++	if (i2s->soc_info->codec_master_only) {
++		/* the internal codec provides bit and frame clock */
++		if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_BC_FC)
++			return -EINVAL;
++		format |= JZ_AIC_I2S_FMT_ENABLE_SYS_CLK;
++	}
++
+ 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+ 	case SND_SOC_DAIFMT_BP_FP:
+ 		conf |= JZ_AIC_CONF_BIT_CLK_MASTER | JZ_AIC_CONF_SYNC_CLK_MASTER;
+@@ -293,11 +342,29 @@
+ 		ctrl &= ~JZ_AIC_CTRL_INPUT_SAMPLE_SIZE;
+ 		ctrl |= FIELD_PREP(JZ_AIC_CTRL_INPUT_SAMPLE_SIZE, sample_size);
+ 
++		ctrl &= ~JZ_AIC_CTRL_MONO_CTRL;
++		/* 01: only the right channel is received (vendor default) */
++		if (i2s->soc_info->codec_master_only && params_channels(params) == 1)
++			ctrl |= FIELD_PREP(JZ_AIC_CTRL_MONO_CTRL, 1);
++
+ 		div_field = i2s->field_i2sdiv_capture;
+ 		i2sdiv_max = GENMASK(i2s->soc_info->field_i2sdiv_capture.msb,
+ 				     i2s->soc_info->field_i2sdiv_capture.lsb);
+ 	}
+ 
++	if (i2s->soc_info->codec_master_only) {
++		/* the codec runs from fs * 256, I2SDIV is unused */
++		int ret = clk_set_rate(substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
++				       i2s->clk_i2s : i2s->clk_i2s_rx,
++				       params_rate(params) * 256);
++
++		if (ret)
++			return ret;
++
++		regmap_write(i2s->regmap, JZ_REG_AIC_CTRL, ctrl);
++		return 0;
++	}
++
+ 	/*
+ 	 * Only calculate I2SDIV if we're supplying the bit or frame clock.
+ 	 * If the codec is supplying both clocks then the divider output is
+@@ -329,6 +396,7 @@
+ static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+ 	.probe = jz4740_i2s_dai_probe,
+ 	.startup = jz4740_i2s_startup,
++	.prepare = jz4740_i2s_prepare,
+ 	.shutdown = jz4740_i2s_shutdown,
+ 	.trigger = jz4740_i2s_trigger,
+ 	.hw_params = jz4740_i2s_hw_params,
+@@ -414,12 +482,39 @@
+ 	.field_i2sdiv_playback	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 3),
+ };
+ 
++static struct snd_soc_dai_driver t31_i2s_dai = {
++	.playback = {
++		.channels_min = 1,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_CONTINUOUS,
++		.formats = JZ4740_I2S_FMTS,
++	},
++	.capture = {
++		.channels_min = 1,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_CONTINUOUS,
++		.formats = JZ4740_I2S_FMTS,
++	},
++	.ops = &jz4740_i2s_dai_ops,
++};
++
++static const struct i2s_soc_info t31_i2s_soc_info = {
++	.dai			= &t31_i2s_dai,
++	.field_rx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 24, 27),
++	.field_tx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 16, 20),
++	.field_i2sdiv_capture	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 16, 24),
++	.field_i2sdiv_playback	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 8),
++	.codec_master_only	= true,
++};
++
+ static int jz4740_i2s_suspend(struct snd_soc_component *component)
+ {
+ 	struct jz4740_i2s *i2s = snd_soc_component_get_drvdata(component);
+ 
+ 	if (snd_soc_component_active(component)) {
+ 		regmap_clear_bits(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_ENABLE);
++		if (i2s->soc_info->codec_master_only)
++			clk_disable_unprepare(i2s->clk_i2s_rx);
+ 		clk_disable_unprepare(i2s->clk_i2s);
+ 	}
+ 
+@@ -444,6 +539,15 @@
+ 			return ret;
+ 		}
+ 
++		if (i2s->soc_info->codec_master_only) {
++			ret = clk_prepare_enable(i2s->clk_i2s_rx);
++			if (ret) {
++				clk_disable_unprepare(i2s->clk_i2s);
++				clk_disable_unprepare(i2s->clk_aic);
++				return ret;
++			}
++		}
++
+ 		regmap_set_bits(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_ENABLE);
+ 	}
+ 
+@@ -459,11 +563,22 @@
+ 	if (ret)
+ 		return ret;
+ 
+-	regmap_write(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_RESET);
++	if (i2s->soc_info->codec_master_only) {
++		/*
++		 * No reset: it needs the bit clock, which only exists once
++		 * the codec runs, and the reset bit would hang.
++		 */
++		regmap_write(i2s->regmap, JZ_REG_AIC_CONF,
++			     JZ_AIC_CONF_CDC_MASTER |
++			     JZ_AIC_CONF_OVERFLOW_PLAY_LAST |
++			     JZ_AIC_CONF_I2S | JZ_AIC_CONF_INTERNAL_CODEC);
++	} else {
++		regmap_write(i2s->regmap, JZ_REG_AIC_CONF, JZ_AIC_CONF_RESET);
+ 
+-	regmap_write(i2s->regmap, JZ_REG_AIC_CONF,
+-		     JZ_AIC_CONF_OVERFLOW_PLAY_LAST |
+-		     JZ_AIC_CONF_I2S | JZ_AIC_CONF_INTERNAL_CODEC);
++		regmap_write(i2s->regmap, JZ_REG_AIC_CONF,
++			     JZ_AIC_CONF_OVERFLOW_PLAY_LAST |
++			     JZ_AIC_CONF_I2S | JZ_AIC_CONF_INTERNAL_CODEC);
++	}
+ 
+ 	regmap_field_write(i2s->field_rx_fifo_thresh, 7);
+ 	regmap_field_write(i2s->field_tx_fifo_thresh, 8);
+@@ -493,6 +608,7 @@
+ 	{ .compatible = "ingenic,jz4770-i2s", .data = &jz4770_i2s_soc_info },
+ 	{ .compatible = "ingenic,jz4780-i2s", .data = &jz4780_i2s_soc_info },
+ 	{ .compatible = "ingenic,x1000-i2s", .data = &x1000_i2s_soc_info },
++	{ .compatible = "ingenic,t31-i2s", .data = &t31_i2s_soc_info },
+ 	{ /* sentinel */ }
+ };
+ MODULE_DEVICE_TABLE(of, jz4740_of_matches);
+@@ -566,6 +682,24 @@
+ 	if (IS_ERR(i2s->clk_i2s))
+ 		return PTR_ERR(i2s->clk_i2s);
+ 
++	if (i2s->soc_info->codec_master_only) {
++		i2s->clk_i2s_rx = devm_clk_get(dev, "i2s-rx");
++		if (IS_ERR(i2s->clk_i2s_rx))
++			return PTR_ERR(i2s->clk_i2s_rx);
++
++		/*
++		 * The dividers boot with a nonsense M/N; the codec needs a
++		 * valid fs * 256 before the first hw_params (vendor init).
++		 */
++		ret = clk_set_rate(i2s->clk_i2s, 8000 * 256);
++		if (ret)
++			return ret;
++
++		ret = clk_set_rate(i2s->clk_i2s_rx, 8000 * 256);
++		if (ret)
++			return ret;
++	}
++
+ 	i2s->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
+ 					    &jz4740_i2s_regmap_config);
+ 	if (IS_ERR(i2s->regmap))
