@@ -741,19 +741,84 @@ agent_privacy_enabled() {
 # defaults. To show what the daemon is actually doing, fall back to the
 # live encoder state from `raptorctl rvd config` when a key is unset.
 
+# One `raptorctl rvd config` round trip per invocation; every fallback field
+# reuses the cached copy instead of re-querying the control socket.
 agent_runtime_stream_json() {
-	command -v raptorctl >/dev/null 2>&1 || return 1
-	raptorctl rvd config 2>/dev/null | sed -n '/"streams"[[:space:]]*:/,$p' | tr -d '\n'
+	if [ -z "${AGENT_RVD_CONFIG_JSON+x}" ]; then
+		AGENT_RVD_CONFIG_JSON=''
+		command -v raptorctl >/dev/null 2>&1 || return 1
+		AGENT_RVD_CONFIG_JSON=$(raptorctl rvd config 2>/dev/null |
+			sed -n '/"streams"[[:space:]]*:/,$p' | tr -d '\n') || AGENT_RVD_CONFIG_JSON=''
+	fi
+	[ -n "$AGENT_RVD_CONFIG_JSON" ]
 }
 
 agent_runtime_stream_field() {
-	# $1 = stream id, $2 = field name; prints the value or nothing
-	json=$(agent_runtime_stream_json) || return 0
-	[ -n "$json" ] || return 0
-	value=$(printf '%s' "$json" | grep -o '"chn"[[:space:]]*:[[:space:]]*'"$1"'[^}]*}' | head -n 1 |
-		grep -o '"'"$2"'"[[:space:]]*:[[:space:]]*-\{0,1\}[0-9][0-9]*' |
-		head -n 1 | tr -dc '0-9-')
-	printf '%s' "$value"
+	# $1 = stream id, $2 = field name; prints the value or nothing.
+	# config-show emits one flat object per stream ("chn":<id>{...}); the
+	# enclosing object is located by balanced braces, so a nested object no
+	# longer truncates the scan. Arguments are validated before use so
+	# untrusted values never become part of a match expression. The
+	# raptorctl guard lives in agent_runtime_stream_json.
+	agent_runtime_stream_json || return 0
+	printf '%s' "$AGENT_RVD_CONFIG_JSON" |
+		awk -v chn="$1" -v field="$2" '
+		{
+			if (chn !~ /^[0-9]+$/ || field !~ /^[A-Za-z_][A-Za-z_0-9]*$/) exit
+			line = $0
+			pat = "\"chn\""
+			plen = length(pat)
+			while ((pos = index(line, pat)) > 0) {
+				p = pos + plen
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				if (substr(line, p, 1) != ":") {
+					line = substr(line, pos + plen)
+					continue
+				}
+				p++
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				id = ""
+				while (substr(line, p, 1) ~ /[0-9]/) {
+					id = id substr(line, p, 1)
+					p++
+				}
+				if (id == "" || id + 0 != chn + 0) {
+					line = substr(line, pos + plen)
+					continue
+				}
+				obr = 0
+				for (i = pos; i > 0; i--) {
+					if (substr(line, i, 1) == "{") {
+						obr = i
+						break
+					}
+				}
+				obj = ""
+				if (obr > 0) {
+					depth = 0
+					for (i = obr; i <= length(line); i++) {
+						c = substr(line, i, 1)
+						if (c == "{") {
+							depth++
+						} else if (c == "}") {
+							depth--
+							if (depth == 0) {
+								obj = substr(line, obr, i - obr + 1)
+								break
+							}
+						}
+					}
+				}
+				if (obj != "" && match(obj, "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
+					value = substr(obj, RSTART, RLENGTH)
+					sub(/^.*:[ \t]*/, "", value)
+					print value
+					exit
+				}
+				line = substr(line, pos + plen)
+			}
+			exit
+		}'
 }
 
 agent_runtime_codec_name() {
@@ -811,15 +876,17 @@ agent_stream_field() {
 }
 
 agent_stream_nr_vbs() {
-	# rvd treats an unset nr_vbs as "auto" and starts with 2 buffers
-	# (rvd_pipeline.c load_stream_config); report that effective default
-	# instead of null so the Buffers field is not blank.
+	# rvd treats an unset or <= 0 nr_vbs as "auto" and starts with 2 buffers
+	# (rvd_pipeline.c load_stream_config); report that effective value
+	# instead of null so the Buffers field is not blank. Without raptorctl
+	# there is no effective value to report, so read null like the other
+	# stream fields.
+	command -v raptorctl >/dev/null 2>&1 || return 0
 	value=$(agent_stream_field "$1" nr_vbs)
-	if [ -n "$value" ]; then
-		printf '%s' "$value"
-	else
-		printf '2'
+	if [ -z "$value" ] || [ "$value" -le 0 ] 2>/dev/null; then
+		value=2
 	fi
+	printf '%s' "$value"
 }
 
 agent_stream_format() {
