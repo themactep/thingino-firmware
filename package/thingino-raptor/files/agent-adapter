@@ -1494,6 +1494,8 @@ agent_print_config() {
 	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_image_raw contrast)" null)"
 	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_image_raw saturation)" null)"
 	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
+	printf '"noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
+	printf '"temporal_noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image temper)" null)"
 	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
 	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_image_raw ae_comp)" null)"
 	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null)"
@@ -2132,6 +2134,12 @@ agent_get_setting() {
 		image/sharpness)
 			agent_print_setting_leaf sharpness "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
 			;;
+		image/noise-reduction)
+			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
+			;;
+		image/temporal-nr)
+			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_config_get image temper)" null)"
+			;;
 		image/anti-flicker)
 			agent_print_setting_leaf anti_flicker "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
 			;;
@@ -2347,6 +2355,22 @@ agent_set_setting() {
 			agent_config_set image saturation "$value" || return 1
 			agent_config_save
 			agent_print_setting_update "$path" saturation "$value"
+			;;
+		image/noise-reduction)
+			value=$(agent_setting_value "$body_file" noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-sinter "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image sinter "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" noise_reduction "$value"
+			;;
+		image/temporal-nr)
+			value=$(agent_setting_value "$body_file" temporal_noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-temper "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image temper "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" temporal_noise_reduction "$value"
 			;;
 		image/sharpness)
 			value=$(agent_setting_value "$body_file" sharpness) || return 1
