@@ -14,8 +14,12 @@ name: pr-format
 # Run `make setup-hooks` + `make lint` locally to get the same results
 # before pushing.
 
+# pull_request_target runs the workflow from the base branch, so fork PRs
+# start without the maintainer approval that pull_request requires. Treat the
+# checked-out PR code as untrusted: keep the token read-only and do not add
+# secrets to this workflow.
 on:
-  pull_request:
+  pull_request_target:
 
 permissions:
   contents: read
@@ -35,12 +39,27 @@ jobs:
   format:
     runs-on: ubuntu-26.04
     steps:
+      - name: Resolve pull request ref
+        id: pr-ref
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          set -eu
+          if git ls-remote --exit-code "$REPO_URL" "refs/pull/${PR_NUMBER}/merge" >/dev/null 2>&1; then
+            echo "ref=refs/pull/${PR_NUMBER}/merge" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=refs/pull/${PR_NUMBER}/head" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v5
         with:
+          ref: ${{ steps.pr-ref.outputs.ref }}
           submodules: false
           # depth 2 so the PR merge ref's parents (base tip + head) are
           # present; the changed-file diff below relies on them.
           fetch-depth: 2
+          persist-credentials: false
 
       - name: Collect changed files
         env:
