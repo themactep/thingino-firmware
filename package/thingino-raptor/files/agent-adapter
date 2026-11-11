@@ -6,7 +6,7 @@ THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 
 # The adapter owns the EXIT trap of the agentctl shell that sources it.
-trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$' EXIT
+trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$ /tmp/agent-raptor-rvdconfig.$$' EXIT
 
 agent_name() {
 	printf 'raptor'
@@ -741,16 +741,20 @@ agent_privacy_enabled() {
 # defaults. To show what the daemon is actually doing, fall back to the
 # live encoder state from `raptorctl rvd config` when a key is unset.
 
-# One `raptorctl rvd config` round trip per invocation; every fallback field
-# reuses the cached copy instead of re-querying the control socket.
+# One `raptorctl rvd config` round trip per adapter invocation, cached via
+# a PID-keyed temp file (same pattern as the isp/wb caches) so every
+# fallback field and subshell reuses the copy instead of re-querying the
+# control socket. The file is created even when the query returns nothing,
+# so a dead rvd is attempted once per render, not once per field.
 agent_runtime_stream_json() {
-	if [ -z "${AGENT_RVD_CONFIG_JSON+x}" ]; then
-		AGENT_RVD_CONFIG_JSON=''
+	_rvd_cache="/tmp/agent-raptor-rvdconfig.$$"
+	if [ ! -e "$_rvd_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 1
-		AGENT_RVD_CONFIG_JSON=$(raptorctl rvd config 2>/dev/null |
-			sed -n '/"streams"[[:space:]]*:/,$p' | tr -d '\n') || AGENT_RVD_CONFIG_JSON=''
+		raptorctl rvd config 2>/dev/null |
+			sed -n '/"streams"[[:space:]]*:/,$p' >"$_rvd_cache"
 	fi
-	[ -n "$AGENT_RVD_CONFIG_JSON" ]
+	[ -s "$_rvd_cache" ] || return 1
+	cat "$_rvd_cache" 2>/dev/null
 }
 
 agent_runtime_stream_field() {
@@ -760,8 +764,9 @@ agent_runtime_stream_field() {
 	# longer truncates the scan. Arguments are validated before use so
 	# untrusted values never become part of a match expression. The
 	# raptorctl guard lives in agent_runtime_stream_json.
-	agent_runtime_stream_json || return 0
-	printf '%s' "$AGENT_RVD_CONFIG_JSON" |
+	json=$(agent_runtime_stream_json) || return 0
+	[ -n "$json" ] || return 0
+	printf '%s' "$json" | tr -d '\n' |
 		awk -v chn="$1" -v field="$2" '
 		{
 			if (chn !~ /^[0-9]+$/ || field !~ /^[A-Za-z_][A-Za-z_0-9]*$/) exit
@@ -809,11 +814,27 @@ agent_runtime_stream_field() {
 						}
 					}
 				}
-				if (obj != "" && match(obj, "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
-					value = substr(obj, RSTART, RLENGTH)
-					sub(/^.*:[ \t]*/, "", value)
-					print value
-					exit
+				obj_rest_offset = 1
+				while (match(substr(obj, obj_rest_offset), "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
+					# Only trust a top-level field: the match must sit
+					# at brace depth 1 inside the stream object (obj
+					# opens at depth 1), so a same-named key inside a
+					# nested object is skipped and a later top-level
+					# match is still found.
+					mstart = obj_rest_offset + RSTART - 1
+					depth = 0
+					for (j = 1; j < mstart; j++) {
+						c = substr(obj, j, 1)
+						if (c == "{") depth++
+						else if (c == "}") depth--
+					}
+					if (depth == 1) {
+						value = substr(obj, mstart, RLENGTH)
+						sub(/^.*:[ \t]*/, "", value)
+						print value
+						exit
+					}
+					obj_rest_offset = mstart + RLENGTH
 				}
 				line = substr(line, pos + plen)
 			}
@@ -877,16 +898,28 @@ agent_stream_field() {
 
 agent_stream_nr_vbs() {
 	# rvd treats an unset or <= 0 nr_vbs as "auto" and starts with 2 buffers
-	# (rvd_pipeline.c load_stream_config); report that effective value
-	# instead of null so the Buffers field is not blank. Without raptorctl
-	# there is no effective value to report, so read null like the other
-	# stream fields.
+	# (rvd_pipeline.c load_stream_config). Report the effective value so the
+	# Buffers field is not blank: an explicit positive config value wins,
+	# otherwise the resolved value rvd reports, otherwise the documented
+	# start value. Keyed on raptorctl availability (the same gate the config
+	# lookup uses), not on rvd running: the config file still declares the
+	# key when rvd is down.
 	command -v raptorctl >/dev/null 2>&1 || return 0
 	value=$(agent_stream_field "$1" nr_vbs)
-	if [ -z "$value" ] || [ "$value" -le 0 ] 2>/dev/null; then
-		value=2
-	fi
-	printf '%s' "$value"
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	value=$(agent_runtime_stream_field "$1" nr_vbs)
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	printf '2'
 }
 
 agent_stream_format() {
@@ -1127,7 +1160,7 @@ agent_print_stream_config() {
 	_gop=$(agent_stream_field "$stream_id" gop)
 	[ -n "$_gop" ] || _gop=$(agent_runtime_stream_field "$stream_id" gop)
 	printf '"gop":%s,' "$(agent_json_value_or "$_gop" null)"
-	printf '"buffers":%s,' "$(agent_stream_nr_vbs "$stream_id")"
+	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_nr_vbs "$stream_id")" null)"
 	_profile_raw=$(agent_stream_field "$stream_id" profile)
 	_profile_name=""
 	if [ -n "$_profile_raw" ]; then
