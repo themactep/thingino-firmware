@@ -17,7 +17,6 @@ endif
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
-BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
 # --- CI / automation fast-paths -------------------------------------
 #
@@ -36,8 +35,8 @@ BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 # Run dependency check before doing anything.
 # Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
-ifneq ($(filter update,$(MAKECMDGOALS)),)
-$(info Skipping dependency check for update target)
+ifneq ($(filter update update-certs,$(MAKECMDGOALS)),)
+$(info Skipping dependency check for update/update-certs target)
 else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 _dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 ifneq ($(lastword $(_dep_check)),0)
@@ -68,6 +67,10 @@ THINGINO_USER_DIR := /dev/null
 endif
 export THINGINO_USER_DIR
 THINGINO_USER_COMMON_DIR := $(THINGINO_USER_DIR)/common
+
+# Opt-in creation of the user config skeleton (empty local.fragment, etc.).
+# Set USER_DIRS=1 or run `make user-dirs`; plain builds leave user/ untouched.
+USER_DIRS ?=
 
 # Global backup directory for camera overlay archives
 THINGINO_BACKUP_DIR ?= $(HOME)/.thingino/backups
@@ -264,6 +267,17 @@ endif
 ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 ifneq ($(SOC_MODEL),)
 UBOOT_BIN_NAME := $(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)
+# Camera defconfig can override the binary name (e.g. MMC boards produce
+# u-boot-with-spl-mmc-lzma.bin).  The defconfig is included before this
+# point, so BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME is already set when the
+# camera overrides it; the thingino.mk default matches SOC_UBOOT_BIN and
+# is not an override.
+_defconfig_bin := $(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
+ifneq ($(_defconfig_bin),$(UBOOT_BIN_NAME))
+ifneq ($(_defconfig_bin),)
+UBOOT_BIN_NAME := $(_defconfig_bin)
+endif
+endif
 endif
 endif
 
@@ -304,8 +318,21 @@ ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
 RED := printf '\033[1;38;5;160m%s\033[0m\n'
 GREEN := printf '\033[1;38;5;40m%s\033[0m\n'
+YELLOW := printf '\033[1;38;5;226m%s\033[0m\n'
 
 ALIGN_BLOCK := 65536
+
+# mkfs.jffs2 must pack nodes in the erase block size the kernel's NOR driver
+# reports, or every node crossing the boundary is discarded at mount
+# ("Perhaps the file system was created with the wrong erase size?").
+# Ingenic SFC NOR reports 32 KiB by default; only kernels whose config
+# explicitly selects CONFIG_ERASE_SIZE_64K use 64 KiB.
+KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
+JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
+export JFFS2_ERASE_BLOCK
+
+# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
@@ -427,11 +454,12 @@ endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild \
 	defconfig dev distclean fast help pack ram-build ram-dev ram-setup repack remove_bins \
-	sdk toolchain update br-% \
+	sdk toolchain update update-certs br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
 	backup-overlay user-dirs user-push \
-	dfu scriba ota run setup-hooks show-vars
+	dfu scriba ota run setup-hooks show-vars \
+	raptor-menuconfig raptor-saveconfig
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)

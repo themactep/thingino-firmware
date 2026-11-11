@@ -1,0 +1,117 @@
+{
+  "name": "timps",
+  "label": "timps Streamer",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "Audio",
+          "href": "/config-audio.html"
+        },
+        {
+          "label": "Day / Night",
+          "href": "/config-photosensing.html"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
+      "position": "append",
+      "items": [
+        {
+          "label": "Image Quality",
+          "href": "/streamer-image.html"
+        },
+        {
+          "label": "Video encoder",
+          "href": "/streamer-video.html"
+        },
+        {
+          "label": "Overlays & privacy masks",
+          "href": "/streamer-overlays.html"
+        },
+        {
+          "label": "Motion Detection",
+          "href": "/config-motion.html"
+        },
+        {
+          "label": "Recordings",
+          "href": "/recordings.html"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "label": "Streamer config",
+          "href": "/streamer-config.html"
+        },
+        {
+          "label": "Restart streamer",
+          "href": "/x/restart-prudynt.cgi",
+          "className": "text-danger confirm",
+          "trackActive": false,
+          "action": true,
+          "confirm": {
+            "title": "Restart streamer",
+            "message": "Restart the timps streamer? The video stream will be interrupted for a few seconds.",
+            "confirmLabel": "Restart"
+          },
+          "actionPendingMessage": "Restarting streamer\u2026",
+          "actionMessage": "Streamer restart initiated"
+        }
+      ]
+    },
+    {
+      "section": "ddServices",
+      "position": "prepend",
+      "items": [
+        {
+          "label": "Timelapse",
+          "href": "/timelapse-player.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    "/a/timps-control-bar.js",
+    "/a/timps-auth-gate.js"
+  ],
+  "styles": [
+    "/a/timps.css"
+  ],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "timps": true
+  },
+  "cgi": [
+    "/x/timps-token.cgi",
+    "/x/timps-imp.cgi",
+    "/x/json-recordings.cgi",
+    "/x/json-timelapse.cgi",
+    "/x/timps-iq.cgi",
+    "/x/restart-prudynt.cgi",
+    "/x/json-heartbeat.cgi",
+    "/x/json-heartbeat-slow.cgi",
+    "/x/ch0.jpg",
+    "/x/ch1.jpg",
+    "/x/dl0.jpg",
+    "/x/dl1.jpg"
+  ],
+  "pages": [
+    "/preview.html",
+    "/streamer-video.html",
+    "/streamer-image.html",
+    "/streamer-overlays.html",
+    "/streamer-config.html",
+    "/config-audio.html",
+    "/config-motion.html",
+    "/recordings.html",
+    "/timelapse-player.html"
+  ]
+}

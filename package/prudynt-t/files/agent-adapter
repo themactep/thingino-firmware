@@ -79,11 +79,18 @@ agent_stream_count() {
 
 agent_send2_service_supported() {
 	case "$1" in
-		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		email | ftp | gotify | gphotos | mqtt | ntfy | pushover | storage | telegram | webhook) return 0 ;;
 		*)
 			echo "unsupported send2 service: $1" >&2
 			return 1
 			;;
+	esac
+}
+
+agent_send2_service_has_send_photo() {
+	case "$1" in
+		email | ftp | gphotos | mqtt | ntfy | pushover | storage | telegram | webhook) return 0 ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -354,9 +361,10 @@ agent_print_runtime_recording() {
 agent_print_send2_capabilities() {
 	printf '{'
 	sep=''
-	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
-		printf '%s"%s":{"enabled":true,"send_photo":true,"send_video":%s}' \
+	for service in email ftp gotify gphotos mqtt ntfy pushover storage telegram webhook; do
+		printf '%s"%s":{"enabled":true,"send_photo":%s,"send_video":%s}' \
 			"$sep" "$service" \
+			"$(agent_json_bool "$(agent_send2_service_has_send_photo "$service" && printf true || printf false)")" \
 			"$(agent_json_bool "$(agent_send2_service_has_send_video "$service" && printf true || printf false)")"
 		sep=,
 	done
@@ -1476,6 +1484,10 @@ agent_get_setting() {
 			rest=${path#send2/services/}
 			service=${rest%/send-photo}
 			agent_send2_service_supported "$service" || return 1
+			agent_send2_service_has_send_photo "$service" || {
+				echo "send_photo is not supported for send2 service '$service'" >&2
+				return 1
+			}
 			agent_print_setting_leaf send_photo "$(agent_json_value_or "$(agent_send2_raw "$service" send_photo)" true)"
 			;;
 		send2/services/*/send-video)
@@ -1976,6 +1988,10 @@ agent_set_setting() {
 			rest=${path#send2/services/}
 			service=${rest%/send-photo}
 			agent_send2_service_supported "$service" || return 1
+			agent_send2_service_has_send_photo "$service" || {
+				echo "send_photo is not supported for send2 service '$service'" >&2
+				return 1
+			}
 			value=$(agent_setting_value "$body_file" send_photo) || return 1
 			agent_validate_bool "$value" || return 1
 			if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
@@ -2059,9 +2075,11 @@ agent_apply_config() {
 	agent_persist_if_present "$source_file" motion.cooldown_time
 	agent_persist_if_present "$source_file" motion.send2email
 	agent_persist_if_present "$source_file" motion.send2ftp
+	agent_persist_if_present "$source_file" motion.send2gotify
 	agent_persist_if_present "$source_file" motion.send2gphotos
 	agent_persist_if_present "$source_file" motion.send2mqtt
 	agent_persist_if_present "$source_file" motion.send2ntfy
+	agent_persist_if_present "$source_file" motion.send2pushover
 	agent_persist_if_present "$source_file" motion.send2storage
 	agent_persist_if_present "$source_file" motion.send2telegram
 	agent_persist_if_present "$source_file" motion.send2webhook

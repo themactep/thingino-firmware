@@ -12,6 +12,22 @@ br-%: check-config
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst br-,,$@)
 
+### Raptor runtime configuration (own Kconfig and .config)
+
+raptor-menuconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-menuconfig
+
+# Buildroot's own -update-defconfig refuses to run while KCONFIG_FRAGMENT_FILES
+# is set, so the minimal config is placed as the camera's fragment here.
+raptor-saveconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-savedefconfig
+	@mkdir -p $(CAMERA_SUBDIR)/$(CAMERA)
+	@install -m 0644 $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig \
+		$(CAMERA_SUBDIR)/$(CAMERA)/raptor.config
+	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.config"
+
 # checkout buidroot submodule
 buildroot/Makefile:
 	@$(TEAL) "$@"
@@ -49,7 +65,7 @@ FAT_START_MB := 1
 FAT_SIZE_MB  := 16
 ROOTFS_MMC := $(OUTPUT_DIR)/images/rootfs.ext2
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 	@$(TEAL) "$@"
 	@echo "Building MMC SD card image..."
 	# calculate image size
@@ -60,10 +76,29 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
 	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size > $@.inge
 	dd if=$@.inge of=$@ bs=1 count=36 conv=notrunc status=none && rm -f $@.inge
-	# write SPL at block 34 (first SPL_PAD_TO bytes of U-Boot binary)
-	dd if=$(U_BOOT_BIN) of=$@ bs=512 seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none
-	# write U-Boot image at block 86 (after SPL_PAD_TO)
-	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$(SPL_PAD_TO) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
+	# write SPL + U-Boot from the binary to the SD image.
+	# Some U-Boot boards (e.g. isvp_t31x_msc0) produce a binary with
+	# the SD layout already embedded (SPL at block-34 offset inside the
+	# file); others produce a flat binary (SPL at offset 0).  Detect by
+	# checking whether the first 4 bytes are zero (pre-laid-out) or not.
+	_spl_skip=0; \
+	if [ "$$(xxd -l 4 -p $(U_BOOT_BIN))" = "00000000" ]; then \
+		_spl_skip=$(SPL_BLOCK); \
+	fi; \
+	dd if=$(U_BOOT_BIN) of=$@ bs=512 skip=$$_spl_skip seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none; \
+	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$$(( $$_spl_skip * 512 + $(SPL_PAD_TO) )) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none; \
+	_uboot_end=$$(( $(UBOOT_BLOCK) * 512 + $$(stat -c%s $(U_BOOT_BIN)) - $$_spl_skip * 512 - $(SPL_PAD_TO) )); \
+	_env_off=$$(sed -n 's/^CONFIG_ENV_OFFSET=//p' $(OUTPUT_DIR)/build/uboot-*/\.config); \
+	if [ -n "$$_env_off" ]; then \
+		_env_dec=$$(printf '%d' "$$_env_off"); \
+		if [ $$_env_dec -lt $$_uboot_end ] || \
+		   [ $$(( _env_dec + $$(stat -c%s $(UB_ENV_BIN)) )) -gt $$(( $(FAT_START_MB) * 1048576 )) ]; then \
+			echo "ERROR: U-Boot env at $$_env_off must sit between the end of U-Boot ($$(printf '0x%x' $$_uboot_end)) and the FAT partition ($(FAT_START_MB) MiB)"; \
+			rm -f $@; \
+			exit 1; \
+		fi; \
+		dd if=$(UB_ENV_BIN) of=$@ bs=1 seek=$$_env_dec conv=notrunc status=none; \
+	fi
 	# create partition table (overwrites block 0 but leaves boot data alone)
 	parted $@ --script mklabel msdos \
 		mkpart primary fat32 $(FAT_START_MB)MiB $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB \
@@ -148,21 +183,23 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
-	mkdir -p $(OUTPUT_DIR)/data/overlay
+	mkdir -p $(OUTPUT_DIR)/data/overlay/root
 	# add layered user overlays (files that go into overlayfs upperdir)
+	# Both overlay drivers use upperdir=DATA/root, so seed under root/, not
+	# at the partition root.
 	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
-		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/; \
+		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/root/; \
 	done
 	# delete stub files
-	find $(OUTPUT_DIR)/data/overlay -name ".*keep" -o -name ".empty" -delete
+	find $(OUTPUT_DIR)/data/overlay/root -name ".*keep" -o -name ".empty" -delete
 	# add user opt files into the overlay (they'll be at /opt at runtime,
 	# shadowing any /opt files from the rootfs lowerdir)
 	for dir in $(THINGINO_USER_OPT_DIRS); do \
-		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/root/opt/; \
 	done
 	# pack the data partition image
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \
-		--eraseblock=$(ALIGN_BLOCK) --pad=$(DATA_PARTITION_SIZE)
+		--eraseblock=$(JFFS2_ERASE_BLOCK) --pad=$(DATA_PARTITION_SIZE)
 
 # rebuild kernel
 $(KERNEL_BIN):
@@ -283,7 +320,7 @@ build-all:
 	echo "Successful: $$success" | tee -a "$$log_dir/summary.log"; \
 	echo "Failed: $$failed" | tee -a "$$log_dir/summary.log"; \
 	echo "Logs saved to: $$log_dir" | tee -a "$$log_dir/summary.log"; \
-	if [ $$failed -gt 0 ]; then \
+	if [ "$$failed" -gt 0 ]; then \
 		echo "" | tee -a "$$log_dir/summary.log"; \
 		echo "Failed cameras:" | tee -a "$$log_dir/summary.log"; \
 		echo -e "$$failed_cameras" | tee -a "$$log_dir/summary.log"; \
@@ -296,7 +333,7 @@ help:
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make setup-hooks    configure local git hooks path (.githooks)\n\
-	  make update         update local repo and submodules (excludes buildroot)\n\
+	  make update         update local repo and submodules\n\
 	  make                build from scratch (clean + parallel) [DEFAULT]\n\
 	  make dev            serial build for debugging compilation errors\n\
 	  make fast           fast incremental build (no clean)\n\
@@ -306,7 +343,7 @@ help:
 	  make build-info     generate post-build graphs and package analysis\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
-	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
+	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> (run 'make pack' to finalize)\n\
 	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
@@ -322,6 +359,8 @@ help:
 	  make show-config-deps  show configuration dependencies\n\
 	  make clean-config   remove configuration files\n\
 	  make PRISTINE=1     ignore user files\n\
+	  make user-dirs      create the user/ config skeleton\n\
+	  make USER_DIRS=1    create it as part of a build\n\
 	  \n\
 	Buildroot Submodule Management:\n\
 	  scripts/update_buildroot.sh  advanced buildroot update with options\n\

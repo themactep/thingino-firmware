@@ -1,15 +1,7 @@
-/* tool-timelapse.js - timps native Timelapse Recorder settings.
- *
- * Replaces the stock thingino timelapse page (which edited /etc/timelapse.json
- * + a cron entry calling a prudynt-derived capture script). This version talks
- * DIRECTLY to the timps native timelapse via GET/POST /control (a/timps-api.js):
- * every field maps to a timelapse.* config key, timps persists the changed
- * keys into /etc/timps.conf itself and the running timelapse thread reads
- * them live. Same structure as a/tool-record.js. */
 (function () {
   "use strict";
 
-  if (!document.body || document.body.id !== "page-tool-timelapse") return;
+  if (!document.body || document.body.id !== "page-timelapse-player") return;
   if (!window.timpsApi) {
     console.error("[tool-timelapse] timps-api.js not loaded");
     return;
@@ -17,7 +9,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // field id -> {key, type}. type: bool | int | str
   var FIELDS = [
     { id: "tl_enabled",  key: "enabled",    type: "bool" },
     { id: "tl_dir",      key: "dir",        type: "str"  },
@@ -27,9 +18,6 @@
     { id: "tl_keepdays", key: "keep_days",  type: "int"  },
   ];
 
-  // reverse of FIELDS (timps "timelapse.<key>" -> page field id), so another
-  // open tab/client changing a setting shows up here live instead of only on
-  // next reload.
   var REVERSE = {};
   FIELDS.forEach(function (f) { REVERSE["timelapse." + f.key] = f.id; });
 
@@ -93,9 +81,22 @@
   function save(ev) {
     if (ev) ev.preventDefault();
     if (saveBtn) saveBtn.disabled = true;
-    window.timpsApi.set({ timelapse: collect() }).then(function () {
-      toast("success", "Timelapse settings saved to timps.conf (applied live).", 4000);
-      load();
+    window.timpsApi.set({ timelapse: collect() }).then(function (r) {
+      var corr = r && r.corrections;
+      if (corr) Object.keys(corr).forEach(function (k) {
+        var id = REVERSE[k];
+        if (id) applyKV(id, corr[k]);
+      });
+      corr = window.timpsApi.takeCorrections(r);
+      var needReload = r && (r.rejected > 0 || r.truncated);
+      if (r && r.rejected > 0)
+        toast("warning", "Saved, but the streamer refused " + r.rejected +
+          " value(s) (empty or invalid).", 6000);
+      else if (corr)
+        toast("info", "Saved. " + window.timpsApi.correctionsText(corr) + ".", 6000);
+      else
+        toast("success", "Timelapse settings saved to timps.conf (applied live).", 4000);
+      if (needReload) load();
     }).catch(function (e) {
       toast("danger", "Failed to save timelapse settings: " + (e.message || e));
     }).finally(function () {
@@ -103,17 +104,21 @@
     });
   }
 
+  function applyKV(id, value) {
+    var f = FIELDS.find(function (x) { return x.id === id; });
+    var el = $(id);
+    if (!f || !el) return;
+    if (f.type === "bool") el.checked = (value === "1" || value === "true");
+    else el.value = value;
+  }
+
   function onConfigEvent(type, data) {
     if (!data) return;
     if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
-    if (!id) return;
-    var f = FIELDS.find(function (x) { return x.id === id; });
-    var el = $(id);
-    // don't fight the user mid-edit on this same field
-    if (!f || !el || document.activeElement === el) return;
-    if (f.type === "bool") el.checked = (data.value === "1" || data.value === "true");
-    else el.value = data.value;
+    var el = id ? $(id) : null;
+    if (!el || document.activeElement === el) return;
+    applyKV(id, data.value);
   }
 
   if (form) form.addEventListener("submit", save);

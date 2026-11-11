@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # shellcheck disable=SC2001,SC2012,SC2034,SC2155,SC2162,SC2207
 #
 # Container wrapper for Thingino firmware build

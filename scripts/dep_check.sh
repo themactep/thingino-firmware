@@ -142,7 +142,7 @@ if [ -f /etc/os-release ]; then
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-jsonschema"
+			packages="$default_packages build-essential ccache libcrypt-dev libgmp-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-jsonschema python3-gmpy2"
 			;;
 		*)
 			case "${ID:-}" in
@@ -152,35 +152,35 @@ if [ -f /etc/os-release ]; then
 					pkg_check_command="dpkg-query -W -f='\${Status}'"
 					pkg_install_cmd="apt-get install -y"
 					pkg_update_cmd="apt-get update"
-					packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail"
+					packages="$default_packages build-essential ccache libcrypt-dev libgmp-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-gmpy2"
 					;;
 				rhel | centos | fedora)
 					echo "RedHat-based"
 					pkg_manager="rpm"
 					pkg_check_command="rpm -q --whatprovides"
 					pkg_install_cmd="dnf install -y"
-					packages="$default_packages gcc libxcrypt-devel ncurses-devel newt libusbx-devel uboot-tools"
+					packages="$default_packages gcc gmp-devel libxcrypt-devel ncurses-devel newt libusbx-devel python3 python3-gmpy2 uboot-tools"
 					;;
 				arch)
 					echo "Arch-based"
 					pkg_manager="pacman"
 					pkg_check_command="pacman -Q"
 					pkg_install_cmd="pacman -S --noconfirm"
-					packages="$default_packages base-devel libxcrypt libnewt ncurses uboot-tools"
+					packages="$default_packages base-devel libxcrypt libnewt ncurses python python-gmpy2 uboot-tools"
 					;;
 				alpine)
 					echo "Alpine Linux"
 					pkg_manager="apk"
 					pkg_check_command="apk info -e"
 					pkg_install_cmd="apk add"
-					packages="$default_packages bash build-base findutils grep libusb-dev ncurses-dev newt uboot-tools"
+					packages="$default_packages bash build-base findutils gmp-dev grep libusb-dev ncurses-dev newt py3-gmpy2 python3 uboot-tools"
 					;;
 				opensuse*)
 					echo "OpenSUSE Tumbleweed"
 					pkg_manager="zypper"
 					pkg_check_command="zypper search -i"
 					pkg_install_cmd="zypper install -y"
-					packages="$default_packages gcc findutils grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel u-boot-tools"
+					packages="$default_packages gcc findutils gmp-devel grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel python3 python3-gmpy2 u-boot-tools"
 					;;
 				*)
 					echo "Unsupported OS: ${ID:-unknown}"

@@ -27,7 +27,6 @@
       <p class="text-secondary mb-4">Configure where snapshots and video clips are delivered when motion is detected.</p>
 
       <div class="row g-3">
-        <!-- Motion Detection Card -->
         <div class="col-12 col-lg-6">
           <div class="card h-100">
             <div class="card-header">Motion Detection</div>
@@ -79,7 +78,6 @@
           </div>
         </div>
 
-        <!-- Services Overview Card -->
         <div class="col-12 col-lg-6">
           <div class="card h-100">
             <div class="card-header">Available Services</div>
@@ -196,6 +194,17 @@
                       <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="gotify" data-sendto-bypass="true" title="Test Gotify service">Test</button></td>
                     </tr>
                     <tr>
+                      <td><a href="tool-send2-pushover.html"><i class="bi bi-send-fill me-2"></i>Pushover</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2pushover" data-service="send2pushover">
+                        </div>
+                      </td>
+                      <td><span id="status-pushover-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-pushover-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="pushover" data-sendto-bypass="true" title="Test Pushover service">Test</button></td>
+                    </tr>
+                    <tr>
                       <td><a href="tool-send2-gphotos.html"><i class="bi bi-google me-2"></i>Google Photos</a></td>
                       <td>
                         <div class="form-switch d-inline-block m-0">
@@ -217,7 +226,6 @@
   </div>
 </main>
 
-<!-- Test Modal -->
 <div class="modal fade" id="send2-test-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">

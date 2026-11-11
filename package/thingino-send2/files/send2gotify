@@ -1,4 +1,5 @@
 #!/bin/env sh
+# shellcheck disable=SC1091,SC2034
 # Sends data to a Gotify server
 # https://gotify.net/docs/msg
 
@@ -93,7 +94,7 @@ if [ "true" = "$verbose" ]; then
 	echo_command "$debug_command"
 fi
 
-if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 \
+if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2 \
 		$curl_verbosity \
 		--url "$endpoint" \
 		--header 'Content-Type: application/json' \

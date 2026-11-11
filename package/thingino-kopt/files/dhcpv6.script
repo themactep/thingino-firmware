@@ -146,23 +146,21 @@ update_resolv() {
 	(
 		flock 9
 		# Use a unique identifier to remove only DHCPv6 entries
-		grep -v "# added by odhcp6c" /tmp/resolv.conf >/tmp/resolv.conf.tmp
+		grep -v "# added by odhcp6c" /tmp/resolv.conf >/tmp/resolv.conf.rest
 
-		# Add unique search domains to resolv.conf
+		: >/tmp/resolv.conf.tmp
 		for domain in $domains; do
-			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
-				echo "search $domain # added by odhcp6c" >>/tmp/resolv.conf.tmp
-			fi
+			echo "search $domain # added by odhcp6c" >>/tmp/resolv.conf.tmp
 			echo -c 240 -e "- added search $domain"
 		done
 
-		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
-			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
-				echo "nameserver $c # added by odhcp6c" >>/tmp/resolv.conf.tmp
-			fi
+			echo "nameserver $c # added by odhcp6c" >>/tmp/resolv.conf.tmp
 			echo -c 240 -e "- added nameserver $c"
 		done
+
+		cat /tmp/resolv.conf.rest >>/tmp/resolv.conf.tmp
+		rm -f /tmp/resolv.conf.rest
 
 		# Move the temporary file to /tmp/resolv.conf
 		mv /tmp/resolv.conf.tmp /tmp/resolv.conf

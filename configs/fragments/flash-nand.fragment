@@ -2,7 +2,7 @@
 #
 # A NAND camera profile opts in by listing "flash-nand" on its "# FRAG:" line
 # and selecting the NAND flash type in its defconfig body, e.g.:
-#   # FRAG: soc-xburst2 core ssl flash-nand
+#   # FRAG: soc-xburst2 core flash-nand
 #   BR2_THINGINO_FLASH_NAND=y
 #   FLASH_SIZE_MB=128
 #

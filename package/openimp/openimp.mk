@@ -6,8 +6,9 @@
 
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/opensensor/openimp
-OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = fdb450ce61c16436ec9b8ed32906fc7660075352
+# Release candidate v2026.11.07-rc3 (b1d17615); the same tag is published
+# on the Lu-Fi/openimp open-stack fork.
+OPENIMP_VERSION = v2026.11.07-rc3
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
@@ -19,6 +20,12 @@ OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
 
 OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
+
+# T10 shares the T20 userspace and SDK; build it with the T20 platform.
+ifeq ($(SOC_FAMILY),t10)
+OPENIMP_PLATFORM = T20
+OPENIMP_PLATFORM_LOWER = t20
+endif
 OPENIMP_TOOLCHAIN_PREFIX = $(patsubst %-,%,$(TARGET_CROSS))
 OPENIMP_OUTPUT_DIR = $(@D)/build/$(OPENIMP_PLATFORM_LOWER)
 OPENIMP_BUILT_LIB = $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/build/$(OPENIMP_PLATFORM_LOWER)/libimp.so
@@ -38,6 +45,14 @@ define OPENIMP_BUILD_CMDS
 		LC_ALL=C \
 		THINGINO_DIR=$(BR2_EXTERNAL_THINGINO_PATH) \
 		TOOLCHAIN_PREFIX=$(OPENIMP_TOOLCHAIN_PREFIX) \
+		T20_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T20_TARGET_DIR=$(BASE_DIR) \
+		T21_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T21_TARGET_DIR=$(BASE_DIR) \
+		T23_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T23_TARGET_DIR=$(BASE_DIR) \
+		T30_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T30_TARGET_DIR=$(BASE_DIR) \
 		T31_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
 		T40_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
 		T40_HEADERS=$(OPENIMP_T40_HEADERS) \

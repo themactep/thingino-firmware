@@ -23,6 +23,8 @@
     "port": 21,
     "username": "anonymous",
     "password": "anonymous",
+    "use_ssl": false,
+    "trust_cert": false,
     "path": "thingino",
     "template": "thingino-%Y%m%d-%H%M%S",
     "send_photo": false,
@@ -72,6 +74,15 @@
     "title": "Test message from Thingino",
     "message": "{\"timestamp\": \"%s\"}",
     "send_photo": false
+  },
+  "pushover": {
+    "token": "",
+    "user": "",
+    "title": "Thingino Camera",
+    "message": "Motion detected at %Y-%m-%d %H:%M:%S",
+    "priority": 0,
+    "send_photo": false,
+    "send_video": false
   },
   "speaker": {
     "file": "",

@@ -1,0 +1,8 @@
+{
+  "soc": "a1n",
+  "caps": [
+    "wired",
+    "usb_direct"
+  ],
+  "net": "slirp"
+}

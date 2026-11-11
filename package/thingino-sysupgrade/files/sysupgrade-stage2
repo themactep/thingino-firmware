@@ -28,6 +28,43 @@ flash_firmware() {
 	esac
 }
 
+flash_full() {
+	local mtd sz name needle fw_size align_block bs sz_dec
+	fw_size=$(wc -c <"$fw_file")
+	align_block=32768
+	needle=0
+	tail -n +2 /proc/mtd >/tmp/sysupgrade/mtd.txt
+	while read -r mtd sz _ name; do
+		mtd="${mtd%:}"
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && continue
+		[ "$name" = "upgrade" ] && continue
+		[ "$needle" -ge "$fw_size" ] && break
+		sz_dec=$((0x$sz))
+		if [ "$DO_BACKUP" = "true" ] && [ "$name" = "backup" ]; then
+			echo_c 112 "Keeping config backup on $name"
+			needle=$((needle + sz_dec))
+			continue
+		fi
+		echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
+		flash_eraseall "/dev/$mtd" 2>/dev/null || true
+		bs=$align_block
+		if [ $((needle % align_block)) -ne 0 ] ||
+			[ $((sz_dec % align_block)) -ne 0 ]; then
+			bs=1
+		fi
+		if ! dd if="$fw_file" of="/dev/$mtd" bs=$bs \
+			skip=$((needle / bs)) count=$((sz_dec / bs)) 2>/dev/null; then
+			echo_c 160 "dd $name failed"
+			return 1
+		fi
+		sync
+		needle=$((needle + sz_dec))
+	done </tmp/sysupgrade/mtd.txt
+	return 0
+}
+
 WATCHDOG_DEV="${WATCHDOG_DEV:-/dev/watchdog}"
 wd_stop_flag="/tmp/sysupgrade/wd.stop"
 wd_active=""
@@ -135,9 +172,11 @@ detach_and_flash() {
 		MAX_TRIES=3
 		x=0
 		times=""
+		flash_fn="flash_firmware"
+		[ "$mode" = "full" ] && flash_fn="flash_full"
 		while :; do
 			x=$((x+1))
-			if flash_firmware; then
+			if $flash_fn; then
 				echo "=== Flash completed successfully at $(date) ==="
 				go_reboot
 				exit 1
@@ -182,15 +221,26 @@ go_reboot() {
 	reboot -f
 }
 
-[ -z "$1" ] && die "Firmware file is not set."
-[ -z "$2" ] && die "Target device is not set."
-
-fw_file="$1"
-mtd_dev="/dev/$2"
+mode=""
+case "$1" in
+	full)
+		mode="full"
+		shift
+		fw_file="$1"
+		[ -z "$fw_file" ] && die "Firmware file is not set."
+		mtd_dev=""
+		;;
+	*)
+		[ -z "$1" ] && die "Firmware file is not set."
+		[ -z "$2" ] && die "Target device is not set."
+		fw_file="$1"
+		mtd_dev="/dev/$2"
+		;;
+esac
 
 echo_c 208 "Running Stage 2 of sysupgrade."
 echo "Firmware: $fw_file"
-echo "Target: $mtd_dev"
+[ -n "$mtd_dev" ] && echo "Target: $mtd_dev"
 echo ""
 echo "You can still press Ctrl-C to abort before flashing starts."
 echo ""

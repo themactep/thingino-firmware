@@ -1,5 +1,5 @@
-FAAC_VERSION = 2.1
-FAAC_SITE = $(call github,knik0,faac,faac-$(FAAC_VERSION))
+FAAC_VERSION = 2.2
+FAAC_SITE = $(call github,FreewareAdvancedAudio,faac,faac-$(FAAC_VERSION))
 
 FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
 FAAC_LICENSE_FILES = COPYING

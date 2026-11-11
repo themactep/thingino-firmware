@@ -46,7 +46,7 @@ platform=$(soc -f 2>/dev/null || echo "unknown")
 while true; do
 	ts=$(date +%s)
 
-	# ── Build isp-m0 JSON ──────────────────────────────────
+	# Build isp-m0 JSON
 	m0_json="null"
 	if [ -n "$ISP_FILE" ]; then
 		f="$ISP_FILE"
@@ -152,7 +152,7 @@ while true; do
 		)
 	fi
 
-	# ── Build isp-fs JSON ──────────────────────────────────
+	# Build isp-fs JSON
 	fs_json="null"
 	if [ -r "$ISP_FS" ]; then
 		qc=$(grep "queue count" "$ISP_FS" 2>/dev/null | head -1 | sed 's/.*queue count[[:space:]]*[:=]*[[:space:]]*//; s/[[:space:]]*$//')

@@ -19,6 +19,25 @@ THINGINO_BUTTON_JCT = $(HOST_DIR)/bin/jct
 # and speaker pins.
 THINGINO_BUTTON_CAMERA_JSON = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json
 
+# The daemon reads the gpio-keys device through evdev. INPUT_KEYBOARD turns
+# on the PC AT keyboard by default, which drags in serio and an i8042 probe.
+define THINGINO_BUTTON_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INPUT_EVDEV)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INPUT_KEYBOARD)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_KEYBOARD_GPIO)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_KEYBOARD_ATKBD)
+endef
+
+# 3.10 gets its keys from ingenic-sdk's gpio-userkeys module; 4.4 describes
+# them in the device tree instead.
+ifeq ($(BR2_PACKAGE_THINGINO_BUTTON)$(KERNEL_VERSION),y4.4.94)
+define THINGINO_BUTTON_LINUX_DT_KEYS
+	$(THINGINO_BUTTON_PKGDIR)/inject-button-dt.sh \
+		$(THINGINO_BUTTON_CAMERA_JSON) $(LINUX_DIR)
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_BUTTON_LINUX_DT_KEYS
+endif
+
 define CHECK_MULTIPLE_GPIO_BUTTONS
 	if [ "$(BR2_THINGINO_DEV_DOORBELL)" != "y" ] && [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" != "y" ]; then \
 		if [ -r $(THINGINO_BUTTON_CAMERA_JSON) ]; then \

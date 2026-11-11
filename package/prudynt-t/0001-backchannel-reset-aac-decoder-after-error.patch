@@ -1,0 +1,24 @@
+The backchannel AAC decoder is a thread-local Helix instance created once
+in aac_openDecoder(). aac_decodeFrm() logs a decode error and returns -1,
+leaving the instance wherever the rejected frame left it. A client that
+sends a few malformed frames can therefore leave the decoder parsing the
+next frame mid-element.
+
+Flush the codec after a hard decode error (anything but an input
+underflow, which is normal while a frame is still arriving) so the next
+frame starts from a known state. The underlying out-of-bounds read in
+libhelix-aac is fixed separately in the libhelix-aac package.
+
+--- a/src/audio/IMPBackchannel.cpp
++++ b/src/audio/IMPBackchannel.cpp
+@@ -114,6 +114,10 @@
+       LOG_ERROR("Thread-local AAC decode failed: "
+                 << ret << " (" << decodeBytesLeft
+                 << " bytes left unprocessed)");
++      // A rejected frame can leave the Helix instance in the middle of an
++      // element. Reset it so the next frame is parsed from a known state
++      // instead of whatever the bad bitstream left behind.
++      AACFlushCodec(tl_aacDecoder);
+     }
+     *outputLengthPtr = 0;
+     return (ret == ERR_AAC_INDATA_UNDERFLOW) ? 0 : -1;

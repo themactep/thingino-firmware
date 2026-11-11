@@ -1,33 +1,5 @@
 <!DOCTYPE html>
-<!--
-  thingino · timps preview
 
-  Native MSE/fMP4 player (no iframe): fetches
-      http://<location.hostname>:8880/stream.mp4?chn=N
-  from timpsd and feeds it into a MediaSource SourceBuffer. The
-  buffering/eviction/live-edge logic is a port of timps's own embedded
-  player (src/mp4/httpd.c, PLAYER_TAIL).
-
-  This page is installed straight over thingino-webui's own /preview.html
-  (same filename, timps's own package - see TIMPS_INSTALL_WEBUI_CGIS in
-  timps.mk), before thingino-webui's plugin-assembly finalize hook runs. So it
-  still goes through the normal plugin pipeline: the plugin preview-body
-  marker below is replaced with the contributed overlays (thingino-motors' PTZ
-  joystick, ...) and their preview scripts are appended before the closing
-  body tag. Do not hand-copy plugin markup in here.
-
-  (The marker is not spelled out in this comment on purpose - the assembler
-  substitutes every occurrence in the file, and injected markup inside an HTML
-  comment would terminate it early.)
-
-  IMPORTANT - KNOWN LIMITATION (mixed content):
-  The video is loaded from plain HTTP on port 8880. If this web UI itself is
-  served over HTTPS, browsers block the http://<camera>:8880 request as mixed
-  content and the preview stays black. Workarounds: serve the web UI over
-  HTTP, or reverse-proxy timps's HTTP port under the same HTTPS origin.
-
-  If you change http.port in /etc/timps.conf, adjust MS_PORT below.
--->
 <html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
@@ -57,8 +29,15 @@
       background: #000;
       object-fit: contain;
     }
-    /* live motion-grid overlay (drawn by /a/preview-motion.js); it never
-       captures the pointer, so the motor joystick keeps working */
+    #ms-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      object-fit: contain;
+      pointer-events: none;
+    }
     #motion-overlay {
       position: absolute;
       inset: 0;
@@ -66,18 +45,7 @@
       height: 100%;
       pointer-events: none;
     }
-    /* PTZ overlay: only the 9 joystick buttons (which together fill its
-       300px hover-reveal circle, see a/main.css #motor/.jst) should take
-       the pointer - everything else must fall through to the native
-       <video controls> bar and click-to-play surface underneath. main.css
-       reveals the joystick via visibility:hidden -> visible on #motor:hover,
-       but visibility:hidden elements are never hit-tested (even with
-       pointer-events:auto), so making #motor itself click-through would
-       stop it from ever detecting the hover that reveals it. Swapping the
-       hide/reveal to opacity keeps the buttons hit-testable while still
-       starting invisible, so hovering the circle still reveals them exactly
-       as before - only the container layers around/behind them become
-       click-through. */
+    
     #motor-overlay,
     #motor,
     .jst {
@@ -97,19 +65,91 @@
       font-size: 0.875rem;
       color: var(--bs-secondary-color);
     }
-    /* Statistics card: bitrate trend sparkline (per stream, drawn by the
-       inline script below from the timps /events?stream=stats feed) and the
-       small key/value blocks for the read-only camera state (day/night,
-       motion) that sit below the table. */
-    .stats-spark {
-      display: block;
-      width: 100%;
-      min-width: 100px;
-      max-width: 160px;
-      height: 32px;
+    .st-panel { border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius); background: var(--bs-body-bg); }
+    .st-ph { display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: center; padding: .5rem 1rem;
+      background: rgba(var(--bs-body-color-rgb), .03); border-bottom: 1px solid var(--bs-border-color-translucent); }
+    .st-ph b { color: darkorange; font-weight: 400; font-size: 1rem; }
+    .st-chip { font-family: var(--bs-font-monospace); font-size: .72rem; color: var(--bs-secondary-color);
+      border: 1px solid var(--bs-border-color); border-radius: .25rem; padding: 0 .3rem; }
+    .st-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: #4cc38a; box-shadow: 0 0 0 3px rgb(76 195 138 / .18); }
+    .st-dot.warn { background: #f0b429; box-shadow: 0 0 0 3px rgb(240 180 41 / .18); }
+    .st-dot.off { background: var(--bs-secondary-color); box-shadow: none; }
+    .st-lbl { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--bs-secondary-color); }
+    .st-big { font-size: 1.55rem; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .st-big small { font-size: .78rem; font-weight: 400; color: var(--bs-secondary-color); }
+    .st-bar { height: 4px; border-radius: 2px; background: var(--bs-secondary-bg); overflow: hidden; margin-top: .35rem; }
+    .st-bar > i { display: block; height: 100%; width: 0; background: #ff8800; transition: width .6s; }
+    .st-bar.ok > i { background: #4cc38a; }
+    .st-foot { font-size: .75rem; color: var(--bs-secondary-color); display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+    .st-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    canvas.st-chart { display: block; width: 100%; height: 70px; }
+    .st-cl td, .st-cl th { font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .st-cl .cl-ip, .st-cl .cl-s { display: none; }
+    .st-cl .cl-ip { font-size: .72rem; color: var(--bs-secondary-color); }
+    @media (max-width: 575.98px) {
+      .st-cl .cl-opt, .st-cl .cl-l { display: none; }
+      .st-cl td, .st-cl th { padding-left: .15rem; padding-right: .15rem; }
+      #st-clients-panel { margin-left: -.75rem; margin-right: -.75rem; }
+      .st-cl .cl-ip { display: block; }
+      .st-cl .cl-s { display: inline; }
     }
-    .stats-kv-label {
-      color: var(--bs-secondary-color);
+    .st-cl th { font-weight: 400; color: var(--bs-secondary-color); }
+    .st-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .st-tile { padding: .7rem .9rem; display: grid; grid-template-columns: auto 1fr; gap: .1rem .7rem; align-items: center; }
+    .st-tile > i { grid-row: span 2; font-size: 1.4rem; color: darkorange; }
+    .st-tile .v { font-weight: 500; }
+    .st-tile .s { grid-column: 2; font-size: .75rem; color: var(--bs-secondary-color); }
+    .st-sys > i { grid-row: span 3; }
+    .st-sys .st-bar { grid-column: 2; display: flex; height: 6px; margin: .2rem 0; }
+    .st-sys .st-bar > i { flex: none; }
+    .st-sys .st-bar > i + i, .st-sys .k2 { background: #4cc38a; }
+    .st-sys .k1 { background: #ff8800; }
+    .st-sys .k1, .st-sys .k2 { display: inline-block; width: .55rem; height: .55rem; border-radius: 2px; margin-right: .3rem; vertical-align: baseline; }
+    .st-gain { position: relative; grid-column: 1 / -1; height: 6px; border-radius: 3px; margin-top: .45rem; }
+    .st-gain .m { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; box-shadow: 0 0 0 1px #000; transition: left .6s; }
+    @media (min-width: 992px) { .st-tiles { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 768px) { .st-tiles { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 500px) { .st-metrics { grid-template-columns: 1fr 1fr; } }
+    .tp-banner { border-color: rgb(255 136 0 / .35); }
+    .tp-head { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin-bottom: .45rem; }
+    .tp-head > i { color: darkorange; font-size: 1.05rem; }
+    .tp-head b { font-weight: 500; }
+    .tp-legend { display: flex; gap: .8rem; margin-left: auto; font-size: .72rem; color: var(--bs-secondary-color); }
+    .tp-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+    .tp-lg { display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; }
+    .tp-lg.inj { border-radius: 50%; background: #ff8800; box-shadow: 0 0 0 3px rgb(255 136 0 / .25); }
+    .tp-lg.pass { background: rgb(255 136 0 / .18); border: 1px solid rgb(255 136 0 / .7); }
+    .tp-lg.skip { border: 1px dashed var(--bs-secondary-color); opacity: .6; }
+    .tp-pipe { display: flex; align-items: stretch; }
+    .tp-node { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .15rem .5rem;
+      padding: .4rem .55rem; border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg); transition: background .3s, border-color .3s, opacity .3s; }
+    .tp-node > i { font-size: 1.15rem; color: var(--bs-secondary-color); }
+    .tp-tx { min-width: 0; line-height: 1.15; }
+    .tp-tx b { display: block; font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .tp-tx small { display: block; font-size: .68rem; color: var(--bs-secondary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tp-two { grid-column: 1 / -1; display: flex; gap: .3rem; }
+    .tp-two .tp-btn { flex: 1 1 0; }
+    .tp-btn { grid-column: 1 / -1; padding: .1rem .4rem; font-size: .75rem; border: 1px solid var(--bs-border-color); color: var(--bs-body-color); }
+    .tp-btn:hover:not(:disabled) { border-color: #ff8800; color: #ff8800; }
+    .tp-btn:disabled { opacity: .4; border-style: dashed; }
+    .tp-btn.on, .tp-btn.on:hover { background: #ff8800; border-color: #ff8800; color: #fff; }
+    .tp-node.pass { background: rgb(255 136 0 / .08); border-color: rgb(255 136 0 / .6); }
+    .tp-node.pass > i { color: darkorange; }
+    .tp-node.skip { opacity: .5; border-style: dashed; }
+    .tp-node.inj { box-shadow: 0 0 0 2px rgb(255 136 0 / .35); }
+    .tp-arr { flex: 0 0 1.6rem; position: relative; align-self: center; height: 2px; background: var(--bs-border-color); }
+    .tp-arr::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: var(--bs-border-color); border-right: 0; }
+    .tp-arr.pass { background: #ff8800; }
+    .tp-arr.pass::after { border-left-color: #ff8800; }
+    .tp-arr.inj::before { content: ""; position: absolute; left: 50%; top: 50%; width: .62rem; height: .62rem; margin: -.31rem 0 0 -.31rem;
+      border-radius: 50%; background: #ff8800; box-shadow: 0 0 0 3px rgb(255 136 0 / .25); }
+    .tp-sub { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1rem; margin-top: .45rem; }
+    @media (max-width: 767.98px) {
+      .tp-legend { margin-left: 0; width: 100%; order: 3; }
+      .tp-pipe { flex-wrap: wrap; gap: .4rem; }
+      .tp-node { flex: 1 1 calc(50% - .2rem); }
+      .tp-arr { display: none; }
     }
   </style>
 </head>
@@ -123,29 +163,40 @@
 
     <section>
       <div class="card mb-3">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-          <div>
-            <h2 class="card-title mb-0">timps Live View</h2>
-            <small>Native fMP4/MSE player (no iframe), stream from port 8880</small>
+        <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+          <div style="flex:1 1 0%; min-width:0;">
+            <h2 class="tv-ct">timps Live View</h2>
+            <small id="ms-format-desc">Native fMP4 player (no iframe), stream from port 8880</small>
           </div>
-          <div class="d-flex gap-2">
+          
+          <div class="d-flex flex-wrap align-self-end gap-2">
             <select class="form-select form-select-sm" id="ms-stream" title="Select stream" style="width:auto; min-width: 140px;">
               <option value="0">Main stream</option>
               <option value="1">Sub stream</option>
             </select>
             <select class="form-select form-select-sm" id="ms-latency" title="Target buffer margin behind live (lower = less delay, more risk of stalls on a weak link)" style="width:auto;">
+              <option value="rt">Real-time (no audio)</option>
+              <option value="whep">WebRTC (WHEP)</option>
+              <option value="0">No buffer (0s)</option>
               <option value="0.5">Low latency (0.5s)</option>
               <option value="1.5" selected>Balanced (1.5s)</option>
               <option value="3">Stable (3s)</option>
             </select>
-            <!-- motion-grid overlay toggle: hidden until /a/preview-motion.js
-                 confirms this timps build has IMP_IVS motion detection -->
+            
             <button type="button" class="btn btn-outline-secondary" id="ms-motion"
               title="Motion grid overlay" style="display:none">
               <i class="bi bi-grid-3x3"></i>
             </button>
+            
+            <button type="button" class="btn btn-outline-secondary" id="ms-talk"
+              title="Talk to the camera (microphone -&gt; camera speaker)" style="display:none">
+              <i class="bi bi-mic"></i>
+            </button>
             <button type="button" class="btn btn-outline-secondary" id="ms-stats-toggle" title="Stream stats">
               <i class="bi bi-graph-up"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="ms-tp-toggle" title="Test pattern" hidden>
+              <i class="bi bi-easel"></i>
             </button>
             <button type="button" class="btn btn-outline-secondary" id="ms-connect" title="Connect/Disconnect stream">
               <i class="bi bi-play-circle"></i> Connect
@@ -155,6 +206,7 @@
         <div class="card-body">
           <div class="ms-video-wrap">
             <video id="ms-video" autoplay muted controls playsinline disableremoteplayback></video>
+            <canvas id="ms-canvas" style="display:none" aria-hidden="true"></canvas>
             <canvas id="motion-overlay" style="display:none" aria-hidden="true"></canvas>
             <div class="position-absolute top-50 start-50 translate-middle text-center" id="ms-connecting-overlay" style="display:none;">
               <div class="spinner-border text-light mb-2" role="status" style="width:3rem;height:3rem;">
@@ -165,53 +217,78 @@
             <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
+          <div class="ms-hint mt-1" id="ms-talk-status" style="display:none"></div>
         </div>
       </div>
     </section>
 
-    <!-- Statistics: table of live encoder/camera values + a per-stream
-         bitrate trend sparkline. Shown/hidden together with the Live View
-         card's "Stream stats" button (#ms-stats-toggle) and fed by the same
-         timps /events?stream=stats SSE (fast, ~2s, per-frame fps/kbps) plus a
-         slow GET /control poll (5s, matches the control-bar heartbeat
-         cadence) for the config-level fields SSE doesn't carry (gop/profile/
-         rc_mode, ave_bitrate, day/night, motion). See the inline script below. -->
     <section>
+      <div class="card mb-3 tp-banner" id="tp-panel" hidden>
+        <div class="card-body py-2 px-3">
+          <div class="tp-head">
+            <i class="bi bi-easel"></i><b>Test pattern</b><span class="st-chip" id="tp-chip">off</span>
+            <span class="tp-legend"><span><i class="tp-lg inj"></i>injected</span><span><i class="tp-lg pass"></i>passes</span><span><i class="tp-lg skip"></i>bypassed</span></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary tp-off" data-tp="0">Off</button>
+          </div>
+          <div class="tp-pipe" id="tp-btns">
+            <div class="tp-node" data-st="0"><i class="bi bi-camera"></i><div class="tp-tx"><b>Sensor</b><small>raw Bayer</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="4" id="tp-sensor" title="The sensor's own test pattern, through the whole ISP">Sensor pattern</button></div>
+            <div class="tp-arr" data-ar="0"></div>
+            <div class="tp-node" data-st="1"><i class="bi bi-sliders"></i><div class="tp-tx"><b>ISP</b><small>AE · AWB · scaler</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="5" id="tp-mid" title="A test picture inside the ISP, after sharpening: colour, scaler, encoder">Mid-ISP</button></div>
+            <div class="tp-arr" data-ar="1"></div>
+            <div class="tp-node" data-st="2"><i class="bi bi-film"></i><div class="tp-tx"><b>Encoder</b><small>H.264/H.265 · OSD</small></div>
+              <div class="tp-two"><button type="button" class="btn btn-sm tp-btn" data-tp="1" title="A still pattern replaces the ISP output: scaler, OSD, rotation, encoder">Still</button>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="2" title="A moving square and a frame counter: bitrate, GOP, smoothness, latency">Moving</button></div></div>
+            <div class="tp-arr" data-ar="2"></div>
+            <div class="tp-node" data-st="3"><i class="bi bi-person-walking"></i><div class="tp-tx"><b>IVS</b><small>motion detection</small></div>
+              <button type="button" class="btn btn-sm tp-btn" data-tp="3" title="Scripted moving objects, each scored against the motion detection">Motion test</button></div>
+          </div>
+          <div class="tp-sub">
+            <div class="d-flex flex-wrap gap-3 small" id="tp-holds" hidden>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="tp-ae" checked><label class="form-check-label" for="tp-ae">Hold AE</label></div>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="tp-awb"><label class="form-check-label" for="tp-awb">Hold white balance</label></div>
+            </div>
+            <div class="small text-secondary" id="tp-note"></div>
+          </div>
+          <div class="st-tiles mt-2" id="tp-eval" hidden>
+            <div class="st-panel st-tile"><i class="bi bi-bullseye"></i><span class="v" id="tp-hits">–</span><span class="s">detected objects</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-eye-slash"></i><span class="v" id="tp-miss">–</span><span class="s">missed objects</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-exclamation-triangle"></i><span class="v" id="tp-fa">–</span><span class="s">false alarms</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-stopwatch"></i><span class="v" id="tp-lat">–</span><span class="s" id="tp-lat-s">detection delay</span></div>
+          </div>
+        </div>
+      </div>
       <div class="card mb-3" id="stats-card" style="display:none">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
-            <h2 class="card-title mb-0">Statistics</h2>
+            <h2 class="tv-ct">Statistics</h2>
             <small>Live encoder &amp; camera status, from timps <code>/control</code></small>
           </div>
         </div>
         <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-3">
-              <thead>
-                <tr>
-                  <th scope="col">Stream</th>
-                  <th scope="col">Resolution</th>
-                  <th scope="col">Codec</th>
-                  <th scope="col" class="text-end">FPS</th>
-                  <th scope="col" class="text-end">Bitrate</th>
-                  <th scope="col" class="text-end" title="Measured average bitrate on T31; encoder queue backlog (frames not yet claimed) on every other platform">Avg / queue</th>
-                  <th scope="col" class="text-end">GOP</th>
-                  <th scope="col">Profile</th>
-                  <th scope="col">RC mode</th>
-                  <th scope="col" class="text-end">Subs</th>
-                  <th scope="col">Bitrate trend</th>
-                </tr>
-              </thead>
-              <tbody id="stats-table-body">
-                <tr data-placeholder><td colspan="11" class="text-secondary">Waiting for stats…</td></tr>
-              </tbody>
-            </table>
+          <div class="row g-3 mb-3" id="st-streams"><div class="col text-secondary" data-placeholder>Waiting for stats…</div></div>
+          <div class="st-tiles">
+            <div class="st-panel st-tile"><i class="bi bi-moon-stars" id="st-dn-i"></i><span class="v" id="st-dn">–</span>
+              <span class="s" id="st-dn-s"></span><div class="st-gain" id="st-gain" hidden><span class="m"></span></div></div>
+            <div class="st-panel st-tile"><i class="bi bi-person-walking"></i><span class="v" id="st-mo">–</span><span class="s" id="st-mo-s"></span></div>
+            <div class="st-panel st-tile"><i class="bi bi-record-circle"></i><span class="v" id="st-rec">–</span><span class="s" id="st-rec-s"></span></div>
+            <div class="st-panel st-tile"><i class="bi bi-people"></i><span class="v" id="st-cl">–</span><span class="s">all protocols, no events</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-clock-history"></i><span class="v" id="st-up">–</span><span class="s" id="st-ver"></span></div>
+            <div class="st-panel st-tile"><i class="bi bi-heart-pulse"></i><span class="v"><span class="st-dot me-1" id="st-hd"></span><span id="st-h">–</span></span><span class="s" id="st-h-s"></span></div>
+            <div class="st-panel st-tile st-sys"><i class="bi bi-cpu"></i><span class="v" id="st-sys">–</span>
+              <div class="st-bar"><i id="st-sysb-t"></i><i id="st-sysb"></i></div><span class="s" id="st-sys-s"></span></div>
+            <div class="st-panel st-tile st-sys"><i class="bi bi-memory"></i><span class="v" id="st-mem">–</span>
+              <div class="st-bar"><i id="st-memb-t"></i><i id="st-memb"></i></div><span class="s" id="st-mem-s"></span></div>
           </div>
-          <div class="row row-cols-2 row-cols-md-4 g-2 small">
-            <div class="col"><span class="stats-kv-label">Day/Night</span><br><span id="stats-daynight">–</span></div>
-            <div class="col"><span class="stats-kv-label">Motion</span><br><span id="stats-motion">–</span></div>
-            <div class="col"><span class="stats-kv-label">Uptime</span><br><span id="stats-uptime">–</span></div>
-            <div class="col"><span class="stats-kv-label">Clients</span><br><span id="stats-clients">–</span></div>
+          <div class="st-panel mt-3" id="st-clients-panel" hidden>
+            <div class="st-ph"><b>Connected clients</b><span class="st-chip" id="st-clients-n"></span></div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 st-cl">
+                <thead><tr><th class="cl-opt">Address</th><th>Client</th><th><span class="cl-l">Protocol</span><span class="cl-s">Proto</span></th><th class="cl-opt">Stream</th><th class="cl-opt">Connected</th><th class="text-end" title="Sensor capture to send, measured by timps per client"><span class="cl-l">Camera</span><span class="cl-s">Cam</span></th><th class="text-end" title="Capture to screen, only for this tab's own WebRTC / fMP4 session"><span class="cl-l">End-to-end</span><span class="cl-s">E2E</span></th><th class="text-end">Rate</th><th class="text-end cl-opt">Total</th></tr></thead>
+                <tbody id="st-clients"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -230,256 +307,475 @@
 <script src="/a/timps-version.js"></script>
 <script>
   (function () {
-    // timps's HTTP server port (http.port in /etc/timps.conf)
     const MS_PORT = 8880;
 
     const video = document.getElementById("ms-video");
+    const rtCanvas = document.getElementById("ms-canvas");
     const connectButton = document.getElementById("ms-connect");
     const streamSelect = document.getElementById("ms-stream");
     const latencySelect = document.getElementById("ms-latency");
+    const formatDesc = document.getElementById("ms-format-desc");
     const status = document.getElementById("ms-status");
     const overlay = document.getElementById("ms-connecting-overlay");
     const statsToggle = document.getElementById("ms-stats-toggle");
     const statsCard = document.getElementById("stats-card");
-    const statsBody = document.getElementById("stats-table-body");
-    const statsDaynight = document.getElementById("stats-daynight");
-    const statsMotion = document.getElementById("stats-motion");
-    const statsUptime = document.getElementById("stats-uptime");
-    const statsClients = document.getElementById("stats-clients");
+    const statsBox = document.getElementById("st-streams");
+    const $st = (id) => document.getElementById("st-" + id);
     if (!video || !connectButton || !streamSelect || !status) return;
 
     let host = location.hostname || "127.0.0.1";
-    if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
-    let base = "http://" + host + ":" + MS_PORT;   /* updated from the token info (scheme/port) */
+    if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]";
+    let base = "http://" + host + ":" + MS_PORT;
 
-    // Per-boot timps token, fetched ONCE and shared with preview-motion.js
-    // (which subscribes to /events with it). Appended as ?token= to the
-    // /stream.mp4 fetch so the preview also works when http.user is set in
-    // timps.conf - the token unlocks media viewing + /control + /events,
-    // never RTSP. Resolves to null when the endpoint is unavailable (e.g.
-    // prudynt build); the stream is then fetched without a token and the
-    // existing 401 fallback message still applies.
-    window.timpsTokenInfo = window.timpsTokenInfo ||
-      fetch("/x/timps-token.cgi", { cache: "no-store" })
+    function fetchTimpsTokenInfo() {
+      return fetch("/x/timps-token.cgi", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
+    }
+    function timpsScheme(info) {
+      if (!info) return "http";
+      if (info.scheme === "both") {
+        return window.location.protocol === "https:" ? "https" : "http";
+      }
+      if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+      return info.tls ? "https" : "http";
+    }
+    window.timpsTokenInfo = window.timpsTokenInfo || fetchTimpsTokenInfo();
+    function refreshTimpsToken() {
+      window.timpsTokenInfo = fetchTimpsTokenInfo();
+      return window.timpsTokenInfo;
+    }
 
     const params = new URLSearchParams(window.location.search);
     const defaultStream = params.get("stream") || sessionStorage.getItem("ms.stream") || "0";
 
-    // Target buffer margin behind live (seconds), read live by the
-    // updateend handler below - changing it while connected takes effect on
-    // the very next segment, no reconnect needed.
-    let targetBehindS = parseFloat(sessionStorage.getItem("ms.latency")) || 1.5;
+    const RT_VALUE = "rt";
+    const WHEP_VALUE = "whep";
+    const DEFAULT_MARGIN_S = 1.5;
+    function parseMargin(v) {
+      const n = parseFloat(v);
+      return (isFinite(n) && n >= 0) ? n : null;
+    }
+    let targetBehindS = DEFAULT_MARGIN_S;
+    let mode = "mse";
+    let lastBufferedValue = String(DEFAULT_MARGIN_S);
+    const PREF_KEY = "ms.format";
+    const hadNoSavedLatencyPref = localStorage.getItem(PREF_KEY) === null;
+    (function readLatencyPref() {
+      const saved = localStorage.getItem(PREF_KEY);
+      if (saved === RT_VALUE) { mode = "rt"; return; }
+      if (saved === WHEP_VALUE) { mode = "whep"; return; }
+      const n = parseMargin(saved);
+      if (n !== null) { targetBehindS = n; lastBufferedValue = String(n); }
+    })();
+
+    const rtOption = latencySelect
+      ? latencySelect.querySelector('option[value="' + RT_VALUE + '"]') : null;
+    const HAVE_WEBCODECS = typeof window.VideoDecoder === "function" &&
+                           typeof window.EncodedVideoChunk === "function";
+    if (!HAVE_WEBCODECS) {
+      if (rtOption) rtOption.remove();
+      if (mode === "rt") mode = "mse";
+    }
+
+    const whepOption = latencySelect
+      ? latencySelect.querySelector('option[value="' + WHEP_VALUE + '"]') : null;
+    const HAVE_WEBRTC = typeof window.RTCPeerConnection === "function";
+    if (!HAVE_WEBRTC) {
+      if (whepOption) whepOption.remove();
+      if (mode === "whep") mode = "mse";
+    }
+
+    function syncLatencySelect() {
+      if (!latencySelect) return;
+      latencySelect.value = mode === "rt" ? RT_VALUE
+                          : mode === "whep" ? WHEP_VALUE
+                          : String(targetBehindS);
+    }
+
+    function updateFormatDesc() {
+      if (!formatDesc) return;
+      formatDesc.textContent =
+        mode === "rt"
+          ? "Real-time (WebCodecs): lowest latency without WebRTC. No jitter buffer - a weak link freezes or drops frames instead of smoothing over it. Video only, no audio."
+        : mode === "whep"
+          ? "WebRTC (WHEP): lowest latency, encrypted audio + video over UDP. Needs a direct LAN/VPN path to the camera (no relay/NAT traversal); shares a small pool of concurrent sessions with other viewers."
+          : "Buffered fMP4, " + targetBehindS + "s behind live: tolerates network jitter without stalling, carries audio. Higher margin = more stall-proof, lower = less delay.";
+    }
+
+    function applyModeUi() {
+      const rtOn = mode === "rt";
+      if (rtCanvas) rtCanvas.style.display = rtOn ? "" : "none";
+      video.style.visibility = rtOn ? "hidden" : "";
+      if (!rtOn) window.msPreviewSize = null;
+      syncLatencySelect();
+      updateFormatDesc();
+    }
+
+    let userUnmuted = false;
+    video.addEventListener("volumechange", () => {
+      if (mode !== "rt") userUnmuted = !video.muted;
+    });
+    function applyModeAudio() {
+      if (mode === "rt") { if (!video.muted) video.muted = true; }
+      else if (userUnmuted && video.muted) video.muted = false;
+    }
+
     if (latencySelect) {
-      latencySelect.value = String(targetBehindS);
+      syncLatencySelect();
       latencySelect.addEventListener("change", () => {
-        targetBehindS = parseFloat(latencySelect.value) || 1.5;
-        sessionStorage.setItem("ms.latency", String(targetBehindS));
+        const v = latencySelect.value;
+        localStorage.setItem(PREF_KEY, v);
+        const newMode = v === RT_VALUE ? "rt" : v === WHEP_VALUE ? "whep" : "mse";
+        if (newMode === "mse") {
+          const n = parseMargin(v);
+          targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
+          lastBufferedValue = String(targetBehindS);
+        }
+        if (newMode === mode) { updateFormatDesc(); return; }
+        mode = newMode;
+        rtRetries = 0;
+        whepRetries = 0;
+        applyModeUi();
+        applyModeAudio();
+        if (running) stopStream("Switching player…").then(() => startStream());
+        else setStatus((newMode === "rt" ? "Real-time player"
+                        : newMode === "whep" ? "WebRTC player"
+                        : "Buffered player") +
+                       " selected - click Connect.");
       });
     }
 
-    // Statistics card (table + per-stream bitrate sparkline) via timps's
-    // /events?stream=stats SSE - same token + EventSource pattern as
-    // /a/preview-motion.js. Independent of the video player's own
-    // connect/disconnect lifecycle: it keeps ticking even while disconnected,
-    // so it also shows other clients' activity on this channel.
-    //
-    // The SSE "stats" frame (src/mp4/httpd.c stats_json, ~every 2s by
-    // default) carries the fast-moving per-frame numbers: fps/kbps/subs/drop
-    // per enabled stream, plus uptime_s/clients. It does NOT carry the
-    // config-level encoder fields (gop/profile/rc_mode) or the ave_bitrate/
-    // day-night/motion status blocks - those only exist in GET /control, so a
-    // slow poll of /control (5s, the same cadence as the control-bar
-    // heartbeat elsewhere in this webui) fills in the rest via timps-api.js
-    // (loaded on demand by main.js's timpsApiReady(), already used by the
-    // control bar on every page). Both loops only run while the Statistics
-    // card is visible (toggled by #ms-stats-toggle).
     let statsEs = null;
     let statsControlTimer = null;
-    const MAX_HISTORY = 40; // ~80s of samples at the default 2s stats interval
-    const streamRows = {};  // chn -> {cells:{...}, history:[kbps,...]}
+    let statsFullTimer = null;
+    const MAX_HISTORY = 40;
+    const streamRows = {};
+    const stCfg = {};
+    const stLive = { drops: 0, dn: null };
 
     function formatBytes(n) {
       if (n < 1024) return n + " B";
       if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-      return (n / (1024 * 1024)).toFixed(1) + " MB";
+      if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+      return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
     }
     function formatKbps(kbps) {
       return kbps >= 1000 ? (kbps / 1000).toFixed(2) + " Mb/s" : kbps.toFixed(0) + " kb/s";
     }
-    function streamLabel(chn) {
-      return chn === 0 ? "Main (chn0)" : chn === 1 ? "Sub (chn1)" : "chn" + chn;
+    function bigKbps(kbps) {
+      return kbps >= 1000 ? (kbps / 1000).toFixed(2) + " <small>Mb/s</small>" : kbps.toFixed(0) + " <small>kb/s</small>";
     }
-    function profileLabel(p) {
-      // config.h: 0 baseline, 1 main, 2 high (encoder profile index, not a
-      // resolution/quality "profile" in the marketing sense)
-      return p === 0 ? "0 (baseline)" : p === 1 ? "1 (main)" : p === 2 ? "2 (high)" : String(p);
+    function formatUptime(s) {
+      const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60;
+      return d ? d + " d " + h + " h" : h ? h + " h " + m + " min" : m + " min";
     }
+    const PROFILES = ["Baseline", "Main", "High"];
 
-    // tiny hand-rolled sparkline: no charting dependency exists anywhere in
-    // this webui tree (checked a/vendor/ and package/thingino-webui/files/www
-    // - only bootstrap is vendored), and pulling one in for 1-2 mini trend
-    // lines would be disproportionate on a flash-constrained device.
-    function drawSparkline(canvas, values) {
+    function drawChart(canvas, values, target) {
       if (!canvas) return;
-      const w = canvas.clientWidth || 140, h = 32;
-      canvas.width = w; canvas.height = h;
+      const w = canvas.clientWidth || 300, h = canvas.clientHeight || 70, r = window.devicePixelRatio || 1;
+      canvas.width = w * r; canvas.height = h * r;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.clearRect(0, 0, w, h);
+      ctx.scale(r, r);
       if (values.length < 2) return;
-      const max = Math.max.apply(null, values), min = Math.min.apply(null, values);
-      const range = (max - min) || 1;
-      const color = getComputedStyle(document.documentElement).getPropertyValue("--bs-primary").trim() || "#0d6efd";
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
+      const max = Math.max((target || 0) * 1.3, ...values) || 1;
+      const px = (i) => (i + MAX_HISTORY - values.length) / (MAX_HISTORY - 1) * w;
+      const py = (v) => h - 2 - v / max * (h - 6);
+      if (target) {
+        const muted = getComputedStyle(canvas).getPropertyValue("--bs-secondary-color").trim() || "#888";
+        ctx.strokeStyle = muted; ctx.globalAlpha = .6; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, py(target)); ctx.lineTo(w, py(target)); ctx.stroke(); ctx.setLineDash([]);
+        ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.font = "10px sans-serif";
+        ctx.fillText("target " + formatKbps(target), 4, py(target) - 3);
+      }
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "rgba(255,136,0,.35)"); g.addColorStop(1, "rgba(255,136,0,0)");
+      ctx.beginPath(); ctx.moveTo(px(0), h);
+      values.forEach((v, i) => ctx.lineTo(px(i), py(v)));
+      ctx.lineTo(px(values.length - 1), h); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
       ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = (i / (values.length - 1)) * (w - 2) + 1;
-        const y = h - 1 - ((v - min) / range) * (h - 2);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+      values.forEach((v, i) => i ? ctx.lineTo(px(i), py(v)) : ctx.moveTo(px(i), py(v)));
+      ctx.strokeStyle = "#ff8800"; ctx.lineWidth = 1.5; ctx.stroke();
     }
 
-    // builds the <tr> for a stream the first time the stats SSE reports it
-    // (lazily, so the table only ever lists streams that are actually
-    // enabled/running - matches what stats_json itself reports)
     function ensureStatsRow(chn) {
       if (streamRows[chn]) return streamRows[chn];
-      if (!statsBody) return null;
-      const placeholder = statsBody.querySelector("tr[data-placeholder]");
-      if (placeholder) placeholder.remove();
-      const tr = document.createElement("tr");
-      const cells = {};
-      ["stream", "res", "codec", "fps", "bitrate", "avgBitrate", "gop", "profile", "rc", "subs", "trend"]
-        .forEach((c) => {
-          const td = document.createElement("td");
-          if (c === "fps" || c === "bitrate" || c === "avgBitrate" || c === "gop" || c === "subs") {
-            td.className = "text-end";
-          }
-          if (c === "trend") {
-            const canvas = document.createElement("canvas");
-            canvas.className = "stats-spark";
-            canvas.setAttribute("aria-label", "bitrate trend");
-            td.appendChild(canvas);
-            cells.canvas = canvas;
-          } else {
-            cells[c] = td;
-          }
-          tr.appendChild(td);
-        });
-      cells.stream.textContent = streamLabel(chn);
-      cells.gop.textContent = "—";
-      cells.profile.textContent = "—";
-      cells.rc.textContent = "—";
-      cells.avgBitrate.textContent = "";
-      statsBody.appendChild(tr);
-      const row = { cells, history: [] };
+      if (!statsBox) return null;
+      const ph = statsBox.querySelector("[data-placeholder]");
+      if (ph) ph.remove();
+      const col = document.createElement("div");
+      col.className = "col-lg-6";
+      col.innerHTML =
+        '<div class="st-panel"><div class="st-ph"><span class="st-dot" data-k="dot"></span>' +
+        '<b>' + (chn === 0 ? "Main stream" : chn === 1 ? "Substream" : "Stream " + chn) + '</b>' +
+        '<span class="st-chip" data-k="res"></span><span class="st-chip" data-k="codec"></span>' +
+        '<span class="st-chip" data-k="rc" hidden></span></div><div class="p-3">' +
+        '<div class="st-metrics mb-2">' +
+        '<div><div class="st-lbl">Frame rate</div><div class="st-big" data-k="fps"></div><div class="st-bar ok"><i data-k="fpsb"></i></div></div>' +
+        '<div><div class="st-lbl">Bitrate</div><div class="st-big" data-k="kbps"></div><div class="st-bar"><i data-k="kbpsb"></i></div></div>' +
+        '<div><div class="st-lbl">Viewers</div><div class="st-big" data-k="subs"></div><div class="st-foot mt-1">on this stream</div></div>' +
+        '</div><canvas class="st-chart" data-k="chart" aria-label="bitrate trend"></canvas>' +
+        '<div class="st-foot mt-2"><span data-k="avg"></span><span data-k="queue"></span><span data-k="drops"></span></div>' +
+        '</div></div>';
+      const el = {};
+      col.querySelectorAll("[data-k]").forEach((n) => { el[n.getAttribute("data-k")] = n; });
+      statsBox.appendChild(col);
+      const row = { el, history: [], chn };
       streamRows[chn] = row;
       return row;
     }
 
-    // fast path: fed by every "stats" SSE frame (~2s) - live fps/bitrate/subs
-    // and the bitrate trend sparkline
+    function renderHealth() {
+      const issues = [];
+      if (stLive.drops) issues.push(stLive.drops + " dropped frames");
+      const qd = (stCfg.queue_drops || []).reduce((a, b) => a + b, 0);
+      if (qd) issues.push(qd + " queue drops");
+      const errs = Object.keys(stCfg.last_errors || {});
+      if (errs.length) issues.push("errors: " + errs.join(", "));
+      $st("hd").classList.toggle("warn", issues.length > 0);
+      $st("h").textContent = issues.length ? "Check" : "Healthy";
+      $st("h-s").textContent = issues.length ? issues.join(" · ") : "no drops · no errors";
+    }
+
     function renderStats(j) {
-      if (statsUptime) statsUptime.textContent = j.uptime_s + "s";
-      if (statsClients) statsClients.textContent = String(j.clients);
+      $st("up").textContent = formatUptime(j.uptime_s);
+      $st("cl").textContent = j.clients + (j.clients === 1 ? " stream client" : " stream clients");
+      stLive.drops = 0;
       (j.video || []).forEach((s) => {
         const row = ensureStatsRow(s.chn);
         if (!row) return;
-        row.cells.res.textContent = s.width + "x" + s.height;
-        row.cells.codec.textContent = s.codec.toUpperCase();
-        row.cells.fps.textContent = s.fps.toFixed(1);
-        row.cells.bitrate.textContent = formatKbps(s.kbps);
-        row.cells.subs.textContent = s.subs + (s.subs === 1 ? " sub" : " subs");
-        row.cells.subs.title = s.drop_frames
-          ? "dropped " + s.drop_frames + " frames / " + formatBytes(s.drop_bytes)
-          : "";
+        const cfg = (stCfg.video || {})[s.chn] || {};
+        const e = row.el;
+        e.res.textContent = s.width + "×" + s.height;
+        if (!e.codec.dataset.p) e.codec.textContent = s.codec.toUpperCase();
+        e.fps.innerHTML = s.fps.toFixed(1) + (cfg.fps ? " <small>/ " + cfg.fps + "</small>" : "");
+        e.fpsb.style.width = (cfg.fps ? Math.min(100, s.fps / cfg.fps * 100) : 0) + "%";
+        e.kbps.innerHTML = bigKbps(s.kbps);
+        e.kbpsb.style.width = (cfg.bitrate ? Math.min(100, s.kbps / (cfg.bitrate * 1.5) * 100) : 0) + "%";
+        e.subs.textContent = String(s.subs);
+        e.drops.textContent = s.drop_frames
+          ? s.drop_frames + " dropped frames (" + formatBytes(s.drop_bytes) + ")" : "0 dropped frames";
+        stLive.drops += s.drop_frames || 0;
+        e.dot.classList.toggle("warn", !!s.drop_frames || (cfg.fps && s.fps < cfg.fps * 0.8));
         row.history.push(s.kbps);
         if (row.history.length > MAX_HISTORY) row.history.shift();
-        drawSparkline(row.cells.canvas, row.history);
+        const avg = row.history.reduce((a, b) => a + b, 0) / row.history.length;
+        e.avg.textContent = "avg " + formatKbps(avg) + (cfg.bitrate ? " (target " + formatKbps(cfg.bitrate) + ")" : "");
+        drawChart(e.chart, row.history, cfg.bitrate);
       });
+      renderHealth();
     }
 
-    // slow path: one GET /control every 5s while the card is visible - fills
-    // in the fields the stats SSE doesn't carry (config-level gop/profile/
-    // rc_mode, the encoder telemetry below, and day/night + motion status).
-    // Only updates rows the fast path already created; a stream absent from
-    // stats_json (disabled) never gets a control-only row.
-    function applyControlSnapshot(j) {
+    function applyStatsExtra(j) {
       if (!j) return;
       const video = j.video || {}, enc = j.encoder || {};
       Object.keys(video).forEach((k) => {
         const row = streamRows[parseInt(k, 10)];
         if (!row) return;
-        const vcfg = video[k];
-        row.cells.gop.textContent = String(vcfg.gop);
-        row.cells.profile.textContent = profileLabel(vcfg.profile);
-        row.cells.rc.textContent = String(vcfg.rc_mode || "").toUpperCase();
-        // ave_bitrate (IMP_Encoder_GetChnAveBitrate) only exists on T31; every
-        // other platform - and a T31 stream before its first frame - reports
-        // -1 and control.c omits the field entirely. IMP_Encoder_Query's
-        // queue-backlog counters (left_pics/left_stream_bytes/left_stream_frames)
-        // ARE available on all 9 platforms, so use them as an always-present
-        // encoder-health stand-in instead of leaving the cell as a permanent
-        // "-" placeholder: a healthy encoder keeps this at/near 0, a rising
-        // value means it isn't keeping up with the source.
+        const v = video[k], e = row.el;
+        const codec = e.codec.textContent.split(" ")[0];
+        e.codec.textContent = codec + (PROFILES[v.profile] ? " " + PROFILES[v.profile] : "");
+        e.codec.dataset.p = "1";
+        e.rc.textContent = String(v.rc_mode || "").toUpperCase() + " · GOP " + v.gop;
+        e.rc.hidden = false;
         const es = enc[k];
-        if (es && typeof es.ave_bitrate === "number") {
-          row.cells.avgBitrate.textContent = formatKbps(es.ave_bitrate);
-          row.cells.avgBitrate.title = "";
-        } else if (es) {
-          row.cells.avgBitrate.textContent = es.left_pics + " q";
-          row.cells.avgBitrate.title = "encoder backlog: " + es.left_pics +
-            " frame(s) queued, " + formatBytes(es.left_stream_bytes) +
-            " / " + es.left_stream_frames + " stream frame(s) unclaimed";
-        } else {
-          row.cells.avgBitrate.textContent = "";
-          row.cells.avgBitrate.title = "";
+        if (es && es.ave_bitrate > 0) e.queue.textContent = "encoder avg " + formatKbps(es.ave_bitrate);
+        else if (es) {
+          e.queue.textContent = "encoder queue " + es.left_pics;
+          e.queue.title = formatBytes(es.left_stream_bytes) + " / " + es.left_stream_frames + " stream frame(s) unclaimed";
+        } else e.queue.textContent = "";
+        if (es && es.encode_us_avg >= 0 && es.encode_us_max >= 0) {
+          e.queue.textContent += " · encode " + (es.encode_us_avg / 1000).toFixed(1) + " ms (max " +
+            (es.encode_us_max / 1000).toFixed(1) + ")";
+          e.queue.title = (e.queue.title ? e.queue.title + "; " : "") + es.idr + " keyframes since the stream started";
         }
       });
-      const dn = j.daynight || {};
-      if (statsDaynight) {
-        const modeTxt = dn.mode === 1 ? "Night" : dn.mode === 0 ? "Day" : "Unknown";
-        const gain = (typeof dn.total_gain === "number" && dn.total_gain >= 0)
-          ? " · gain " + dn.total_gain.toFixed(0) : "";
-        statsDaynight.textContent = modeTxt + (dn.enabled ? " (auto)" : " (manual)") + gain;
-      }
-      const mo = j.motion || {};
-      if (statsMotion) {
-        statsMotion.textContent = !mo.available ? "Unavailable" : (mo.enabled ? "Enabled" : "Disabled");
-      }
-    }
-    function fetchControlSnapshot() {
-      timpsApiReady().then((api) => api.get()).then(applyControlSnapshot)
-        .catch(() => { /* offline poll tick - table just keeps its last values */ });
+      renderSystem(j.system);
     }
 
-    async function startStats() {
-      if (statsEs || !window.EventSource) return;
-      const info = await window.timpsTokenInfo;
-      if (statsCard.style.display === "none") return; // toggled off while awaiting the token
-      const b = info ? (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT) : base;
-      const tok = info && info.token ? "&token=" + encodeURIComponent(info.token) : "";
-      statsEs = new EventSource(b + "/events?stream=stats" + tok);
-      statsEs.addEventListener("stats", (ev) => {
-        try { renderStats(JSON.parse(ev.data)); } catch (e) { /* ignore malformed frame */ }
+    function renderSystem(y) {
+      if (!y) return;
+      const ok = (v) => typeof v === "number" && v >= 0, mb = (kb) => (kb / 1024).toFixed(kb < 10240 ? 1 : 0);
+      const c = ok(y.cpu_pct) ? Math.min(100, y.cpu_pct) : -1, t = ok(y.timps_cpu_pct) ? Math.min(c, y.timps_cpu_pct) : -1;
+      $st("sys").textContent = "CPU " + (c >= 0 ? c + " %" : "–");
+      $st("sys").parentNode.title = "Whole camera" + (y.ncpu > 1 ? ", " + y.ncpu + " cores together" : "") +
+        "; since the previous poll";
+      $st("sysb-t").style.width = Math.max(t, 0) + "%";
+      $st("sysb").style.width = (c >= 0 ? c - Math.max(t, 0) : 0) + "%";
+      $st("sys-s").innerHTML = '<i class="k1"></i>timps ' + (t >= 0 ? t + " %" : "–") +
+        ' <i class="k2 ms-1"></i>other ' + (c >= 0 && t >= 0 ? c - t + " %" : "–") +
+        " · load " + (ok(y.load && y.load[0]) ? y.load[0].toFixed(2) : "–");
+      const T = y.mem_total_kb, u = ok(T) && ok(y.mem_avail_kb) ? T - y.mem_avail_kb : -1, r = ok(y.timps_rss_kb) ? Math.min(y.timps_rss_kb, Math.max(u, 0)) : -1;
+      $st("mem").textContent = u >= 0 ? "Mem " + mb(u) + " / " + mb(T) + " MB" : "Mem –";
+      $st("memb-t").style.width = (r >= 0 && T > 0 ? r / T * 100 : 0) + "%";
+      $st("memb").style.width = (u >= 0 && T > 0 ? (u - Math.max(r, 0)) / T * 100 : 0) + "%";
+      $st("mem-s").innerHTML = '<i class="k1"></i>timps ' + (r >= 0 ? mb(r) : "–") +
+        ' <i class="k2 ms-1"></i>other ' + (u >= 0 && r >= 0 ? mb(u - r) : "–") +
+        " · free " + (ok(y.mem_avail_kb) ? mb(y.mem_avail_kb) : "–");
+    }
+
+    function renderDaynight(dn) {
+      if (dn) stLive.dn = Object.assign(stLive.dn || {}, dn);
+      dn = stLive.dn;
+      if (!dn) return;
+      const night = dn.mode === 1;
+      const mode = dn.dn_mode || (dn.enabled ? "auto" : "manual");
+      $st("dn").textContent = (night ? "Night" : dn.mode === 0 ? "Day" : "Unknown") + " · " + mode;
+      $st("dn-i").className = night ? "bi bi-moon-stars" : "bi bi-sun";
+      const g = dn.exposure >= 0 ? dn.exposure : dn.total_gain,
+            lo = dn.total_gain_day_threshold, hi = dn.total_gain_night_threshold, trig = dn.day_trigger;
+      const bar = $st("gain"), pct = (v, span) => Math.min(100, v / span * 100) + "%";
+      bar.firstChild.style.opacity = "";
+      if (typeof g === "number" && g >= 0 && mode === "auto" && night) {
+        let ref = dn.night_baseline, nb = trig, txt;
+        if (typeof dn.jump_pct !== "number")
+          txt = trig > 0 ? " · probe day below " + trig.toFixed(0) : " · reference pending";
+        else if (dn.ir_idle && Number(dn.ir_idle.dark)) {
+          ref = -1;
+          txt = " · IR off (idle)" + (trig > 0 ? " · day below " + trig.toFixed(0) : "");
+        } else {
+          nb = ref > 0 ? ref * (1 - dn.jump_pct / 100) : -1;
+          txt = nb > 0 ? " · look below " + nb.toFixed(0) : " · IR-lit level pending";
+        }
+        const span = Math.max(nb > 0 ? nb * 2 : 0, ref > 0 ? ref * 1.3 : 0,
+                              ref > 0 ? Math.min(g * 1.05, ref * 2.5) : g * 1.05, 1);
+        $st("dn-s").textContent = "exp " + g.toFixed(0) + txt;
+        bar.style.background = nb > 0
+          ? "linear-gradient(90deg,#f0c040 0 " + pct(nb, span) + ",#3a5fcd " + pct(nb, span) + ")" : "#3a5fcd";
+        if (!(nb > 0)) bar.firstChild.style.opacity = ".4";
+        bar.firstChild.style.left = pct(g, span);
+        bar.hidden = false;
+      } else if (typeof g === "number" && g >= 0 && lo > 0 && hi > lo && mode === "auto") {
+        $st("dn-s").textContent = "exp " + g.toFixed(0) + " · night above " + hi;
+        const span = hi * 2;
+        bar.style.background = "linear-gradient(90deg,#f0c040 0 " + (lo / span * 100) + "%,#555 " +
+          (lo / span * 100) + "% " + (hi / span * 100) + "%,#3a5fcd " + (hi / span * 100) + "%)";
+        bar.firstChild.style.left = pct(g, span);
+        bar.hidden = false;
+      } else {
+        $st("dn-s").textContent = typeof g === "number" && g >= 0 ? "exp " + g.toFixed(0) : "";
+        bar.hidden = true;
+      }
+    }
+    function renderMotion(mo) {
+      if (!mo) return;
+      const active = mo.active && mo.active.length;
+      $st("mo").textContent = !mo.available ? "Motion n/a" : !mo.enabled ? "Motion off" : active ? "Motion!" : "Motion on";
+      $st("mo-s").textContent = !mo.available ? "not in this build" : !mo.enabled ? "detection disabled" :
+        active ? active.length + " cell(s) active" : "watching, nothing moving";
+    }
+    function renderRecord(r) {
+      if (!r) return;
+      $st("rec").textContent = !r.available ? "Recorder n/a" : r.recording ? "Recording" : r.enabled ? "Recorder armed" : "Recorder off";
+      $st("rec-s").textContent = r.available ? (r.free_mb >= 0 ? r.free_mb + " MB free" : "no storage") : "not in this build";
+    }
+
+    function fetchStatsFull() {
+      timpsApiReady().then((api) => api.get()).then((j) => {
+        stCfg.video = j.video || {};
+        stCfg.queue_drops = j.queue_drops;
+        stCfg.last_errors = j.last_errors;
+        $st("ver").textContent = j.version ? "timps " + j.version : "";
+        renderDaynight(j.daynight);
+        renderMotion(j.motion);
+        renderRecord(j.record);
+        renderHealth();
+      }).catch(() => {});
+    }
+
+    function fetchStatsExtra() {
+      timpsApiReady().then((api) => api.statsExtra()).then(applyStatsExtra)
+        .catch(() => {});
+      fetchClients();
+    }
+
+    const PROTO = { "rtsp/udp": "RTSP (UDP)", "rtsp/tcp": "RTSP (TCP)", rtsps: "RTSPS", fmp4: "fMP4",
+      mjpeg: "MJPEG", events: "Events (SSE)", webrtc: "WebRTC", srt: "SRT" };
+    const PROTO_S = { "rtsp/udp": "RTSP/U", "rtsp/tcp": "RTSP/T", events: "SSE" };
+    function uaShort(ua) {
+      if (!ua) return "–";
+      const m = (re) => { const r = ua.match(re); return r ? r[1] : null; };
+      let v;
+      if ((v = m(/Frigate\/([\d.]+)/))) return "Frigate " + v;
+      if ((v = m(/^Lavf(\d+)/))) return "ffmpeg (Lavf" + v + ")";
+      if ((v = m(/go2rtc\/([\d.]+)/i))) return "go2rtc " + v;
+      if ((v = m(/LibVLC\/([\d.]+)/))) return "VLC " + v;
+      if ((v = m(/Edg[A-Z]?\/(\d+)/))) return "Edge " + v;
+      if ((v = m(/Firefox\/(\d+)/))) return "Firefox " + v;
+      if ((v = m(/(?:Chrome|CriOS)\/(\d+)/))) return "Chrome " + v;
+      if (/Safari\//.test(ua) && (v = m(/Version\/(\d+)/))) return "Safari " + v;
+      if ((v = m(/curl\/([\d.]+)/))) return "curl " + v;
+      if (/GStreamer/i.test(ua)) return "GStreamer";
+      if (/Home ?Assistant/i.test(ua)) return "Home Assistant";
+      return ua.split(/[\s/(]/)[0] || "–";
+    }
+
+    function fetchClients() {
+      timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+        const panel = $st("clients-panel"), body = $st("clients");
+        if (!j || !Array.isArray(j.clients)) { panel.hidden = true; return; }
+        panel.hidden = false;
+        const list = j.clients.slice().sort((a, b) =>
+          (a.proto > b.proto) - (a.proto < b.proto) || (a.ip > b.ip) - (a.ip < b.ip));
+        $st("clients-n").textContent = list.length;
+        body.textContent = "";
+        if (!list.length) body.innerHTML = '<tr><td colspan="9" class="text-body-secondary">none</td></tr>';
+        list.forEach((c) => {
+          const tr = document.createElement("tr");
+          const own = ownDelay && performance.now() - ownDelay.at < 5000 &&
+                      c.proto === ownDelay.proto && c.port === ownDelay.port ? ownDelay : null;
+          [c.ip + ":" + c.port, uaShort(c.agent), PROTO[c.proto] || c.proto,
+           c.chn === 0 ? "Main" : c.chn === 1 ? "Sub" : "–",
+           c.since_s < 60 ? c.since_s + " s" : formatUptime(c.since_s),
+           c.lat_ms >= 0 ? c.lat_ms + " ms" : "–",
+           own ? own.total + " ms" : "–",
+           formatKbps(c.kbps), c.bytes == null ? "–" : formatBytes(c.bytes)].forEach((v, i) => {
+            const td = document.createElement("td");
+            const span = (text, cls) => {
+              const e = document.createElement(cls === "cl-ip" ? "div" : "span");
+              e.className = cls; e.textContent = text; td.appendChild(e);
+            };
+            if (i === 2 && PROTO_S[c.proto]) { span(v, "cl-l"); span(PROTO_S[c.proto], "cl-s"); }
+            else td.textContent = v;
+            if (i === 1) span(c.ip, "cl-ip");
+            if (i === 2 && c.chn >= 0) span(c.chn === 0 ? "Main" : "Sub", "cl-ip");
+            if (i >= 5) td.className = "text-end";
+            if (i === 0 || i === 3 || i === 4 || i === 8) td.classList.add("cl-opt");
+            if (i === 1 && c.agent) td.title = c.agent;
+            if (i === 6 && own) td.title = "this tab\n" + own.tip;
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+      }).catch(() => {});
+    }
+
+    function startStats() {
+      if (statsEs || !window.timpsApi) return;
+      statsEs = window.timpsApi.events("stats,daynight,motion", (type, data) => {
+        if (type === "stats") { try { renderStats(data); } catch (e) {} }
+        else if (type === "daynight") renderDaynight(data);
+        else if (type === "motion") renderMotion(data);
       });
-      statsEs.onerror = () => { /* EventSource auto-reconnects (server retry: 3000) */ };
-      fetchControlSnapshot();
-      if (!statsControlTimer) statsControlTimer = setInterval(fetchControlSnapshot, 5000);
+      fetchStatsFull();
+      fetchStatsExtra();
+      if (!statsFullTimer) statsFullTimer = setInterval(fetchStatsFull, 15000);
+      if (!statsControlTimer) statsControlTimer = setInterval(fetchStatsExtra, 5000);
     }
     function stopStats() {
       if (statsEs) { statsEs.close(); statsEs = null; }
       if (statsControlTimer) { clearInterval(statsControlTimer); statsControlTimer = null; }
+      if (statsFullTimer) { clearInterval(statsFullTimer); statsFullTimer = null; }
       Object.keys(streamRows).forEach((k) => delete streamRows[k]);
-      if (statsBody) statsBody.innerHTML = '<tr data-placeholder><td colspan="11" class="text-secondary">Waiting for stats…</td></tr>';
-      if (statsDaynight) statsDaynight.textContent = "–";
-      if (statsMotion) statsMotion.textContent = "–";
-      if (statsUptime) statsUptime.textContent = "–";
-      if (statsClients) statsClients.textContent = "–";
+      stLive.dn = null;
+      if (statsBox) statsBox.innerHTML = '<div class="col text-secondary" data-placeholder>Waiting for stats…</div>';
+      ["dn", "mo", "rec", "cl", "up", "h", "sys", "mem"].forEach((k) => { $st(k).textContent = "–"; });
+      ["sysb", "sysb-t", "memb", "memb-t"].forEach((k) => { $st(k).style.width = "0"; });
+      ["dn-s", "mo-s", "rec-s", "ver", "h-s", "sys-s", "mem-s"].forEach((k) => { $st(k).textContent = ""; });
+      $st("clients-panel").hidden = true;
+      $st("gain").hidden = true;
     }
     if (statsToggle && statsCard) {
       const statsWanted = sessionStorage.getItem("ms.stats") === "1";
@@ -499,14 +795,15 @@
     let mediaSource = null;
     let abortCtrl = null;
     let running = false;
-    // Monotonic stream-session token: every start/stop bumps it. The async
-    // MSE plumbing of an old session (reader loop, sourceopen tail) checks
-    // its captured token before touching shared state/UI, so switching
-    // streams live (stop+start in quick succession) can never let the dying
-    // session kill or "disconnect" the new one.
     let session = 0;
 
-    function setStatus(message) { status.textContent = message; }
+    let wantStream = true;
+    let reconnectPending = false;
+    let bootPending = true;
+    let lastProgressAt = 0;
+    function noteProgress() { lastProgressAt = performance.now(); }
+
+    function setStatus(message, tip) { status.textContent = message; status.title = tip || ""; }
 
     function setConnectingUi(active) {
       if (overlay) overlay.style.display = active ? "" : "none";
@@ -522,103 +819,924 @@
       connectButton.innerHTML = connected
         ? '<i class="bi bi-stop-circle"></i> Disconnect'
         : '<i class="bi bi-play-circle"></i> Connect';
-      // the stream select stays enabled while connected: picking another
-      // stream live tears the player down and rebuilds it on the new channel
       if (connected) setConnectingUi(false);
     }
 
-    // The embedded timps player derives the exact codec string from the
-    // live SPS server-side; a static page cannot, so probe common strings.
-    // The init segment carries the real avcC/hvcC, so a generic profile in
-    // the MIME string is fine for MSE.
-    //
-    // CRITICAL: only advertise an mp4a (AAC) audio track when timps actually
-    // muxes AAC into the fMP4. With PCM (G.711) audio the stream is video-only
-    // (httpd.c can_audio = acodec==AAC), so a SourceBuffer typed with mp4a would
-    // reject the 1-track init segment (MSE requires the init tracks to match the
-    // codecs string) and tear down the whole MediaSource -> black player, no
-    // video at all. When wantAac is false we therefore probe video-only strings.
     function pickMime(MS, wantAac) {
       const vOnly = [
-        'video/mp4; codecs="avc1.640028"',            // H.264 High
-        'video/mp4; codecs="hvc1.1.6.L123.B0"'        // H.265
+        'video/mp4; codecs="avc1.640028"',
+        'video/mp4; codecs="hvc1.1.6.L123.B0"'
       ];
       const withAac = [
         'video/mp4; codecs="avc1.640028, mp4a.40.2"',
         'video/mp4; codecs="hvc1.1.6.L123.B0, mp4a.40.2"'
       ];
       const candidates = wantAac ? withAac.concat(vOnly) : vOnly;
-      // isTypeSupported must be queried on whichever MSE class we'll actually
-      // construct (ManagedMediaSource on iOS) - the bare global MediaSource
-      // is undefined there, so calling it unqualified throws before this
-      // function even gets a chance to fall back to progressive playback.
       for (const m of candidates) {
         if (MS && MS.isTypeSupported(m)) return m;
       }
       return null;
     }
 
-    // Ask timps (GET /control) whether audio is enabled AND AAC; anything else
-    // (pcma/pcmu/disabled/unreachable) means the fMP4 is video-only, so we must
-    // NOT claim an AAC track to MSE. Uses the same token that unlocks /control.
+    async function endpoint() {
+      const info = await window.timpsTokenInfo;
+      if (info) base = timpsScheme(info) + "://" + host + ":" + (info.port || MS_PORT);
+      return { base: base, tok: info && info.token ? "&token=" + encodeURIComponent(info.token) : "" };
+    }
+
+    const CONTROL_TIMEOUT_MS = 8000;
+    let controlCache = null, controlCacheAt = 0, controlInflight = null;
+    async function controlSnapshot(apiBase, tok, maxAgeMs) {
+      const now = Date.now();
+      if (controlCache && now - controlCacheAt < (maxAgeMs === undefined ? 10000 : maxAgeMs))
+        return controlCache;
+      if (controlInflight) return controlInflight;
+      controlInflight = (async () => {
+        const ac = new AbortController();
+        const t = setTimeout(() => { try { ac.abort(); } catch (e) {} },
+                             CONTROL_TIMEOUT_MS);
+        try {
+          const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
+                                { cache: "no-store", signal: ac.signal });
+          if (!r.ok) return null;
+          const j = await r.json();
+          controlCache = j; controlCacheAt = Date.now();
+          return j;
+        } catch (e) {
+          console.warn("[preview] /control probe failed:", e && e.message ? e.message : e);
+          return null;
+        }
+        finally { clearTimeout(t); controlInflight = null; }
+      })();
+      return controlInflight;
+    }
+
     async function streamHasAac(apiBase, tok) {
-      try {
-        const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
-                              { cache: "no-store" });
-        if (!r.ok) return false;
-        const j = await r.json();
-        return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
-      } catch (e) { return false; }   // unreachable -> safe video-only
+      const j = await controlSnapshot(apiBase, tok);
+      return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
+    }
+
+    async function refreshRtOption() {
+      if (!HAVE_WEBCODECS || !rtOption || !latencySelect) return;
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const { base: b, tok } = await endpoint();
+      const j = await controlSnapshot(b, tok);
+      const vcfg = j && j.video ? j.video[chn] : null;
+      if (!vcfg) return;
+      const ok = String(vcfg.codec || "").toLowerCase() === "h264";
+      rtOption.disabled = !ok;
+      rtOption.title = ok ? "" :
+        "Real-time decoding needs H.264; this stream is " + String(vcfg.codec).toUpperCase();
+      if (!ok && mode === "rt") {
+        mode = "mse";
+        targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
+        applyModeUi();
+        applyModeAudio();
+        setStatus("Real-time mode is H.264-only - this stream is " +
+                  String(vcfg.codec).toUpperCase() + "; using buffered playback.");
+        if (typeof window.showAlert === "function")
+          window.showAlert("warning", "Real-time mode needs H.264; this stream is " +
+                            String(vcfg.codec).toUpperCase() +
+                            ". Falling back to buffered playback.", 12000);
+        if (running) stopStream("Switching player…").then(() => startStream());
+      }
     }
 
     async function stopStream(reason = "Disconnected") {
-      session++;              // invalidate all async work of the old session
+      session++;
       running = false;
+      reconnectPending = false;
       if (abortCtrl) {
-        try { abortCtrl.abort(); } catch (e) { /* ignore */ }
+        try { abortCtrl.abort(); } catch (e) {}
         abortCtrl = null;
       }
       if (mediaSource) {
-        try { if (mediaSource.readyState === "open") mediaSource.endOfStream(); } catch (e) { /* ignore */ }
+        try { if (mediaSource.readyState === "open") mediaSource.endOfStream(); } catch (e) {}
         mediaSource = null;
       }
+      rtTeardown();
+      whepTeardown(reason);
       video.removeAttribute("src");
-      try { video.load(); } catch (e) { /* ignore */ }
+      try { video.load(); } catch (e) {}
       setConnectingUi(false);
       setConnectedUi(false);
       setStatus(reason);
     }
 
-    // Port of timps's embedded MSE player (src/mp4/httpd.c PLAYER_TAIL):
-    // sequence mode, append queue with pump(), eviction of data >10 s behind
-    // playback, live-edge jump when drifting >6 s behind.
+    const RT_MAX_RETRIES = 5;
+    let rt = null;
+    let rtRetries = 0;
+    let rtTokenRefreshed = false;
+
+    const MSE_MAX_RETRIES = 5;
+    let mseRetries = 0;
+    let mseTokenRefreshed = false;
+
+    function boxAt(bytes, off) {
+      if (off + 8 > bytes.length) return null;
+      const dv = new DataView(bytes.buffer, bytes.byteOffset + off, bytes.length - off);
+      let size = dv.getUint32(0), hdr = 8;
+      const type = String.fromCharCode(bytes[off + 4], bytes[off + 5], bytes[off + 6], bytes[off + 7]);
+      if (size === 1) {
+        if (off + 16 > bytes.length) return null;
+        size = dv.getUint32(8) * 4294967296 + dv.getUint32(12);
+        hdr = 16;
+      }
+      if (size < hdr || off + size > bytes.length) return null;
+      return { type: type, size: size, payload: bytes.subarray(off + hdr, off + size) };
+    }
+
+    function findBox(bytes, path) {
+      let cur = bytes;
+      for (let i = 0; i < path.length; i++) {
+        let found = null, off = 0, b;
+        while ((b = boxAt(cur, off))) {
+          if (b.type === path[i]) { found = b.payload; break; }
+          off += b.size;
+        }
+        if (!found) return null;
+        cur = found;
+      }
+      return cur;
+    }
+
+    function rtParseMoov(moov) {
+      const out = { trackId: null, timescale: 90000, avcC: null, videoFourCC: null };
+      let off = 0, b;
+      while ((b = boxAt(moov, off))) {
+        if (b.type === "trak") {
+          const trak = b.payload;
+          const tkhd = findBox(trak, ["tkhd"]);
+          let trackId = null;
+          if (tkhd && tkhd.length >= 24) {
+            const dv = new DataView(tkhd.buffer, tkhd.byteOffset, tkhd.length);
+            trackId = tkhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+          }
+          const stsd = findBox(trak, ["mdia", "minf", "stbl", "stsd"]);
+          const entry = stsd ? boxAt(stsd, 8) : null;
+          if (entry && (entry.type === "avc1" || entry.type === "avc3" ||
+                        entry.type === "hvc1" || entry.type === "hev1")) {
+            out.videoFourCC = entry.type;
+            out.trackId = trackId;
+            if (entry.type === "avc1" || entry.type === "avc3")
+              out.avcC = findBox(entry.payload.subarray(78), ["avcC"]);
+            const mdhd = findBox(trak, ["mdia", "mdhd"]);
+            if (mdhd && mdhd.length >= 24) {
+              const dv = new DataView(mdhd.buffer, mdhd.byteOffset, mdhd.length);
+              const ts = mdhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+              if (ts > 0) out.timescale = ts;
+            }
+          }
+        }
+        off += b.size;
+      }
+      return out;
+    }
+
+    function rtTrafTrackId(traf) {
+      const tfhd = findBox(traf, ["tfhd"]);
+      if (!tfhd || tfhd.length < 8) return null;
+      return new DataView(tfhd.buffer, tfhd.byteOffset, tfhd.length).getUint32(4);
+    }
+
+    function rtTrafDts(traf) {
+      const tfdt = findBox(traf, ["tfdt"]);
+      if (!tfdt || tfdt.length < 8) return null;
+      const dv = new DataView(tfdt.buffer, tfdt.byteOffset, tfdt.length);
+      return tfdt[0] === 1
+        ? (tfdt.length >= 12 ? dv.getUint32(4) * 4294967296 + dv.getUint32(8) : null)
+        : dv.getUint32(4);
+    }
+
+    function rtIsKeyframe(au, lenSize) {
+      let off = 0;
+      while (off + lenSize < au.length) {
+        let n = 0;
+        for (let i = 0; i < lenSize; i++) n = n * 256 + au[off + i];
+        if (n <= 0 || off + lenSize + n > au.length) break;
+        const nalType = au[off + lenSize] & 0x1f;
+        if (nalType === 5) return true;
+        off += lenSize + n;
+      }
+      return false;
+    }
+
+    function rtTeardown() {
+      if (!rt) return;
+      const st = rt;
+      rt = null;
+      st.dead = true;
+      if (st.statsTimer) { clearInterval(st.statsTimer); st.statsTimer = null; }
+      if (st.decoder) {
+        try { if (st.decoder.state !== "closed") st.decoder.close(); } catch (e) {}
+        st.decoder = null;
+      }
+      if (rtCanvas) {
+        const ctx = rtCanvas.getContext("2d");
+        if (ctx) ctx.clearRect(0, 0, rtCanvas.width, rtCanvas.height);
+      }
+    }
+
+    function rtFallbackToMse(why) {
+      mode = "mse";
+      targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
+      if (rtOption) { rtOption.disabled = true; rtOption.title = why; }
+      applyModeUi();
+      applyModeAudio();
+      if (typeof window.showAlert === "function")
+        window.showAlert("warning", "Real-time mode: " + why + " Falling back to buffered playback.", 12000);
+      stopStream(why + " - switched to buffered playback.").then(() => startStream());
+    }
+
+    async function startRtStream(mySession) {
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const { base: b, tok } = await endpoint();
+      if (session !== mySession) return;
+      const src = b + "/stream.mp4?chn=" + chn + tok;
+      const hasAac = await streamHasAac(b, tok);
+      if (session !== mySession) return;
+
+      const ctx = rtCanvas ? rtCanvas.getContext("2d") : null;
+      if (!ctx) { rtFallbackToMse("No 2D canvas available"); return; }
+
+      const st = {
+        dead: false, decoder: null, trackId: null, timescale: 90000,
+        lenSize: 4, pendingVideo: false, pendingDts: null, sawKey: false,
+        frames: 0, lastFrames: 0, queueMax: 0, lastArrival: 0, lat: 0,
+        buf: new Uint8Array(0), statsTimer: null, w: 0, h: 0,
+        t0: performance.now(), camMs: -1, camTick: 0
+      };
+      rt = st;
+
+      const audioNote = hasAac ? " · audio unavailable in this mode" : "";
+      const label = chn === "1" ? "sub" : "main";
+
+      function fatal(msg) {
+        if (st.dead || session !== mySession) return;
+        scheduleReconnect(msg);
+      }
+
+      function scheduleReconnect(msg) {
+        if (session !== mySession) return;
+        rtTeardown();
+        try { if (abortCtrl) abortCtrl.abort(); } catch (e) {}
+        abortCtrl = null;
+        running = false;
+        if (rtRetries >= RT_MAX_RETRIES) {
+          reconnectPending = false;
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + RT_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          console.warn("[preview] rt: gave up after " + RT_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, rtRetries));
+        rtRetries++;
+        reconnectPending = true;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + rtRetries + "/" + RT_MAX_RETRIES + ")…");
+        console.warn("[preview] rt: " + msg + " - retry " + rtRetries + "/" +
+                     RT_MAX_RETRIES + " in " + delay + "ms");
+        setTimeout(() => {
+          if (session !== mySession || mode !== "rt") return;
+          reconnectPending = false;
+          startStream();
+        }, delay);
+      }
+
+      function onFrame(frame) {
+        if (st.dead) { try { frame.close(); } catch (e) {} return; }
+        const w = frame.displayWidth || frame.codedWidth;
+        const h = frame.displayHeight || frame.codedHeight;
+        if (w && h && (st.w !== w || st.h !== h)) {
+          st.w = w; st.h = h;
+          rtCanvas.width = w; rtCanvas.height = h;
+          window.msPreviewSize = { w: w, h: h };
+        }
+        if (!document.hidden) {
+          try { ctx.drawImage(frame, 0, 0, rtCanvas.width, rtCanvas.height); }
+          catch (e) {}
+        }
+        try { frame.close(); } catch (e) {}
+        st.frames++;
+        if (st.lastArrival) st.lat = performance.now() - st.lastArrival;
+        if (st.frames === 1) {
+          rtRetries = 0;
+          rtTokenRefreshed = false;
+        }
+      }
+
+      function configure(moov) {
+        const info = rtParseMoov(moov);
+        if (!info.avcC) {
+          rtFallbackToMse(info.videoFourCC && info.videoFourCC.indexOf("hv") === 0
+            ? "Real-time mode is H.264-only (this stream is H.265)"
+            : "No H.264 configuration in the stream");
+          return false;
+        }
+        st.trackId = info.trackId;
+        st.timescale = info.timescale;
+        st.lenSize = (info.avcC[4] & 3) + 1;
+        const codec = "avc1." +
+          [1, 2, 3].map((i) => info.avcC[i].toString(16).padStart(2, "0")).join("");
+        const config = { codec: codec, description: info.avcC, optimizeForLatency: true };
+        const dec = new VideoDecoder({
+          output: onFrame,
+          error: (e) => fatal("Decoder error: " + (e && e.message ? e.message : e))
+        });
+        VideoDecoder.isConfigSupported(config).then((r) => {
+          if (!st.dead && r && r.supported === false)
+            rtFallbackToMse("Browser cannot decode " + codec);
+        }).catch(() => {});
+        try {
+          dec.configure(config);
+        } catch (e) {
+          rtFallbackToMse("Cannot configure decoder (" + codec + ")");
+          return false;
+        }
+        st.decoder = dec;
+        setStatus("Real-time (" + label + " stream, " + codec + ")" + audioNote);
+        return true;
+      }
+
+      function onBox(type, payload) {
+        if (type === "moov") {
+          configure(payload);
+        } else if (type === "moof") {
+          st.lastArrival = performance.now();
+          const traf = findBox(payload, ["traf"]);
+          st.pendingVideo = !!traf && rtTrafTrackId(traf) === st.trackId;
+          st.pendingDts = traf ? rtTrafDts(traf) : null;
+        } else if (type === "mdat") {
+          if (!st.pendingVideo || !st.decoder || st.decoder.state !== "configured") return;
+          if (payload.length <= st.lenSize) return;
+          const key = rtIsKeyframe(payload, st.lenSize);
+          if (!key && !st.sawKey) return;
+          if (key) st.sawKey = true;
+          const ts = st.pendingDts !== null
+            ? Math.round(st.pendingDts * 1000000 / st.timescale)
+            : 0;
+          try {
+            st.decoder.decode(new EncodedVideoChunk({
+              type: key ? "key" : "delta", timestamp: ts,
+              data: payload.slice()
+            }));
+            if (st.decoder.decodeQueueSize > st.queueMax)
+              st.queueMax = st.decoder.decodeQueueSize;
+          } catch (e) {
+            fatal("Decode failed: " + (e && e.message ? e.message : e));
+          }
+        }
+      }
+
+      function push(chunk) {
+        const merged = new Uint8Array(st.buf.length + chunk.length);
+        merged.set(st.buf, 0);
+        merged.set(chunk, st.buf.length);
+        st.buf = merged;
+        let off = 0, b;
+        while (!st.dead && (b = boxAt(st.buf, off))) {
+          onBox(b.type, b.payload);
+          off += b.size;
+        }
+        st.buf = off ? st.buf.subarray(off) : st.buf;
+        if (st.buf.length > 16 * 1024 * 1024) {
+          fatal("Stream framing lost (oversized box)");
+        }
+      }
+
+      st.statsTimer = setInterval(() => {
+        if (st.dead || !st.decoder) return;
+        const fps = st.frames - st.lastFrames;
+        st.lastFrames = st.frames;
+        pollFmp4CamLatency(st, chn);
+        const d = delayText([["camera", st.camMs], ["decode + render", st.lat]],
+                            "without network (TCP), sensor exposure and display");
+        setStatus("Real-time (" + label + " stream) · " +
+          (st.w ? st.w + "x" + st.h + " · " : "") +
+          fps.toFixed(0) + " fps · " + st.frames + " frames · queue " +
+          st.decoder.decodeQueueSize + " · render +" + st.lat.toFixed(1) + " ms" +
+          d.text + audioNote, d.tip);
+        noteOwnDelay("fmp4", st.selfPort, d.total, d.tip);
+      }, 1000);
+
+      const ctrl = new AbortController();
+      abortCtrl = ctrl;
+      try {
+        const res = await fetch(src, { signal: ctrl.signal, cache: "no-store" });
+        if (session !== mySession) { try { ctrl.abort(); } catch (e) {} return; }
+        if (!res.ok || !res.body) {
+          if (res.status >= 500) { scheduleReconnect("Connect failed: HTTP " + res.status); return; }
+          if (res.status === 401 && !rtTokenRefreshed) {
+            rtTokenRefreshed = true;
+            controlCache = null;
+            refreshTimpsToken();
+            rtRetries = 0;
+            scheduleReconnect("Stream token expired (timps restarted?) - renewing");
+            return;
+          }
+          rtTeardown();
+          running = false;
+          await stopStream("Connect failed: HTTP " + res.status +
+            (res.status === 401 ? " (timps HTTP auth - open " + b + " once and log in)" : ""));
+          return;
+        }
+        setConnectedUi(true);
+        noteProgress();
+        console.info("[preview] rt: connected (" + label + " stream)");
+        setStatus("Real-time (" + label + " stream) · waiting for a key frame…");
+        const rd = res.body.getReader();
+        while (true) {
+          const { done, value } = await rd.read();
+          if (done || st.dead || session !== mySession) break;
+          noteProgress();
+          push(value);
+        }
+        if (!st.dead && session === mySession) scheduleReconnect("Stream ended");
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        scheduleReconnect("Stream error: " + (e && e.message ? e.message : e) +
+          (st.frames === 0 && rtRetries === 0
+            ? " - if the web UI runs on HTTPS this is likely blocked mixed content (see page source)"
+            : ""));
+      }
+    }
+
+    const WHEP_MAX_RETRIES = 5;
+    let whep = null;
+    let whepRetries = 0;
+    let whepTokenRefreshed = false;
+    let whepChnSelect = false;
+
+    const WHEP_TLS_HINT =
+      "This camera requires HTTPS for WebRTC signalling (webrtc.enabled=1) - " +
+      "open this page over https:// to use WebRTC.";
+
+    const H264_PROFILE_IDC = { 0: "4200", 1: "4d00", 2: "6400" };
+    const H264_PROFILE_NAME = { 0: "Baseline", 1: "Main", 2: "High" };
+
+    function whepAnswerLike(offerSdp, idc) {
+      const lines = offerSdp.split(/\r\n|\n/);
+      const mi = lines.findIndex((l) => l.indexOf("m=video") === 0);
+      if (mi < 0) return null;
+      let end = lines.length;
+      for (let k = mi + 1; k < lines.length; k++)
+        if (lines[k].indexOf("m=") === 0) { end = k; break; }
+      const inSec = (n) => n > mi && n < end;
+
+      let pt = null, level = "1f";
+      for (const cand of lines[mi].split(" ").slice(3)) {
+        const rtp = lines.find((l, n) => inSec(n) && l.indexOf("a=rtpmap:" + cand + " ") === 0);
+        if (!rtp || !/H264\/90000/i.test(rtp)) continue;
+        const fmtp = lines.find((l, n) => inSec(n) && l.indexOf("a=fmtp:" + cand + " ") === 0);
+        if (!fmtp || !/packetization-mode=1/.test(fmtp)) continue;
+        const m = fmtp.match(/profile-level-id=[0-9a-f]{4}([0-9a-f]{2})/i);
+        if (m) level = m[1];
+        pt = cand; break;
+      }
+      if (!pt) return null;
+
+      const out = [];
+      for (let n = 0; n < lines.length; n++) {
+        let l = lines[n];
+        if (!l) continue;
+        if (n === mi) { out.push(lines[mi].split(" ").slice(0, 3).join(" ") + " " + pt); continue; }
+        if (inSec(n)) {
+          const m = l.match(/^a=(?:rtpmap|fmtp|rtcp-fb):(\d+)/);
+          if (m && m[1] !== pt) continue;
+          if (idc && l.indexOf("a=fmtp:" + pt + " ") === 0)
+            l = "a=fmtp:" + pt + " packetization-mode=1;profile-level-id=" + idc + level;
+          if (l === "a=recvonly") l = "a=sendonly";
+        }
+        if (l === "a=setup:actpass") l = "a=setup:passive";
+        out.push(l);
+      }
+      return out.join("\r\n") + "\r\n";
+    }
+
+    async function whepAnswerAccepted(idc) {
+      let pc = null;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        pc.addTransceiver("video", { direction: "recvonly" });
+        await pc.setLocalDescription(await pc.createOffer());
+        const sdp = whepAnswerLike(pc.localDescription.sdp, idc);
+        if (!sdp) return null;
+        await pc.setRemoteDescription({ type: "answer", sdp: sdp });
+        return true;
+      } catch (e) {
+        return idc ? false : null;
+      } finally { if (pc) try { pc.close(); } catch (e) {} }
+    }
+
+    const whepProfileCache = {};
+    async function whepProfileNegotiable(prof) {
+      const idc = H264_PROFILE_IDC[prof];
+      if (!idc) return null;
+      if (idc in whepProfileCache) return whepProfileCache[idc];
+      const p = (async () => {
+        if (await whepAnswerAccepted(null) !== true) return null;
+        return await whepAnswerAccepted(idc);
+      })();
+      whepProfileCache[idc] = p;
+      return p;
+    }
+
+    async function refreshWhepOption() {
+      if (!HAVE_WEBRTC || !whepOption || !latencySelect) return "unknown";
+      const { base: b, tok } = await endpoint();
+      const j = await controlSnapshot(b, tok);
+      if (!j || !j.caps) return "unknown";
+      const w = j.caps.webrtc;
+      whepChnSelect = !!(w && w.chn_select);
+      if (!w) {
+        whepOption.remove();
+        if (mode === "whep")
+          whepFallbackToMse("This camera has no WebRTC/WHEP endpoint", true);
+        return "absent";
+      }
+      if (!w.available) {
+        whepOption.disabled = true;
+        whepOption.title = "WebRTC is built into this camera but turned off " +
+                           "(webrtc.enabled=0)";
+        if (mode === "whep")
+          whepFallbackToMse("WebRTC is turned off on this camera (webrtc.enabled=0)", true);
+        return "off";
+      }
+      let prof = -1;
+      for (const k in (j.video || {})) {
+        const v = j.video[k];
+        if (v && v.enabled && String(v.codec || "").toLowerCase() === "h264" &&
+            typeof v.profile === "number" && v.profile > prof) prof = v.profile;
+      }
+      if (await whepProfileNegotiable(prof) === false) {
+        const msg = "This camera streams H.264 " + H264_PROFILE_NAME[prof] +
+                    " profile, which this browser's WebRTC will not negotiate " +
+                    "(it accepts Baseline only). Set videoN.profile = 0 on the " +
+                    "camera, or use one of the buffered fMP4 options instead.";
+        whepOption.disabled = true;
+        whepOption.title = msg;
+        if (mode === "whep") whepFallbackToMse(msg, true);
+        return "profile";
+      }
+
+      const ok = (w.enabled | 0) >= 2 || b.slice(0, 6) === "https:";
+      whepOption.disabled = false;
+      whepOption.title = !ok ? WHEP_TLS_HINT
+        : whepChnSelect ? "Browser-native WebRTC"
+        : "Browser-native WebRTC; streams whichever channel webrtc.channel " +
+          "names in timps.conf (the main/sub selector does not apply)";
+      return ok ? "ok" : "tls";
+    }
+
+    function whepFallbackToMse(why, permanent) {
+      mode = "mse";
+      const n = parseMargin(lastBufferedValue);
+      targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
+      if (whepOption && permanent) { whepOption.disabled = true; whepOption.title = why; }
+      applyModeUi();
+      applyModeAudio();
+      console.warn("[preview] whep: " + why);
+      if (typeof window.showAlert === "function")
+        window.showAlert("warning", "WebRTC: " + why + " Falling back to buffered playback.", 12000);
+      stopStream(why + " - switched to buffered playback.").then(() => startStream());
+    }
+
+    function whepTlsRequired() {
+      const httpsUrl = "https://" + host + location.pathname;
+      const msg = WHEP_TLS_HINT + " Try " + httpsUrl;
+      if (whepOption) whepOption.title = WHEP_TLS_HINT;
+      whepFallbackToMse(msg, false);
+    }
+
+    function whepDelete(resource, token, why) {
+      if (!resource) return;
+      console.info("[preview] whep: DELETE " + resource + " (" + why + ")");
+      try {
+        fetch(resource, {
+          method: "DELETE",
+          keepalive: true,
+          cache: "no-store",
+          headers: token ? { "X-Timps-Token": token } : {}
+        }).then((r) => console.info("[preview] whep: DELETE -> " + r.status))
+          .catch((e) => console.warn("[preview] whep: DELETE failed:", e));
+      } catch (e) { console.warn("[preview] whep: DELETE threw:", e); }
+    }
+
+    function whepTeardown(why) {
+      if (!whep) return;
+      const st = whep;
+      whep = null;
+      st.dead = true;
+      if (st.statsTimer) { clearInterval(st.statsTimer); st.statsTimer = null; }
+      whepDelete(st.resource, st.token, why || "teardown");
+      st.resource = null;
+      if (st.pc) { try { st.pc.close(); } catch (e) {} st.pc = null; }
+      try { video.srcObject = null; } catch (e) {}
+    }
+
+    async function startWhepStream(mySession) {
+      const { base: b } = await endpoint();
+      if (session !== mySession) return;
+      const info = await window.timpsTokenInfo;
+      if (session !== mySession) return;
+      const token = info && info.token ? info.token : "";
+
+      const st = {
+        dead: false, pc: null, resource: null, token: token, statsTimer: null,
+        bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0,
+        prevV: null, camMs: -1, tick: 0
+      };
+      whep = st;
+
+      function scheduleWhepReconnect(msg) {
+        if (st.dead || session !== mySession) return;
+        whepTeardown("reconnect");
+        running = false;
+        if (whepRetries >= WHEP_MAX_RETRIES) {
+          reconnectPending = false;
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + WHEP_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          console.warn("[preview] whep: gave up after " + WHEP_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, whepRetries));
+        whepRetries++;
+        reconnectPending = true;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + whepRetries + "/" + WHEP_MAX_RETRIES + ")…");
+        console.warn("[preview] whep: " + msg + " - retry " + whepRetries + "/" +
+                     WHEP_MAX_RETRIES + " in " + delay + "ms");
+        setTimeout(() => {
+          if (session !== mySession || mode !== "whep") return;
+          reconnectPending = false;
+          startStream();
+        }, delay);
+      }
+
+      let pc;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+      } catch (e) {
+        whepFallbackToMse("This browser refused to create an RTCPeerConnection", true);
+        return;
+      }
+      st.pc = pc;
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.addTransceiver("audio", { direction: "recvonly" });
+
+      pc.ontrack = (e) => {
+        if (st.dead || session !== mySession) return;
+        if (!video.srcObject) video.srcObject = new MediaStream();
+        video.srcObject.addTrack(e.track);
+        if (e.track.kind === "audio") st.audio = true;
+        console.info("[preview] whep: ontrack " + e.track.kind);
+        try { const p = video.play(); if (p) p.catch(() => {}); }
+        catch (err) {}
+      };
+      pc.onconnectionstatechange = () => {
+        if (st.dead || session !== mySession) return;
+        const s = pc.connectionState;
+        console.info("[preview] whep: connectionState=" + s);
+        if (s === "connected") { whepRetries = 0; setConnectedUi(true); noteProgress(); }
+        else if (s === "failed")
+          scheduleWhepReconnect("WebRTC connection failed (ICE/DTLS)");
+        else if (s === "disconnected")
+          setStatus("WebRTC (WHEP) · link interrupted, waiting…");
+      };
+      pc.oniceconnectionstatechange = () =>
+        console.info("[preview] whep: iceConnectionState=" + pc.iceConnectionState);
+
+      let offer;
+      try {
+        offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        scheduleWhepReconnect("Could not build a WebRTC offer: " +
+                              (e && e.message ? e.message : e));
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const url = b + "/webrtc/whep?chn=" + chn;
+      const headers = { "Content-Type": "application/sdp" };
+      if (token) headers["X-Timps-Token"] = token;
+
+      let res;
+      console.info("[preview] whep: POST " + url + " (" + offer.sdp.length + " byte offer)");
+      try {
+        res = await fetch(url, { method: "POST", headers: headers,
+                                 body: offer.sdp, cache: "no-store" });
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        whepFallbackToMse("WebRTC signalling could not reach " + url + " (" +
+          (e && e.message ? e.message : e) +
+          ") - camera down, blocked mixed content, or an untrusted camera " +
+          "certificate.", false);
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+      const answer = await res.text().catch(() => "");
+      if (st.dead || session !== mySession) return;
+
+      if (res.status !== 201) {
+        console.warn("[preview] whep: signalling -> HTTP " + res.status + " " + answer);
+        if (res.status === 401 && !whepTokenRefreshed) {
+          whepTokenRefreshed = true;
+          controlCache = null;
+          refreshTimpsToken();
+          whepRetries = 0;
+          scheduleWhepReconnect("WebRTC token expired (timps restarted?) - renewing");
+          return;
+        }
+        if (res.status === 426) { whepTlsRequired(); return; }
+        if (res.status === 404) {
+          whepFallbackToMse("This camera's timps serves no WebRTC/WHEP endpoint " +
+                            "(USE_WEBRTC=0, or webrtc.enabled=0)", true);
+          return;
+        }
+        if (res.status === 400) {
+          if (whepChnSelect)
+            whepFallbackToMse("The camera rejected the WebRTC offer - the " +
+                              (chn === "1" ? "sub" : "main") + " stream must " +
+                              "be running and H.264", false);
+          else
+            whepFallbackToMse("The camera rejected the WebRTC offer - the " +
+                              "stream webrtc.channel names must be H.264", true);
+          return;
+        }
+        if (res.status === 403) {
+          whepFallbackToMse("timps refused the WebRTC session (no valid token " +
+                            "for /webrtc/whep)", false);
+          return;
+        }
+        if (res.status === 503) {
+          scheduleWhepReconnect("All WebRTC sessions on this camera are in use");
+          return;
+        }
+        if (res.status >= 500) {
+          scheduleWhepReconnect("WebRTC signalling failed: HTTP " + res.status);
+          return;
+        }
+        whepFallbackToMse("WebRTC signalling failed: HTTP " + res.status + " " +
+                          res.statusText, false);
+        return;
+      }
+
+      // Location is relative: resolve it against the camera, not this page
+      const loc = res.headers.get("Location");
+      if (loc) { try { st.resource = new URL(loc, b + "/").href; } catch (e) {} }
+      if (!st.resource)
+        console.warn("[preview] whep: 201 without a usable Location - teardown " +
+                     "will have to rely on the camera's idle timeout");
+
+      try {
+        await pc.setRemoteDescription({ type: "answer", sdp: answer });
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        scheduleWhepReconnect("The camera's WebRTC answer was rejected: " +
+                              (e && e.message ? e.message : e));
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+      setConnectedUi(true);
+      noteProgress();
+      setStatus(whepChnSelect ? "WebRTC (WHEP) · negotiating…"
+        : "WebRTC (WHEP) · negotiating… (stream selected by webrtc.channel " +
+          "on the camera, not by the selector above)");
+
+      st.statsTimer = setInterval(async () => {
+        if (st.dead || session !== mySession) return;
+        let report;
+        try { report = await pc.getStats(); } catch (e) { return; }
+        if (st.dead || session !== mySession) return;
+        let v = null, a = null, tr = null, pair = null;
+        report.forEach((r) => {
+          if (r.type === "inbound-rtp" && r.kind === "video") v = r;
+          else if (r.type === "inbound-rtp" && r.kind === "audio") a = r;
+          else if (r.type === "transport") tr = r;
+          else if (r.type === "candidate-pair" && (r.selected || (r.nominated && r.state === "succeeded"))) pair = r;
+        });
+        if (tr && tr.selectedCandidatePairId) pair = report.get(tr.selectedCandidatePairId) || pair;
+        const bytes = (v ? v.bytesReceived || 0 : 0) + (a ? a.bytesReceived || 0 : 0);
+        if (bytes > st.bytes) { st.bytes = bytes; noteProgress(); }
+        if (!v) return;
+        const now = performance.now();
+        let rate = "";
+        if (st.lastBytes >= 0 && now > st.lastAt)
+          rate = " · " + formatKbps((bytes - st.lastBytes) * 8 / (now - st.lastAt));
+        st.lastBytes = bytes; st.lastAt = now;
+        const w = v.frameWidth || 0, h = v.frameHeight || 0;
+        if (w && h) { st.w = w; st.h = h; }
+        const dtls = tr && tr.dtlsState && tr.dtlsState !== "connected"
+                   ? " · dtls " + tr.dtlsState : "";
+        const lat = whepLatency(st, v, pair, report);
+        setStatus("WebRTC (WHEP)" +
+                  (st.w ? " · " + st.w + "x" + st.h : "") +
+                  (v.framesPerSecond ? " · " + Math.round(v.framesPerSecond) + " fps" : "") +
+                  rate +
+                  (st.audio ? " · G.711 audio" : " · no audio") +
+                  (v.packetsLost ? " · lost " + v.packetsLost : "") +
+                  (lat ? " · delay " + lat.total + " ms" : "") +
+                  dtls, lat ? lat.tip : "");
+        if (lat) noteOwnDelay("webrtc", st.selfPort, lat.total, lat.tip);
+      }, 1000);
+    }
+
+    let ownDelay = null;
+    function noteOwnDelay(proto, port, total, tip) {
+      ownDelay = port ? { proto: proto, port: port, total: total, tip: tip, at: performance.now() } : null;
+    }
+
+    function whepLatency(st, v, pair, report) {
+      const p = st.prevV, per = (k, n) => {
+        const dn = (v[n] || 0) - (p ? p[n] || 0 : 0);
+        return dn > 0 ? ((v[k] || 0) - (p ? p[k] || 0 : 0)) / dn * 1000 : null;
+      };
+      const jb = per("jitterBufferDelay", "jitterBufferEmittedCount");
+      const dec = per("totalDecodeTime", "framesDecoded");
+      st.prevV = { jitterBufferDelay: v.jitterBufferDelay, jitterBufferEmittedCount: v.jitterBufferEmittedCount,
+                   totalDecodeTime: v.totalDecodeTime, framesDecoded: v.framesDecoded };
+      const net = pair && pair.currentRoundTripTime != null ? pair.currentRoundTripTime * 500 : null;
+      const local = pair && report.get(pair.localCandidateId);
+      st.selfPort = local && local.port;
+      if (local && local.port && st.tick++ % 5 === 0)
+        timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+          const c = j && Array.isArray(j.clients) && j.clients.find((c) => c.proto === "webrtc" && c.port === local.port);
+          st.camMs = c && c.lat_ms >= 0 ? c.lat_ms : -1;
+        }).catch(() => {});
+      if (jb == null) return null;
+      const parts = [["camera", st.camMs >= 0 ? st.camMs : null], ["network", net],
+                     ["jitter buffer", jb], ["decode", dec]];
+      const known = parts.filter((x) => x[1] != null);
+      const total = Math.round(known.reduce((sum, x) => sum + x[1], 0));
+      return {
+        total: (st.camMs >= 0 ? "≈ " : "≥ ") + total,
+        tip: known.map((x) => x[0] + " " + Math.round(x[1]) + " ms").join(" + ") +
+             (st.camMs >= 0 ? "" : " (camera part unknown)") +
+             "\nwithout sensor exposure and display, ~1-2 frames"
+      };
+    }
+
+    function pollFmp4CamLatency(st, chn) {
+      if (st.camTick++ % 5) return;
+      const age = (performance.now() - st.t0) / 1000;
+      timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+        const mine = (j && Array.isArray(j.clients) ? j.clients : []).filter((c) =>
+          c.proto === "fmp4" && c.chn === +chn && c.agent === navigator.userAgent)
+          .sort((a, b) => Math.abs(a.since_s - age) - Math.abs(b.since_s - age));
+        st.camMs = mine.length && mine[0].lat_ms >= 0 ? mine[0].lat_ms : -1;
+        st.selfPort = mine.length ? mine[0].port : 0;
+      }).catch(() => {});
+    }
+
+    function delayText(parts, note) {
+      const known = parts.filter((x) => x[1] != null && x[1] >= 0);
+      const cam = parts.find((x) => x[0] === "camera");
+      const exact = cam && cam[1] != null && cam[1] >= 0;
+      const total = Math.round(known.reduce((sum, x) => sum + x[1], 0));
+      return {
+        total: (exact ? "≈ " : "≥ ") + total,
+        text: " · delay " + (exact ? "≈ " : "≥ ") + total + " ms",
+        tip: known.map((x) => x[0] + " " + Math.round(x[1]) + " ms").join(" + ") +
+             (exact ? "" : " (camera part unknown)") + "\n" + note
+      };
+    }
+
     async function startStream(forceVideoOnly = false) {
       if (running) return;
       running = true;
-      const mySession = ++session;   // this attempt owns the player now
+      reconnectPending = false;
+      noteProgress();
+      const mySession = ++session;
       setStatus("Connecting...");
       setConnectingUi(true);
+      applyModeUi();
+      applyModeAudio();
+      if (mode === "rt") return startRtStream(mySession);
+      if (mode === "whep") return startWhepStream(mySession);
+      return startMseStream(forceVideoOnly, mySession);
+    }
 
+    async function startMseStream(forceVideoOnly, mySession) {
       const chn = streamSelect.value === "1" ? "1" : "0";
-      const info = await window.timpsTokenInfo;
-      if (info) base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT);
-      const tok = info && info.token
-        ? "&token=" + encodeURIComponent(info.token) : "";
+      const ep = await endpoint();
+      const tok = ep.tok;
       const src = base + "/stream.mp4?chn=" + chn + tok;
-      // iOS Safari never exposes window.MediaSource; since iOS 17.1 it
-      // exposes window.ManagedMediaSource instead (requires
-      // disableremoteplayback, set on the <video> tag above). Desktop
-      // browsers keep using plain MediaSource. Mirrors the fix already
-      // applied to timps's own embedded player (src/mp4/httpd.c PLAYER_TAIL).
       const MS = window.ManagedMediaSource || window.MediaSource;
-      // Advertise AAC to MSE only if timps is actually muxing it; a video-only
-      // stream (PCM audio) with an mp4a-typed SourceBuffer shows no video.
+      // an mp4a SourceBuffer on a stream without AAC shows no video
       const wantAac = forceVideoOnly ? false : await streamHasAac(base, tok);
-      if (session !== mySession) return;   // superseded during the /control probe
+      if (session !== mySession) return;
       const mime = pickMime(MS, wantAac);
 
       if (!MS || !mime) {
-        // no MSE (e.g. old iOS Safari): let the <video> try progressive mp4
         video.src = src;
         setConnectedUi(true);
         setStatus("MSE unavailable - direct playback attempt");
@@ -629,9 +1747,42 @@
       mediaSource = ms;
       video.src = URL.createObjectURL(ms);
 
+      function scheduleMseReconnect(msg) {
+        if (session !== mySession) return;
+        if (abortCtrl) {
+          try { abortCtrl.abort(); } catch (e) {}
+          abortCtrl = null;
+        }
+        try { if (ms.readyState === "open") ms.endOfStream(); } catch (e) {}
+        if (mediaSource === ms) mediaSource = null;
+        running = false;
+        if (mseRetries >= MSE_MAX_RETRIES) {
+          reconnectPending = false;
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + MSE_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          console.warn("[preview] mse: gave up after " + MSE_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, mseRetries));
+        mseRetries++;
+        reconnectPending = true;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + mseRetries + "/" + MSE_MAX_RETRIES + ")…");
+        console.warn("[preview] mse: " + msg + " - retry " + mseRetries + "/" +
+                     MSE_MAX_RETRIES + " in " + delay + "ms");
+        setTimeout(() => {
+          if (session !== mySession || mode !== "mse") return;
+          reconnectPending = false;
+          startStream();
+        }, delay);
+      }
+
       ms.addEventListener("sourceopen", async () => {
-        if (session !== mySession) return;   // superseded while opening
-        try { ms.duration = Infinity; } catch (e) { /* Safari live-MSE hint */ }
+        if (session !== mySession) return;
+        try { ms.duration = Infinity; } catch (e) {}
         let sb;
         try {
           sb = ms.addSourceBuffer(mime);
@@ -640,10 +1791,6 @@
           return;
         }
         sb.mode = "sequence";
-        // Safety net: if we advertised AAC but the init segment is video-only
-        // (e.g. audio pipeline degraded after the /control probe), MSE fails the
-        // append asynchronously here. Retry once forcing a video-only buffer so
-        // the video still shows instead of a black player.
         sb.addEventListener("error", () => {
           if (session !== mySession || forceVideoOnly || !/mp4a/.test(mime)) return;
           stopStream("Retrying video-only…").then(() => startStream(true));
@@ -654,17 +1801,15 @@
 
         const stop = () => {
           dead = true;
-          try { if (ms.readyState === "open") ms.endOfStream(); } catch (e) { /* ignore */ }
+          try { if (ms.readyState === "open") ms.endOfStream(); } catch (e) {}
         };
-        // drop buffered data older than ~10s behind playback so the
-        // SourceBuffer never fills up during a long-running live stream
         const evict = () => {
           try {
             if (sb.buffered.length) {
               const s = sb.buffered.start(0), e = video.currentTime - 10;
               if (e > s + 4 && !sb.updating) sb.remove(s, e);
             }
-          } catch (e) { /* ignore */ }
+          } catch (e) {}
         };
         const pump = () => {
           if (dead || busy || sb.updating || ms.readyState !== "open" || !q.length) return;
@@ -678,15 +1823,9 @@
         };
         sb.addEventListener("updateend", () => {
           busy = false;
+          if (session === mySession) { mseRetries = 0; mseTokenRefreshed = false; }
           if (video.buffered.length) {
             if (video.currentTime < video.buffered.start(0)) video.currentTime = video.buffered.start(0);
-            // Keep near the live edge with a jitter margin (user-adjustable via
-            // ms-latency, default 1.5s) instead of playing right at the edge:
-            // measured WiFi-loss stalls on some cameras run up to ~1.8s, and
-            // playing with zero cushion turned every stall into a visible
-            // freeze. Hard-seek only on a big drift (post-stall, target+3.5s);
-            // otherwise nudge playbackRate to gently drain the buffer down to
-            // the target, same approach as the embedded player in httpd.c.
             const end = video.buffered.end(video.buffered.length - 1);
             const behind = end - video.currentTime;
             const target = targetBehindS;
@@ -702,33 +1841,62 @@
         abortCtrl = ctrl;
         try {
           const res = await fetch(src, { signal: ctrl.signal, cache: "no-store" });
-          if (session !== mySession) {           // superseded mid-connect
-            try { ctrl.abort(); } catch (e) { /* ignore */ }
+          if (session !== mySession) {
+            try { ctrl.abort(); } catch (e) {}
             stop();
             return;
           }
           if (!res.ok || !res.body) {
+            stop();
+            if (res.status === 401 && !mseTokenRefreshed) {
+              mseTokenRefreshed = true;
+              controlCache = null;
+              refreshTimpsToken();
+              mseRetries = 0;
+              scheduleMseReconnect("Stream token expired (timps restarted?) - renewing");
+              return;
+            }
+            if (res.status >= 500) {
+              scheduleMseReconnect("Connect failed: HTTP " + res.status);
+              return;
+            }
             await stopStream("Connect failed: HTTP " + res.status +
               (res.status === 401 ? " (timps HTTP auth - open " + base + " once and log in)" : ""));
             return;
           }
           setConnectedUi(true);
-          setStatus("Connected (" + (chn === "1" ? "sub" : "main") + " stream)");
+          noteProgress();
+          console.info("[preview] mse: connected (" + (chn === "1" ? "sub" : "main") + " stream)");
+          const connMsg = "Connected (" + (chn === "1" ? "sub" : "main") + " stream)";
+          setStatus(connMsg);
+          const lst = { t0: performance.now(), camMs: -1, camTick: 0 };
+          const latTimer = setInterval(() => {
+            if (dead || session !== mySession) { clearInterval(latTimer); return; }
+            if (!video.buffered.length) return;
+            pollFmp4CamLatency(lst, chn);
+            const buf = (video.buffered.end(video.buffered.length - 1) - video.currentTime) * 1000;
+            const d = delayText([["camera", lst.camMs], ["playback buffer", Math.max(0, buf)]],
+                                "without network (TCP), decode, sensor exposure and display");
+            setStatus(connMsg + d.text, d.tip);
+            noteOwnDelay("fmp4", lst.selfPort, d.total, d.tip);
+          }, 1000);
           const rd = res.body.getReader();
           while (true) {
             const { done, value } = await rd.read();
             if (done || dead || session !== mySession) break;
+            noteProgress();
             q.push(value);
             pump();
           }
+          if (session === mySession && running && !dead)
+            scheduleMseReconnect("Stream ended");
         } catch (e) {
           if (session === mySession && running) {
-            setStatus("Stream error: " + (e && e.message ? e.message : e) +
+            scheduleMseReconnect("Stream error: " + (e && e.message ? e.message : e) +
               " - if the web UI runs on HTTPS this is likely blocked mixed content (see page source)");
           }
         }
         stop();
-        // only the still-current session may flip the UI back to disconnected
         if (session === mySession && running) {
           setConnectedUi(false);
           setConnectingUi(false);
@@ -737,32 +1905,155 @@
       });
     }
 
-    // live main/sub switch: selecting another stream while playing tears the
-    // MSE player down and rebuilds it on the new ?chn= (a different
-    // resolution/SPS needs a fresh MediaSource) - no manual Disconnect needed
     streamSelect.addEventListener("change", () => {
       sessionStorage.setItem("ms.stream", streamSelect.value || "0");
+      refreshRtOption();
+      if (mode === "whep" && !whepChnSelect) {
+        setStatus("WebRTC streams the channel webrtc.channel names on the " +
+                  "camera; the main/sub selector applies to the buffered and " +
+                  "real-time players only.");
+        return;
+      }
       if (running) {
-        stopStream("Switching stream...").then(startStream);
+        stopStream("Switching stream...").then(() => startStream());
       }
     });
 
     connectButton.addEventListener("click", () => {
-      if (running) stopStream(); else startStream();
+      if (running) { wantStream = false; rtRetries = 0; mseRetries = 0; whepRetries = 0; stopStream(); }
+      else {
+        wantStream = true;
+        rtRetries = 0; rtTokenRefreshed = false;
+        mseRetries = 0; mseTokenRefreshed = false;
+        whepRetries = 0; whepTokenRefreshed = false;
+        startStream();
+      }
     });
 
+    function logState(tag) {
+      const idle = lastProgressAt ? ((performance.now() - lastProgressAt) / 1000).toFixed(1) + "s" : "n/a";
+      console.info("[preview] " + tag + ": hidden=" + document.hidden +
+                   " running=" + running + " want=" + wantStream +
+                   " mode=" + mode + " pendingRetry=" + reconnectPending +
+                   " sinceLastData=" + idle);
+    }
+
+    function resumeCheck(tag, evenIfHidden) {
+      logState(tag);
+      if (document.hidden && !evenIfHidden) return;
+      if (!document.hidden) { wdWasHidden = false; wdVisibleSince = performance.now(); }
+      if (bootPending) { console.info("[preview] " + tag + ": boot still resolving, deferring"); return; }
+      if (!wantStream) { console.info("[preview] " + tag + ": user disconnected, staying off"); return; }
+      if (running || reconnectPending) {
+        console.info("[preview] " + tag + ": stream claims to be active, deferring to the watchdog");
+        return;
+      }
+      rtRetries = 0; rtTokenRefreshed = false;
+      mseRetries = 0; mseTokenRefreshed = false;
+      whepRetries = 0; whepTokenRefreshed = false;
+      console.info("[preview] " + tag + ": reconnecting");
+      startStream().catch((err) => {
+        console.warn("[preview] " + tag + ": reconnect failed:", err);
+        setStatus("Reconnect failed. Click Connect to try again.");
+      });
+    }
+
     window.addEventListener("pagehide", () => {
+      stopWatchdog();
       if (running) stopStream();
+      else whepTeardown("pagehide");
     });
+    window.addEventListener("beforeunload", () => whepTeardown("beforeunload"));
+    window.addEventListener("pageshow", () => {
+      startWatchdog();
+      resumeCheck("pageshow", true);
+    });
+    document.addEventListener("visibilitychange", () => resumeCheck("visibilitychange", false));
+
+    const WD_PERIOD_MS  = 5000;
+    const WD_STALL_MS   = 20000;
+    const WD_GRACE_MS   = 3000;
+    const WD_MIN_GAP_MS = 30000;
+    let wdTimer = null;
+    let wdWasHidden = false;
+    let wdVisibleSince = 0;
+    let wdLastForcedAt = 0;
+    let wdVideoTime = -1, wdVideoTimeAt = 0;
+
+    function forceReconnect(why) {
+      wdLastForcedAt = performance.now();
+      console.warn("[preview] watchdog: " + why + " - forcing a reconnect (mode=" + mode + ")");
+      rtRetries = 0; rtTokenRefreshed = false;
+      mseRetries = 0; mseTokenRefreshed = false;
+      whepRetries = 0; whepTokenRefreshed = false;
+      stopStream("Stream stalled - reconnecting…").then(() => {
+        if (!wantStream) return;
+        noteProgress();
+        return startStream();
+      }).then(() => {
+        console.info("[preview] watchdog: reconnect attempt issued");
+      }).catch((err) => {
+        console.warn("[preview] watchdog: reconnect failed:", err);
+        setStatus("Reconnect failed. Click Connect to try again.");
+      });
+    }
+
+    function watchdogTick() {
+      const now = performance.now();
+      if (document.hidden) { wdWasHidden = true; return; }
+      if (wdWasHidden) {
+        wdWasHidden = false;
+        wdVisibleSince = now;
+        logState("watchdog/visible-again");
+        return;
+      }
+      if (now - wdVisibleSince < WD_GRACE_MS) return;
+      if (now - wdLastForcedAt < WD_MIN_GAP_MS) return;
+      if (!wantStream) return;
+      if (reconnectPending) return;
+      if (!running) { forceReconnect("nothing connected while the tab is visible"); return; }
+
+      if (mode === "mse") {
+        if (video.paused) {
+          if (video.readyState >= 2) { noteProgress(); wdVideoTime = -1; wdVideoTimeAt = 0; }
+        } else if (video.currentTime !== wdVideoTime) {
+          wdVideoTime = video.currentTime; wdVideoTimeAt = now; noteProgress();
+        } else if (wdVideoTimeAt && now - wdVideoTimeAt > WD_STALL_MS) {
+          forceReconnect("playback frozen at " + wdVideoTime.toFixed(1) + "s");
+          return;
+        }
+      }
+
+      const idle = now - lastProgressAt;
+      if (idle > WD_STALL_MS)
+        forceReconnect("no stream data for " + (idle / 1000).toFixed(0) + "s");
+    }
+
+    function startWatchdog() { if (!wdTimer) wdTimer = setInterval(watchdogTick, WD_PERIOD_MS); }
+    function stopWatchdog() { if (wdTimer) { clearInterval(wdTimer); wdTimer = null; } }
 
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
-    startStream().catch((err) => {
-      console.warn("Auto-connect failed:", err);
-      setStatus("Auto-connect failed. Click Connect to try again.");
-    });
+
+    (async () => {
+      if (hadNoSavedLatencyPref && HAVE_WEBRTC) {
+        if (await refreshWhepOption() === "ok") mode = "whep";
+      } else {
+        refreshWhepOption();
+      }
+      applyModeUi();
+      bootPending = false;
+      refreshRtOption();
+      startWatchdog();
+      startStream().catch((err) => {
+        console.warn("[preview] auto-connect failed:", err);
+        setStatus("Auto-connect failed. Click Connect to try again.");
+      });
+    })();
   })();
 </script>
 <script src="/a/preview-motion.js"></script>
+<script src="/a/preview-testpattern.js"></script>
+<script src="/a/preview-talk.js"></script>
 </body>
 </html>

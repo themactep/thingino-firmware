@@ -4,5 +4,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in.host"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-dfu/Config.in.host"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/scriba/Config.in.host"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/buildscope/Config.in.host"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/qemu-ingenic/Config.in.host"
 
 endmenu

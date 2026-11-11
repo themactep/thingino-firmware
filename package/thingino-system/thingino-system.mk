@@ -31,6 +31,22 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	# Utilities always installed
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/firstboot \
 		$(TARGET_DIR)/usr/sbin/firstboot
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/blink \
+		$(TARGET_DIR)/usr/sbin/blink
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/gpio \
+		$(TARGET_DIR)/usr/sbin/gpio
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/led \
+		$(TARGET_DIR)/usr/sbin/led
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/lssdio \
+		$(TARGET_DIR)/usr/sbin/lssdio
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/send2termbin \
+		$(TARGET_DIR)/usr/sbin/send2termbin
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/service \
+		$(TARGET_DIR)/usr/sbin/service
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/timectl \
+		$(TARGET_DIR)/usr/sbin/timectl
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/tzselect \
+		$(TARGET_DIR)/usr/sbin/tzselect
 
 	# Optional utilities
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR)" = "y" ]; then \
@@ -56,6 +72,27 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SWAP)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S35swap \
 			$(TARGET_DIR)/etc/init.d/S35swap; \
+	fi
+
+	# The A1 keeps USB and its disk filesystems out of the kernel image -
+	# nothing mounts a disk or talks USB before userspace, and that is what
+	# lets the kernel fit the 1600 KiB partition. None of it autoloads.
+	# dwc2 is a platform driver behind a modular usbcore, and mdev has no
+	# $$MODALIAS rule, so no USB device is ever probed on its own; it goes
+	# first so the bus exists. /usr/lib/mdev/automount then mounts with
+	# "mount -t auto", which only tries filesystems already listed in
+	# /proc/filesystems, so ext4 and vfat have to be resident before the
+	# first disk appears. modprobe pulls usbcore/usb-common in behind
+	# usb-storage, jbd2/mbcache behind ext4, and fat behind vfat.
+	if [ "$(SOC_FAMILY)" = "a1" ]; then \
+		mkdir -p $(TARGET_DIR)/etc/modules.d; \
+		{ echo "dwc2"; \
+		  echo "ext4"; \
+		  echo "vfat"; \
+		  if [ "$(BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE)" = "y" ]; then \
+			  echo "usb-storage"; \
+		  fi; \
+		} > $(TARGET_DIR)/etc/modules.d/30-storage; \
 	fi
 
 	# Platform utilities. One block per vendor, each installing out of its own

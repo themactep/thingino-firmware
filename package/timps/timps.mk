@@ -6,8 +6,9 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.8.5
+TIMPS_VERSION = v1.12.1
 TIMPS_LICENSE = MIT
+TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
 
@@ -44,6 +45,10 @@ TIMPS_LICENSE = MIT
 # version otherwise.
 ifneq ($(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)),)
 TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
+endif
+# agg31: pinned commit from a local git checkout (TIMPS_SITE=/path): describe it
+ifneq ($(wildcard $(call qstrip,$(TIMPS_SITE))/.git),)
+TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_SITE)) describe --tags --always $(TIMPS_VERSION) 2>/dev/null)
 endif
 ifneq ($(TIMPS_GIT_DESCRIBE),)
 TIMPS_BUILD_VERSION = $(TIMPS_GIT_DESCRIBE)
@@ -102,17 +107,29 @@ ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
 	TIMPS_DEPENDENCIES += opus
 endif
 
-# Not a link-time dependency: this is purely an ORDERING dependency for the two
-# post-install hooks below that write into thingino-webui's www tree
-# (TIMPS_INSTALL_WEBUI_CGIS overlays the timps-flavored pages/scripts/CGIs,
-# TIMPS_INSTALL_PREVIEW overwrites preview.html with timps's own). Both must
-# land AFTER thingino-webui's own INSTALL_TARGET_CMDS has created the stock
-# www tree they overlay, and BEFORE thingino-webui's plugin-assembly finalize
-# hook reads that tree. Declaring the dependency makes the first half explicit
-# instead of relying on package parse order; the
-# per-package-install-before-global-finalize rule gives us the second half.
+# Not a link-time dependency: this is purely an ORDERING dependency for the
+# TIMPS_INSTALL_WEBUI post-install hook below, which writes into thingino-
+# webui's www tree. It has to land AFTER thingino-webui's own
+# INSTALL_TARGET_CMDS has created the stock tree it adds to, and BEFORE
+# thingino-webui's plugin-assembly finalize hook reads that tree (the assembler
+# has to see files/timps.webui.json to build the nav and inject our scripts).
+# Declaring the dependency makes the first half explicit instead of relying on
+# package parse order; the per-package-install-before-global-finalize rule
+# gives us the second half.
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 	TIMPS_DEPENDENCIES += thingino-webui
+endif
+
+# Same reasoning as thingino-webui above, for the same TIMPS_INSTALL_WEBUI
+# hook's ONVIF-symlink block further down: it checks
+# [ -d $(TARGET_DIR)/var/www/onvif ] before recreating image.cgi/image1.cgi,
+# and under PER_PACKAGE_DIRECTORIES that directory is only visible from
+# timps's own per-package view if thingino-onvif is a declared dependency -
+# undeclared, the check silently fails and image1.cgi never gets created
+# (image.cgi survives anyway since thingino-onvif's own INSTALL_TARGET_CMDS
+# creates that one directly, independent of this hook).
+ifeq ($(BR2_PACKAGE_THINGINO_ONVIF),y)
+	TIMPS_DEPENDENCIES += thingino-onvif
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -140,6 +157,11 @@ endif
 # The upstream Makefile defaults to static: -l:libimp.a etc.
 # We override to use the shared libraries installed by ingenic-lib.
 TIMPS_IMPLIBS = -limp -lalog -lsysutils
+# timps imports no SU_*/alog symbol itself and OpenIMP's libimp does not link
+# libalog/libsysutils: with OpenIMP no Ingenic/neo blob is linked or shipped.
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+TIMPS_IMPLIBS = -limp
+endif
 
 # Additional system libs (extended from upstream -lpthread -lrt -lm)
 TIMPS_LIBS = -lpthread -lrt -lm
@@ -198,6 +220,7 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
+		USE_OPENIMP=$(if $(BR2_PACKAGE_OPENIMP),1,0) \
 		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
@@ -205,11 +228,11 @@ define TIMPS_BUILD_CMDS
 		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
-		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
-		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
+		USE_BC_WS=$(if $(BR2_PACKAGE_TIMPS_BC_WS),1,0) \
+		USE_WEBRTC=$(if $(BR2_PACKAGE_TIMPS_WEBRTC),1,0) \
 		HELIXLIB="-lhelix-aac" \
 		HELIX_INC=$(STAGING_DIR)/usr/include \
 		USE_PLAY=$(if $(BR2_PACKAGE_TIMPS_PLAY),1,0) \
@@ -235,6 +258,83 @@ define TIMPS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/timps.conf \
 		$(TARGET_DIR)/etc/timps.conf
 
+	# One template for every board means every other sensor warns once per
+	# start. Buildroot knows the right name - the kernel driver is built from
+	# it. i2c_addr stays unset (auto-detected, 0x37 fallback) except where a sensor's
+	# own driver hardcodes a different SENSOR_I2C_ADDRESS across every SoC
+	# variant it ships in - /proc/jz/sensor does not exist on T40/T41, so
+	# there is no runtime auto-detect fallback there.
+	if [ -n "$(call qstrip,$(BR2_SENSOR_1_NAME))" ]; then \
+		$(SED) 's|^sensor.model .*|sensor.model    = $(call qstrip,$(BR2_SENSOR_1_NAME))|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
+		$(SED) 's|^#* *sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# Per-camera overrides: a profile's timps.conf lists only the keys that
+	# differ. A listed key replaces the shipped line, otherwise it is appended.
+	if [ -f "$(TIMPS_CAMERA_CONF)" ]; then \
+		awk 'NR==FNR{ if($$0 ~ /^[ \t]*[A-Za-z0-9_.]+[ \t]*=/){ k=$$0; sub(/[ \t]*=.*/,"",k); gsub(/^[ \t]+/,"",k); if(!(k in v)) o[++n]=k; v[k]=$$0 } next } \
+			{ k=$$0; if(k ~ /^[A-Za-z0-9_.]+[ \t]*=/){ sub(/[ \t]*=.*/,"",k); if(k in v){ print v[k]; u[k]=1; next } } print } \
+			END{ for(i=1;i<=n;i++) if(!(o[i] in u)) print v[o[i]] }' \
+			"$(TIMPS_CAMERA_CONF)" $(TARGET_DIR)/etc/timps.conf > $(TARGET_DIR)/etc/timps.conf.new && \
+		mv $(TARGET_DIR)/etc/timps.conf.new $(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# When timps is built with TLS AND the WebUI's own uhttpd also has TLS
+	# active, ship http.https already enabled - S95timps's ensure_tls_certs()
+	# only links the shared cert pair when it sees this already set, so
+	# leaving it commented meant every TLS+WebUI image needed a manual
+	# post-flash edit before HTTPS actually worked.
+	#
+	# The value shipped is 1, which since timps v1.9.11 means BOTH schemes on
+	# the one port (per-connection, by a first-byte peek), not TLS-only - that
+	# is now 2. So an http:// WebUI page and an https:// one both reach the
+	# preview port with their own scheme, and the old mixed-content failure
+	# (http:// page, https:// subresource fetch, self-signed cert, no possible
+	# interstitial) cannot happen from this default any more.
+	#
+	# This used to ALSO require BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y,
+	# back when 1 meant TLS-only and the preview therefore had to be kept on
+	# whatever single scheme uhttpd ended up serving. Dropped, for three
+	# reasons: the tri-state removed the mismatch it guarded against; the
+	# symbol is force-selected alongside UHTTPD_TLS by
+	# BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD, so the condition could never be
+	# false when the one above it was true; and it had the failure backwards -
+	# redirect=n means :80 is not redirected, NOT that :443 is gone, so
+	# suppressing http.https=1 there is what left an https:// page facing a
+	# plaintext-only preview port (and no cert generated, since S95timps keys
+	# ensure_tls_certs() off this same value).
+	#
+	# Writing 1 is purely additive on any TLS-capable build - plaintext keeps
+	# working - so there is no image on which not writing it is the safer
+	# choice.
+	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
+		$(SED) 's|^# http.https .*|http.https    = 1                       # 0 plain, 1 http+https on one port, 2 TLS only|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# Same idea as http.https above: a compiled-in feature that needs a
+	# runtime opt-in too meant BACKCHANNEL/BC_WS builds shipped silent
+	# unless someone knew to hand-edit timps.conf. Each line only flips
+	# when ITS OWN Kconfig option is on, so a BACKCHANNEL-only build (no
+	# BC_WS) still gets just the ONVIF/RTSP side enabled.
+	if [ "$(BR2_PACKAGE_TIMPS_BACKCHANNEL)" = "y" ]; then \
+		$(SED) 's|^# audio.backchannel *=.*|audio.backchannel = 1                   # ONVIF/RTSP client -> speaker|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+	# Preset the STRICT mode (1 = TLS required) and only that: it is the
+	# safe default and the only one that works unattended. The permissive
+	# mode (2 = plain ws:// also accepted) trades the microphone stream and
+	# its token for reachability on a plaintext camera, so it stays a
+	# deliberate hand edit - never something an image ships pre-enabled.
+	if [ "$(BR2_PACKAGE_TIMPS_BC_WS)" = "y" ]; then \
+		$(SED) 's|^# audio.talk_ws *=.*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
 		$(TARGET_DIR)/etc/init.d/S95timps
@@ -246,8 +346,21 @@ define TIMPS_INSTALL_TARGET_CMDS
 	fi
 
 	# Install the self-test helper
-	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
-		$(TARGET_DIR)/usr/bin/timps-selftest
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-irprobe \
+		$(TARGET_DIR)/usr/bin/timps-irprobe
+
+	# Diagnostic helpers: nothing on the camera calls them, and the two
+	# collectors only pay off where something gathers what they emit.
+	# /usr/bin rather than an /etc overlay - squashfs compresses and
+	# deduplicates, the writable jffs2 does neither.
+	if [ "$(BR2_PACKAGE_TIMPS_DIAG_TOOLS)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-dn-isp-log \
+			$(TARGET_DIR)/usr/bin/timps-dn-isp-log; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-logcat-ship \
+			$(TARGET_DIR)/usr/bin/timps-logcat-ship; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
+			$(TARGET_DIR)/usr/bin/timps-selftest; \
+	fi
 
 	# System-sound play wrapper: enqueues PLAY/STOP onto timps's /run/timps/
 	# audio_out FIFO (native IMP_AO). Same interface prudynt/raptor ship, so the
@@ -337,31 +450,57 @@ define TIMPS_INSTALL_DAYNIGHT_SCRIPTS
 	fi
 endef
 
-# NOTE: WebUI bridge CGIs. The stock WebUI settings pages POST prudynt-shaped
-# JSON to /x/json-prudynt*.cgi, /x/json-imp.cgi and /x/restart-prudynt.cgi.
-# files/www/x/ ships timps-flavored replacements (same names) that translate
-# the supported subset to timps's /control JSON API on 127.0.0.1:8880, plus the
-# native page scripts (files/www/a/) and pages (files/www/*.html - including
-# timps's own preview.html, which lands here too: same directory, same glob,
-# no separate install step needed to make it win). They are installed from
-# TIMPS_POST_INSTALL_TARGET_HOOKS - i.e. as part of timps's own install step,
-# right after TIMPS_INSTALL_TARGET_CMDS - with an explicit thingino-webui
-# dependency (see TIMPS_DEPENDENCIES above) so the stock copies they overlay
-# already exist. That placement is load-bearing: thingino-webui assembles the
-# plugin layer (<script src="/a/plugins.js">, nav merging, plugin page bodies)
-# from a GLOBAL target-finalize hook, and the global finalize phase runs only
-# after EVERY package has finished installing. Overlaying here means our pages
-# are on disk in time to be processed by that pass; overlaying from a finalize
-# hook of our own would land after it (package/*/*.mk is globbed
-# alphabetically, so "thingino-webui" sorts before "timps") and every page we
-# ship would end up with no plugin layer at all.
+# NOTE: WebUI. timps is a thingino-webui PLUGIN: files/timps.webui.json is
+# installed into /var/www/a/plugins/ and thingino-webui's assemble_plugins.py
+# finalize hook does the rest - it merges our "nav" contributions into the
+# menu, injects our "scripts"/"styles" into every page, and records the
+# "timps" feature flag (the assembler already knows that flag and exempts
+# mutually exclusive streamers from page/CGI overlap checks - see
+# STREAMER_FEATURE_FLAGS in package/thingino-webui/scripts/assemble_plugins.py).
+# This mirrors prudynt-t/files/prudynt.webui.json, which made the same
+# transition on 2026-08-16, and the eleven other packages that ship a manifest.
 #
-# Only installed when both the WebUI and the timps /control endpoint are
-# enabled. The whole directory is installed (CGIs and
-# the .sh lib alike; the webserver executes anything under the /x/ CGI prefix
-# regardless of extension - uhttpd via "-x /x", busybox httpd via its /x/
-# convention). The WebUI's own prudynt-flavored bridge CGIs (they shell out to
-# the absent prudyntctl) are purged so a timps image carries no dead endpoints.
+# WHAT THAT REPLACED (2026-08, this commit): timps used to install FORKED
+# copies of five thingino-webui files - a/navigation.js, a/main.js, a/main.css,
+# a/footer.js and a/preview.js - plus same-named replacements for x/json-imp.cgi
+# and both heartbeat CGIs, and ~40 lines of ordering machinery here to make
+# them stick. They are gone:
+#   a/navigation.js  -> the "nav" section of timps.webui.json. The fork was a
+#                       frozen snapshot of the WHOLE menu, including entries
+#                       owned by other packages (Doorbell Chime, GPIO pins,
+#                       Home Assistant, MQTT Subscriptions, Pan/Tilt motors),
+#                       every one of which now declares itself in its own
+#                       manifest - so the snapshot could only ever go stale.
+#   a/main.js        -> a/timps-control-bar.js, declared in "scripts". It
+#                       overrides the six control-bar actions on the global
+#                       object after core main.js has evaluated; see that
+#                       file's header for why that is well-defined. The fork
+#                       had drifted: it had LOST core's apiFetch()/
+#                       API_KEY_PROMISE helpers and carried wyze-accessory's
+#                       doorbell banner (that package ships it now).
+#   a/main.css       -> a/timps.css, declared in "styles".
+#   a/footer.js      -> nothing. Its only change was an empty <div
+#                       id="footer-timps-version"> slot, and a/timps-version.js
+#                       already falls back to its own corner badge when that
+#                       slot is absent.
+#   a/preview.js     -> renamed a/timps-preview.js (only timps's own pages load
+#                       it; it is an unrelated script to core's preview.js).
+#   x/json-imp.cgi   -> renamed x/timps-imp.cgi (its only two callers are
+#                       overridden in a/timps-control-bar.js).
+# Each of those was a path that thingino-webui also ships, and every such
+# collision is what the machinery existed for - see TIMPS_REAPPLY_WEBUI_OVERLAY
+# below, which is all that is left of it.
+#
+# The bridge CGIs that remain are timps-flavored translations of the prudynt-
+# shaped requests the stock pages make (/x/restart-prudynt.cgi, the snapshot
+# CGIs), targeting timps's /control JSON API on 127.0.0.1:8880, plus the native
+# page scripts (files/www/a/) and pages (files/www/*.html).
+#
+# The whole www/x directory is installed (CGIs and the .sh lib alike; the
+# webserver executes anything under the /x/ CGI prefix regardless of extension
+# - uhttpd via "-x /x", busybox httpd via its /x/ convention). The WebUI's own
+# prudynt-flavored bridge CGIs (they shell out to the absent prudyntctl) are
+# purged so a timps image carries no dead endpoints.
 #
 # Snapshots: files/www/x/ch0.jpg is a timps-flavored snapshot CGI installed
 # under four names (ch0/ch1 inline, dl0/dl1 download - see the script header);
@@ -374,15 +513,21 @@ endef
 # simply ignored (uhttpd never reads that file). The old "/mjpeg" busybox
 # proxy alias is dropped for the same reason; nothing references it anymore
 # (the preview streams :8880/stream.mp4 and :8880/stream.mjpeg directly).
+#
+# Unlike prudynt-t.mk, which lists every www file on its own $(INSTALL) line,
+# the three loops below glob the directories: timps ships 45 www files to
+# prudynt's 30 and every one of them is unconditional, so a glob cannot fall
+# out of sync with the tree the way a hand-maintained list does. Everything
+# else about the install follows prudynt's shape, manifest included.
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_PACKAGE_TIMPS_CONTROL),yy)
-define TIMPS_INSTALL_WEBUI_CGIS
-	# timps-flavored WebUI: overlay every timps-specific asset over the stock
-	# thingino-webui install so the settings pages talk to timps /control +
-	# /events directly (a/timps-api.js). Kept ENTIRELY in this package so
-	# thingino-webui stays pristine/upstream; the post-install hook ordering
-	# described above is what makes the overlay win. x/ = the surviving
-	# structural CGIs (token, restart, GPIO json-imp, heartbeat); a/ = the
-	# native page scripts; *.html = the pages.
+define TIMPS_INSTALL_WEBUI
+	# WebUI plugin manifest - nav entries, global script/style injection,
+	# the "timps" feature flag, and the page/CGI claims used for conflict
+	# detection across plugins.
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/timps.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/timps.webui.json
+	# x/ = the structural CGIs (token, restart, GPIO bridge, heartbeat);
+	# a/ = the native page scripts; *.html = the pages.
 	for f in $(TIMPS_PKGDIR)/files/www/x/* ; do \
 		$(INSTALL) -D -m 0755 $$f $(TARGET_DIR)/var/www/x/$$(basename $$f) ; \
 	done
@@ -402,11 +547,23 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	      $(TARGET_DIR)/var/www/x/json-prudynt-save.cgi \
 	      $(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
 	rm -f $(TARGET_DIR)/var/www/x/ch0.mjpg $(TARGET_DIR)/var/www/x/ch1.mjpg
+	# CAVEAT on the two rm -f above (measured 2026-08-19, flash-headroom audit):
+	# deleting from THIS tree only works for a path thingino-webui no longer
+	# ships at all - which is true of all nine paths listed here, so they are
+	# effectively no-ops kept as documentation. It does NOT work for a stock
+	# file that still exists: this hook runs in timps's PER-PACKAGE tree, and
+	# the global merge then rsyncs a pristine copy back in from every other
+	# package that inherited thingino-webui's www tree (verified: preview.js
+	# survives here via thingino-gpio, thingino-mosquitto-20x, thingino-motors,
+	# thingino-webui and wireguard-tools). That is the delete-side of exactly
+	# the same per-package-merge problem the big comment above documents for
+	# the install side. A live stock file has to be removed from the global
+	# TARGET_FINALIZE phase instead - see TIMPS_PURGE_STOCK_WEBUI below.
 	# Snapshot CGIs: the x/ loop above already replaced the stock prudynt
 	# x/ch0.jpg with timps's loopback-fetch script; clone it to the other
 	# three names the WebUI expects (channel/disposition are derived from the
 	# invoked name, so the copies are byte-identical). This also replaces the
-	# stock prudynt dl0/dl1.jpg download CGIs referenced by a/main.js.
+	# stock prudynt dl0/dl1.jpg download CGIs.
 	for n in ch1.jpg dl0.jpg dl1.jpg ; do \
 		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/x/ch0.jpg \
 			$(TARGET_DIR)/var/www/x/$$n ; \
@@ -421,7 +578,242 @@ define TIMPS_INSTALL_WEBUI_CGIS
 		ln -sf /var/www/x/ch1.jpg $(TARGET_DIR)/var/www/onvif/image1.cgi ; \
 	fi
 endef
-TIMPS_POST_INSTALL_TARGET_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+TIMPS_POST_INSTALL_TARGET_HOOKS += TIMPS_INSTALL_WEBUI
+
+# WHAT IS LEFT OF THE OLD ORDERING MACHINERY, and why it cannot go yet.
+#
+# The plugin manifest can ADD to the WebUI (nav items, global scripts, styles,
+# preview-body/script injection). It cannot REPLACE a file thingino-webui
+# itself ships: assemble_plugins.py's "pages" and "cgi" lists are validation
+# only - it reads them to detect two plugins claiming the same path and
+# installs nothing (verified against the script; only "nav", "scripts",
+# "styles", "preview.*" and "featureFlags" have runtime effect). Five timps
+# files still have to win over a same-named thingino-webui file:
+#
+#   preview.html            a whole custom page (native MSE/fMP4 player against
+#                           :8880/stream.mp4, plus a Statistics card fed by
+#                           timps's /events SSE). The manifest's preview.html
+#                           key is a SNIPPET substituted for the
+#                           THINGINO_PLUGIN_PREVIEW_BODY marker inside core's
+#                           page, not a replacement page, and core's page also
+#                           loads core's a/preview.js (prudynt bridge CGIs) -
+#                           so injection cannot express this one.
+#   tool-sensor-data.html   timps's sensor chart reads timps's own /events
+#   a/tool-sensor-data.js   "daynight" stream and /x/json-config-daynight.cgi;
+#                           core's reads daynightd's history/sensors CGIs,
+#                           which do not exist here. Core's script is a
+#                           self-invoking IIFE, so it cannot be overridden the
+#                           way a/timps-control-bar.js overrides main.js.
+#   x/json-heartbeat.cgi    core main.js hardcodes both URLs in top-level
+#   x/json-heartbeat-slow.cgi `const`s (HeartBeatEndpoint / SlowHeartbeat-
+#                           Endpoint), which are NOT reachable on the global
+#                           object, so a plugin script cannot re-point them.
+#                           Core's heartbeat-lib.sh has a raptor path and a
+#                           prudynt/daynightd path and no timps path at all.
+#
+# And a same-named file needs help, because with BR2_PER_PACKAGE_DIRECTORIES=y
+# (configs/fragments/core.fragment) every package installs into its own
+# per-package/<pkg>/target/ copy, seeded by rsyncing in the per-package trees of
+# its dependencies. So every package that (transitively) depends on
+# thingino-webui carries a PRISTINE copy of the whole stock www tree - not just
+# thingino-webui itself. Buildroot's target-finalize merges them all into the
+# real $(TARGET_DIR) with (buildroot/package/pkg-utils.mk, per-package-rsync,
+# "copy" variant):
+#
+#     printf "%s/target/\n" $(sort $(PACKAGES)) | tac \
+#         | rsync -a --hard-links --files-from=- --no-R -r $(PER_PACKAGE_DIR) ...
+#
+# rsync de-duplicates its file list keeping the FIRST occurrence, and `tac`
+# reverses the alphabetically sorted package list - so for a colliding path the
+# alphabetically LAST package wins. "timps" only beats packages sorting before
+# it; wireguard-tools (verified: its per-package/wireguard-tools/target/ carries
+# an inherited pristine var/www/a/*) hands the merge the stock file, which
+# lands in $(TARGET_DIR) and silently reverts the overlay. Nothing in the build
+# fails; the per-package tree is correct, only the merged one is not.
+#
+# So the five files are re-installed from the GLOBAL target-finalize phase,
+# after that merge and before thingino-webui's plugin assembly. The hook is
+# PREPENDED to TARGET_FINALIZE_HOOKS: thingino-webui.mk is parsed first
+# (alphabetical glob), so its ASSEMBLE_PLUGINS hook is already in the list by
+# the time this file is parsed, and prepending is what puts us in front of it -
+# so the two HTML pages we re-install still get the plugin layer
+# (<script src="/a/plugins.js">, our injected scripts/styles, the preview body).
+# $(TARGET_DIR) resolves to the real target tree at global finalize (PKG is
+# unset); the body is idempotent. TIMPS_INSTALL_WEBUI above already put these
+# files in timps's own per-package tree, which is what keeps them attributed to
+# timps in .files-list.txt.
+#
+# To retire this hook entirely, upstream needs a way for a manifest to claim
+# ownership of a core page/CGI (i.e. make "pages"/"cgi" install-and-win rather
+# than validate-only). Until then, keep this list SHORT: anything added here is
+# a new fork of a thingino-webui file, which is exactly what this package just
+# spent a rewrite getting rid of.
+define TIMPS_REAPPLY_WEBUI_OVERLAY
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/preview.html \
+		$(TARGET_DIR)/var/www/preview.html
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/tool-sensor-data.html \
+		$(TARGET_DIR)/var/www/tool-sensor-data.html
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/a/tool-sensor-data.js \
+		$(TARGET_DIR)/var/www/a/tool-sensor-data.js
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/x/json-heartbeat.cgi \
+		$(TARGET_DIR)/var/www/x/json-heartbeat.cgi
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/x/json-heartbeat-slow.cgi \
+		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
+endef
+
+# The delete-side counterpart, and the only place a LIVE thingino-webui file
+# can actually be removed (see the CAVEAT in TIMPS_INSTALL_WEBUI above): the
+# global TARGET_FINALIZE phase, after the per-package merge has put every
+# inherited pristine copy into the real $(TARGET_DIR).
+#
+# Both entries are stock scripts the preview swap orphaned. Neither has a
+# caller anywhere in the MERGED /var/www - checked against the built tree, not
+# against this package's own files:
+#   a/preview.js    thingino-webui's stock streamer preview, driving the
+#                   prudynt bridge CGIs. TIMPS_REAPPLY_WEBUI_OVERLAY above
+#                   replaces preview.html wholesale with the native MSE/fMP4
+#                   page, which loads a/timps-preview.js instead. No
+#                   <script src="/a/preview.js"> survives on a timps image;
+#                   the only remaining mention is prose in a comment.
+#   a/sei-rotate.js referenced only from prudynt-t's and thingino-raptor's
+#                   streamer-*.html. "Streamer" is a Kconfig choice
+#                   (package/thingino-streamer/Config.in), so neither package
+#                   can be installed next to timps and neither page can exist
+#                   here. The script also early-returns on /preview.html.
+#
+# Worth 39.4 KB uncompressed but only 4096 bytes off the packed image
+# (measured: rootfs.squashfs 5246976 -> 5242880, -b 256K -comp xz). JS
+# compresses about tenfold and squashfs pads to 4K, so uncompressed script
+# sizes overstate the win by roughly an order of magnitude - do not size
+# future www cleanups off `du`.
+define TIMPS_PURGE_STOCK_WEBUI
+	rm -f $(TARGET_DIR)/var/www/a/preview.js \
+	      $(TARGET_DIR)/var/www/a/sei-rotate.js
+	# Same argument, two orders of magnitude larger: "streamer" is a Kconfig
+	# choice, so prudynt and raptor cannot be installed beside timps - yet
+	# thingino-agent ships an adapter for each, 85 KB and 79 KB of shell that
+	# nothing on this image can ever call, plus prudynt's helper directory.
+	# Removed here for the same reason as the two scripts above, and it has
+	# to be here: deleting them from $(TARGET_DIR) earlier is undone by the
+	# per-package merge that target-finalize runs first.
+	#
+	# NOT included here: var/www/x/restart-prudynt.cgi. That filename is
+	# stock prudynt's, but the file at this path is timps's OWN replacement
+	# (see files/www/x/restart-prudynt.cgi's own header comment - same
+	# name, same URL, on purpose: it's timps's own files/www/a/timps-
+	# preview.js that calls /x/restart-prudynt.cgi by that literal path,
+	# not anything in the stock/base WebUI). TIMPS_INSTALL_WEBUI installs
+	# it earlier in the same target-finalize pass; deleting it here
+	# unconditionally removed timps's own file, not a stock leftover, and
+	# left the WebUI's "Restart" button 404ing on every image since the file
+	# was added (2026-08-16) - found 2026-08-24 when a user's restart-required
+	# setting change appeared to silently do nothing.
+	rm -f $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/prudynt.sh \
+	      $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh
+	rm -rf $(TARGET_DIR)/usr/share/prudynt-helpers
+endef
+TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_WEBUI_OVERLAY $(TARGET_FINALIZE_HOOKS)
+TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
+
+# Same prepend trick as TIMPS_REAPPLY_WEBUI_OVERLAY, for thingino-motors'
+# own www files instead of thingino-webui's: reapplied before assemble_plugins
+# runs, so a timps build always gets the joystick/CSS/CGIs, whether motors
+# ships from upstream (CGI transport, motorsWs stays false) or from the WS
+# fork (motorsWs flipped true below, wss:// if WS_TLS is also on - the JS
+# itself picks ws:// vs wss:// at runtime from the page's own protocol).
+#
+# WHY A FINALIZE HOOK AND NOT A PLAIN INSTALL (tried, reverted 2026-09-04):
+# moving this bundle into package/thingino-motors/ and letting that package
+# install it at normal install time does produce a correct image today, but it
+# only wins the BR2_PER_PACKAGE_DIRECTORIES merge by accident: it depends on no
+# other package that pulls in thingino-webui sorting after thingino-motors and
+# carrying a competing copy of these paths. That is the same fragile property
+# that produced the original overlay-clobber bug (see TIMPS_REAPPLY_WEBUI_
+# OVERLAY's comment above), so it is not something to rely on a second time.
+# Running from the GLOBAL target-finalize phase - after the per-package merge -
+# makes our copy win by construction rather than by sort order.
+#
+# The bundle deliberately lives HERE and not in package/thingino-motors/:
+# thingino-motors is shared infrastructure we keep in sync with upstream, and
+# this UI (WebSocket PTZ, analog stick, live position readout) is a timps-only
+# elaboration we are not pushing into Paul's deliberately simpler package.
+# thingino-motors therefore stays exactly as upstream ships it.
+#
+# One file is NOT reapplied here on purpose: x/json-motor-stream.cgi, the SSE
+# position source preview-motors.js falls back to when the WebSocket path is
+# off or unreachable. That script is upstream's, unmodified, and thingino-motors
+# already installs it - forking it would be pure divergence. The hook is gated
+# on BR2_PACKAGE_THINGINO_MOTORS below, so that package is always present.
+#
+# ifeq/endif can't nest inside a define...endef recipe body (it's just text
+# handed to the shell, not re-parsed as Make) - so the WS-only lines are a
+# separate variable, conditionally defined here and referenced unconditionally
+# below; empty when undefined.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
+define TIMPS_REAPPLY_MOTORS_WS_CMDS
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-token.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-token.cgi
+	$(SED) 's/"motorsWs": false/"motorsWs": true/' \
+		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+	grep -q '"motorsWs": true' $(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+endef
+endif
+
+# Gated on the streamer choice as well as on motors: these files are timps's
+# fork of the motors UI, so a build where timps is not the selected streamer
+# must keep upstream thingino-motors' own version untouched.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS)$(BR2_PACKAGE_THINGINO_STREAMER_TIMPS),yy)
+define TIMPS_REAPPLY_MOTORS_UI
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.html \
+		$(TARGET_DIR)/var/www/config-motors.html
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.js \
+		$(TARGET_DIR)/var/www/a/preview-motors.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors-version.js \
+		$(TARGET_DIR)/var/www/a/motors-version.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors-settings.js \
+		$(TARGET_DIR)/var/www/a/preview-motors-settings.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.css \
+		$(TARGET_DIR)/var/www/a/preview-motors.css
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.js \
+		$(TARGET_DIR)/var/www/a/config-motors.js
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor.cgi
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-params.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-params.cgi
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motors-config.cgi \
+		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+	$(TIMPS_REAPPLY_MOTORS_WS_CMDS)
+endef
+TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
+endif
+
+endif
+
+# libstdc++.so is 2130 KB and, once timps links the C++ runtime statically and
+# libaudioprocess-neo replaces the proprietary (C++) libaudioProcess.so, has no
+# consumer left. Verify that before removing: NEEDED scan only, so this cannot
+# see dlopen - hence the opt-in Kconfig entry.
+#
+# Deliberately OUTSIDE the WebUI+CONTROL block above: nothing about the NEEDED
+# scan involves the web UI, and the Kconfig entry promises the drop on any
+# image. Nested in that block it silently did nothing on a headless build -
+# no removal, no "KEEPING" message, 2130 KB left behind.
+ifeq ($(BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP),y)
+define TIMPS_DROP_LIBSTDCPP
+	@users=$$(find $(TARGET_DIR) -type f \( -name '*.so*' -o -perm -u+x \) 2>/dev/null \
+	  | grep -v '/libstdc++\.so' \
+	  | xargs -r -n1 $(TARGET_READELF) -d 2>/dev/null \
+	  | grep -c 'NEEDED.*libstdc++' || true); \
+	if [ "$$users" = "0" ]; then \
+	  rm -f $(TARGET_DIR)/usr/lib/libstdc++.so*; \
+	  echo "timps: removed libstdc++.so (no NEEDED reference in the image)"; \
+	else \
+	  echo "timps: KEEPING libstdc++.so - $$users file(s) still link it"; \
+	fi
+endef
+TARGET_FINALIZE_HOOKS += TIMPS_DROP_LIBSTDCPP
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports
@@ -434,11 +826,40 @@ endif
 # the preview page in general, not the /control API - so only gated on the
 # WebUI being present at all (nothing to override otherwise).
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+# Flash operations (dev builds) would sysupgrade to a stock release without
+# timps, so the page and its CGI are dropped and S48 never enables the entry.
 define TIMPS_INSTALL_WEBUI_CONFIG_FIX
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
+	rm -f $(TARGET_DIR)/var/www/tool-upgrade.html \
+		$(TARGET_DIR)/var/www/a/tool-upgrade.js \
+		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
+
+# assemble_plugins.py skips every preview.html (prudynt's ships its own PTZ
+# UI), but ours relies on the plugins' preview html + scripts (motors
+# joystick, drag-to-point). Apply them with the assembler's own functions,
+# from the manifests actually installed; the marker makes it run once.
+define TIMPS_PREVIEW_PLUGINS
+	@python3 -c 'import sys; sys.path.insert(0, "$(THINGINO_WEBUI_PKGDIR)/scripts"); \
+		from pathlib import Path; import assemble_plugins as a; \
+		t = Path("$(TARGET_DIR)"); p = t / "var/www/preview.html"; \
+		s = p.read_text(encoding="utf-8") if p.is_file() else ""; \
+		m = [x[0] for x in a.load_manifests(t)] if a.PREVIEW_BODY_MARKER in s else []; \
+		ts = a.ASSET_TS_RE.search(s); ts = ts.group(1) if ts else ""; \
+		m and p.write_text(a.inject_preview_scripts(a.inject_preview_body(s, m), m, ts), encoding="utf-8")'
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_PREVIEW_PLUGINS
+
+# thingino-webui tags its pages before timps installs, so timps pages and
+# changed timps scripts kept stale ?ts= cache keys
+TIMPS_ASSET_TAG := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a $(TIMPS_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
+define TIMPS_APPLY_ASSET_TAG
+	python3 $(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py \
+		"$(if $(TIMPS_ASSET_TAG),$(TIMPS_ASSET_TAG),$(shell date +%s))" $(TARGET_DIR)/var/www
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_APPLY_ASSET_TAG
 endif
 
 # NOTE: send-to-* notification toolkit now lives in package/thingino-send2.
@@ -455,7 +876,7 @@ define TIMPS_INSTALL_SEND2
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
-	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
+	for f in send2email send2ftp send2ntfy send2pushover send2storage send2telegram send2webhook; do \
 		$(INSTALL) -D -m 0755 $(THINGINO_SEND2_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
 	[ -f $(TARGET_DIR)/etc/send2.json ] || \
@@ -467,16 +888,11 @@ endif
 
 # NOTE: preview page. timps ships its own self-contained MSE/fMP4 preview
 # (it fetches :8880/stream.mp4) as files/www/preview.html - same filename as
-# core webui's, in this package instead of thingino-webui's, so it goes out
-# through the SAME TIMPS_INSTALL_WEBUI_CGIS *.html loop above as the other 15
-# timps pages. No separate install step: it plain-overwrites thingino-webui's
-# stock preview.html at the same path, before thingino-webui's plugin-assembly
-# finalize hook ever runs (see the ordering note above), so the winning page
-# still gets <script src="/a/plugins.js">, nav data, and the
-# THINGINO_PLUGIN_PREVIEW_BODY overlay from every plugin (e.g. thingino-motors'
-# joystick) like any other page. Implicitly gated on TIMPS_CONTROL through the
-# *.html loop's own gate: preview.html pulls /x/timps-token.cgi, which only
-# exists when that gate is satisfied.
+# core webui's. It is one of the five files in TIMPS_REAPPLY_WEBUI_OVERLAY
+# above; see the rationale there for why the plugin manifest cannot express a
+# whole replacement page and this one still needs the overlay. Implicitly
+# gated on TIMPS_CONTROL through the install block's own gate: preview.html
+# pulls /x/timps-token.cgi, which only exists when that gate is satisfied.
 
 # NOTE: native day/night. When timps detects day/night itself
 # (BR2_PACKAGE_TIMPS_DAYNIGHT), none of thingino-daynightd's autostart entry
@@ -509,10 +925,21 @@ endif
 # page that drove daynightd. Earlier revisions of this hook deleted the page and
 # tried to strip its nav entry; that left the control-bar.js "Photosensing
 # Config" link (shipped unchanged from thingino-webui) pointing at a removed
-# page, so it dead-ended on Preview. Keeping the page - installed by the
-# TIMPS_INSTALL_WEBUI_CGIS overlay above - makes that link resolve correctly.
+# page, so it dead-ended on Preview. Keeping the page - installed by
+# TIMPS_INSTALL_WEBUI above, with its menu entry contributed by the "nav"
+# section of files/timps.webui.json - makes that link resolve correctly.
 # (The page's Controls/Schedule columns still use the board daynight script's
 # legacy /x/json-config-daynight.cgi best-effort; absent-CGI is handled in-page.)
+#
+# This is also why files/timps.webui.json deliberately does NOT list
+# /config-photosensing.html (nor /config-privacy.html) in its "pages" array:
+# thingino-daynightd and thingino-privacy-lite claim those paths in their own
+# manifests, neither is mutually exclusive with timps (as this very hook shows,
+# daynightd can still be selected on a timps image), and assemble_plugins.py's
+# streamer exemption only covers two plugins that both carry a STREAMER_FEATURE
+# FLAG. Claiming them would turn a today-silent file collision into a hard build
+# failure for those configurations. The nav entries ARE contributed, because the
+# page has to stay reachable; on a combined image the entry can appear twice.
 ifeq ($(BR2_PACKAGE_TIMPS_DAYNIGHT),y)
 define TIMPS_DISABLE_DAYNIGHTD
 	rm -f $(TARGET_DIR)/etc/init.d/*daynightd \
