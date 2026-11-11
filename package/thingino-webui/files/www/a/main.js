@@ -704,14 +704,25 @@ function toggleTheme() {
   const currentTheme = htmlEl.getAttribute("data-bs-theme");
   const newTheme = currentTheme === "dark" ? "light" : "dark";
 
-  htmlEl.setAttribute("data-bs-theme", newTheme);
+  if (
+    window.thinginoTheme &&
+    typeof window.thinginoTheme.remember === "function"
+  ) {
+    window.thinginoTheme.remember(newTheme, newTheme);
+  } else {
+    htmlEl.setAttribute("data-bs-theme", newTheme);
+  }
 
   const themeBtn = $("#theme-toggle");
   if (themeBtn) {
+    themeBtn.setAttribute(
+      "aria-pressed",
+      newTheme === "dark" ? "true" : "false",
+    );
     const img = themeBtn.querySelector("img");
     if (img) {
-      img.src = newTheme === "dark" ? "/a/brilliance.svg" : "/a/brilliance.svg";
-      img.alt = newTheme === "dark" ? "Light mode" : "Dark mode";
+      img.alt =
+        newTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
     }
   }
 }
