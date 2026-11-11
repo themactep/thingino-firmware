@@ -49,6 +49,11 @@ For rootfs mode, `flash-ota`:
 Boot and kernel modes skip the busybox-clone / remount step since they do not
 touch the rootfs partition.
 
+Boot mode checks that the padded boot image size matches the device's boot
+partition before writing anything. A mismatch means env would land at the
+wrong offset, so it refuses; changing the boot partition size requires a full
+upgrade.
+
 ## sysupgrade (full upgrades)
 
 The `sysupgrade` utility handles full firmware upgrades and on-camera GitHub
@@ -99,7 +104,8 @@ IP=192.168.88.127 make ota-kernel FORCE=1
 ### How host-driven OTA works
 
 1. `fw_ota.sh` pads partition files to exact MTD sizes on the host (boot to
-   192KB, env to 64KB, rootfs to 64KB-aligned, data as-is).
+   the build's boot partition size, env to 64KB, rootfs to 64KB-aligned, data
+   as-is).
 2. Uploads `flash-ota.sh` and the partition files to `/tmp/` on the camera.
 3. Invokes `flash-ota.sh <mode> <file> [file2]` which flashes each partition
    directly to its MTD device and reboots.
@@ -137,9 +143,12 @@ Stores selected config files to the raw 64KB backup partition (mtd2) before flas
 
 `sysupgrade` calls `cfg-backup write` before flashing (and `fw_ota.sh` does the same for
 `ota-upgrade`). On rootfs/kernel-only upgrades the backup partition is untouched, so the
-snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is flashed
-partition-by-partition; `sysupgrade` snapshots the config first and then skips the backup
-region, so the snapshot written moments earlier is preserved. The `S37cfg-autorestore`
+snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is written
+linearly, so bytes land at the offsets baked into the image. The backup slot can move
+when the bootloader partition changes size between releases, so `sysupgrade` copies the
+snapshot to tmpfs, flashes the image untouched, then writes the snapshot back at the
+offset found in the image (the blank 64KB block before the kernel). The downloaded image
+stays byte-identical to the release artifact. The `S37cfg-autorestore`
 boot script puts the files back into the fresh system automatically: on the first boot
 after any upgrade that wiped the overlay (rootfs+data and full-chip flashes), it runs
 `cfg-backup restore`, removes itself from the overlay, and reboots once more for a clean
