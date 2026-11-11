@@ -31,7 +31,7 @@
             <button type="button" class="btn btn-outline-secondary" id="network-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
-          </div><!-- .card-header -->
+          </div>
           <div class="card-body">
             <div class="row row-cols-1 row-cols-lg-3 g-4 mb-3">
               <div class="col">
@@ -44,7 +44,7 @@
                 <p><label for="dns_secondary">Secondary DNS</label>
                   <input type="text" class="form-control" id="dns_secondary" placeholder="8.8.8.8"></p>
                 <p class="small">At least one DNS server is required; the second one is optional and provides redundancy.</p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <h4>Wi-Fi Configuration</h4>
                 <small>Passwords shorter than 64 characters convert to WPA2 PSK on save.</small>
@@ -67,7 +67,7 @@
                   <input class="form-check-input" type="checkbox" role="switch" id="wifi_ap_enabled" data-help="While the AP is enabled, station mode is stopped to avoid conflicts.">
                   <label class="form-check-label" for="wifi_ap_enabled">Enable Wi-Fi AP mode</label>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <h4>Connectivity Watchdog</h4>
                 <small>Reboots the camera if the network is unreachable for too long.</small>
@@ -81,9 +81,9 @@
                   <input type="number" min="5" max="3600" class="form-control" id="netwatch_interval" value="30"></p>
                 <p><label for="netwatch_fail">Failures before reboot</label>
                   <input type="number" min="1" max="60" class="form-control" id="netwatch_fail" value="3"></p>
-              </div><!-- .col -->
-            </div><!-- .row -->
-          </div><!-- .card-body -->
+              </div>
+            </div>
+          </div>
           <div class="card-body">
             <h4>Network Interfaces</h4>
             <small>Each card controls a physical interface. Disable it to keep the file but stop auto bring-up.</small>
@@ -115,8 +115,8 @@
                     </div>
                     <p class="form-switch"><input class="form-check-input iface-ipv6" type="checkbox" id="eth0_ipv6">
                       <label class="form-check-label" for="eth0_ipv6">Request DHCPv6</label></p>
-                  </div><!-- .card-body -->
-                </div><!-- .card -->
+                  </div>
+                </div>
               </div>
               <div class="col-12 col-xl-4">
                 <div class="card iface-card h-100" data-iface="wlan0">
@@ -179,12 +179,12 @@
                     </div>
                     <p class="form-switch"><input class="form-check-input iface-ipv6" type="checkbox" id="usb0_ipv6">
                       <label class="form-check-label" for="usb0_ipv6">Request DHCPv6</label></p>
-                  </div><!-- .card-body -->
-                </div><!-- .card -->
-              </div><!-- .col -->
-            </div><!-- .row -->
-          </div><!-- .card-body -->
-        </div><!-- .card -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <button type="submit" id="network_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
       </form>
