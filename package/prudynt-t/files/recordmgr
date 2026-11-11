@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC3043,SC3060
+# shellcheck disable=SC1091,SC3043,SC3060
 # recordmgr - Storage manager daemon for video recordings and timelapse
 #
 # Maintains the recording storage target writable by:
@@ -28,6 +28,8 @@
 # Command line:
 #   -d, --debug               - force debug logging on regardless of config
 
+. /usr/share/prudynt-helpers
+
 PIDFILE="/var/run/recordmgr.pid"
 CONFIG_FILE="/etc/prudynt.json"
 TL_CONFIG_FILE="/etc/timelapse.json"
@@ -36,7 +38,6 @@ DOMAIN="recorder"
 DEFAULT_MIN_FREE_MB=500
 DEFAULT_CHECK_INTERVAL=60
 DEFAULT_LIMIT_GB=15
-DEFAULT_MOUNT="/mnt/mmcblk0p1"
 DEBUG_MODE=0
 DEBUG_FROM_ARG=0
 
@@ -91,7 +92,7 @@ read_config() {
 
 	# the same default as the record script: a config without recorder.mount
 	# records to the SD card, so it is the SD card that needs the cleanup
-	[ -n "$vr_mount" ] || vr_mount="$DEFAULT_MOUNT"
+	[ -n "$vr_mount" ] || vr_mount="$DEFAULT_RECORD_MOUNT"
 	case "$vr_min_free_mb" in '' | *[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
 	case "$vr_check_interval" in '' | *[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
 	case "$vr_limit" in '' | *[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
@@ -218,6 +219,7 @@ run_check() {
 	case "$vr_cleanup_enabled" in
 		false | 0 | "")
 			debug_log "Skipping check: cleanup is disabled"
+			warned_no_mount=
 			return
 			;;
 	esac
