@@ -70,6 +70,35 @@ bosh_send() {
 	echo "$response"
 }
 
+# BOSH can acknowledge a request with an empty <body/> and deliver the
+# stanza in a later response. Keep polling with empty bodies until the IQ
+# with the expected id arrives, otherwise the next request's response is
+# mistaken for this one (Openfire batches/holds responses this way).
+bosh_wait_for_id() {
+	local id="$1"
+	local response="$2"
+	local tries=0
+
+	while ! echo "$response" | grep -q "id=['\"]${id}['\"]"; do
+		[ "$tries" -ge 10 ] && break
+		RID=$((RID + 1))
+		response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'/>")
+		tries=$((tries + 1))
+	done
+
+	echo "$response"
+}
+
+# Push the session once before terminating it. Without this, a message
+# sent immediately before bosh_close can be dropped by the server while
+# the terminate request is already in flight.
+bosh_flush() {
+	RID=$((RID + 1))
+	bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'/>" >/dev/null
+}
+
 # Start BOSH session
 bosh_connect() {
 	RID=$((RID + 1))
@@ -193,6 +222,7 @@ discover_upload_component() {
     <query xmlns='http://jabber.org/protocol/disco#items'/>
   </iq>
 </body>")
+	response=$(bosh_wait_for_id "disco_1" "$response")
 
 	# Extract upload component (usually upload.domain or http-upload.domain).
 	# Accept both quote styles, as in the SID parser.
@@ -210,6 +240,7 @@ discover_upload_component() {
     <query xmlns='http://jabber.org/protocol/disco#info'/>
   </iq>
 </body>")
+			response=$(bosh_wait_for_id "disco_2" "$response")
 
 			if echo "$response" | grep -q "urn:xmpp:http:upload"; then
 				upload_component="$component"
@@ -236,6 +267,7 @@ request_upload_slot() {
     <request xmlns='urn:xmpp:http:upload:0' filename='$filename' size='$filesize' content-type='$content_type'/>
   </iq>
 </body>")
+	response=$(bosh_wait_for_id "upload_1" "$response")
 
 	# Extract PUT and GET URLs.  Servers quote attributes with either
 	# single or double quotes; accept both.
@@ -443,6 +475,9 @@ EOF
 		[ "$verbose" -eq 1 ] && echo "Sending message..." >&2
 		send_message "$message"
 	fi
+
+	# Flush any held stanza before terminating the session.
+	bosh_flush
 
 	# Close session
 	[ "$verbose" -eq 1 ] && echo "Closing connection..." >&2
