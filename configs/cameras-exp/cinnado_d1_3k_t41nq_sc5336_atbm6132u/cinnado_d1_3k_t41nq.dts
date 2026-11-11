@@ -1,0 +1,167 @@
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "t41.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "ingenic,marmot", "ingenic,t41";
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pb>;
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pa>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&cpufreq {
+	status = "okay";
+	operating-points = <
+		/*KHZ uV */
+		1200000 900000
+		1104000 900000
+		1008000 900000
+		912000 900000
+		891000 900000
+		750000 900000
+		600000 900000
+		500000 900000
+		400000 900000
+		375000 900000
+		300000 900000
+		200000 900000
+	>;
+
+};
+
+&pdma {
+	status = "okay";
+};
+
+&msc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	/*mmc-hs200-1_8v;*/
+	cap-mmc-highspeed;
+	max-frequency = <25000000>;
+	bus-width = <4>;
+	voltage-ranges = <1800 3300>;
+	cd-inverted;
+
+	/* special property */
+	ingenic,wp-gpios = <0>;
+	ingenic,cd-gpios = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,rst-gpios = <0>;
+	pinctrl-0 = <&msc0_pb>;
+};
+
+&msc1 {
+	status = "disable";
+	pinctrl-names = "default";
+	/*mmc-hs200-1_8v;*/
+	cap-mmc-highspeed;
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	voltage-ranges = <1800 3300>;
+	non-removable;
+
+	/* special property */
+	ingenic,wp-gpios = <0>;
+	ingenic,rst-gpios = <0>;
+	pinctrl-0 = <&msc1_pc>;
+};
+
+&mac0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac0_rmii_p0_normal>, <&mac0_rmii_p1_normal>;
+	pinctrl-1 = <&mac0_rmii_p0_rst>, <&mac0_rmii_p1_normal>;
+	status = "disabled";
+	//ingenic,rst-gpio = <&gpb 28 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,rst-ms = <10>;
+	ingenic,mac-mode = <RMII>;
+	ingenic,mode-reg = <0xb00000e8>;
+	ingenic,phy-clk-freq = <50000000>;
+};
+
+&sfc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	ingenic,sfc-max-frequency = <50000000>;
+	ingenic,use_board_info = /bits/ 8 <0>;
+	ingenic,spiflash_param_offset = <0>;
+	ingenic,spiflash_type = <0>;
+	pinctrl-0 = <&sfc0_pa>;
+};
+
+&sfc1 {
+	status = "disable";
+	pinctrl-names = "default";
+	ingenic,sfc-max-frequency = <50000000>;
+	ingenic,use_board_info = /bits/ 8 <0>;
+	ingenic,spiflash_param_offset = <0>;
+	ingenic,spiflash_type = <1>;
+	pinctrl-0 = <&sfc1_pa>;
+};
+
+&spi0 {
+	status = "disable";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pa>;
+
+	spi-max-frequency = <50000000>;
+	num-cs = <2>;
+	cs-gpios = <0>, <0>;
+	ingenic,chnl = <0>;
+	ingenic,allow_cs_same = <1>;
+	ingenic,bus_num = <0>;
+	ingenic,has_dma_support = <1>;
+};
+
+&otg {
+	g-use-dma;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&otg_phy {
+	dr_mode = "host";
+	compatible = "ingenic,innophy", "syscon";
+	ingenic,drvvbus-gpio = <0>;
+	//ingenic,drvvbus-gpio = <&gpb 27 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+	status = "okay";
+};
+
+/ {
+
+	extclk: extclk {
+		clock-frequency = <24000000>;
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			/* Cinnado D1 3K reset button: PB30 (GPIO 62) */
+			gpios = <&gpb 30 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+			gpio-key,wakeup;
+			debounce-interval = <100>;
+		};
+	};
+};
+
+&el200 {
+	status = "okay";
+};
+
+&jpeg {
+	status = "okay";
+};
