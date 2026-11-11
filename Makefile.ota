@@ -275,7 +275,7 @@ ota-uboot: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(U_BOOT_BIN)" || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -m boot
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -s "$(U_BOOT_PARTITION_SIZE)" -m boot
 	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
 
 # Rootfs+data upgrade with config backup (safe upgrade)

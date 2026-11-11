@@ -17,6 +17,7 @@ BRANCH="ciao"
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
+backup_file="$workdir/backup.bin"
 
 SD_CARD_ROOT="/mnt/mmcblk0p1"
 
@@ -70,8 +71,7 @@ image_starts_with_bootloader() {
 
 die() {
 	echo_c 160 "$1"
-	cleanup
-	exit 1
+	cleanup 1
 }
 
 bye() {
@@ -186,7 +186,7 @@ partial_upgrade_partition_size() {
 cleanup() {
 	echo "Clean up temporary files."
 	rm -rf "$workdir"
-	exit 0
+	exit "${1:-0}"
 }
 
 clone_app() {
@@ -675,6 +675,29 @@ PARTLIST
 get_mtd_size() { awk "/\"$1\"$/{print \"0x\"\$2}" /proc/mtd; }
 get_mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
 
+# Locate the backup partition inside a full image.  The early layout is
+# boot, env, backup, kernel: the backup slot is the blank 64K block right
+# before the kernel, and the kernel starts with the uImage magic at a 64K
+# boundary.  This does not depend on the layout the running kernel sees.
+find_backup_offset() {
+	local img="$1" size off blk blank
+	size=$(stat -c%s "$img") || return 1
+	off=131072
+	while [ "$off" -lt "$size" ]; do
+		if [ "$KERNEL_MAGIC" = "$(xxd -s "$off" -l 4 -p "$img")" ]; then
+			blk=$((off - 65536))
+			blank=$(dd if="$img" bs=65536 skip=$((blk / 65536)) count=1 2>/dev/null |
+				tr -d '\377' | wc -c)
+			if [ "$blank" -eq 0 ]; then
+				echo $blk
+				return 0
+			fi
+		fi
+		off=$((off + 65536))
+	done
+	return 1
+}
+
 # Snapshot config files to the backup MTD partition before flashing.
 # cfg-backup is installed by this package (scripts/cfg-backup.sh).
 create_config_backup() {
@@ -685,6 +708,27 @@ create_config_backup() {
 	else
 		echo_c 160 "Warning: cfg-backup failed (non-fatal)"
 	fi
+}
+
+# Copy the snapshot to tmpfs so it can be rewritten at the offset the new
+# layout uses, after the image has been flashed.
+dump_config_backup() {
+	local bdev magic
+	bdev=$(get_mtd_dev backup)
+	[ -n "$bdev" ] || {
+		echo_c 160 "No backup partition found"
+		return 1
+	}
+	if ! dd if="/dev/$bdev" of="$backup_file" bs=65536 count=1 2>/dev/null; then
+		echo_c 160 "Cannot read /dev/$bdev"
+		return 1
+	fi
+	magic=$(dd if="$backup_file" bs=10 count=1 2>/dev/null)
+	if [ "THNG_BCKUP" != "$magic" ]; then
+		echo_c 160 "Backup partition has no valid snapshot"
+		return 1
+	fi
+	echo "Config backup saved to $backup_file"
 }
 # --- end helpers ---
 
@@ -815,7 +859,18 @@ if [ -z "$mtd_dev" ]; then
 			# detached tmpfs process so overwriting rootfs cannot kill
 			# the flash loop or the SSH session.
 			echo "Full firmware upgrade"
+			if [ "$do_backup" = "true" ] && [ -z "$(get_mtd_dev backup)" ]; then
+				echo_c 160 "Warning: no backup partition; config backup skipped"
+				do_backup="false"
+			fi
 			create_config_backup
+			backup_off=""
+			if [ "$do_backup" = "true" ]; then
+				dump_config_backup || die "Config backup requested but not readable"
+				backup_off=$(find_backup_offset "$fw_file") ||
+					die "Cannot locate the backup slot in the image"
+				report_size "Config backup offset" "$backup_off"
+			fi
 			stop_services
 			clone_app /bin/busybox
 			clone_app /sbin/$stage2app
@@ -824,7 +879,8 @@ if [ -z "$mtd_dev" ]; then
 			watchdog_device=$(jct /etc/thingino.json get watchdog.device 2>/dev/null)
 			[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
 			[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
-			if ! DO_BACKUP="$do_backup" WATCHDOG_DEV="$watchdog_device" \
+			if ! DO_BACKUP="$do_backup" BACKUP_OFF="$backup_off" BACKUP_FILE="$backup_file" \
+				WATCHDOG_DEV="$watchdog_device" \
 				exec "$workdir/busybox" sh "$workdir/$stage2app" full "$fw_file"; then
 				echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 				cleanup

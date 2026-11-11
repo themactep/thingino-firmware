@@ -22,7 +22,8 @@ DO_BACKUP=0
 CAMERA_IP_ADDRESS=""
 LOCAL_FW_FILE=""
 TRIMMED_FILES=""
-while getopts "fBnm:a:p:" opt; do
+BOOT_PARTITION_SIZE=196608
+while getopts "fBnm:a:p:s:" opt; do
 	case "$opt" in
 		f) FORCE=1 ;;
 		B) DO_BACKUP=1 ;;
@@ -30,7 +31,8 @@ while getopts "fBnm:a:p:" opt; do
 		m) MODE="$OPTARG" ;;
 		a) CAMERA_IP_ADDRESS="$OPTARG" ;;
 		p) LOCAL_FW_FILE="$OPTARG" ;;
-		*) die "Usage: $0 [-f] [-B] [-n] [-m full|kernel|boot|rootfs] [-a IP] [-p FIRMWARE_FILE]" ;;
+		s) BOOT_PARTITION_SIZE="$OPTARG" ;;
+		*) die "Usage: $0 [-f] [-B] [-n] [-m full|kernel|boot|rootfs] [-a IP] [-p FIRMWARE_FILE] [-s BOOT_BYTES]" ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -38,6 +40,10 @@ shift $((OPTIND - 1))
 case "$MODE" in
 	full|kernel|boot|rootfs|all) ;;
 	*) die "Invalid mode: $MODE (valid: all, full, kernel, boot, rootfs)" ;;
+esac
+
+case "$BOOT_PARTITION_SIZE" in
+	'' | *[!0-9]*) die "Invalid boot partition size: $BOOT_PARTITION_SIZE" ;;
 esac
 
 # Normalize mode aliases
@@ -416,10 +422,14 @@ if [ "$MODE" = "boot" ]; then
 	IMAGES_DIR="$(dirname "$LOCAL_FW_FILE")"
 	ENV_BIN="$IMAGES_DIR/u-boot-env.bin"
 
-	# Boot partition: pad to 192 KB
+	# Boot partition: pad to the build's boot partition size
+	[ -f "$LOCAL_FW_FILE" ] || die "Bootloader not found: $LOCAL_FW_FILE"
+	boot_src_size=$(stat -c%s "$LOCAL_FW_FILE")
+	[ "$boot_src_size" -le "$BOOT_PARTITION_SIZE" ] ||
+		die "Bootloader is ${boot_src_size} bytes, boot partition is ${BOOT_PARTITION_SIZE} bytes"
 	BOOT_TRIMMED="${LOCAL_FW_FILE}.boot"
 	cp "$LOCAL_FW_FILE" "$BOOT_TRIMMED" || die "Failed to copy bootloader"
-	truncate -s 196608 "$BOOT_TRIMMED" || die "Failed to pad bootloader"
+	truncate -s "$BOOT_PARTITION_SIZE" "$BOOT_TRIMMED" || die "Failed to pad bootloader"
 	TRIMMED_FILES="$BOOT_TRIMMED"
 	REMOTE_BOOT="/tmp/boot.bin"
 	FLASH_CMD="$FLASH_CMD boot $REMOTE_BOOT"

@@ -12,6 +12,57 @@ die() {
 	exit 1
 }
 
+# Rewrite the config snapshot at the offset the new layout uses.  The image
+# pass erased and rewrote that block with the image's blank 0xFF, so a plain
+# dd programs it without another erase.  The 'all' partition starts at chip
+# offset 0, which makes the seek arithmetic direct.
+write_backup() {
+	local off file mtd magic
+	[ "$DO_BACKUP" = "true" ] || return 0
+	off="${BACKUP_OFF:-}"
+	file="${BACKUP_FILE:-}"
+	[ -n "$off" ] || {
+		echo_c 160 "Config backup offset is not set"
+		return 1
+	}
+	[ -f "$file" ] || {
+		echo_c 160 "Config backup file $file not found"
+		return 1
+	}
+	[ "$off" -ge 65536 ] && [ $((off % 65536)) -eq 0 ] || {
+		echo_c 160 "Config backup offset $off is not a valid 64K block"
+		return 1
+	}
+	mtd=""
+	while read -r dev _ _ name; do
+		dev="${dev%:}"
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && {
+			mtd="$dev"
+			break
+		}
+	done <<EOF
+$(tail -n +2 /proc/mtd)
+EOF
+	[ -n "$mtd" ] || {
+		echo_c 160 "No 'all' partition to write the config backup"
+		return 1
+	}
+	echo_c 112 "Writing config backup to /dev/$mtd at offset $off"
+	dd if="$file" of="/dev/$mtd" bs=65536 seek=$((off / 65536)) count=1 2>/dev/null || {
+		echo_c 160 "Config backup write failed"
+		return 1
+	}
+	sync
+	magic=$(dd if="/dev/$mtd" bs=1 skip="$off" count=10 2>/dev/null)
+	[ "$magic" = "THNG_BCKUP" ] || {
+		echo_c 160 "Config backup read-back failed"
+		return 1
+	}
+	echo "Config backup restored"
+}
+
 flash_firmware() {
 	echo_c 112 "\nFlashing firmware to $mtd_dev"
 	local test_output
@@ -52,6 +103,9 @@ flash_full() {
 		return 1
 	fi
 
+	# The partition list is the running layout, but the copy preserves
+	# absolute offsets, so the image's own layout wins even when the two
+	# differ. The config snapshot is rewritten afterwards by write_backup().
 	while read -r mtd sz _ name; do
 		mtd="${mtd%:}"
 		name="${name#\"}"
@@ -60,11 +114,6 @@ flash_full() {
 		[ "$name" = "upgrade" ] && continue
 		[ "$needle" -ge "$fw_size" ] && break
 		sz_dec=$((0x$sz))
-		if [ "$DO_BACKUP" = "true" ] && [ "$name" = "backup" ]; then
-			echo_c 112 "Keeping config backup on $name"
-			needle=$((needle + sz_dec))
-			continue
-		fi
 		echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
 		flash_eraseall "/dev/$mtd" 2>/dev/null || true
 		bs=$align_block
@@ -80,6 +129,10 @@ flash_full() {
 		sync
 		needle=$((needle + sz_dec))
 	done </tmp/sysupgrade/mtd.txt
+
+	if [ "$DO_BACKUP" = "true" ]; then
+		write_backup || echo_c 160 "WARNING: config backup was not restored"
+	fi
 	return 0
 }
 
