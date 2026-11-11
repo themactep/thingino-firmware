@@ -137,6 +137,8 @@
 
   function correctionsText(corr) {
     return Object.keys(corr).map(function (k) {
+      if (/\.codec$/.test(k) && String(corr[k]).toLowerCase() === "h264")
+        return "H.265 is not available with this libimp - the stream stays H.264";
       return k.split(".").pop().replace(/_/g, " ") +
         " was outside the allowed range - the streamer applied " + corr[k];
     }).join(". ");

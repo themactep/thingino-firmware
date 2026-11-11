@@ -1,0 +1,224 @@
+Add a host-side NS benchmark and null-test harness.
+
+tests/ns_bench.c feeds a deterministic float corpus (silence, white
+noise, pink-ish noise, tone burst) through audio_process_ns_* and prints
+CLOCK_PROCESS_CPUTIME_ID time. It can dump its output for old/new
+comparison.
+
+Build natively with `make bench CROSS_COMPILE=` or with the target cross
+compiler. The module is not part of the default build.
+
+--- a/Makefile
++++ b/Makefile
+@@ -71,6 +71,15 @@
+ 
+ OBJS = $(ALL_SRC:.c=.o)
+ 
++# Host-side NS benchmark and null-test harness. Build natively with
++# `make bench CROSS_COMPILE=` or with the target cross compiler.
++BENCH_CFLAGS = -std=c11 -D_GNU_SOURCE -O2 -Wall -Wextra -Wno-unused-parameter
++BENCH_CFLAGS += -fPIC -DWEBRTC_POSIX -Isrc
++BENCH_SRC = tests/ns_bench.c $(SRCDIR)/ns.c \
++	$(SRCDIR)/webrtc/modules/audio_processing/ns/ns_core.c \
++	$(SRCDIR)/webrtc/modules/audio_processing/ns/noise_suppression.c \
++	$(SRCDIR)/webrtc/common_audio/fft4g.c
++
+ all: $(TARGET) $(TARGET_A)
+ 
+ $(TARGET): $(OBJS) $(SRCDIR)/libaudioProcess.map
+@@ -80,6 +89,9 @@
+ $(TARGET_A): $(OBJS)
+ 	$(AR) rcs $@ $(OBJS)
+ 
++bench: $(BENCH_SRC)
++	$(CC) $(BENCH_CFLAGS) -o ns_bench $(BENCH_SRC) -lm
++
+ $(SRCDIR)/%.o: $(SRCDIR)/%.c
+ 	$(CC) $(CFLAGS) -c -o $@ $<
+ 
+@@ -87,7 +99,7 @@
+ 	$(CC) $(CFLAGS) -Wno-unused-parameter -c -o $@ $<
+ 
+ clean:
+-	rm -f $(OBJS) $(TARGET) $(TARGET_A)
++	rm -f $(OBJS) $(TARGET) $(TARGET_A) ns_bench
+ 
+ size: $(TARGET)
+ 	@ls -lh $(TARGET)
+@@ -95,4 +107,4 @@
+ 	@echo "Exported symbols:"
+ 	@nm -D --defined-only $(TARGET) | grep -c ' T '
+ 
+-.PHONY: all clean size
++.PHONY: all clean size bench
+--- a/tests/ns_bench.c
++++ b/tests/ns_bench.c
+@@ -0,0 +1,168 @@
++/* SPDX-License-Identifier: MIT */
++/*
++ * Deterministic benchmark and null-test harness for the NS wrapper.
++ *
++ * Generates a fixed float corpus (silence, white noise, pink-ish noise and a
++ * tone burst), runs it through audio_process_ns_*, prints the CPU time and
++ * optionally writes the output. Build natively with:
++ *
++ *   make bench CROSS_COMPILE=
++ *
++ * Usage: ns_bench [-r rate] [-p policy] [-n frames] [-b bands] [-o out.raw]
++ */
++
++#include <math.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++
++#include "audio_process.h"
++
++#define MAX_FRAME 160
++#define MAX_BANDS 2
++#define MAX_FRAMES 20000
++
++static uint32_t rng_state = 0x12345678u;
++static float lp_state;
++
++static uint32_t xorshift32(void)
++{
++	uint32_t x = rng_state;
++	x ^= x << 13;
++	x ^= x >> 17;
++	x ^= x << 5;
++	rng_state = x;
++	return x;
++}
++
++static float frand(void)
++{
++	return ((float)(xorshift32() >> 8) / 8388608.0f) - 1.0f;
++}
++
++static void gen_frame(int n, int len, float *out)
++{
++	int i;
++	int seg;
++	float phase;
++
++	if (n == 0)
++		lp_state = 0.0f;
++	/* Silence, white noise, pink-ish noise, tone burst; 40 frames each. */
++	seg = (n / 40) % 4;
++	phase = (float)(n % 40) * 0.2f;
++
++	switch (seg) {
++	case 0:
++		memset(out, 0, sizeof(float) * len);
++		break;
++	case 1:
++		for (i = 0; i < len; i++)
++			out[i] = 8000.0f * frand();
++		break;
++	case 2:
++		for (i = 0; i < len; i++) {
++			lp_state = 0.95f * lp_state + 0.05f * (12000.0f * frand());
++			out[i] = lp_state * 4.0f;
++		}
++		break;
++	default:
++		for (i = 0; i < len; i++) {
++			float t = phase + (float)i * 0.05f;
++			out[i] = 9000.0f * sinf(t) + 2000.0f * frand();
++		}
++		break;
++	}
++}
++
++static double cpu_now(void)
++{
++	struct timespec ts;
++
++	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
++	return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
++}
++
++int main(int argc, char **argv)
++{
++	int rate = 16000;
++	int policy = 1;
++	int frames = 4000;
++	int bands = 1;
++	int frame_len;
++	const char *path = NULL;
++	float in[MAX_BANDS][MAX_FRAME];
++	const float *in_bands[MAX_BANDS];
++	float out[MAX_BANDS][MAX_FRAME];
++	float *out_bands[MAX_BANDS];
++	double t0, t1;
++	FILE *f = NULL;
++	void *ns;
++	int n, b;
++
++	for (n = 1; n < argc; n++) {
++		if (strcmp(argv[n], "-r") == 0 && n + 1 < argc)
++			rate = atoi(argv[++n]);
++		else if (strcmp(argv[n], "-p") == 0 && n + 1 < argc)
++			policy = atoi(argv[++n]);
++		else if (strcmp(argv[n], "-n") == 0 && n + 1 < argc)
++			frames = atoi(argv[++n]);
++		else if (strcmp(argv[n], "-b") == 0 && n + 1 < argc)
++			bands = atoi(argv[++n]);
++		else if (strcmp(argv[n], "-o") == 0 && n + 1 < argc)
++			path = argv[++n];
++		else {
++			fprintf(stderr,
++				"usage: %s [-r rate] [-p policy] [-n frames] [-b bands] [-o out.raw]\n",
++				argv[0]);
++			return 1;
++		}
++	}
++
++	if (bands < 1 || bands > MAX_BANDS || frames > MAX_FRAMES)
++		return 1;
++	frame_len = (rate == 8000) ? 80 : MAX_FRAME;
++
++	ns = audio_process_ns_create();
++	if (!ns)
++		return 2;
++	if (audio_process_ns_set_config(ns, rate, policy) != 0)
++		return 3;
++	if (path) {
++		f = fopen(path, "wb");
++		if (!f)
++			return 4;
++	}
++
++	for (b = 0; b < bands; b++) {
++		in_bands[b] = in[b];
++		out_bands[b] = out[b];
++	}
++
++	t0 = cpu_now();
++	for (n = 0; n < frames; n++) {
++		for (b = 0; b < bands; b++) {
++			gen_frame(n + b * 37, frame_len, in[b]);
++			memset(out[b], 0, sizeof(out[b]));
++		}
++		audio_process_ns_process(ns, in_bands, (size_t)bands, out_bands);
++		if (f) {
++			for (b = 0; b < bands; b++) {
++				if (fwrite(out[b], sizeof(float), (size_t)frame_len, f) !=
++				    (size_t)frame_len)
++					return 5;
++			}
++		}
++	}
++	t1 = cpu_now();
++
++	if (f)
++		fclose(f);
++	audio_process_ns_free(ns);
++
++	fprintf(stderr, "rate=%d policy=%d bands=%d frames=%d cpu=%.6f s\n",
++		rate, policy, bands, frames, t1 - t0);
++	return 0;
++}

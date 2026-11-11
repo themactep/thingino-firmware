@@ -394,6 +394,45 @@ string) and tear down the whole MediaSource -> black player, no video at
 all. When `wantAac` is false the code therefore probes video-only strings
 instead.
 
+### `applyStatsExtra()`: encode time and keyframes (OpenIMP T40/T41)
+
+Where the libimp exports `OpenIMP_Encoder_GetTelemetry`, `?stats=1` adds
+`idr`, `encode_us_avg` and `encode_us_max` per stream. The stream card footer
+then shows `encode N ms (max M)` and the keyframe count as tooltip. The fields
+are absent elsewhere, so the check is `es.encode_us_avg >= 0` (undefined
+compares false) and nothing is shown.
+
+### Test pattern banner (`#tp-panel`, `a/preview-testpattern.js`)
+
+A slim card above the statistics, drawn as the picture pipeline
+**Sensor → ISP → Encoder → IVS**. Each stage holds the button for the
+pattern that enters there:
+
+| Stage | Button | `testpattern.mode` | Enters |
+| --- | --- | --- | --- |
+| Sensor | Sensor pattern | 4 | the sensor itself; runs through the whole ISP (AE/AWB hold switches below) |
+| ISP | Mid-ISP | 5 | inside the ISP after sharpening (OpenIMP, T23 so far) |
+| Encoder | Still / Moving | 1 / 2 | replaces the ISP output |
+| IVS | Motion test | 3 | replaces the ISP output; scored against the motion detection (result tiles below) |
+
+`paint()` colours the path from the entry point: the entry stage gets
+`inj` (sensor/ISP) or the arrow ISP → Encoder gets the orange dot (modes
+1-3), every stage after it `pass`, every stage before it `skip`. While mode 4
+waits for day mode (`testpattern.pending`) the path is drawn as mode 4.
+A second click on the active button sends mode 0, as does Off.
+
+Impossible = shown + inactive: the Sensor button is disabled without
+`caps.testpattern.sensor`, Mid-ISP without `caps.testpattern.isp_mid` (timps
+v1.11.1+ with `OpenIMP_TestPattern_Supported(5)`), with the reason as tooltip.
+The whole banner only exists where `caps.testpattern.available`.
+
+Visibility: a toolbar toggle (`#ms-tp-toggle`, easel icon next to the stats
+toggle), **off by default**, remembered per browser in `localStorage` key
+`ms.tp`. While a pattern runs (or mode 4 is pending) the banner is shown
+regardless of the toggle, so nobody can miss that the camera is sending a
+synthetic picture and that day/night is held in day. Below 768 px the four
+stages become a 2 x 2 grid and the arrows are dropped.
+
 ## a/config-photosensing.js
 
 ### File header: field mapping and the removed "Time Schedule" column
@@ -718,3 +757,30 @@ ids unchanged) and `#live` (preview, value tiles, history chart:
 `tool-sensor-data.html` redirects to `#live`. The chart shades night samples
 instead of drawing a mode line, and the window buttons show time spans
 (points × sample period: 2 s live, 10 s when the camera records).
+
+## streamer-image.html
+
+### Sticky preview (`.iq-pin`)
+
+The preview column stays in view while the controls scroll. The `sticky`
+class sits on the **column itself** (`col-12 col-xl-5`), not on an inner
+wrapper: a sticky element only sticks inside its containing block, and in the
+single-column layout below `xl` the column ends right after the image, so an
+inner wrapper would scroll away with it. As a flex item of `.row` the column
+sticks for the whole row. `align-self: flex-start` keeps it from stretching to
+the row height in the two-column layout (a stretched element has nothing to
+stick within). `top: 4.25rem` clears thingino's `sticky-top` navbar (56 px)
+plus a small gap. Below `xl` the image is capped at `34vh` (`object-fit:
+contain`) and gets the page background plus a soft shadow, so the controls
+pass cleanly underneath on a phone.
+
+## x/timps-dn-controls.cgi
+
+### The multi-line guard
+
+The body is matched with `grep`, which anchors per line, so a multi-line body
+is rejected first. The newline must be a literal one (`nl='` newline `'`):
+`$(printf '\n')` expands to an empty string (command substitution strips
+trailing newlines), which turned the guard into `*""*`, matched every body and
+answered 400 to every save (fixed 2026-10-24, thingino-firmware #1860).
+

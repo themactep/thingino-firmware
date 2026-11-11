@@ -1,6 +1,6 @@
 clean-config:
 	@$(TEAL) "$@"
-	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original $(DL_MIRROR_STAMP)
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
@@ -15,6 +15,10 @@ nconfig: check-config $(OUTPUT_DIR)/.config
 saveconfig:
 	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+	@if [ -n "$(DL_MIRROR_DIR)" ]; then \
+		sed -i '\|^BR2_PRIMARY_SITE="file://$(DL_MIRROR_DIR)"$$|d' \
+			"$(CAMERA_CONFIG_REAL)"; \
+	fi
 
 ### Files
 
@@ -181,9 +185,21 @@ remove_bins:
 repack: remove_bins pack
 	@$(TEAL) "$@"
 
+# Guard: only the Buildroot internal toolchain can be packaged as an SDK; the
+# external/local one already is an SDK and has no BR2_TOOLCHAIN_BUILDROOT_VENDOR,
+# so it would be renamed with the wrong "buildroot" tuple.
+define check_sdk_toolchain
+if [ "$(TOOLCHAIN_TYPE_RAW)" != "BUILDROOT" ]; then \
+	echo "ERROR: the SDK can only be built with the Buildroot internal toolchain."; \
+	echo "       Set BR2_THINGINO_TOOLCHAIN_TYPE_BUILDROOT=y (current type: $(TOOLCHAIN_TYPE_RAW))."; \
+	exit 1; \
+fi
+endef
+
 # build toolchain fast
 sdk: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) -j$(NPROC) sdk
 
 source: defconfig
@@ -193,6 +209,7 @@ source: defconfig
 # build toolchain
 toolchain: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) sdk
 
 .PHONY: check-image-fits

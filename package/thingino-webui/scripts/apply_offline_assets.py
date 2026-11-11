@@ -12,11 +12,10 @@ match after apply_cdn_fallback.py has appended onerror= handlers (the fallback
 runs at install time, this runs later at rootfs time); the rewritten tag drops
 those attributes.
 
-Not bundled: the Montserrat webfont (link dropped, system font used), Chart.js
+Not bundled: the Montserrat webfont (link dropped, system font used) and Chart.js
 (sensor-data page only; tag left on the CDN, and tool-sensor-data.js degrades
-gracefully without it), and the icon font (its subset lacked glyphs that the
-streamer/preview pages use, which rendered as tofu, so the stylesheet is dropped
-and the icon elements are hidden).
+gracefully without it). The icon subset is bundled and covers every glyph used
+by the webui, streamer and plugin pages.
 """
 import pathlib
 import re
@@ -34,13 +33,11 @@ REPLACEMENTS = [
         re.IGNORECASE,
     ), '<link rel="stylesheet" href="/a/vendor/bootstrap.min.css">'),
 
-    # Bootstrap Icons: the bundled subset only carried the glyphs thingino-webui
-    # uses, so streamer/preview pages showed missing glyphs (tofu). Drop the
-    # stylesheet and hide the icon elements instead.
+    # Bootstrap Icons CDN -> local subset
     (re.compile(
         r'\s*<link\b[^>]*href="https://cdn\.jsdelivr\.net/npm/bootstrap-icons@[^"]*?/font/bootstrap-icons(?:\.min)?\.css"[^>]*>',
         re.IGNORECASE,
-    ), '\n<style>.bi,[class^="bi-"],[class*=" bi-"]{display:none!important}</style>'),
+    ), '\n<link rel="stylesheet" href="/a/vendor/bootstrap-icons.min.css">'),
 
     # Bootstrap JS bundle CDN -> local
     (re.compile(

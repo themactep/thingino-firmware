@@ -46,6 +46,15 @@ config BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	  Tiny IMP Streamer — minimal, dependency-light RTSP / fMP4 /
 	  MJPEG streamer. Uses the selected libimp provider.
 
+config BR2_PACKAGE_THINGINO_STREAMER_DIVINUS
+	bool "Divinus"
+	depends on BR2_SOC_FAMILY = "t31"
+	select BR2_PACKAGE_DIVINUS
+	select BR2_PACKAGE_THINGINO_STREAMER
+	help
+	  Divinus — compact multi-platform streamer with RTSP, JPEG
+	  snapshots and fMP4 recording. T31 only.
+
 endchoice
 
 if BR2_PACKAGE_THINGINO_STREAMER
@@ -58,5 +67,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-hal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/strero/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/timps/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/divinus/Config.in"
 
 endif

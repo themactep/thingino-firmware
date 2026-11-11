@@ -45,6 +45,9 @@ T23 is excluded from the OpenIMP gate: upstream's T23 build is a hybrid that
 keeps the OEM `libimp.so` for audio and the Helix encoder. See
 `docs/media/open-isp-stack.md` for the full matrix.
 
+The audio input path (NS, HPF, AGC) and its optimization work are tracked in
+[audio-pipeline-optimization-roadmap.md](audio-pipeline-optimization-roadmap.md).
+
 ## Runtime control: imp-control
 
 `package/ingenic-libimp-control` builds `libimp_control.so` (from

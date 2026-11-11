@@ -54,7 +54,7 @@
   }
 
   function hostName() {
-    return window.network_address || window.location.hostname || "localhost";
+    return window.location.hostname || window.network_address || "localhost";
   }
 
   function markCopied(link) {

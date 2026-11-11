@@ -16,7 +16,10 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
-BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+# Buildroot tree. Defaults to the in-tree buildroot/ (a submodule); set
+# THINGINO_BUILDROOT_DIR to point at an external checkout instead, so the
+# in-tree symlink/submodule is not needed.
+BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 
 # --- CI / automation fast-paths -------------------------------------
 #
@@ -35,8 +38,8 @@ BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 # Run dependency check before doing anything.
 # Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
-ifneq ($(filter update,$(MAKECMDGOALS)),)
-$(info Skipping dependency check for update target)
+ifneq ($(filter update update-certs,$(MAKECMDGOALS)),)
+$(info Skipping dependency check for update/update-certs target)
 else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 _dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 ifneq ($(lastword $(_dep_check)),0)
@@ -60,6 +63,12 @@ TFTP_ROOT ?=
 # can be reused from environment, just export the value:
 # export BR2_DL_DIR=/path/to/your/local/storage
 BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
+
+# Shared source mirror (network storage). Used as Buildroot's primary
+# download site and as the write-back target for upstream downloads.
+DL_MIRROR_DIR ?=
+DL_SYNC ?= 1
+export DL_MIRROR_DIR DL_SYNC
 
 THINGINO_USER_DIR ?= $(BR2_EXTERNAL)/user
 ifdef PRISTINE
@@ -227,9 +236,9 @@ THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSIO
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
 # Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
 ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
- UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
+UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
 else
- UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
 endif
 # loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
 # (env partition included) and resets, so an env imported before flashing would
@@ -461,7 +470,7 @@ export BACKUP_SIZE_KB
 export KERNEL_SIZE_KB
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
 	O=$(OUTPUT_DIR) \
 	BR2_DL_DIR=$(BR2_DL_DIR)
@@ -480,11 +489,12 @@ endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild \
 	defconfig dev distclean fast help pack ram-build ram-dev ram-setup repack remove_bins \
-	sdk toolchain update br-% \
+	sdk toolchain update update-certs br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
 	backup-overlay user-dirs user-push \
-	dfu scriba ota run setup-hooks show-vars
+	dfu scriba ota run setup-hooks show-vars \
+	dl-pull dl-push dl-sync
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
