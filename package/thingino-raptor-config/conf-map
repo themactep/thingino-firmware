@@ -224,6 +224,9 @@ str ircut trigger RAPTOR_IRCUT_TRIGGER
 str ircut night_luma RAPTOR_IRCUT_NIGHT_LUMA
 str ircut night_gain RAPTOR_IRCUT_NIGHT_GAIN
 str ircut day_gain_pct RAPTOR_IRCUT_DAY_GAIN_PCT
+str ircut probe_gain_pct RAPTOR_IRCUT_PROBE_GAIN_PCT
+str ircut probe_holdoff_sec RAPTOR_IRCUT_PROBE_HOLDOFF_SEC
+str ircut probe_recheck_sec RAPTOR_IRCUT_PROBE_RECHECK_SEC
 str ircut night_fps RAPTOR_IRCUT_NIGHT_FPS
 str ircut adc_channel RAPTOR_IRCUT_ADC_CHANNEL
 str ircut adc_night RAPTOR_IRCUT_ADC_NIGHT
