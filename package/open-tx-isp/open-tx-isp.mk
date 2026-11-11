@@ -59,6 +59,10 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	INSTALL_MOD_STRIP=--strip-unneeded \
 	DIR=.
 
+# The build tree is an extracted tarball, so the Kbuild cannot read the
+# revision from git; pass the pin so the probe log names the source.
+OPEN_TX_ISP_MODULE_MAKE_OPTS += OTX_BUILD_ID=$(OPEN_TX_ISP_VERSION)
+
 # The T41 V4L2 frontend is behind a Kbuild switch, not a Kconfig symbol.
 ifeq ($(SOC_FAMILY),t41)
 ifeq ($(KERNEL_VERSION),7.3.3)
