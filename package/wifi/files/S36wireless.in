@@ -282,7 +282,10 @@ reset_usb_host() {
 	local drv=/sys/bus/platform/drivers/dwc2 dev name
 	[ -d "$drv" ] || return 0
 	for dev in "$drv"/*; do
+		# Only bound platform devices; the directory also holds the
+		# "module" symlink and the driver's control files.
 		[ -L "$dev" ] || continue
+		[ -e "$dev/driver" ] || continue
 		name=${dev##*/}
 		echo "Reset USB host controller $name"
 		echo "$name" >"$drv/unbind"
