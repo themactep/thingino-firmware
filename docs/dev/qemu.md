@@ -45,6 +45,7 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
 | `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
 | `isp [NAME]` | the ISP trace of a session booted with `up --isp-trace`: each frame's changes, `--at` a point's registers, `--diff` another session's, `--serve` a live page; see Video |
+| `pwm [NAME]` | the PWM outputs: each change with its frequency and duty, `--vcd FILE` every edge, `--serve` a live page; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
@@ -89,6 +90,8 @@ again for a session that is already up replaces it. Other options:
   joined to it (see Wi-Fi).
 - `--speaker speaker.wav` records the camera's speaker, and `--mic` sets
   what its microphones hear (see Audio).
+- `--tap DIR` writes every stream the camera's encoders code to DIR, to
+  play while it runs (see Video).
 - `--riscv` runs the SoC's RISC-V core beside it, for stock firmware that
   boots fast with one (see Fast boot).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
@@ -299,6 +302,20 @@ the changes as they come, the console, and for a pin its functions, its
 history and buttons that drive it from outside. The page can also set an
 ADC channel and pause the machine.
 
+The PWM outputs, the timer unit's channels and (T32, T33, T41, A1) the
+PWM block's, are logged too, from the QEMU that traces them on, and read
+with the fork's `pin-trace.py`: each change with its frequency and share
+of time high, every edge as a waveform, or a live page. An IR LED's
+brightness is its output's duty.
+
+```bash
+scripts/qemu-dev pwm
+#  48.224695078  pwm0     263.214 Hz, 37.5% high, now 0, an edge in 2372209 ns  0x55ecd7c0
+#  49.269497394  pwm0     263.214 Hz, 62.5% high, now 0, an edge in 1396908 ns  hw
+scripts/qemu-dev pwm --vcd pwm.vcd
+scripts/qemu-dev pwm --serve           # http://127.0.0.1:<port>/
+```
+
 ## Video
 
 The emulated camera streams once its session has the camera's image
@@ -366,6 +383,40 @@ scripts/qemu-dev get /tmp/snap.jpg snap.jpg
 ffplay main.h264
 ```
 
+The emulated encoders can also write every stream themselves, from any
+image, stock firmware included, with nothing changed in the camera:
+`--tap DIR` (QEMU ingenic-0.7.11 on) gives each stream a file in DIR,
+named for its encoder and its order (`avpu-0.h264` the T31's first,
+`helix-1.h264` a T23's second, `.h265` and `.mjpg` the rest), which
+grows a picture at a time from its first key frame:
+
+```bash
+scripts/qemu-dev up qemu_t31x --tap /tmp/tap
+ffplay -f h264 -follow 1 -i file:/tmp/tap/avpu-0.h264
+```
+
+A FIFO made at a stream's path before it starts (`mkfifo
+/tmp/tap/avpu-0.h264`) is written instead; the camera never waits for
+a slow player, which skips to the next key frame. The QEMU fork's
+contrib/ingenic/README.md ("Stream tap") has the details.
+
+The ISP's own pictures, ahead of any encoder, can be written the same
+way (QEMU ingenic-0.7.12 on): each channel's picture as a YUV4MPEG2
+stream, `isp-<pipe>-<chan>.y4m`, and the raw Bayer frame each VIC takes
+from the sensor, `raw-<n>-<W>x<H>-<pixfmt>.raw`. Give the ISP's
+`x-frame-tap` after `--` (on a T10 or T20, and for a T30's raw frame,
+it is `ingenic-t20-isp.x-frame-tap`):
+
+```bash
+scripts/qemu-dev up qemu_t31x -- -device image-sensor,model=gc2053,bus=i2c0 \
+    -global ingenic-isp.x-frame-tap=/tmp/frames
+ffplay -follow 1 -i file:/tmp/frames/isp-0-0.y4m
+```
+
+At 1080p a channel's file grows by 3 MB a frame, so for more than a few
+seconds make a FIFO at its path first. The QEMU fork's
+contrib/ingenic/README.md ("Frame tap") has the details.
+
 With the main stream over IVDC (`direct_mode=1` in
 `/etc/modules.d/20-isp`, `ivdc = true` under `[stream0]` in
 `/etc/raptor.conf`), the snapshot comes from the second stream as
@@ -418,10 +469,34 @@ scripts/qemu-dev reboot
 
 That is for an XBurst1 SoC with 128 MB, which test images built before
 the 128 MB profiles got 64 MB of rmem need. The T40 and T41 keep 8 MB of
-nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. The 64 MB T21
-needs `osmem 42M@0x0` and `rmem 22M@0x2a00000` even when built today.
+nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. A 64 MB T21
+image built before `qemu_t21n` got 22 MB of rmem needs `osmem 42M@0x0` and
+`rmem 22M@0x2a00000`.
 The encoders run on the host CPU, so a 4K stream may run below the
 sensor's frame rate.
+
+## USB webcam mode
+
+From QEMU ingenic-0.7.12 a PC can sit on the camera's USB port: the
+fork's `dwc2-uvc-host` enumerates the camera's webcam gadget (g_webcam,
+fed by raptor's rwc), streams each format it is given in turn and saves
+the frames as the camera sent them, `uvc-0.mjpg`, `uvc-1.h264` and so on,
+in a directory. The `qemu_t31x_webcam` profile builds such a camera:
+
+```bash
+make GROUP=testing CAMERA=qemu_t31x_webcam fast
+scripts/qemu-dev up qemu_t31x_webcam -- -device image-sensor,model=gc2053,bus=i2c0 \
+    -device dwc2-uvc-host,x-out=/tmp/uvc,x-format=mjpeg+h264,x-frames=20
+ffplay /tmp/uvc/uvc-1.h264
+```
+
+`x-frames` is the frames saved of each format (5 by default). qemu-test
+runs the profile's `webcam` suite, which decodes them and compares them
+with the pictures the encoder stream tap saw. Only bulk streaming is
+emulated. The profile runs its sensor at 5 fps: at 25 fps some H.264
+pictures leave the camera with another picture's slice header (libimp or
+rvd overwrite it before rwc copies the stream), so now and then one does
+not decode.
 
 ## Audio
 
@@ -496,8 +571,11 @@ a session's console and another waits its turn; SSH copies run alongside.
   details may not match.
 - The emulated phone of `--portal` joins open portals only.
 - The guest runs under TCG: its timing is not the hardware's.
-- The emulated NAND never wears: no bitflips, no bad blocks, and its
-  spare areas are blank again whenever QEMU starts.
+- The emulated NAND never wears by itself, and with qemu-dev its spare
+  areas are blank again whenever QEMU starts. Bad blocks and ECC errors
+  can be set from QEMU ingenic-0.7.11 on (`nand-bad-blocks`,
+  `nand-ecc-correctable`, `nand-ecc-uncorrectable`; the QEMU fork's
+  contrib/ingenic/README.md, "SPI NAND").
 - The console is UART1 on most cameras and UART0 on a few, and some run
   U-Boot on one and Linux on the other; `up` follows the UART the
   kernel prints its banner on.

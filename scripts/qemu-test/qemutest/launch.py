@@ -11,6 +11,15 @@ from .config import (PORTAL_PORT, SSH_FWD_PORT, USB_HTTP_PORT,
                      WEBUI_PORT)
 
 
+# Frames saved per format by the webcam profile's host.
+UVC_FRAMES = 20
+# The sensor's rate. At the default 25 fps about half the runs hand the host
+# H.264 pictures whose slice header is the next job's (an IDR header over a P
+# picture's data, seen in the NAL bytes), as rvd reads them late in the slow
+# emulated guest; 12 runs at 5 fps had none.
+UVC_SENSOR_FPS = 5
+
+
 def find_qemu():
     candidates = [
         os.environ.get("QEMU_BIN", ""),
@@ -22,11 +31,24 @@ def find_qemu():
     sys.exit("Cannot find qemu-system-mipsel (set QEMU_BIN or use run.sh)")
 
 
-def usb_args(mode):
+def usb_args(mode, report_dir=None):
     """The camera's USB port cabled to a QEMU hub. The fork's dwc2-ncm-host
     enumerates the gadget on one side; on the other a slirp carries host
     TCP (and is the DHCP server in client mode) and, in server mode, the
     usbpc socket is a second host that leases from the camera."""
+    if mode == "webcam":
+        # A PC with a UVC driver on the cable: it streams MJPEG, then H.264,
+        # and saves the frames. The encoder tap writes the pictures the
+        # camera coded, to compare them with.
+        out = os.path.join(report_dir, "uvc")
+        os.makedirs(out, exist_ok=True)
+        tap = os.path.join(report_dir, "tap")
+        os.makedirs(tap, exist_ok=True)
+        sensor = f"image-sensor,model=gc2053,bus=i2c0,fps={UVC_SENSOR_FPS}"
+        return ["-device", sensor,
+                "-device", f"dwc2-uvc-host,id=usbhost,x-out={out},"
+                f"x-format=mjpeg+h264,x-frames={UVC_FRAMES}",
+                "-global", f"ingenic-avpu.x-stream-tap={tap}"]
     if mode == "server":
         # A laptop on the cable, so no router advertisements: an IPv6
         # default route on usb0 would read as a wired uplink.
@@ -78,7 +100,7 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
         # No host-side tests: no forwards, so runs can share a host.
         args += ["-netdev", "user,id=n0"]
     if usb:
-        args += usb_args(usb)
+        args += usb_args(usb, report_dir)
 
     stdout_path = f"/tmp/qemu-test-{os.getpid()}.stdout"
     stdout_fh = open(stdout_path, "w+")

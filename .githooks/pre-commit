@@ -8,7 +8,17 @@ if [ -n "$do_not_edit_files" ]; then
 	printf '%s\n' "$do_not_edit_files" | ./scripts/check-do-not-edit.sh
 fi
 
-js_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
+js_staged_files=$(
+	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		case "$file" in
+			# Vendored assets ship minified; a shell pattern's * crosses
+			# directory separators, so exclude them explicitly.
+			package/thingino-webui/files/www/a/vendor*/*) continue ;;
+			package/thingino-webui/files/www/a/*.js) printf '%s\n' "$file" ;;
+		esac
+	done
+)
 
 if [ -n "$js_staged_files" ]; then
 	echo "pre-commit: formatting staged web UI JavaScript files with Prettier"

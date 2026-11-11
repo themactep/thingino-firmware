@@ -4,13 +4,10 @@
   if (!document.body || document.body.id !== "page-timelapse-player") return;
 
   var CGI = "/x/json-timelapse.cgi";
-  var LOOKAHEAD = 8;       // frames prefetched ahead of the one on screen -
-                           // deep enough to ride out a slow/late frame
-                           // without the playhead catching up to the fetch
+  var LOOKAHEAD = 8;
   var MAX_INFLIGHT = 4;
   var MIN_DELAY_MS = 20;
   var DAY_CONCURRENCY = 3;
-  // marks a picker row / deep link as "the whole day", not a folder rel.
   var DAY_PREFIX = "day:";
 
   var $ = function (id) { return document.getElementById(id); };
@@ -30,42 +27,37 @@
   var playIcon = $("tlp-play-icon");
   var reloadBtn = $("tlp-reload");
 
-  var seqs = [];      // [{seq, frames}] from the index
-  var curSeq = "";    // folder currently loaded ("." = the tree root)
-  var frames = [];    // [{f, s, d}] ascending; d is the folder each frame is in
-  var idx = 0;        // frame on screen
+  var seqs = [];
+  var curSeq = "";
+  var frames = [];
+  var idx = 0;
   var playing = false;
   var timer = null;
-  var prefetched = {}; // idx -> Image, kept only as a sliding window
-  var pfWanted = {};   // idx -> true, this call's lookahead window
-  var pfQueue = [];    // idx queue waiting for a free MAX_INFLIGHT slot
+  var prefetched = {};
+  var pfWanted = {};
+  var pfQueue = [];
   var pfInflight = 0;
-  var intervalS = 0;   // timelapse.interval_s, for the "x real time" hint
-  var hintExtra = "";  // day-mode note appended to the speed hint (skipped folders)
-  var loadGen = 0;     // bumped per pick, so a slow load can't land after a newer one
+  var intervalS = 0;
+  var hintExtra = "";
+  var loadGen = 0;
 
   function toast(type, msg, ms) {
     if (typeof window.showAlert === "function") window.showAlert(type, msg, ms);
     else console.log("[timelapse-player]", type + ":", msg);
   }
 
-  // "20260912T093000.jpg" -> "2026-09-12 09:30:00". Falls back to the bare
-  // name when the shot was written with a non-default name template.
   function stampOf(name) {
     var m = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(name);
     if (!m) return name.replace(/\.jpe?g$/i, "");
     return m[1] + "-" + m[2] + "-" + m[3] + " " + m[4] + ":" + m[5] + ":" + m[6];
   }
 
-  // Same stamp as milliseconds since epoch, null if unparseable.
   function frameEpochMs(name) {
     var m = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(name);
     if (!m) return null;
     return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
   }
 
-  // "20260912/09" -> "2026-09-12 09:00", "20260912" -> "2026-09-12",
-  // "." -> the tree root. Anything else is shown verbatim.
   function seqLabel(seq) {
     if (seq === ".") return "(timelapse folder root)";
     var m = /^(\d{4})(\d{2})(\d{2})(?:\/(\d{2}))?$/.exec(seq);
@@ -74,22 +66,16 @@
     return m[4] ? d + " " + m[4] + ":00" : d;
   }
 
-  // day bucket for the <optgroup>, so a week of hour folders reads as seven
-  // groups of 24 rather than 168 flat rows
   function dayOf(seq) {
     var m = /^(\d{4})(\d{2})(\d{2})(?:\/|$)/.exec(seq);
     return m ? m[1] + "-" + m[2] + "-" + m[3] : "Other";
   }
 
-  // raw day bucket ("20260912/09" -> "20260912"), "" for a folder whose name
-  // the default template did not produce - those get no whole-day row.
   function dayKeyOf(seq) {
     var m = /^(\d{8})(?:\/|$)/.exec(seq);
     return m ? m[1] : "";
   }
 
-  // every indexed folder of one day, ascending (= chronological under the
-  // default template). This is the same index the <optgroup>s are built from.
   function daySeqs(key) {
     return seqs.filter(function (s) { return dayKeyOf(s.seq) === key; })
       .map(function (s) { return s.seq; })
@@ -123,11 +109,10 @@
     return Math.max(MIN_DELAY_MS, Math.round(1000 / fps()));
   }
 
-  // Pull queued indices into flight, MAX_INFLIGHT at a time.
   function pumpPrefetch() {
     while (pfInflight < MAX_INFLIGHT && pfQueue.length) {
       (function (i) {
-        if (prefetched[i] || !pfWanted[i]) return; // settled or fell out of window already
+        if (prefetched[i] || !pfWanted[i]) return;
         pfInflight++;
         var im = new Image();
         im.onload = im.onerror = function () {
@@ -141,7 +126,6 @@
     }
   }
 
-  // Warm the browser cache for the next few frames, MAX_INFLIGHT camera requests at a time.
   function prefetch(from) {
     if (!frames.length) return;
     var i, k;
@@ -156,7 +140,6 @@
       if (!prefetched[i] && pfQueue.indexOf(i) === -1) pfQueue.push(i);
     }
     pfQueue = pfQueue.filter(function (i) { return pfWanted[i]; });
-    // Evict only SETTLED loads that fell out of the window.
     Object.keys(prefetched).forEach(function (key) {
       if (!pfWanted[key] && prefetched[key].complete) delete prefetched[key];
     });
@@ -180,7 +163,6 @@
     }
   }
 
-  // Show frame i and call done() once its load settles (either way).
   function showFrame(i, done) {
     if (!frames.length) { if (done) done(); return; }
     var n = frames.length;
@@ -196,13 +178,10 @@
     frameEl.onerror = settle;
     frameEl.hidden = false;
     if (frameEl.getAttribute("src") === url) {
-      // same URL (single-frame folder, or a re-show): no load event would
-      // fire, so settle on our own instead of stalling the loop
       setTimeout(settle, 0);
     } else {
       frameEl.src = url;
-      // a cache hit can already be complete here and some browsers then fire
-      // no further load event on this element
+      // a cache hit may already be complete and fire no further load event
       if (frameEl.complete) setTimeout(settle, 0);
     }
     updateMeta();
@@ -248,15 +227,12 @@
     updateMeta();
   }
 
-  // Coverage + the dialed-in compression, not a promise of actual playback
-  // duration - real throughput is SD-card/network bound, not fps bound.
   function speedHint() {
     if (!frames.length) { hintEl.innerHTML = "&nbsp;"; return; }
     var bits = [frames.length + " frame" + (frames.length === 1 ? "" : "s")];
     if (frames.length === 1) {
       bits.push("nothing to animate - showing it as a still");
     } else {
-      // First/last frame's own timestamps when parseable, else estimate.
       var t0 = frameEpochMs(frames[0].f), t1 = frameEpochMs(frames[frames.length - 1].f);
       var spanS = (t0 != null && t1 != null) ? (t1 - t0) / 1000
         : (intervalS > 0 ? (frames.length - 1) * intervalS : 0);
@@ -268,13 +244,10 @@
     hintEl.textContent = bits.join(" · ");
   }
 
-  // One folder's frames, names only, tagged with the folder they came from.
   function fetchSeq(seq) {
     return fetch(CGI + "?seq=" + encodeURIComponent(seq), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) {
-        // sort by name rather than trusting the listing order: the default
-        // template makes the name sort BE the chronological order
         return (data.frames || []).slice().sort(function (a, b) {
           return a.f < b.f ? -1 : a.f > b.f ? 1 : 0;
         }).map(function (fr) {
@@ -326,7 +299,6 @@
       });
   }
 
-  // Whole day: the day's hour folders, fetched through the SAME per-folder endpoint and concatenated in hour order.
   function loadDay(key, gen) {
     var list = daySeqs(key);
     if (!list.length) {
@@ -337,7 +309,7 @@
     frameEl.hidden = true;
     emptyEl.hidden = false;
 
-    var parts = new Array(list.length);  // by slot, so hour order survives
+    var parts = new Array(list.length);
     var failed = [];
     var done = 0, next = 0, inflight = 0;
 
@@ -375,7 +347,7 @@
             .then(function () {
               inflight--;
               done++;
-              if (gen !== loadGen) return;  // a newer pick owns the player now
+              if (gen !== loadGen) return;
               progress();
               if (done === list.length) finish();
               else pump();
@@ -392,8 +364,6 @@
   function renderSeqs() {
     seqEl.innerHTML = "";
     var group = null, groupName = null;
-    // newest first in the picker (the index comes back ascending): the shots
-    // someone opens this page for are almost always the most recent ones
     seqs.slice().reverse().forEach(function (s) {
       var day = dayOf(s.seq);
       if (day !== groupName) {
@@ -401,7 +371,6 @@
         group = document.createElement("optgroup");
         group.label = day;
         seqEl.appendChild(group);
-        // First row of the group plays the day end to end.
         var key = dayKeyOf(s.seq);
         var members = key ? daySeqs(key) : [];
         if (members.length > 1) {
@@ -414,8 +383,7 @@
       }
       var opt = document.createElement("option");
       opt.value = s.seq;
-      // textContent, not innerHTML: folder names come off the SD card and
-      // must never be interpreted as HTML
+      // textContent, not innerHTML: folder names come off the SD card
       opt.textContent = seqLabel(s.seq) + "  (" + s.frames +
         " shot" + (s.frames === 1 ? "" : "s") + ")";
       group.appendChild(opt);
@@ -450,15 +418,12 @@
         }
         seqEl.disabled = false;
         renderSeqs();
-        // A deep link wins over the newest folder: #seq=20260912/09 for one folder, #day=20260912 for the whole day.
         var pick = "";
         var wantDay = /^#day=(.+)$/.exec(window.location.hash);
         var wantSeq = /^#seq=(.+)$/.exec(window.location.hash);
         if (wantDay) {
           var key = decodeURIComponent(wantDay[1]);
           var members = daySeqs(key);
-          // a day pruned down to one folder has no whole-day row any more -
-          // resume on the folder that is left rather than on the newest day
           if (members.length > 1) pick = DAY_PREFIX + key;
           else if (members.length === 1) pick = members[0];
         } else if (wantSeq) {
@@ -475,8 +440,6 @@
       })
       .finally(function () { reloadBtn.disabled = false; });
 
-    // interval_s drives the "x real time" hint; free_mb is a nice extra.
-    // Best effort only - the player works without timps answering at all.
     if (window.timpsApi) {
       window.timpsApi.get().then(function (j) {
         var tl = j && j.timelapse;
@@ -490,7 +453,7 @@
           infoEl.textContent = bits.join(" · ");
         }
         speedHint();
-      }).catch(function () { /* hint stays generic */ });
+      }).catch(function () {});
     }
   }
 
@@ -502,15 +465,12 @@
   $("tlp-prev").addEventListener("click", function () { setPlaying(false); showFrame(idx - 1); });
   $("tlp-next").addEventListener("click", function () { setPlaying(false); showFrame(idx + 1); });
   reloadBtn.addEventListener("click", load);
-  // scrubbing jumps without stopping: the loop picks up from the new index
   scrubEl.addEventListener("input", function () {
     showFrame(parseInt(scrubEl.value, 10) || 0);
   });
 
   document.addEventListener("keydown", function (ev) {
     var t = ev.target;
-    // never swallow keys aimed at a control (the fps/sequence selects, the
-    // scrub slider) or at any other input
     if (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
     if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
     switch (ev.key) {
@@ -524,8 +484,6 @@
     ev.preventDefault();
   });
 
-  // a backgrounded tab throttles timers to ~1/s, which would silently turn
-  // playback into a crawl and keep hammering the camera - stop instead
   document.addEventListener("visibilitychange", function () {
     if (document.hidden && playing) setPlaying(false);
   });
