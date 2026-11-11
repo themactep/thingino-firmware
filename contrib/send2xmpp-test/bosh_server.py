@@ -34,6 +34,7 @@ UPLOAD_NS = "urn:xmpp:http:upload:0"
 LOCK = threading.Lock()
 MESSAGES = []
 UPLOADS = []
+PENDING = []
 
 
 def localname(tag):
@@ -81,6 +82,7 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 MESSAGES.clear()
                 UPLOADS.clear()
+                PENDING.clear()
             return self._send(200, "ok", "text/plain")
         if path == "/upload/get":
             return self._send(200, "uploaded", "text/plain")
@@ -117,6 +119,14 @@ class Handler(BaseHTTPRequestHandler):
         iq = next((c for c in children if localname(c.tag) == "iq"), None)
         message = next((c for c in children if localname(c.tag) == "message"), None)
         sid = root.attrib.get("sid", "")
+        delay = parse_qs(parsed.query).get("delay", ["0"])[0] == "1"
+
+        # BOSH delivers a held response on a later request. The client's
+        # empty-body poll gets the stanza that was withheld earlier.
+        if PENDING and not children:
+            with LOCK:
+                stanza = PENDING.pop(0)
+            return self._xml("<body xmlns='%s'>%s</body>" % (BOSH_NS, stanza))
 
         if root.attrib.get("type") == "terminate":
             return self._xml("<body %s %s/>" % (
@@ -175,10 +185,20 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 inner = ""
 
-            return self._xml(
-                "<body xmlns='%s'><iq %s %s>%s</iq></body>"
-                % (BOSH_NS, attr("type", "result", style),
-                   attr("id", iq_id, style), inner))
+            iq_xml = ("<iq %s %s>%s</iq>"
+                      % (attr("type", "result", style),
+                         attr("id", iq_id, style), inner))
+
+            # Openfire may ack the request and deliver the result in the
+            # response to the next poll. Delay discovery and upload results
+            # when ?delay=1 is used, to exercise that path.
+            if delay and lname in ("query", "request"):
+                with LOCK:
+                    PENDING.append(iq_xml)
+                return self._xml("<body xmlns='%s'/>" % BOSH_NS)
+
+            return self._xml("<body xmlns='%s'>%s</body>"
+                             % (BOSH_NS, iq_xml))
 
         # Stream restart and anything else the client sends.
         return self._xml("<body xmlns='%s'/>" % BOSH_NS)
