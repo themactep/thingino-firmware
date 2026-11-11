@@ -735,7 +735,7 @@ agent_privacy_enabled() {
 	printf 'false'
 }
 
-# ── Runtime stream fallback ────────────────────────────────────────────────
+# Runtime stream fallback
 # The Kconfig stream defaults are empty strings, so /etc/raptor.conf ships
 # streamN geometry keys commented out and the daemon runs on compiled-in
 # defaults. To show what the daemon is actually doing, fall back to the
