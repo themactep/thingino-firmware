@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000007 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 25 Oct 2026 17:00:00 -0400
+Subject: [PATCH] ingenic-sdk: motor: let devres free the device
+
+`motor_probe()` allocates `mdev` with `devm_kzalloc()`, but the probe
+error path and `motor_remove()` both call `kfree(mdev)` as well. The
+device is then freed a second time when devres releases it, corrupting
+the kernel heap on a failed probe and on module unload/reboot.
+
+The same pattern exists in the 3.10.14 ms419xx driver. Drop the manual
+frees in both copies.
+
+Reported in #1351 by @xu6ao2.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/4.4.94/misc/motor/motor.c
++++ b/4.4.94/misc/motor/motor.c
+@@ -1005,7 +1005,6 @@
+ 		del_timer_sync(&motor->min_timer);
+ 		del_timer_sync(&motor->max_timer);
+ 	}
+-	kfree(mdev);
+ error_devm_kzalloc:
+ 	return ret;
+ }
+@@ -1056,7 +1055,6 @@
+ 
+ 	misc_deregister(&mdev->misc_dev);
+ 
+-	kfree(mdev);
+ 	return 0;
+ }
+
+--- a/3.10.14/misc/ms419xx/motor.c
++++ b/3.10.14/misc/ms419xx/motor.c
+@@ -794,7 +794,6 @@
+ 	gpio_free(MS419XX_VDFZ_GPIO);
+ 	gpio_free(MS419XX_RESET_GPIO);
+ error_gpio:
+-	kfree(mdev);
+ error_devm_kzalloc:
+ 	return ret;
+ }
+@@ -818,7 +817,6 @@
+ 	misc_deregister(&mdev->misc_dev);
+ 	gpio_free(MS419XX_RESET_GPIO);
+ 	gpio_free(MS419XX_VDFZ_GPIO);
+-	kfree(mdev);
+ 	return 0;
+ }
+
+

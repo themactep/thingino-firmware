@@ -11,6 +11,8 @@
 *.log
 *~
 \#*#
+.*.sw[a-p]
+*.sw[a-p]
 core
 core.*
 

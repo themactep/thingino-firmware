@@ -1,0 +1,64 @@
+From 53faa8faa96910e837f1139e8e4219f4923ee2c5 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 9 Nov 2026 22:42:14 -0500
+Subject: [PATCH] exfat: free replaced file clusters on rename over an existing
+ file
+
+Renaming over an existing file deletes the target's directory entries in
+ffsMoveFile() but never releases its cluster chain. Every mv -f into place
+therefore leaks the old file's size in the allocation bitmap: df keeps
+counting the clusters, but no directory entry references them and fsck
+only validates structure.
+
+Free the chain the way ffsRemoveFile() and ffsRemoveDir() do, and sync the
+target fid size before the move so the cluster count is correct.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ exfat_core.c  | 9 +++++++++
+ exfat_super.c | 2 ++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/exfat_core.c b/exfat_core.c
+index 143b721..6c3ebe3 100644
+--- a/exfat_core.c
++++ b/exfat_core.c
+@@ -864,6 +864,7 @@ s32 ffsMoveFile(struct inode *old_parent_inode, FILE_ID_T *fid, struct inode *ne
+ 	s32 ret;
+ 	s32 dentry;
+ 	CHAIN_T olddir, newdir;
++	CHAIN_T clu_to_free;
+ 	CHAIN_T *p_dir = NULL;
+ 	UNI_NAME_T uni_name;
+ 	DENTRY_T *ep;
+@@ -950,6 +951,14 @@ s32 ffsMoveFile(struct inode *old_parent_inode, FILE_ID_T *fid, struct inode *ne
+ 		if (num_entries < 0)
+ 			goto out;
+ 		p_fs->fs_func->delete_dir_entry(sb, p_dir, new_entry, 0, num_entries+1);
++
++		/* delete_dir_entry() drops the entry set only; free the
++		 * clusters that belonged to the replaced file or directory */
++		clu_to_free.dir = new_fid->start_clu;
++		clu_to_free.size = (s32)((new_fid->size-1) >> p_fs->cluster_size_bits) + 1;
++		clu_to_free.flags = new_fid->flags;
++		p_fs->fs_func->free_cluster(sb, &clu_to_free,
++					    (new_fid->type == TYPE_DIR) ? 1 : 0);
+ 	}
+ out:
+ #ifdef CONFIG_EXFAT_DELAYED_SYNC
+diff --git a/exfat_super.c b/exfat_super.c
+index 312de36..9fbd028 100644
+--- a/exfat_super.c
++++ b/exfat_super.c
+@@ -1131,6 +1131,8 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 	new_inode = new_dentry->d_inode;
+ 
+ 	EXFAT_I(old_inode)->fid.size = i_size_read(old_inode);
++	if (new_inode)
++		EXFAT_I(new_inode)->fid.size = i_size_read(new_inode);
+ 
+ 	err = FsMoveFile(old_dir, &(EXFAT_I(old_inode)->fid), new_dir, new_dentry);
+ 	if (err) {
+-- 
+2.43.0
+

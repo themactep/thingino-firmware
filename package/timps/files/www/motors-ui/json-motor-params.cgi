@@ -1,13 +1,11 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2086,SC2154,SC3043
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 
 MOTORS_CONFIG="/etc/thingino.json"
 
-# Get motor config values
 steps_pan_val=$(jct "$MOTORS_CONFIG" get motors.steps_pan 2>/dev/null)
 [ -z "$steps_pan_val" ] && steps_pan_val=0
 steps_tilt_val=$(jct "$MOTORS_CONFIG" get motors.steps_tilt 2>/dev/null)

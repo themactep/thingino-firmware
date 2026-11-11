@@ -6,8 +6,9 @@
 
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/opensensor/openimp
-OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = 9cab2192f058c0c5e6c18a6052158a5f7a44b268
+# Release candidate v2026.11.07-rc3 (b1d17615); the same tag is published
+# on the Lu-Fi/openimp open-stack fork.
+OPENIMP_VERSION = v2026.11.07-rc3
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
@@ -19,6 +20,12 @@ OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
 
 OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
+
+# T10 shares the T20 userspace and SDK; build it with the T20 platform.
+ifeq ($(SOC_FAMILY),t10)
+OPENIMP_PLATFORM = T20
+OPENIMP_PLATFORM_LOWER = t20
+endif
 OPENIMP_TOOLCHAIN_PREFIX = $(patsubst %-,%,$(TARGET_CROSS))
 OPENIMP_OUTPUT_DIR = $(@D)/build/$(OPENIMP_PLATFORM_LOWER)
 OPENIMP_BUILT_LIB = $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/build/$(OPENIMP_PLATFORM_LOWER)/libimp.so
@@ -54,15 +61,6 @@ define OPENIMP_BUILD_CMDS
 		$(@D)/build-for-device.sh $(OPENIMP_PLATFORM)
 endef
 
-ifeq ($(SOC_FAMILY),t23)
-define OPENIMP_INSTALL_T23_TARGET
-	$(INSTALL) -D -m 0755 $(TARGET_DIR)/usr/lib/libimp.so \
-		$(TARGET_DIR)/opt/openimp-t23/libimp.so
-	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-t23-helixd \
-		$(TARGET_DIR)/opt/openimp-t23/openimp-t23-helixd
-endef
-endif
-
 define OPENIMP_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(STAGING_DIR)/usr/lib/libimp.so
@@ -75,7 +73,6 @@ define OPENIMP_INSTALL_STAGING_CMDS
 endef
 
 define OPENIMP_INSTALL_TARGET_CMDS
-	$(OPENIMP_INSTALL_T23_TARGET)
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(TARGET_DIR)/usr/lib/libimp.so
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-tuningd \

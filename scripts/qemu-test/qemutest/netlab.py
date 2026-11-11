@@ -313,7 +313,11 @@ class SlipLab(threading.Thread):
                     pkt = os.read(self.tun_fd, 65536)
                 except OSError:
                     continue
-                self._write_all(slip_encode(pkt))
+                try:
+                    self._write_all(slip_encode(pkt))
+                except OSError:
+                    # QEMU closed the pty (it exited): nothing to relay to.
+                    return
                 self.tx += 1
 
     def ping(self, addr=SLIP_GUEST_IP):

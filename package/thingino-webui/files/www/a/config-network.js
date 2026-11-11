@@ -169,8 +169,7 @@
       updateWifiApValidation();
       if (data.netwatch) {
         netwatchEnabledToggle.checked =
-          data.netwatch.enabled === true ||
-          data.netwatch.enabled === "true";
+          data.netwatch.enabled === true || data.netwatch.enabled === "true";
         netwatchTargetInput.value =
           data.netwatch.target || data.netwatch.default_target || "";
         netwatchFailInput.value =
@@ -245,6 +244,9 @@
         "Network settings updated. A reboot may be required to apply everything.",
         "success",
       );
+      if (typeof window.updateNetworkRestartNotice === "function") {
+        window.updateNetworkRestartNotice(true, true);
+      }
       await loadConfig();
     } catch (err) {
       showAlert("danger", err.message || "Failed to save network settings.");

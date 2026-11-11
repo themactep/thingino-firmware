@@ -1,7 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2154,SC3043
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 
@@ -172,8 +171,6 @@ handle_post() {
 	[ "$drag_steps_per_frame_value" -lt 100 ] && drag_steps_per_frame_value=100
 	[ "$drag_steps_per_frame_value" -gt 4000 ] && drag_steps_per_frame_value=4000
 
-	# busybox ash's test has no floating point; reject non-numeric, then
-	# clamp via awk into motor-daemon.c's own accepted range.
 	case "$joystick_sensitivity_value" in
 		'' | *[!0-9.]* | *.*.*) joystick_sensitivity_value="2.00" ;;
 	esac
@@ -198,8 +195,6 @@ handle_post() {
 	motors_set_value homing "$homing_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
-		# The initial point is the first preset; create it (id 0, "Home")
-		# when no preset exists yet.
 		if [ -z "$(motors_get_field presets.0.id)" ]; then
 			motors_set_value presets.0.id 0
 			motors_set_value presets.0.name "Home"
@@ -208,8 +203,6 @@ handle_post() {
 		motors_set_value presets.0.y "$pos_0_y"
 	fi
 
-	# Live-reloads the daemon config (see motor_ctl_reload() in
-	# motor-daemon.c for exactly which fields); GPIO still needs a reboot.
 	motors -R >/dev/null 2>&1
 
 	respond_with_config

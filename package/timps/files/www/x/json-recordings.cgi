@@ -1,6 +1,5 @@
 #!/bin/sh
 # shellcheck disable=SC1091
-# json-recordings.cgi - browse/serve the timps SD recordings.
 
 . /var/www/x/auth.sh
 require_auth
@@ -17,7 +16,6 @@ urldec() { printf '%b' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/+/ /g; s/%\(..\
 FILE=$(urldec "$(qval file)")
 DEL=$(urldec "$(qval del)")
 
-# reject absolute paths and traversal
 safe() { case "$1" in "" | /* | *..*) return 1 ;; *) return 0 ;; esac }
 
 within_base() {
@@ -52,7 +50,6 @@ if [ -n "$FILE" ]; then
 	exit 0
 fi
 
-# ---- listing (newest first) ----
 printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-store\r\n\r\n'
 if [ ! -d "$BASE" ]; then
@@ -63,8 +60,6 @@ printf '{"base":"%s","files":[' "$BASE"
 i=0
 for f in $(find "$BASE" -type f -name '*.mp4' 2>/dev/null | sort -r); do
 	rel=${f#"$BASE"/}
-	# JSON-escape the filename (backslash + double-quote) so an odd name on the SD
-	# can't break the JSON or inject into the WebUI.
 	rel=$(printf '%s' "$rel" | sed 's/\\/\\\\/g; s/"/\\"/g')
 	sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
 	mt=$(stat -c%Y "$f" 2>/dev/null || echo 0)

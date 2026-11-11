@@ -117,6 +117,7 @@ handle_post() {
 	new_en_ir850=$(jct "$REQ_FILE" get enable_ir850 2>/dev/null)
 	new_en_ir940=$(jct "$REQ_FILE" get enable_ir940 2>/dev/null)
 	new_en_white=$(jct "$REQ_FILE" get enable_white_light 2>/dev/null)
+	new_en_floodlight=$(jct "$REQ_FILE" get enable_floodlight 2>/dev/null)
 	new_en_lamp_socket=$(jct "$REQ_FILE" get enable_lamp_socket 2>/dev/null)
 	new_en_gain=$(jct "$REQ_FILE" get enable_gain 2>/dev/null)
 	new_en_rssi=$(jct "$REQ_FILE" get enable_rssi 2>/dev/null)
@@ -137,6 +138,7 @@ handle_post() {
 	en_ir850=$(normalize_bool "$new_en_ir850")
 	en_ir940=$(normalize_bool "$new_en_ir940")
 	en_white=$(normalize_bool "$new_en_white")
+	en_floodlight=$(normalize_bool "$new_en_floodlight")
 	en_lamp_socket=$(normalize_bool "$new_en_lamp_socket")
 	en_gain=$(normalize_bool "$new_en_gain")
 	en_rssi=$(normalize_bool "$new_en_rssi")
@@ -195,6 +197,7 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ir850" "$en_ir850" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ir940" "$en_ir940" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_white_light" "$en_white" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_floodlight" "$en_floodlight" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_lamp_socket" "$en_lamp_socket" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_gain" "$en_gain" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_rssi" "$en_rssi" >/dev/null 2>&1

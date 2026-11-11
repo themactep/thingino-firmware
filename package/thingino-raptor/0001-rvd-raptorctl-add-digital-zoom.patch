@@ -1,0 +1,462 @@
+From 7f1afee684774cfa940357b693eb7495775ce502 Mon Sep 17 00:00:00 2001
+From: John Burnham <jburnham@mail.ccsf.edu>
+Date: Sun, 9 Nov 2026 20:45:55 +0000
+Subject: [PATCH] rvd, raptorctl: add digital zoom (set-zoom / get-zoom)
+
+Add runtime digital zoom: crop a centered sensor window and stream that
+window. Exposed over the rvd control socket and raptorctl:
+
+  raptorctl rvd set-zoom <factor_mille>   (1000 = off, 8000 = 8x)
+  raptorctl rvd get-zoom
+
+IMP_ISP_Tuning_SetFrontCrop wedges the T31 ISP into a continuous irq-error
+loop, and IMP_ISP_Tuning_SetAutoZoom leaves the output at the crop size (the
+T31 scalers are downscale-only), corrupting the frame in full-size buffers.
+This uses the framesource crop and the existing set-resolution hot-restart
+instead.
+
+Zoom-in shrinks the buffers in place. Zoom-out cannot grow them in place
+without freezing the encoder, so rvd records the applied factor in
+/run/raptor-zoom and re-applies it after a restart (a post-start shrink from
+the full-resolution init); the caller restarts the streamer. Startup never
+crops, because a cropped framesource at init crashes rvd. See
+docs/isp-crop-zoom.md for the full rationale.
+
+Output resolution tracks the zoom (downscale-only hardware): 2x -> 960x540,
+8x -> 240x132. Tested on T31 (GC2053, 1080p30).
+
+Signed-off-by: John Burnham <jburnham@mail.ccsf.edu>
+---
+diff --git a/docs/isp-crop-zoom.md b/docs/isp-crop-zoom.md
+new file mode 100644
+index 0000000..c3cefbd
+--- /dev/null
++++ b/docs/isp-crop-zoom.md
+@@ -0,0 +1,68 @@
++# Digital zoom (ISP front crop): `set-zoom` / `get-zoom`
++
++## Summary
++
++Adds runtime digital zoom to `rvd`, exposed over the control socket and the
++`raptorctl` CLI:
++
++    raptorctl rvd set-zoom <factor_mille>   # 1000 = off/1x, 2500 = 2.5x, 8000 = 8x
++    raptorctl rvd get-zoom                  # {enable,top,left,width,height}
++
++Zoom crops a centered window from the sensor and streams that window. Only the
++T31 path is implemented; other SoCs report `RSS_ERR_NOTSUP`-style no-ops, since
++the mechanism depends on T31 framesource crop behaviour.
++
++## Why not the obvious ISP crop APIs
++
++Two "obvious" approaches were tried and rejected on hardware (Ingenic T31,
++GC2053, 1080p30):
++
++1. `IMP_ISP_Tuning_SetFrontCrop()` — wedges the T31 ISP into a continuous
++   `ispcore: irq-status ... err` interrupt loop at ~30/s. The stream dies and
++   no subsequent disable recovers it; only a reboot clears it.
++
++2. `IMP_ISP_Tuning_SetAutoZoom(IMPISPAutoZoom)` — the T31 ISP scaler is
++   downscale-only, so the scaler output stays at the crop size. Setting a crop
++   of 960x540 with `scaler_out = 1920x1080` does not upscale: the 960x540 frame
++   is written into 1080p-allocated buffers, producing the classic "two small
++   frames + stale band" corruption. There is also no `GetAutoZoom`, so state
++   cannot be read back.
++
++## Chosen mechanism
++
++Zoom is implemented with the **framesource channel crop** (`rss_fs_config_t`
++`crop`/`scaler`), which rvd already uses to map sensor resolution to stream
++resolution. For a zoom factor `f`, the per-stream output is
++`min(crop, configured stream size)`, so the pipeline never upscales (the
++hardware cannot). The affected streams are rebuilt through the **existing**
++`set-resolution` hot-restart path (`do_stream_restart_ex(..., recreate_fs)`),
++rather than adding a parallel reconfiguration path.
++
++Because the scalers are downscale-only, **the output stream resolution tracks
++the zoom** (e.g. 1080p -> 960x540 at 2x, 240x132 at 8x). This is a hardware
++property, not a regression; clients see a smaller frame at higher zoom.
++
++## Lifecycle / why a restart is sometimes needed
++
++- **Zoom in (shrink buffers)** is applied in place by rebuilding the affected
++  streams; T31 handles this and frames keep flowing.
++- **Zoom out (grow buffers)** cannot grow them back in place: the encoder
++  freezes. rvd therefore only records the request; the caller restarts the
++  streamer and `rvd_apply_persisted_zoom()` re-applies the target **after** the
++  streams are up (a shrink from the fresh full-resolution init).
++- **Startup never crops.** Creating a cropped framesource at pipeline init
++  crashes rvd, so init always builds at full resolution and zoom is applied
++  post-start (~2.5 s, once the streams have settled).
++- `/run/raptor-zoom` stores only the **applied** factor, so the caller's
++  grow-vs-shrink decision (in-place vs restart) stays correct.
++- rvd does **not** restart itself: forking the init script from rvd leaves
++  every daemon stopped. The restart is the caller's responsibility (the firmware
++  web endpoint does it out-of-process).
++
++## Files
++
++- `rvd/rvd_pipeline.c` — zoom state, crop math, in-place shrink, post-start apply.
++- `rvd/rvd_ctrl.c` — `set-zoom` / `get-zoom` handlers; `do_stream_restart_ex`
++  exported for the pipeline.
++- `rvd/rvd_frame_loop.c` — post-start apply hook.
++- `raptorctl/raptorctl_dispatch.c`, `raptorctl/raptorctl_help.c` — CLI surface.
+diff --git a/raptorctl/raptorctl_dispatch.c b/raptorctl/raptorctl_dispatch.c
+index 73941c7..9a981e6 100644
+--- a/raptorctl/raptorctl_dispatch.c
++++ b/raptorctl/raptorctl_dispatch.c
+@@ -96,6 +96,8 @@ static const struct cmd_arg args_enc_crop[] = {{"channel", A_INT}, {"enable", A_
+ 					       {"y", A_INT},	   {"w", A_INT},      {"h", A_INT},
+ 					       {NULL, A_END}};
+ 
++static const struct cmd_arg args_zoom[] = {{"factor_mille", A_INT}, {NULL, A_END}};
++
+ static const struct cmd_arg args_resolution[] = {
+ 	{"channel", A_INT}, {"width", A_INT}, {"height", A_INT}, {NULL, A_END}};
+ 
+@@ -178,6 +180,7 @@ static const struct cmd_def cmd_table[] = {
+ 	{"set-enc-denoise", NULL, 5, args_enc_denoise},
+ 	{"set-gdr", NULL, 3, args_gdr},
+ 	{"set-enc-crop", NULL, 6, args_enc_crop},
++	{"set-zoom", NULL, 1, args_zoom},
+ 
+ 	/* Video encoder: channel-only get commands (struct/custom response) */
+ 	{"get-bitrate", NULL, 1, args_ch},
+@@ -193,6 +196,7 @@ static const struct cmd_def cmd_table[] = {
+ 	{"get-enc-denoise", NULL, 1, args_ch},
+ 	{"get-gdr", NULL, 1, args_ch},
+ 	{"get-enc-crop", NULL, 1, args_ch},
++	{"get-zoom", NULL, 0, args_none},
+ 	{"get-roi", NULL, 2, args_ch_idx},
+ 	{"request-pskip", NULL, 1, args_ch},
+ 	{"request-gdr", NULL, 2, args_ch_val},
+diff --git a/raptorctl/raptorctl_help.c b/raptorctl/raptorctl_help.c
+index 73e0516..959db1d 100644
+--- a/raptorctl/raptorctl_help.c
++++ b/raptorctl/raptorctl_help.c
+@@ -42,6 +42,7 @@ const struct help_entry help_entries[] = {
+ 	{"rvd", "set-enc-denoise <ch> ...             Encoder denoise (en type iQP pQP)"},
+ 	{"rvd", "set-gdr <ch> <en> <cycle>           GDR (enable cycle)"},
+ 	{"rvd", "set-enc-crop <ch> <en> <x y w h>    Encoder crop"},
++	{"rvd", "set-zoom <factor_mille>             ISP crop (1000=off, 2500=2.5x, 8000=8x)"},
+ 	{"rvd", "enc-set <ch> <param> <value>        Set encoder parameter"},
+ 	{"rvd", "enc-get <ch> <param>                Get encoder parameter"},
+ 	{"rvd", "enc-list [ch]                       List encoder parameters"},
+@@ -55,6 +56,7 @@ const struct help_entry help_entries[] = {
+ 	{"rvd", "get-enc-denoise <ch>                Show encoder denoise config"},
+ 	{"rvd", "get-gdr <ch>                        Show GDR config"},
+ 	{"rvd", "get-enc-crop <ch>                   Show encoder crop"},
++	{"rvd", "get-zoom                            Show ISP crop state"},
+ 	{"rvd", "get-bitrate <ch>                    Show target + avg bitrate"},
+ 	{"rvd", "get-fps <ch>                        Show frame rate"},
+ 	{"rvd", "get-gop <ch>                        Show GOP length"},
+diff --git a/rvd/rvd_ctrl.c b/rvd/rvd_ctrl.c
+index efbb691..515c0b7 100644
+--- a/rvd/rvd_ctrl.c
++++ b/rvd/rvd_ctrl.c
+@@ -56,6 +56,12 @@ static rss_wb_mode_t wb_mode_from_str(const char *s)
+ 
+ /* ── Helpers ── */
+ 
++/* ISP front-crop zoom; defined in rvd_pipeline.c (it reads the sensor
++ * proc registry, which lives there). Layout of the struct it operates on
++ * mirrors IMPISPFrontCrop byte-for-byte. */
++int rvd_apply_zoom(rvd_state_t *st, int factor_mille);
++int rvd_get_zoom(void *out);
++
+ /*
+  * Sub-handler return convention:
+  *   > 0  = handled, return value is response byte count
+@@ -1170,6 +1176,41 @@ static int handle_isp_cmd(const char *cmd, const char *cmd_json, rvd_state_t *st
+ #undef ISP_SET_N
+ #undef ISP_SET
+ 
++	/* ── ISP front-crop zoom: one call covers every stream, crop is
++	 * upstream of the frame-source/encoder splits. factor_mille is a
++	 * milli-int (raptor-common has no double getter): 1000 = off,
++	 * 2500 = 2.5x, 8000 = 8x. ── */
++	if (strcmp(cmd, "set-zoom") == 0) {
++		int factor_mille;
++		if (rss_json_get_int(cmd_json, "factor_mille", &factor_mille) != 0)
++			return rss_ctrl_resp_error(resp, resp_size, "need factor_mille");
++		int ret = rvd_apply_zoom(st, factor_mille);
++		return fmt_hal_result(resp, resp_size, ret);
++	}
++
++	if (strcmp(cmd, "get-zoom") == 0) {
++		/* Layout mirror of IMPISPFrontCrop (imp/imp_isp.h T31 1.1.5) —
++		 * see rvd_pipeline.c. HAL op takes void * and casts. */
++		struct fc_mirror {
++			bool enable;
++			unsigned int top;
++			unsigned int left;
++			unsigned int width;
++			unsigned int height;
++		} fc = {0};
++		int ret = rvd_get_zoom(&fc);
++		if (ret != 0)
++			return fmt_hal_result(resp, resp_size, ret);
++		cJSON *r = cJSON_CreateObject();
++		cJSON_AddStringToObject(r, "status", "ok");
++		cJSON_AddBoolToObject(r, "enable", fc.enable);
++		cJSON_AddNumberToObject(r, "top", (double)fc.top);
++		cJSON_AddNumberToObject(r, "left", (double)fc.left);
++		cJSON_AddNumberToObject(r, "width", (double)fc.width);
++		cJSON_AddNumberToObject(r, "height", (double)fc.height);
++		return rss_ctrl_resp_json(resp, resp_size, r);
++	}
++
+ 	if (strcmp(cmd, "set-wb") == 0) {
+ 		rss_wb_config_t wb = {0};
+ 		RSS_HAL_CALL(st->ops, isp_get_wb, st->hal_ctx, &wb);
+@@ -1458,8 +1499,7 @@ static int find_jpeg_for_video_ctrl(rvd_state_t *st, int video_idx)
+  * Returns 0 on success, or positive response length on failure
+  * (error already written to resp).
+  */
+-static int do_stream_restart_ex(rvd_state_t *st, int chn, char *resp, int resp_size,
+-				bool recreate_fs)
++int do_stream_restart_ex(rvd_state_t *st, int chn, char *resp, int resp_size, bool recreate_fs)
+ {
+ 	int jpeg = find_jpeg_for_video_ctrl(st, chn);
+ 	bool has_ivs = (st->streams[chn].fs_chn == st->ivs_fs_chn && atomic_load(&st->ivs_active));
+diff --git a/rvd/rvd_frame_loop.c b/rvd/rvd_frame_loop.c
+index 38deae2..5d47e2c 100644
+--- a/rvd/rvd_frame_loop.c
++++ b/rvd/rvd_frame_loop.c
+@@ -21,6 +21,8 @@
+ #include <sys/cachectl.h>
+ #endif
+ 
++void rvd_apply_persisted_zoom(rvd_state_t *st);
++
+ #define RVD_STATS_INTERVAL_US 30000000 /* 30s */
+ #define RVD_REAP_INTERVAL_US  10000000 /* 10s */
+ #define RVD_UTC_INTERVAL_US   5000000  /* 5s — UTC mapping refresh */
+@@ -474,8 +476,16 @@ void rvd_frame_loop(rvd_state_t *st, volatile sig_atomic_t *running)
+ 	}
+ 
+ 	int64_t last_vbs_check = rss_timestamp_us();
++	int64_t zoom_start = rss_timestamp_us();
++	int zoom_done = 0;
+ 
+ 	while (rss_running(running)) {
++		/* Apply a persisted zoom once the streams have settled. At init the
++		 * pipeline is full resolution, so this is always a shrink. */
++		if (!zoom_done && rss_timestamp_us() - zoom_start >= 2500000) {
++			zoom_done = 1;
++			rvd_apply_persisted_zoom(st);
++		}
+ 		/* A stream that never produces a frame is the visible face
+ 		 * of two silent failures: the tx-isp driver refusing the
+ 		 * multi-buffer schedule, and rmem too small for the buffer
+diff --git a/rvd/rvd_pipeline.c b/rvd/rvd_pipeline.c
+index 324c02f..483cc79 100644
+--- a/rvd/rvd_pipeline.c
++++ b/rvd/rvd_pipeline.c
+@@ -227,6 +227,196 @@ static const char *rc_mode_str(rss_rc_mode_t m)
+ static void load_stream_config(rss_config_t *cfg, const char *section, rvd_stream_t *s,
+ 			       int default_w, int default_h, int default_fps, int default_br);
+ 
++/* ── Digital zoom (framesource crop) ──
++ *
++ * The T31 ISP and framesource scalers are downscale-only, so zoom crops a
++ * sensor window and streams it at that window's size; it cannot upscale back
++ * to full resolution. The chosen factor is persisted in RVD_ZOOM_FILE (the
++ * *applied* factor) and, after a restart, re-applied once the streams are up
++ * (rvd_apply_persisted_zoom) as a shrink from the full-resolution init.
++ * Zoom-in shrinks the buffers in place; zoom-out would have to grow them and
++ * freezes the encoder on this SoC, so the caller restarts the streamer and the
++ * fresh init builds at full size before shrinking to the target. */
++#define RVD_ZOOM_FILE "/run/raptor-zoom"
++
++struct rvd_front_crop {
++	bool enable;
++	unsigned int top;
++	unsigned int left;
++	unsigned int width;
++	unsigned int height;
++};
++
++/* Forward decls: defined further down, read via the sensor proc registry. */
++static int find_active_sensor_proc_index(void);
++static int read_sensor_proc_int(int idx, const char *key, int base, int def);
++
++static int rvd_zoom_read(void)
++{
++	int f = 1000;
++	FILE *fp = fopen(RVD_ZOOM_FILE, "r");
++	if (fp) {
++		if (fscanf(fp, "%d", &f) != 1)
++			f = 1000;
++		fclose(fp);
++	}
++	if (f < 1000)
++		f = 1000;
++	if (f > 8000)
++		f = 8000;
++	return f;
++}
++
++static void rvd_zoom_rect(int factor, int sw, int sh, struct rvd_front_crop *fc)
++{
++	if (factor <= 1000 || sw <= 0 || sh <= 0) {
++		fc->enable = false;
++		fc->top = 0;
++		fc->left = 0;
++		fc->width = (unsigned)(sw > 0 ? sw : 0);
++		fc->height = (unsigned)(sh > 0 ? sh : 0);
++		return;
++	}
++	unsigned cw = ((unsigned)sw * 1000u / (unsigned)factor) & ~3u;
++	unsigned ch = ((unsigned)sh * 1000u / (unsigned)factor) & ~3u;
++	fc->enable = true;
++	fc->width = cw;
++	fc->height = ch;
++	fc->left = (unsigned)((sw - (int)cw) / 2) & ~3u;
++	fc->top = (unsigned)((sh - (int)ch) / 2) & ~3u;
++}
++
++int rvd_get_zoom(void *out)
++{
++	if (!out)
++		return RSS_ERR_INVAL;
++	int proc_idx = find_active_sensor_proc_index();
++	int sw = read_sensor_proc_int(proc_idx, "width", 10, 0);
++	int sh = read_sensor_proc_int(proc_idx, "height", 10, 0);
++	rvd_zoom_rect(rvd_zoom_read(), sw, sh, (struct rvd_front_crop *)out);
++	return 0;
++}
++
++static void rvd_zoom_write(int factor)
++{
++	FILE *fp = fopen(RVD_ZOOM_FILE, "w");
++	if (!fp)
++		return;
++	fprintf(fp, "%d\n", factor);
++	fclose(fp);
++}
++
++/* rvd_ctrl.c: hot-restart a video stream (+ paired JPEG/IVS) in place. */
++extern int do_stream_restart_ex(rvd_state_t *st, int chn, char *resp, int resp_size,
++				bool recreate_fs);
++
++/* Zoom in (shrink buffers) hot-restarts the affected streams in place, which
++ * T31 handles fine. Zoom out (grow buffers) cannot grow them back in place
++ * without freezing the encoder, so this only reports it; the caller restarts
++ * the streamer and rvd_apply_persisted_zoom shrinks from the fresh full-size
++ * init to the persisted target. /run/raptor-zoom tracks only the applied
++ * factor, so the caller's grow/shrink decision stays correct. */
++int rvd_apply_zoom(rvd_state_t *st, int factor_mille)
++{
++	if (factor_mille < 1000)
++		factor_mille = 1000;
++	if (factor_mille > 8000)
++		factor_mille = 8000;
++
++	int proc_idx = find_active_sensor_proc_index();
++	int sw = read_sensor_proc_int(proc_idx, "width", 10, 0);
++	int sh = read_sensor_proc_int(proc_idx, "height", 10, 0);
++	if (sw <= 0 || sh <= 0)
++		return RSS_ERR_INVAL;
++
++	struct rvd_front_crop fc;
++	rvd_zoom_rect(factor_mille, sw, sh, &fc);
++
++	/* Current live output of the widest (main) video stream. */
++	unsigned cur_w = 0, cur_h = 0;
++	for (int i = 0; i < st->stream_count; i++) {
++		if (st->streams[i].is_jpeg)
++			continue;
++		if (st->streams[i].enc_cfg.width >= cur_w) {
++			cur_w = st->streams[i].enc_cfg.width;
++			cur_h = st->streams[i].enc_cfg.height;
++		}
++	}
++
++	unsigned req_w = fc.enable ? fc.width : (unsigned)sw;
++	unsigned req_h = fc.enable ? fc.height : (unsigned)sh;
++	bool grow = (req_w > cur_w) || (req_h > cur_h);
++
++	/* /run/raptor-zoom mirrors the *applied* factor, so the direction check
++	 * in zoom.cgi stays correct. Grow is not applied here, so it is not
++	 * persisted either — the caller persists the target before it restarts. */
++	if (grow) {
++		/* Growing needs a clean re-init. The caller (zoom.cgi) restarts the
++		 * streamer; restarting from here via a fork of the init script leaves
++		 * every daemon down, so only report. */
++		RSS_INFO("zoom %d needs a streamer restart (not applied in place)", factor_mille);
++		return RSS_OK;
++	}
++
++	/* Shrink in place via the set-resolution hot-restart path. */
++	rvd_zoom_write(factor_mille);
++	int rc = RSS_OK;
++	for (int i = 0; i < st->stream_count; i++) {
++		rvd_stream_t *s = &st->streams[i];
++		if (s->is_jpeg)
++			continue;
++
++		unsigned ow = (unsigned)rss_config_get_int(st->cfg, s->cfg_sect, "width", sw);
++		unsigned oh = (unsigned)rss_config_get_int(st->cfg, s->cfg_sect, "height", sh);
++		unsigned out_w = fc.enable ? fc.width : ow;
++		unsigned out_h = fc.enable ? fc.height : oh;
++
++		if (out_w > ow)
++			out_w = ow;
++		if (out_h > oh)
++			out_h = oh;
++		out_w &= ~1u;
++		out_h &= ~1u;
++
++		s->enc_cfg.width = out_w;
++		s->enc_cfg.height = out_h;
++		s->fs_cfg.width = out_w;
++		s->fs_cfg.height = out_h;
++		s->fs_cfg.crop.enable = fc.enable;
++		if (fc.enable) {
++			s->fs_cfg.crop.x = (int)fc.left;
++			s->fs_cfg.crop.y = (int)fc.top;
++			s->fs_cfg.crop.w = (int)fc.width;
++			s->fs_cfg.crop.h = (int)fc.height;
++		} else {
++			s->fs_cfg.crop.x = 0;
++			s->fs_cfg.crop.y = 0;
++			s->fs_cfg.crop.w = 0;
++			s->fs_cfg.crop.h = 0;
++		}
++		s->fs_cfg.scaler.enable = (out_w != fc.width || out_h != fc.height);
++		s->fs_cfg.scaler.out_width = (int)out_w;
++		s->fs_cfg.scaler.out_height = (int)out_h;
++
++		int r = do_stream_restart_ex(st, i, NULL, 0, true);
++		if (r)
++			rc = r;
++	}
++
++	return rc;
++}
++
++/* Apply the persisted zoom once, after streams are up. At init the pipeline is
++ * full resolution, so this is always a shrink — the operation T31 handles. */
++void rvd_apply_persisted_zoom(rvd_state_t *st)
++{
++	int f = rvd_zoom_read();
++	if (f > 1000) {
++		RSS_INFO("zoom: applying persisted factor %d after startup", f);
++		rvd_apply_zoom(st, f);
++	}
++}
++
+ /* ── ISP tuning defaults from [image], shared by every backend whose
+  * table carries the isp ops (the v4l2 backend inherits them). ── */
+ static void rvd_apply_image_defaults(rvd_state_t *st)
+@@ -1213,6 +1403,9 @@ int rvd_pipeline_init(rvd_state_t *st)
+ 		}
+ 	}
+ 
++	/* Zoom is applied after streams are up (rvd_apply_persisted_zoom), never
++	 * at init: creating a cropped framesource at startup crashes rvd. */
++
+ 	/* ── 4b. Enable crop + scaler for streams ── */
+ 	if (sensor_w > 0 && sensor_h > 0) {
+ 		for (int i = 0; i < st->stream_count; i++) {
