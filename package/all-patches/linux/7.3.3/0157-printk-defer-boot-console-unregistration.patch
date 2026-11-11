@@ -1,0 +1,67 @@
+Subject: [PATCH] printk: defer boot console unregistration to a work item
+
+Unregister boot consoles from register_console() through a work item
+instead of synchronously.  A real console can register from an initcall,
+while the system is still in SYSTEM_SCHEDULING; on the Ingenic T31 the
+SRCU grace-period machinery does not make progress from that context and
+the synchronize_srcu() at the end of unregister_console_locked() never
+returns, so the board never reaches userspace.
+
+The ordering is preserved: the boot consoles are still removed after the
+real console has been enabled and its "enabled" line printed.  Only the
+barrier now runs once the kernel is fully schedulable.
+
+ kernel/printk/printk.c |   33 +++++++++++++++++++++++++--------
+ 1 file changed, 25 insertions(+), 8 deletions(-)
+---
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index bc3b9f6..61efa3a 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -4034,6 +4034,29 @@ static u64 get_init_console_seq(struct console *newcon, bool bootcon_registered)
+ 
+ static int unregister_console_locked(struct console *console);
+ 
++/*
++ * Boot consoles are unregistered from register_console() after the real
++ * console has been enabled.  On some platforms (Ingenic T31) this happens
++ * inside the initcalls, while the system is still in SYSTEM_SCHEDULING and
++ * the SRCU grace-period machinery cannot complete a synchronize_srcu() from
++ * that context.  Unregister them from a work item instead, so the barrier
++ * runs once the kernel is fully schedulable.
++ */
++static void unregister_boot_consoles(struct work_struct *work)
++{
++	struct hlist_node *tmp;
++	struct console *con;
++
++	console_list_lock();
++	hlist_for_each_entry_safe(con, tmp, &console_list, node) {
++		if (con->flags & CON_BOOT)
++			unregister_console_locked(con);
++	}
++	printk_kthreads_check_locked();
++	console_list_unlock();
++}
++static DECLARE_WORK(unregister_boot_consoles_work, unregister_boot_consoles);
++
+ /*
+  * The console driver calls this routine during kernel initialization
+  * to register the console printing procedure with printk() and to
+@@ -4212,14 +4235,8 @@ void register_console(struct console *newcon)
+ 	con_printk(KERN_INFO, newcon, "enabled\n");
+ 	if (bootcon_registered &&
+ 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
+-	    !keep_bootcon) {
+-		struct hlist_node *tmp;
+-
+-		hlist_for_each_entry_safe(con, tmp, &console_list, node) {
+-			if (con->flags & CON_BOOT)
+-				unregister_console_locked(con);
+-		}
+-	}
++	    !keep_bootcon)
++		schedule_work(&unregister_boot_consoles_work);
+ 
+ 	/* Changed console list, may require printer threads to start/stop. */
+ 	printk_kthreads_check_locked();
