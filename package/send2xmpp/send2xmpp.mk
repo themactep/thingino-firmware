@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-SEND2XMPP_VERSION = 1.0.1
+SEND2XMPP_VERSION = 1.0.2
 SEND2XMPP_SITE_METHOD = local
 SEND2XMPP_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/send2xmpp
 SEND2XMPP_LICENSE = MIT
