@@ -336,6 +336,7 @@ send_state() {
 	wifi_ssid="$(read_wpa_supplicant_value ssid)"
 	wifi_bssid="$(read_wpa_supplicant_value bssid)"
 	wifi_pass="$(read_wpa_supplicant_value psk)"
+	if [ -n "$wifi_pass" ]; then wifi_pass_set="true"; else wifi_pass_set="false"; fi
 	if grep -q 'mode=2' /etc/wpa_supplicant.conf; then
 		wifi_ap_enabled="true"
 	else
@@ -347,10 +348,10 @@ send_state() {
 		"$(json_escape "$dns_primary")" \
 		"$(json_escape "$dns_secondary")"
 
-	printf '"wifi":{"ssid":"%s","bssid":"%s","password":"%s"},' \
+	printf '"wifi":{"ssid":"%s","bssid":"%s","password":"","password_set":%s},' \
 		"$(json_escape "$wifi_ssid")" \
 		"$(json_escape "$wifi_bssid")" \
-		"$(json_escape "$wifi_pass")"
+		"$wifi_pass_set"
 
 	printf '"wifi_ap":{"enabled":%s},' "$wifi_ap_enabled"
 
@@ -532,10 +533,23 @@ handle_post() {
 		valid_mac "$wifi_bssid" || json_error "400 Bad Request" "wlan0 BSSID format is invalid" "invalid_bssid"
 	fi
 
+	# a derived psk only works for the SSID it was derived from
+	stored_ssid="$(read_wpa_supplicant_value ssid)"
+	stored_psk="$(read_wpa_supplicant_value psk)"
 	if [ "$wlan0_enabled" = "true" ] && [ -n "$wifi_ssid$wifi_pass" ]; then
 		[ -n "$wifi_ssid" ] || json_error "400 Bad Request" "Wi-Fi SSID cannot be empty" "missing_wifi_ssid"
-		[ -n "$wifi_pass" ] || json_error "400 Bad Request" "Wi-Fi password cannot be empty" "missing_wifi_pass"
-		[ ${#wifi_pass} -ge 8 ] || json_error "400 Bad Request" "Wi-Fi password must be at least 8 characters" "invalid_wifi_pass"
+		if [ -z "$wifi_pass" ]; then
+			if [ -n "$stored_psk" ] && [ "$wifi_ssid" = "$stored_ssid" ]; then
+				wifi_pass="$stored_psk"
+			else
+				json_error "400 Bad Request" "Enter the Wi-Fi password for this network" "missing_wifi_pass"
+			fi
+		else
+			if [ "$wifi_ssid" != "$stored_ssid" ] && [ "$wifi_pass" = "$stored_psk" ] && printf '%s' "$wifi_pass" | grep -qE '^[0-9a-fA-F]{64}$'; then
+				json_error "400 Bad Request" "That is the saved key of the previous network; enter the Wi-Fi password instead" "stale_psk"
+			fi
+			[ ${#wifi_pass} -ge 8 ] || json_error "400 Bad Request" "Wi-Fi password must be at least 8 characters" "invalid_wifi_pass"
+		fi
 	fi
 
 	apply_interface_settings eth0 "$eth0_enabled" "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast" "$eth0_ipv6" "$eth0_mac"
