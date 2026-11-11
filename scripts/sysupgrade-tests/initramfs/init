@@ -1,0 +1,181 @@
+#!/bin/sh
+# shellcheck disable=SC2013,SC2034
+# SC2013: the kernel cmdline is a single line of space-separated words;
+# word-splitting it into a for loop is exactly what we want.
+# SC2034: KERNEL_MAGIC is read by the find_backup_offset function, which is
+# eval'd from the real sysupgrade script below.
+# sysupgrade QEMU test - VM init.
+#
+# The host puts the OLD partition layout on the kernel cmdline as
+# mtdparts=..., so /proc/mtd looks like a device running that layout.  The
+# new layout is passed as t_* parameters.  This script builds a synthetic
+# full image with the new layout and runs the real sysupgrade-stage2, or
+# runs the real flash-ota for a single partition.  Nothing here asserts
+# anything; the host inspects the file-backed flash after the VM exits.
+#
+# Params:
+#   t_mode=full|part
+#   t_part=boot|kernel|rootfs   (part only)
+#   t_do_backup=true|false      (full only)
+#   t_boot_k / t_env_k / t_backup_k / t_kernel_k / t_rootfs_k / t_data_k
+#                               new layout sizes in KiB
+
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sysfs /sys 2>/dev/null
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mount -t tmpfs tmpfs /tmp 2>/dev/null
+
+i=0
+while [ ! -e /dev/vda ]; do
+	i=$((i + 1))
+	[ "$i" -gt 100 ] && {
+		echo "ERROR: /dev/vda never appeared"
+		reboot -f
+	}
+	usleep 100000
+done
+insmod /block2mtd.ko block2mtd=/dev/vda,65536,block2mtd 2>&1 || {
+	echo "ERROR: insmod block2mtd failed"
+	reboot -f
+}
+sleep 1
+cat /proc/mtd
+
+t_mode=full
+t_part=
+t_do_backup=false
+t_boot_k=192
+t_env_k=64
+t_backup_k=64
+t_kernel_k=1600
+t_rootfs_k=5120
+t_data_k=1152
+for kv in $(cat /proc/cmdline); do
+	case "$kv" in
+		t_mode=*) t_mode=${kv#t_mode=} ;;
+		t_part=*) t_part=${kv#t_part=} ;;
+		t_do_backup=*) t_do_backup=${kv#t_do_backup=} ;;
+		t_boot_k=*) t_boot_k=${kv#t_boot_k=} ;;
+		t_env_k=*) t_env_k=${kv#t_env_k=} ;;
+		t_backup_k=*) t_backup_k=${kv#t_backup_k=} ;;
+		t_kernel_k=*) t_kernel_k=${kv#t_kernel_k=} ;;
+		t_rootfs_k=*) t_rootfs_k=${kv#t_rootfs_k=} ;;
+		t_data_k=*) t_data_k=${kv#t_data_k=} ;;
+	esac
+done
+
+echo "=== SYSUPGRADE-TEST start: mode=$t_mode part=$t_part backup=$t_do_backup ==="
+echo "new: boot=${t_boot_k}K env=${t_env_k}K backup=${t_backup_k}K kernel=${t_kernel_k}K rootfs=${t_rootfs_k}K data=${t_data_k}K"
+echo "--- /proc/mtd ---"
+cat /proc/mtd
+
+mtd_dev() { awk -F: "/\"$1\"\$/{print \$1}" /proc/mtd; }
+
+gen_file() { # size_k octal outfile
+	dd if=/dev/zero bs=1024 count="$1" 2>/dev/null | tr '\000' "$2" >"$3"
+}
+
+fill_image() { # file offset_k size_k octal
+	dd if=/dev/zero bs=1024 count="$3" 2>/dev/null | tr '\000' "$4" |
+		dd of="$1" bs=1024 seek="$2" conv=notrunc 2>/dev/null
+}
+
+# New layout offsets in KiB.
+new_boot_off=0
+new_env_off=$t_boot_k
+new_backup_off=$((new_env_off + t_env_k))
+new_kernel_off=$((new_backup_off + t_backup_k))
+new_rootfs_off=$((new_kernel_off + t_kernel_k))
+new_data_off=$((new_rootfs_off + t_rootfs_k))
+
+case "$t_mode" in
+	full)
+		echo "=== building new image ==="
+		dd if=/dev/zero bs=1024 count=8192 2>/dev/null | tr '\000' '\377' >/tmp/fw.bin
+		fill_image /tmp/fw.bin "$new_boot_off" "$t_boot_k" '\241'
+		fill_image /tmp/fw.bin "$new_env_off" "$t_env_k" '\262'
+		# the backup slot stays 0xFF, as the build leaves it
+		fill_image /tmp/fw.bin "$new_kernel_off" "$t_kernel_k" '\303'
+		printf '\047\005\031\126' | dd of=/tmp/fw.bin bs=1 seek=$((new_kernel_off * 1024)) conv=notrunc 2>/dev/null
+		fill_image /tmp/fw.bin "$new_rootfs_off" "$t_rootfs_k" '\324'
+		fill_image /tmp/fw.bin "$new_data_off" "$t_data_k" '\345'
+		echo "image: $(stat -c%s /tmp/fw.bin) bytes"
+
+		# Synthetic config snapshot.  Write it to the old backup partition and
+		# dump it the same way stage1 does, so stage2 relocates a real blob.
+		mkdir -p /tmp/sysupgrade
+		dd if=/dev/zero bs=1024 count=1 2>/dev/null | tr '\000' '\372' >/tmp/backup.payload
+		sz=$(stat -c%s /tmp/backup.payload)
+		md5=$(md5sum /tmp/backup.payload | cut -d' ' -f1)
+		printf 'THNG_BCKUP\nsize=%d\nmd5=%s\n' "$sz" "$md5" >/tmp/backup.header
+		actual=$(stat -c%s /tmp/backup.header)
+		pad=$((64 - actual))
+		if [ "$pad" -gt 0 ]; then
+			dd if=/dev/zero bs=1 count="$pad" 2>/dev/null | tr '\000' '\012' >>/tmp/backup.header
+		fi
+		cat /tmp/backup.header /tmp/backup.payload >/tmp/backup.blob
+		bdev=$(mtd_dev backup)
+		[ -n "$bdev" ] || {
+			echo "ERROR: no backup partition"
+			reboot -f
+		}
+		flash_eraseall "/dev/$bdev" >/dev/null 2>&1
+		dd if=/tmp/backup.blob of="/dev/$bdev" bs=1024 conv=notrunc 2>/dev/null
+		dd if="/dev/$bdev" of=/tmp/sysupgrade/backup.bin bs=65536 count=1 2>/dev/null
+
+		# Run the real offset finder from the stage1 script.
+		KERNEL_MAGIC=27051956
+		eval "$(sed -n '/^find_backup_offset() {/,/^}/p' /sysupgrade)"
+		backup_off=$(find_backup_offset /tmp/fw.bin) || {
+			echo "ERROR: find_backup_offset failed"
+			reboot -f
+		}
+		echo "new backup offset: $backup_off (expected $((new_backup_off * 1024)))"
+		[ "$backup_off" = "$((new_backup_off * 1024))" ] ||
+			echo "ERROR: find_backup_offset mismatch"
+
+		# stage2 expects its tools in /tmp/sysupgrade, like stage1 sets it up.
+		cp /bin/busybox /tmp/sysupgrade/busybox
+		for a in date dd echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog wc; do
+			ln -sf busybox "/tmp/sysupgrade/$a"
+		done
+
+		echo "=== running: sysupgrade-stage2 full /tmp/fw.bin ==="
+		DO_BACKUP="$t_do_backup" BACKUP_OFF="$backup_off" BACKUP_FILE=/tmp/sysupgrade/backup.bin \
+			WATCHDOG_DEV=/nonexistent /bin/sh /sysupgrade-stage2 full /tmp/fw.bin
+		echo "sysupgrade-stage2 exit code: $?"
+		;;
+	part)
+		case "$t_part" in
+			boot)
+				gen_file "$t_boot_k" '\241' /tmp/boot.bin
+				gen_file "$t_env_k" '\262' /tmp/env.bin
+				echo "=== running: flash-ota boot ==="
+				/flash-ota boot /tmp/boot.bin /tmp/env.bin
+				;;
+			kernel)
+				gen_file "$t_kernel_k" '\303' /tmp/kernel.bin
+				echo "=== running: flash-ota kernel ==="
+				/flash-ota kernel /tmp/kernel.bin
+				;;
+			rootfs)
+				gen_file "$t_rootfs_k" '\324' /tmp/rootfs.bin
+				gen_file "$t_data_k" '\345' /tmp/data.bin
+				echo "=== running: flash-ota rootfs ==="
+				/flash-ota rootfs /tmp/rootfs.bin /tmp/data.bin
+				;;
+			*)
+				echo "ERROR: unknown part $t_part"
+				;;
+		esac
+		echo "flash-ota exit code: $?"
+		;;
+	*)
+		echo "ERROR: unknown mode $t_mode"
+		;;
+esac
+
+echo "=== SYSUPGRADE-TEST done (no reboot) ==="
+reboot -f

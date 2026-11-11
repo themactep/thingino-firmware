@@ -58,9 +58,9 @@ should be done on a real disk. See `docs/build/makefile.md`.
   As with the output dir, read these from the environment
   (`echo $BR2_DL_DIR $THINGINO_USER_DIR`) before assuming they live in the
   checkout.
-- No CI-integrated test suite for builds; validation is CI-only. A dev-side
-  QEMU test suite exists for the sysupgrade partition-fitting logic:
-  `scripts/ota-tests/` (see its README).
+- No CI-integrated test suite for builds; validation is CI-only. Dev-side
+  QEMU suites cover partition fitting (`scripts/ota-tests/`) and sysupgrade
+  layout changes (`scripts/sysupgrade-tests/`).
 
 ## Repo layout
 
