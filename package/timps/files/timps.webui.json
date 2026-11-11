@@ -12,18 +12,8 @@
           "href": "/config-audio.html"
         },
         {
-          "label": "Photosensing",
+          "label": "Day / Night",
           "href": "/config-photosensing.html"
-        }
-      ]
-    },
-    {
-      "section": "ddInfo",
-      "position": "after:File: onvif.json",
-      "items": [
-        {
-          "label": "File: timps.conf",
-          "href": "/streamer-config.html"
         }
       ]
     },
@@ -36,32 +26,16 @@
           "href": "/streamer-image.html"
         },
         {
-          "label": "RTSP Main stream",
-          "href": "/streamer-main.html"
+          "label": "Video encoder",
+          "href": "/streamer-video.html"
         },
         {
-          "label": "Main stream OSD",
-          "href": "/streamer-osd0.html"
-        },
-        {
-          "label": "RTSP Substream",
-          "href": "/streamer-substream.html"
-        },
-        {
-          "label": "Substream OSD",
-          "href": "/streamer-osd1.html"
-        },
-        {
-          "label": "Sensor IQ File",
-          "href": "/streamer-sensor.html"
+          "label": "Overlays & privacy masks",
+          "href": "/streamer-overlays.html"
         },
         {
           "label": "Motion Detection",
           "href": "/config-motion.html"
-        },
-        {
-          "label": "Privacy masks",
-          "href": "/config-privacy.html"
         },
         {
           "label": "Recordings",
@@ -75,10 +49,6 @@
           "href": "/streamer-config.html"
         },
         {
-          "label": "Streamer log",
-          "href": "/info.html?logcat"
-        },
-        {
           "label": "Restart streamer",
           "href": "/x/restart-prudynt.cgi",
           "className": "text-danger confirm",
@@ -89,7 +59,7 @@
             "message": "Restart the timps streamer? The video stream will be interrupted for a few seconds.",
             "confirmLabel": "Restart"
           },
-          "actionPendingMessage": "Restarting streamer…",
+          "actionPendingMessage": "Restarting streamer\u2026",
           "actionMessage": "Streamer restart initiated"
         }
       ]
@@ -99,18 +69,15 @@
       "position": "prepend",
       "items": [
         {
-          "label": "Timelapse Recorder",
-          "href": "/tool-timelapse.html"
-        },
-        {
-          "label": "Video Recorder",
-          "href": "/tool-record.html"
+          "label": "Timelapse",
+          "href": "/timelapse-player.html"
         }
       ]
     }
   ],
   "scripts": [
-    "/a/timps-control-bar.js"
+    "/a/timps-control-bar.js",
+    "/a/timps-auth-gate.js"
   ],
   "styles": [
     "/a/timps.css"
@@ -126,6 +93,8 @@
     "/x/timps-token.cgi",
     "/x/timps-imp.cgi",
     "/x/json-recordings.cgi",
+    "/x/json-timelapse.cgi",
+    "/x/timps-iq.cgi",
     "/x/restart-prudynt.cgi",
     "/x/json-heartbeat.cgi",
     "/x/json-heartbeat-slow.cgi",
@@ -136,18 +105,13 @@
   ],
   "pages": [
     "/preview.html",
-    "/streamer-main.html",
-    "/streamer-substream.html",
+    "/streamer-video.html",
     "/streamer-image.html",
-    "/streamer-osd0.html",
-    "/streamer-osd1.html",
-    "/streamer-sensor.html",
+    "/streamer-overlays.html",
     "/streamer-config.html",
     "/config-audio.html",
     "/config-motion.html",
     "/recordings.html",
-    "/tool-record.html",
-    "/tool-timelapse.html",
-    "/tool-sensor-data.html"
+    "/timelapse-player.html"
   ]
 }

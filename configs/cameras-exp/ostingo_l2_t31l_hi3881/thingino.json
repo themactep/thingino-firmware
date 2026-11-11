@@ -1,0 +1,8 @@
+{
+  "gpio": {
+    "wlan": {
+      "pin": 43,
+      "active_low": true
+    }
+  }
+}

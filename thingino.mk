@@ -77,7 +77,16 @@ CAMERA_DTS_DEST = shark
 else ifeq ($(SOC_FAMILY),t41)
 CAMERA_DTS_DEST = marmot
 else ifeq ($(SOC_FAMILY),t32)
+# Only T32's 4.4.94 tree carries arch/mips/boot/dts/ingenic/goat.dts and
+# builds it in (CONFIG_DT_GOAT). The 3.10.14 vendor kernel is board-file
+# based (soc-PRJ007/chip-PRJ007/isvp/Goat) with no dts directory at all,
+# so there is nowhere to put one. That is a normal configuration, not a
+# broken profile: the same board dir serves both kernels.
+ifeq ($(KERNEL_VERSION_4),y)
 CAMERA_DTS_DEST = goat
+else
+CAMERA_DTS_NO_TREE = the t32 3.10.14 kernel is board-file based and has no dts tree
+endif
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif
@@ -86,7 +95,14 @@ ifneq ($(words $(CAMERA_DTS_FILE)),1)
 $(error Camera profile $(CAMERA) has more than one .dts file: $(CAMERA_DTS_FILE))
 endif
 ifeq ($(CAMERA_DTS_DEST),)
+ifneq ($(CAMERA_DTS_NO_TREE),)
+# Known family, but this kernel has no dts tree. Drop the file so the
+# kopt pre-build hook never registers, and carry on.
+$(warning Camera profile $(CAMERA): ignoring $(notdir $(CAMERA_DTS_FILE)) - $(CAMERA_DTS_NO_TREE))
+CAMERA_DTS_FILE =
+else
 $(error Camera profile $(CAMERA) ships a .dts but SoC family '$(SOC_FAMILY)' has no known kernel dts name)
+endif
 endif
 endif
 export CAMERA_DTS_FILE
@@ -99,70 +115,38 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# default to older kernel if none set
-ifeq ($(KERNEL_VERSION),)
-	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.1-rc1
-	else ifeq ($(KERNEL_VERSION_4),y)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t41)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t40)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),a1)
-		KERNEL_VERSION := 4.4.94
-	else
-		KERNEL_VERSION := 3.10.14
-	endif
+# What the defconfig asked for, if anything. No guard on KERNEL_VERSION being
+# empty: a value given on the command line already wins over any assignment in a
+# makefile, so guarding only ever protected an environment variable, which
+# nothing sets.
+ifeq ($(KERNEL_VERSION_7),y)
+KERNEL_VERSION := 7.1-rc1
+else ifeq ($(KERNEL_VERSION_4),y)
+KERNEL_VERSION := 4.4.94
 endif
 
-KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+# Which kernels a vendor's SoCs run: fills in the version when the defconfig
+# named none, and names the branch. Absent for a vendor that names its kernel
+# through Buildroot symbols instead, which is why this include may find nothing.
+-include $(BR2_EXTERNAL)/kernels/$(SOC_VENDOR).mk
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
-	KERNEL_BRANCH := ingenic-7.1-rc1
-else ifeq ($(SOC_FAMILY),a1)
-	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(SOC_FAMILY),c100)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t41)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t41-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t41-3.10.14
-	endif
-else ifeq ($(SOC_FAMILY),t40)
-	KERNEL_BRANCH := ingenic-t40
-else ifeq ($(SOC_FAMILY),t31)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t32)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t32-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t32
-	endif
-else ifeq ($(SOC_FAMILY),t23)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else
-	KERNEL_BRANCH := ingenic-t31
+# A vendor that names its kernel through Buildroot symbols instead sets no
+# KERNEL_SITE, and there is nothing here to resolve -- without this the
+# ls-remote below would run on every make for a value it never reads.
+ifneq ($(KERNEL_SITE),)
+
+# A combination the vendor's file names no branch for is an error rather than a
+# fallback, because carrying another version's branch builds a kernel that
+# disagrees with the version everything else was told.
+ifeq ($(KERNEL_BRANCH),)
+$(error SoC family '$(SOC_FAMILY)' does not run kernel '$(KERNEL_VERSION)')
 endif
 
 ifeq ($(KERNEL_HASH),)
-	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
+KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+endif
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
@@ -257,21 +241,28 @@ export ISP_ISPMEM_MB
 
 FOUND_NMEM_MB := $(BR2_THINGINO_NMEM_MB)
 ifeq ($(FOUND_NMEM_MB),)
-	ifeq ($(SOC_RAM_MB),64)
-		ISP_NMEM_MB := 23
-	else ifeq ($(SOC_RAM_MB),128)
-		ISP_NMEM_MB := 29
-	else ifeq ($(SOC_RAM_MB),256)
-		ISP_NMEM_MB := 64
-	else
-		ISP_NMEM_MB := 16
-	endif
+	ISP_NMEM_MB := 0
 else
 	ISP_NMEM_MB := $(FOUND_NMEM_MB)
 endif
 export ISP_NMEM_MB
 
 export ISP_NMEM_MB
+
+# Guard: the ISP rmem (plus the ispmem/nmem reservation on some families) is
+# carved out of the top of RAM, so it has to leave something for Linux. A
+# camera whose reservations reach SOC_RAM_MB otherwise reaches thingino-uboot,
+# which emits osmem=0M and builds an unbootable image.
+ISP_RESERVED_MB := $(ISP_RMEM_MB)
+ifneq ($(filter $(SOC_FAMILY),t10 t20),)
+ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_ISPMEM_MB))
+endif
+ifneq ($(filter $(SOC_FAMILY),t40 t41),)
+ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_NMEM_MB))
+endif
+ifeq ($(shell test $(ISP_RESERVED_MB) -ge $(SOC_RAM_MB) 2>/dev/null && echo yes),yes)
+$(error $(CAMERA): ISP reservation $(ISP_RESERVED_MB)MB (rmem=$(ISP_RMEM_MB)MB) leaves no RAM for Linux on $(SOC_MODEL) with $(SOC_RAM_MB)MB - lower BR2_THINGINO_RMEM_MB in the camera defconfig)
+endif
 
 #
 # ISP / IPU / AVPU clock & configuration helpers
@@ -337,7 +328,7 @@ ISP_CLK := $(call resolve_clock_freq,ISP_CLK,isp_clk,\
 
 # ISP_CLKA
 ISP_CLKA_CLK_SRC := $(call resolve_clock_src,ISP_CLKA,clka_name,\
-  SCLKA:sclka INTERNAL:)
+  SCLKA:sclka VPLL:vpll INTERNAL:)
 ISP_CLKA_CLK := $(call resolve_clock_freq,ISP_CLKA,isp_clka,\
   400:400000000 450:450000000 500:500000000 550:550000000 \
   600:600000000 650:650000000 700:700000000)
@@ -348,6 +339,13 @@ ISP_CLKS_CLK_SRC := $(call resolve_clock_src,ISP_CLKS,clks_name,\
 ISP_CLKS_CLK := $(call resolve_clock_freq,ISP_CLKS,isp_clks,\
   400:400000000 450:450000000 500:500000000 550:550000000 \
   600:600000000 650:650000000 700:700000000)
+
+# ISP_CLKV
+ISP_CLKV_CLK_SRC := $(call resolve_clock_src,ISP_CLKV,clkv_name,\
+  SCLKA:sclka VPLL:vpll MPLL:mpll INTERNAL:)
+ISP_CLKV_CLK := $(call resolve_clock_freq,ISP_CLKV,isp_clkv,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000)
 
 #
 # ISP configuration parameters
@@ -417,6 +415,8 @@ export ISP_CLKA_CLK_SRC
 export ISP_CLKA_CLK
 export ISP_CLKS_CLK_SRC
 export ISP_CLKS_CLK
+export ISP_CLKV_CLK_SRC
+export ISP_CLKV_CLK
 
 export ISP_MEMOPT
 export ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
@@ -584,6 +584,10 @@ endif
 # would wrongly point the env at a raw offset.
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+# The msc0 defconfigs keep the env past U-Boot on the card. The NOR offset
+# (0x50000) lands inside the compressed U-Boot there and corrupts it.
+UBOOT_LAYOUT_FRAGMENT :=
 else
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
 endif

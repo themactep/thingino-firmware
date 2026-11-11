@@ -41,18 +41,16 @@ define WIFI_ATBM6461_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# The prebuilt driver carries its own mac80211 code and imports nothing
+	# from the kernel's, so keep the kernel's out of the image.
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
 define WIFI_ATBM6461_INSTALL_CONFIGS
 	$(INSTALL) -m 0755 -d \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)
 	touch \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)/modules.builtin.modinfo
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)/modules.builtin.modinfo
 
 	$(INSTALL) -D -m 0755 $(@D)/files/librtos.so \
 		$(TARGET_DIR)/usr/lib/librtos.so
@@ -66,7 +64,7 @@ WIFI_ATBM6461_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6461_INSTALL_CONFIGS
 
 define WIFI_ATBM6461_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/files/atbm6461_wifi_sdio.ko \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)/extra/atbm6461_wifi_sdio.ko
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)/extra/atbm6461_wifi_sdio.ko
 endef
 
 $(eval $(generic-package))

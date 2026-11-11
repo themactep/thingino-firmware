@@ -38,7 +38,9 @@
   }
 
   function normalizePreviewControlMode(value) {
-    return value === "continuous" || value === "joystick" ? value : "step";
+    return value === "continuous" || value === "joystick" || value === "drag"
+      ? value
+      : "step";
   }
 
   function updateMotionDriverInputs() {
@@ -89,16 +91,27 @@
     if (valueLabel && slider) valueLabel.textContent = slider.value;
   }
 
+  function updateDragSensitivityInputs() {
+    const modeEl = $("#preview_control_mode");
+    const wrap = $("#drag-sensitivity-field");
+    const slider = $("#drag_steps_per_frame");
+    const valueLabel = $("#drag_steps_per_frame-value");
+    if (!modeEl || !wrap) return;
+
+    const isDrag = normalizePreviewControlMode(modeEl.value) === "drag";
+    wrap.classList.toggle("opacity-50", !isDrag);
+    if (slider) slider.disabled = !isDrag;
+    if (valueLabel && slider) valueLabel.textContent = slider.value;
+  }
+
   function showAlert(variant, message, timeout = 6000) {
     if (!message) return;
 
-    // Use global alert system from main.js
     if (window.showAlert && typeof window.showAlert === "function") {
       window.showAlert(variant, message, timeout);
       return;
     }
 
-    // Fallback to local alert container if it exists
     if (!alertContainer) return;
     const alert = document.createElement("div");
     alert.className = `alert alert-${variant || "secondary"} alert-dismissible fade show`;
@@ -202,6 +215,15 @@
           : 2;
     }
     updateJoystickSensitivityInputs();
+    const dragStepsEl = $("#drag_steps_per_frame");
+    if (dragStepsEl) {
+      const parsed = parseInt(config.drag_steps_per_frame, 10);
+      dragStepsEl.value =
+        Number.isFinite(parsed) && parsed >= 100 && parsed <= 4000
+          ? parsed
+          : 1000;
+    }
+    updateDragSensitivityInputs();
     const homingEl = $("#homing");
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
@@ -265,7 +287,6 @@
     const form = $("#motors-form");
     if (!form) return;
 
-    // Client-side validation to prevent 412 errors
     const requiredPanFields = [
       "gpio_pan_1",
       "gpio_pan_2",
@@ -282,7 +303,6 @@
     const formData = new FormData(form);
     const errors = [];
 
-    // Check GPIO fields (skip for SPI motor boards where pins are irrelevant)
     if (!motorIsSpi) {
       for (const field of requiredPanFields) {
         const value = formData.get(field);
@@ -293,9 +313,6 @@
         }
       }
 
-      // Detect whether the tilt axis is present: all GPIOs set to -1
-      // means the hardware has no tilt motor and tilt validation should
-      // be skipped entirely.
       const tiltGpioValues = requiredTiltFields.map((f) =>
         (formData.get(f) || "").trim(),
       );
@@ -313,15 +330,12 @@
       }
     }
 
-    // Check steps fields
     const stepsPan = formData.get("steps_pan");
     const stepsTilt = formData.get("steps_tilt");
     if (!stepsPan || parseInt(stepsPan) <= 0) {
       errors.push("Pan max steps must be a positive number");
     }
 
-    // Skip tilt steps validation when the tilt axis is disabled (all GPIOs -1).
-    // Pan-only cameras legitimately have steps_tilt = 0.
     const tiltGpioVals = requiredTiltFields.map((f) =>
       (formData.get(f) || "").trim(),
     );
@@ -346,7 +360,9 @@
 
     const previewControlMode = formData.get("preview_control_mode");
     if (normalizePreviewControlMode(previewControlMode) !== previewControlMode) {
-      errors.push("Preview PTZ controls must be step, continuous or joystick");
+      errors.push(
+        "Preview PTZ controls must be step, continuous, joystick or drag",
+      );
     }
 
     if (motionDriver !== "profiled") {
@@ -354,16 +370,13 @@
       formData.set("accel_tilt", "0");
     }
 
-    // #joystick_sensitivity is disabled outside joystick mode (see
-    // updateJoystickSensitivityInputs()), and FormData silently drops
-    // disabled controls - without this, saving the form in any other mode
-    // would submit no value at all and the CGI's own fallback would reset
-    // whatever sensitivity was previously configured back to its default.
-    // The input's own .value still holds the loaded config value even
-    // while disabled, so re-adding it here just carries it through.
     const joystickSensitivityEl = $("#joystick_sensitivity");
     if (joystickSensitivityEl) {
       formData.set("joystick_sensitivity", joystickSensitivityEl.value);
+    }
+    const dragStepsEl = $("#drag_steps_per_frame");
+    if (dragStepsEl) {
+      formData.set("drag_steps_per_frame", dragStepsEl.value);
     }
 
     if (errors.length > 0) {
@@ -492,23 +505,23 @@
 
   const previewControlModeSelect = $("#preview_control_mode");
   if (previewControlModeSelect) {
-    previewControlModeSelect.addEventListener(
-      "change",
-      updateJoystickSensitivityInputs,
-    );
+    previewControlModeSelect.addEventListener("change", () => {
+      updateJoystickSensitivityInputs();
+      updateDragSensitivityInputs();
+    });
   }
   const joystickSensitivitySlider = $("#joystick_sensitivity");
   if (joystickSensitivitySlider) {
-    // "input", not "change": track the thumb while dragging.
     joystickSensitivitySlider.addEventListener(
       "input",
       updateJoystickSensitivityInputs,
     );
   }
+  const dragStepsSlider = $("#drag_steps_per_frame");
+  if (dragStepsSlider) {
+    dragStepsSlider.addEventListener("input", updateDragSensitivityInputs);
+  }
 
-  // ------------------------------------------------------------------
-  // PTZ presets
-  // ------------------------------------------------------------------
   const presetNameInput = $("#ptz-preset-name");
   const presetSaveButton = $("#ptz-preset-save");
   const presetsList = $("#ptz-presets-list");
@@ -607,9 +620,6 @@
     }
   }
 
-  // The build version rides along in the same `motors -j` status the CGI
-  // already proxies, so no extra endpoint. Stays blank on an older daemon
-  // build that has no "version" field, or when the daemon is down.
   async function loadMotorsVersion() {
     if (!versionBadge) return;
     try {

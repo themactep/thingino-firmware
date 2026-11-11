@@ -1,17 +1,7 @@
-/* tool-record.js - timps Video Recorder settings.
- *
- * Replaces the stock thingino recorder page (which POSTed to
- * /x/tool-record.cgi and wrote thingino's OWN recorder config, never touching
- * timps.conf). This version talks DIRECTLY to the timps native recorder via
- * GET/POST /control (a/timps-api.js): every field maps to a record.* config
- * key, and timps persists the changed keys into /etc/timps.conf itself
- * (config_write_keys) while the running recorder reads them live. So the path
- * you set here is the path timps actually records to and the Recordings page
- * lists from. Dependency-free; no bridge CGI. */
 (function () {
   "use strict";
 
-  if (!document.body || document.body.id !== "page-tool-record-video") return;
+  if (!document.body || document.body.id !== "page-recordings") return;
   if (!window.timpsApi) {
     console.error("[tool-record] timps-api.js not loaded");
     return;
@@ -19,7 +9,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // field id -> {key, type}. type: bool | int | str
   var FIELDS = [
     { id: "rec_enabled",  key: "enabled",     type: "bool" },
     { id: "rec_dir",      key: "dir",         type: "str"  },
@@ -33,15 +22,11 @@
     { id: "rec_minfree",  key: "min_free_mb", type: "int"  },
   ];
 
-  // reverse of FIELDS (timps "record.<key>" -> page field id), so another
-  // open tab/client changing a setting shows up here live instead of only on
-  // next reload. "active" (manual start/stop) is not covered: it never goes
-  // through the config-sync push, only the settings fields below do.
   var REVERSE = {};
   FIELDS.forEach(function (f) { REVERSE["record." + f.key] = f.id; });
 
   var form = $("recForm");
-  var reloadBtn = $("rec-reload");
+  var reloadBtn = $("rec-cfg-reload");
   var saveBtn = $("rec-save");
   var statusEl = $("rec-status");
 
@@ -57,10 +42,6 @@
     bits.push(rec.recording ? "recording now" : "idle");
     if (rec.free_mb != null && rec.free_mb >= 0) bits.push(rec.free_mb + " MB free");
     if (rec.recording && rec.file) bits.push(rec.file);
-    // A write/prune failure (e.g. min_free_mb unreachable on this card) never
-    // flips "recording" true - without this, active=1 was accepted, nothing
-    // explains why nothing is actually being written. Only shown while
-    // recent (60s) so an old, since-resolved error doesn't stick around.
     if (
       !rec.recording &&
       rec.last_error &&
@@ -98,8 +79,6 @@
   }
 
   function motionHint(json) {
-    // motion-triggered recording only fires when motion DETECTION is enabled
-    // (Streamer -> Motion), which is a different switch from this "mode" select
     var modeEl = $("rec_mode");
     var isMotion = modeEl && String(modeEl.value) === "1";
     var m = json && json.motion;
@@ -129,17 +108,12 @@
     if (ev) ev.preventDefault();
     if (saveBtn) saveBtn.disabled = true;
     window.timpsApi.set({ record: collect() }).then(function (r) {
-      // corrected (clamped) values go straight back into their fields from
-      // the "applied" echo - no follow-up GET on the happy path
       var corr = r && r.corrections;
       if (corr) Object.keys(corr).forEach(function (k) {
         var id = REVERSE[k];
         if (id) applyKV(id, corr[k]);
       });
       corr = window.timpsApi.takeCorrections(r);
-      // refused values keep their OLD stored value, which is NOT echoed
-      // (nothing changed), and a truncated echo is incomplete - only a
-      // reload shows the truth in those two cases
       var needReload = r && (r.rejected > 0 || r.truncated);
       if (r && r.rejected > 0)
         toast("warning", "Saved, but the streamer refused " + r.rejected +
@@ -156,9 +130,6 @@
     });
   }
 
-  // write one field's timps value into its element - shared by the config-
-  // sync push and the save-time "applied" corrections, so a clamped value
-  // renders exactly like a remote edit
   function applyKV(id, value) {
     var f = FIELDS.find(function (x) { return x.id === id; });
     var el = $(id);
@@ -172,7 +143,6 @@
     if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
     var el = id ? $(id) : null;
-    // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
     applyKV(id, data.value);
   }

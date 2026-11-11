@@ -1,26 +1,11 @@
-/* timps-api.js - tiny dependency-free browser client for the timps streamer's
- * native HTTP API (GET/POST /control, GET /events SSE). Pages talk DIRECTLY
- * to timps on its own port instead of going through local bridge CGIs.
- *
- * Auth: /x/timps-token.cgi (WebUI-session protected) hands out the per-boot
- * timps token as {"token":"...","port":8880}. fetch() sends it as the
- * X-Timps-Token header; EventSource cannot set headers, so /events gets it
- * as ?token=. The token changes on every camera reboot: one transparent
- * re-fetch + retry is done on a 401/403. If the token endpoint is
- * unreachable, requests are still attempted token-less (works on open timps
- * configs and from localhost).
- */
 (function () {
   "use strict";
 
   var DEFAULT_PORT = 8880;
-  var info = null; // cached {token, port} from /x/timps-token.cgi
-  var infoPending = null; // in-flight token fetch (dedup)
-  var controlCache = null; // last successful GET /control JSON (for caps())
+  var info = null;
+  var infoPending = null;
+  var controlCache = null;
 
-  // fetch {token, port} once and memoize; force=true drops the cache
-  // (used after a 401/403 - the camera may have rebooted with a new token).
-  // Never rejects: on failure it resolves {token:"", port:DEFAULT_PORT}.
   function fetchInfo(force) {
     if (info && !force) return Promise.resolve(info);
     if (!infoPending) {
@@ -33,6 +18,7 @@
             token: data && data.token ? String(data.token) : "",
             port: data && data.port ? parseInt(data.port, 10) : DEFAULT_PORT,
             tls: !!(data && data.tls),
+            scheme: data && data.scheme ? String(data.scheme) : "",
           };
           return info;
         });
@@ -40,16 +26,22 @@
     return infoPending;
   }
 
-  function base() {
-    var host = window.location.hostname || "127.0.0.1";
-    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]"; // IPv6
-    var scheme = (info && info.tls) ? "https" : "http";
-    return scheme + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
+  function schemeOf(i) {
+    if (!i) return "http";
+    if (i.scheme === "both") {
+      return window.location.protocol === "https:" ? "https" : "http";
+    }
+    if (i.scheme === "https" || i.scheme === "http") return i.scheme;
+    return i.tls ? "https" : "http";
   }
 
-  // one /control round trip with the token header; retries ONCE with a
-  // freshly fetched token when the answer is 401/403 (rebooted camera).
-  function request(method, body, retried) {
+  function base() {
+    var host = window.location.hostname || "127.0.0.1";
+    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]";
+    return schemeOf(info) + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
+  }
+
+  function request(method, body, retried, query) {
     return fetchInfo(false).then(function (i) {
       var opts = { method: method, cache: "no-store", headers: {} };
       if (i.token) opts.headers["X-Timps-Token"] = i.token;
@@ -57,24 +49,15 @@
         opts.headers["Content-Type"] = "application/json";
         opts.body = JSON.stringify(body);
       }
-      return fetch(base() + "/control", opts).then(function (res) {
+      return fetch(base() + "/control" + (query || ""), opts).then(function (res) {
         if ((res.status === 401 || res.status === 403) && !retried) {
           return fetchInfo(true).then(function () {
-            return request(method, body, true);
+            return request(method, body, true, query);
           });
         }
-        // POST /control status codes (see WEBUI-NOTES.md for the full contract):
-        // 400 not_json = client bug; 422 unknown_fields = key names wrong for
-        // this build; 409 values_rejected = names right, values refused; 503
-        // oom = daemon allocation failure. Key off "reason", not status code
-        // or counter arithmetic - 422 vs 409 want opposite client behavior.
-        // Bodies always parse first: even error responses carry the normal
-        // {ok,accepted,changed,rejected} counters.
         return res.json().catch(function () { return {}; }).then(function (json) {
           if (!res.ok) {
             var reason = json && typeof json.reason === "string" ? json.reason : "";
-            // Pre-split daemons answer 422 to both failures with no "reason";
-            // fall back to the counters only then (never on a current build).
             if (!reason && res.status === 422)
               reason = json.rejected > 0 ? "values_rejected" : "unknown_fields";
             var msg = "timps /control HTTP " + res.status;
@@ -86,9 +69,11 @@
               msg = "malformed /control request (client bug); nothing was applied";
             else if (reason === "oom" || res.status === 503)
               msg = "the streamer is out of memory; nothing was applied - try again shortly";
+            var et = errorsText(json && json.errors);
+            if (et) msg += " (" + et + ")";
             var err = new Error(msg);
             err.status = res.status;
-            err.reason = reason;   // pages that need to branch should use THIS
+            err.reason = reason;
             err.result = json;
             throw err;
           }
@@ -98,11 +83,14 @@
     });
   }
 
-  // flatten one POST body into the daemon's config-key space - the same names
-  // the response's "applied" echo uses: {image:{brightness}} ->
-  // "image.brightness", {video:{0:{fps}}} -> "video0.fps" (stream index
-  // fuses into the section name). A shape this doesn't know just misses the
-  // lookup and produces no correction - never a false one.
+  function errorsText(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    var E = window.timpsErrors;
+    return (E ? E.list(errors) : Object.keys(errors).map(function (k) {
+      return k + ": error " + errors[k];
+    })).join("; ");
+  }
+
   function flattenInto(out, prefix, v) {
     if (v !== null && typeof v === "object") {
       Object.keys(v).forEach(function (k) {
@@ -118,19 +106,13 @@
       var v = obj[sec];
       if (v === null || typeof v !== "object") { out[sec] = v; return; }
       Object.keys(v).forEach(function (k) {
-        // video and privacy fuse the stream index INTO the section name in
-        // the daemon's key space (video0.fps, privacy0.3.x) - a plain dotted
-        // join would never match their echoes
-        var pfx = (sec === "video" || sec === "privacy") ? sec + k : sec + "." + k;
+        var pfx = (sec === "video" || sec === "privacy" || sec === "roi") ? sec + k : sec + "." + k;
         flattenInto(out, pfx, v[k]);
       });
     });
     return out;
   }
 
-  // entries of result.applied whose EFFECTIVE (post-clamp) value differs from
-  // what this POST sent. Numeric comparison when both sides parse as numbers
-  // (so true == "1" is NOT a correction), string comparison otherwise.
   function computeCorrections(body, result) {
     if (!result || !result.applied) return null;
     var sent = flattenBody(body);
@@ -147,21 +129,16 @@
     return out;
   }
 
-  // one-shot toast gate: a debounced flush settles MANY waiters with the SAME
-  // result object, so without take-once semantics one clamped slider drag
-  // would toast once per queued waiter. Element updates should read
-  // r.corrections directly instead.
   function takeCorrections(r) {
     if (!r || !r.corrections || r._corrShown) return null;
     r._corrShown = true;
     return r.corrections;
   }
 
-  // shared wording for a corrections map. Deliberately informational: a
-  // clamped write SUCCEEDED (clamping is the documented contract), so pages
-  // show this as "info", never as an error.
   function correctionsText(corr) {
     return Object.keys(corr).map(function (k) {
+      if (/\.codec$/.test(k) && String(corr[k]).toLowerCase() === "h264")
+        return "H.265 is not available with this libimp - the stream stays H.264";
       return k.split(".").pop().replace(/_/g, " ") +
         " was outside the allowed range - the streamer applied " + corr[k];
     }).join(". ");
@@ -176,20 +153,11 @@
 
   function set(obj) {
     return request("POST", obj).then(function (r) {
-      // The daemon echoes the effective values of everything it CHANGED
-      // ("applied"), so a page can put a clamped value straight back into
-      // its control - no follow-up GET. Computed here (not per caller) so
-      // debounced writes compare against the MERGED payload actually sent.
-      // If the echo overflowed (result.truncated) the diff may be
-      // incomplete - callers relying on it must check r.truncated.
       if (r && typeof r === "object") r.corrections = computeCorrections(obj, r);
       return r;
     });
   }
 
-  // merge rapid set() calls (slider drags) into one POST per quiet period.
-  // Only image-style two-level objects are merged ({section:{key:val}}).
-  // Every caller's promise settles with the outcome of the single flush.
   var debounceBuf = null, debounceTimer = null, debounceWaiters = [];
   function setDebounced(obj, ms) {
     if (!debounceBuf) debounceBuf = {};
@@ -219,69 +187,133 @@
     });
   }
 
-  // caps object from a cached GET /control (fetches once when not cached)
   function caps() {
     if (controlCache && controlCache.caps)
       return Promise.resolve(controlCache.caps);
     return get().then(function (json) { return json.caps || {}; });
   }
 
-  // /events SSE: streams = "motion,daynight,stats" (or "" for all).
-  // onEvent(type, data) gets each parsed event; onError(err) any failure.
-  // Auto-pauses while the tab is hidden and resumes on visibilitychange.
-  // Returns {close()}.
-  function events(streams, onEvent, onError) {
-    var es = null, closed = false;
-    var types = String(streams || "motion,daynight,stats")
-      .split(",").map(function (s) { return s.trim(); })
-      .filter(Boolean);
+  function statsExtra() {
+    return request("GET", undefined, false, "?stats=1");
+  }
 
-    function open() {
-      fetchInfo(false).then(function (i) {
-        if (closed || document.hidden) return;
-        var url = base() + "/events?stream=" + encodeURIComponent(types.join(","));
-        if (i.token) url += "&token=" + encodeURIComponent(i.token);
-        try { es = new EventSource(url); } catch (e) {
-          if (onError) onError(e);
-          return;
-        }
-        types.forEach(function (t) {
-          es.addEventListener(t, function (ev) {
-            var data = null;
-            try { data = JSON.parse(ev.data); } catch (e) { /* keep null */ }
-            if (onEvent) onEvent(t, data);
-          });
-        });
-        es.onerror = function (err) {
-          // token may be stale after a reboot: drop the cache so the
-          // browser's automatic EventSource reconnect... cannot change the
-          // URL, so reopen ourselves with a fresh token instead.
-          if (closed) return;
-          stop();
-          if (onError) onError(err);
-          fetchInfo(true).then(function () {
-            if (!closed && !document.hidden) setTimeout(open, 3000);
-          });
-        };
+  function clients() {
+    return request("GET", undefined, false, "?clients=1");
+  }
+
+  function dnHistory(opts) {
+    var q = "?dn_history=1";
+    if (opts && opts.last > 0) q += "&last=" + (opts.last | 0);
+    else if (opts && opts.since !== undefined) q += "&since=" + (opts.since >>> 0);
+    if (opts && opts.max > 0) q += "&max=" + (opts.max | 0);
+    return request("GET", undefined, false, q);
+  }
+
+  var es = null, esKey = "", esGen = 0, esTimer = null, esWait = 3000, esDown = false;
+  var esSubs = [], esLast = {};
+
+  function esWanted() {
+    if (document.hidden) return "";
+    var seen = {};
+    esSubs.forEach(function (s) { s.types.forEach(function (t) { seen[t] = 1; }); });
+    return Object.keys(seen).sort().join(",");
+  }
+
+  function esCovers(s) {
+    var have = esKey.split(",");
+    return s.types.every(function (t) { return have.indexOf(t) >= 0; });
+  }
+
+  function esAttach(s) {
+    s.types.forEach(function (t) { es.addEventListener(t, s.fns[t]); });
+  }
+
+  function esStop() {
+    esGen++;
+    if (es) { es.close(); es = null; }
+    esKey = "";
+    esLast = {};
+  }
+
+  function esSync() {
+    clearTimeout(esTimer);
+    esTimer = null;
+    var want = esWanted();
+    if (want === esKey) return;
+    esStop();
+    if (!want) return;
+    var gen = esGen;
+    esKey = want;
+    fetchInfo(false).then(function (i) {
+      if (gen !== esGen) return;
+      var url = base() + "/events?stream=" + encodeURIComponent(want);
+      if (i.token) url += "&token=" + encodeURIComponent(i.token);
+      try { es = new EventSource(url); } catch (e) {
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(e, true); });
+        return;
+      }
+      var src = es;
+      src.onopen = function () {
+        esWait = 3000;
+        if (esDown) { esDown = false; document.dispatchEvent(new Event("timps-back")); }
+      };
+      want.split(",").forEach(function (t) {
+        if (t !== "config") src.addEventListener(t, function (ev) { esLast[t] = ev.data; });
       });
-    }
+      esSubs.forEach(esAttach);
+      src.onerror = function (err) {
+        if (gen !== esGen) return;
+        var fatal = src.readyState === 2;
+        esStop();
+        esDown = true;
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(err, fatal); });
+        fetchInfo(true);
+        clearTimeout(esTimer);
+        esTimer = setTimeout(esSync, esWait);
+        esWait = Math.min(esWait * 2, 30000);
+      };
+    });
+  }
 
-    function stop() {
-      if (es) { es.close(); es = null; }
-    }
+  function esKick() {
+    if (!esTimer) esTimer = setTimeout(esSync, 0);
+  }
 
-    function onVis() {
-      if (document.hidden) stop();
-      else if (!es && !closed) open();
+  document.addEventListener("visibilitychange", esSync);
+
+  function events(streams, onEvent, onError) {
+    var s = { types: [], fns: {}, onError: onError, closed: false };
+    String(streams || "motion,daynight,stats").split(",").forEach(function (t) {
+      t = t.trim();
+      if (!t || s.fns[t]) return;
+      s.types.push(t);
+      s.fns[t] = function (ev) {
+        if (s.closed) return;
+        var data = null;
+        try { data = JSON.parse(ev.data); } catch (e) {}
+        if (onEvent) onEvent(t, data);
+      };
+    });
+    esSubs.push(s);
+    if (es && esCovers(s)) {
+      esAttach(s);
+      var last = esLast;
+      setTimeout(function () {
+        s.types.forEach(function (t) {
+          if (last === esLast && t in last) s.fns[t]({ data: last[t] });
+        });
+      }, 0);
+    } else {
+      esKick();
     }
-    document.addEventListener("visibilitychange", onVis);
-    open();
 
     return {
       close: function () {
-        closed = true;
-        document.removeEventListener("visibilitychange", onVis);
-        stop();
+        if (s.closed) return;
+        s.closed = true;
+        esSubs.splice(esSubs.indexOf(s), 1);
+        if (es) s.types.forEach(function (t) { es.removeEventListener(t, s.fns[t]); });
+        esKick();
       },
     };
   }
@@ -297,6 +329,9 @@
     takeCorrections: takeCorrections,
     correctionsText: correctionsText,
     caps: caps,
+    statsExtra: statsExtra,
+    clients: clients,
+    dnHistory: dnHistory,
     events: events,
   };
 })();

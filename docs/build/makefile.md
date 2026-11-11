@@ -353,23 +353,28 @@ Interactive menu to edit various configuration files.
 make edit
 ```
 Presents a dialog menu with options:
-1. Camera Config (defconfig)
-2. Module Config
-3. System Config
-4. Camera U-Boot Environment
-5. Local Fragment
-6. Local Makefile
-7. Local U-Boot Environment
+1. Camera Config (`edit-defconfig`)
+2. Thingino Config (`edit-thingino`)
+3. Camera U-Boot Environment (`edit-uenv`)
+4. Raptor Config (`raptor-menuconfig`)
+5. Local Makefile (`edit-localmk`)
+6. Local Fragment (`edit-localfragment`)
+7. Local U-Boot Environment (`edit-localuenv`)
+
+Option 4 launches raptor's own Kconfig instead of opening a file, because the
+per-camera `raptor.config` is a generated artifact. See
+[../dev/raptor-config.md](../dev/raptor-config.md).
 
 #### Direct Edit Targets
 
 ```bash
 make edit-defconfig      # Edit camera's defconfig
-make edit-config         # Edit system config
+make edit-thingino       # Edit camera's thingino.json
 make edit-uenv           # Edit U-Boot environment
 make edit-localfragment  # Edit local.fragment
 make edit-localmk        # Edit local.mk
 make edit-localuenv      # Edit local.uenv.txt
+make raptor-menuconfig   # Edit raptor's runtime config (Kconfig)
 ```
 
 The system will use the first available editor from: `nano`, `vim`, `vi`, `ed`
@@ -635,6 +640,14 @@ Downloads:
 - `docs/buildroot/manual.pdf`
 - `docs/buildroot/manual.txt`
 
+#### `update-certs`
+Refresh the static CA trust store shipped in the rootfs overlay.
+```bash
+make update-certs
+```
+- Downloads the current Mozilla root store extract from `https://curl.se/ca/cacert.pem`
+- Validates the bundle before replacing `overlay/etc/ssl/certs/ca-certificates.crt`
+
 ### Information and Debugging
 
 #### `info`
@@ -680,6 +693,37 @@ make help
 ---
 
 ## Troubleshooting
+
+### Host Toolchain Issues
+
+**Problem**: On Ubuntu 26.04 and newer the build fails early because the `install` utility is missing
+
+Recent Ubuntu releases ship Rust-based uutils coreutils as the native
+coreutils implementation, and uutils does not provide `install`, which
+Buildroot's `$(INSTALL)` steps (`install -D -m ...`) rely on.
+
+The recommended fix is to build in a container, which is independent of
+host coreutils; see [Building in a container](container.md).
+
+To keep building directly on the host, install the optional GNU coreutils
+package and point `install` at it:
+
+```bash
+sudo apt install gnu-coreutils
+sudo update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100
+```
+
+`gnu-coreutils` coexists with the native uutils packages: it ships
+`/usr/bin/gnuinstall` and the alternative symlink provides `install`
+without overwriting any dpkg-owned file. Verify with `install --version`.
+To revert:
+
+```bash
+sudo update-alternatives --remove-all install
+```
+
+If other coreutils utilities misbehave the same way, the container build
+avoids this entire class of host toolchain differences.
 
 ### Configuration Issues
 
@@ -854,7 +898,7 @@ Firmware is assembled from multiple partitions:
 | UB_ENV    | 0x040000   | 64 KB   | U-Boot environment         |
 | KERNEL    | 0x050000   | Dynamic | Linux kernel (uImage)      |
 | ROOTFS    | Dynamic    | Dynamic | Root filesystem (SquashFS) |
-| DATA      | Dynamic    | Dynamic | Overlay upperdir (JFFS2)   |
+| DATA      | Dynamic    | Dynamic | Overlay layers (JFFS2)      |
 
 Sizes are 64KB-aligned for JFFS2 compatibility.
 

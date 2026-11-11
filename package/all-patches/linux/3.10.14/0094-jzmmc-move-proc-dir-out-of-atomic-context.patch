@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 10 Sep 2026 02:55:29 -0400
+Subject: [PATCH] mmc: jzmmc_v12: create mmc0 proc dir in process context
+
+jzmmc_detect_change() runs as the card-detect debounce timer, i.e. in
+softirq/atomic context. On card insertion for host 0 it called
+jz_proc_mkdir("mmc0"), which goes through proc_mkdir() and
+kmalloc(GFP_KERNEL). With CONFIG_DEBUG_ATOMIC_SLEEP this trips "BUG:
+sleeping function called from invalid context" at mm/slub.c:926 on any
+XBurst1 camera whose MMC0 is removable and has a card present when the
+timer fires.
+
+Create /proc/jz/mmc0 from jzmmc_probe() and remove it from
+jzmmc_remove(), both process context. The directory carries no per-card
+state, so eager creation is equivalent.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mmc/host/jzmmc_v12.c | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/mmc/host/jzmmc_v12.c b/drivers/mmc/host/jzmmc_v12.c
+index 8dd8223..b758b78 100644
+--- a/drivers/mmc/host/jzmmc_v12.c
++++ b/drivers/mmc/host/jzmmc_v12.c
+@@ -1129,25 +1129,9 @@ static void jzmmc_detect_change(unsigned long data)
+ 	if ((present != present_old) || (present_old && host->mmc->card)) {
+ 		if (present && present_old)
+ 			dev_warn(host->dev, "rapidly remove\n");
+-		else{
++		else
+ 			dev_notice(host->dev, "card %s, state=%d\n",
+ 				   present ? "inserted" : "removed", host->state);
+-			if(host->index == 0){
+-				if(present){
+-					if(!host->proc){
+-						host->proc = jz_proc_mkdir("mmc0");
+-						if(!host->proc){
+-							printk("Failed to create mmc0 proc\n");
+-						}
+-					}
+-				}else {
+-					if(host->proc){
+-						proc_remove(host->proc);
+-						host->proc = NULL;
+-					}
+-				}
+-			}
+-		}
+ 		/*if take timeout, then remove card,could clear the state */
+ 		host->timeout_state = 0;
+ 		if (!present || present_old) {
+@@ -1833,7 +1817,13 @@ static int __init jzmmc_probe(struct platform_device *pdev)
+ 	if (ret < 0)
+ 		goto err_gpio_init;
+ 
+-	host->proc = NULL;
++	if (host->index == 0) {
++		host->proc = jz_proc_mkdir("mmc0");
++		if (!host->proc)
++			dev_warn(host->dev, "failed to create mmc0 proc\n");
++	} else {
++		host->proc = NULL;
++	}
+ 
+ 	jzmmc_host_init(host, mmc);
+ 	ret = sysfs_create_group(&pdev->dev.kobj, &jzmmc_attr_group);
+@@ -1871,6 +1861,11 @@ static int __exit jzmmc_remove(struct platform_device *pdev)
+ 	mmc_free_host(host->mmc);
+ 	sysfs_remove_group(&pdev->dev.kobj, &jzmmc_attr_group);
+ 
++	if (host->proc) {
++		proc_remove(host->proc);
++		host->proc = NULL;
++	}
++
+ 	jzmmc_power_off(host);
+ 	if (host->pdata->removal == REMOVABLE)
+ 		free_irq(gpio_to_irq(host->pdata->gpio->cd.num), host);
+-- 
+2.55.0
+

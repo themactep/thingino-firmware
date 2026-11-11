@@ -9,7 +9,7 @@ SENSOR_IQ_PATH="/etc/sensor"
 SENSOR_IQ_UPLOAD_PATH="/opt/sensor"
 SENSOR_MODEL=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null || cat /proc/jz/sensor/name 2>/dev/null)
 SOC_MODEL=$(soc -f 2>/dev/null)
-SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
+SENSOR_IQ_FILE=$(sensor-iq-name "$SENSOR_MODEL" "$SOC_MODEL")
 UPLOADED_SENSOR_IQ_FILE="${SENSOR_IQ_UPLOAD_PATH}/uploaded.bin"
 
 send_redirect() {

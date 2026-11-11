@@ -6,7 +6,18 @@ import shutil
 import subprocess
 import sys
 import time
-from .config import PORTAL_PORT, SSH_FWD_PORT, WEBUI_PORT
+from .config import (PORTAL_PORT, SSH_FWD_PORT, USB_HTTP_PORT,
+                     USB_PC_PORT, USB_PC_QEMU_PORT, USB_SSH_PORT,
+                     WEBUI_PORT)
+
+
+# Frames saved per format by the webcam profile's host.
+UVC_FRAMES = 20
+# The sensor's rate. At the default 25 fps about half the runs hand the host
+# H.264 pictures whose slice header is the next job's (an IDR header over a P
+# picture's data, seen in the NAL bytes), as rvd reads them late in the slow
+# emulated guest; 12 runs at 5 fps had none.
+UVC_SENSOR_FPS = 5
 
 
 def find_qemu():
@@ -20,20 +31,64 @@ def find_qemu():
     sys.exit("Cannot find qemu-system-mipsel (set QEMU_BIN or use run.sh)")
 
 
-def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
+def usb_args(mode, report_dir=None):
+    """The camera's USB port cabled to a QEMU hub. The fork's dwc2-ncm-host
+    enumerates the gadget on one side; on the other a slirp carries host
+    TCP (and is the DHCP server in client mode) and, in server mode, the
+    usbpc socket is a second host that leases from the camera."""
+    if mode == "webcam":
+        # A PC with a UVC driver on the cable: it streams MJPEG, then H.264,
+        # and saves the frames. The encoder tap writes the pictures the
+        # camera coded, to compare them with.
+        out = os.path.join(report_dir, "uvc")
+        os.makedirs(out, exist_ok=True)
+        tap = os.path.join(report_dir, "tap")
+        os.makedirs(tap, exist_ok=True)
+        sensor = f"image-sensor,model=gc2053,bus=i2c0,fps={UVC_SENSOR_FPS}"
+        return ["-device", sensor,
+                "-device", f"dwc2-uvc-host,id=usbhost,x-out={out},"
+                f"x-format=mjpeg+h264,x-frames={UVC_FRAMES}",
+                "-global", f"ingenic-avpu.x-stream-tap={tap}"]
+    if mode == "server":
+        # A laptop on the cable, so no router advertisements: an IPv6
+        # default route on usb0 would read as a wired uplink.
+        net = ("ipv6=off,net=172.16.17.0/24,host=172.16.17.2,"
+               "dhcpstart=172.16.17.200")
+        guest = "172.16.17.1"
+    else:
+        net, guest = "net=10.0.3.0/24", "10.0.3.15"
+    args = ["-netdev", "hubport,id=usbwire,hubid=1",
+            "-device", "dwc2-ncm-host,id=usbhost,netdev=usbwire",
+            "-netdev", f"user,id=usbslirp,{net},"
+            f"hostfwd=tcp::{USB_HTTP_PORT}-{guest}:80,"
+            f"hostfwd=tcp::{USB_SSH_PORT}-{guest}:22",
+            "-netdev", "hubport,id=usbport1,hubid=1,netdev=usbslirp"]
+    if mode == "server":
+        args += ["-netdev", "dgram,id=usbpc,local.type=inet,"
+                 f"local.host=127.0.0.1,local.port={USB_PC_QEMU_PORT},"
+                 "remote.type=inet,"
+                 f"remote.host=127.0.0.1,remote.port={USB_PC_PORT}",
+                 "-netdev", "hubport,id=usbport2,hubid=1,netdev=usbpc"]
+    return args
+
+
+def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
+               forwards=True, usb=None):
     # /tmp keeps the path under the 108-char unix socket limit
     qmp_path = f"/tmp/qemu-test-{os.getpid()}.qmp"
     args = [
         qemu, "-M", machine, "-m", f"{ram_mb}M",
         "-display", "none",
-        "-serial", "null", "-serial", "pty",
+        # The console is the board's second UART; with slip the first one
+        # gets a pty too, for the IP link.
+        "-serial", "pty" if net == "slip" else "null", "-serial", "pty",
         "-qmp", f"unix:{qmp_path},server,nowait",
         "-drive", f"file={image},format=raw,if=none,id=flash0",
     ]
     if net == "tap":
         args += ["-netdev",
                  f"tap,id=n0,ifname={tap_if},script=no,downscript=no"]
-    else:
+    elif forwards and net == "slirp":
         args += [
             "-netdev", f"user,id=n0,"
             f"hostfwd=tcp::{PORTAL_PORT}-172.16.0.1:80,"
@@ -41,6 +96,11 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
             f"hostfwd=tcp::{WEBUI_PORT + 2}-:443,"
             f"hostfwd=tcp::{SSH_FWD_PORT}-:22",
         ]
+    else:
+        # No host-side tests: no forwards, so runs can share a host.
+        args += ["-netdev", "user,id=n0"]
+    if usb:
+        args += usb_args(usb, report_dir)
 
     stdout_path = f"/tmp/qemu-test-{os.getpid()}.stdout"
     stdout_fh = open(stdout_path, "w+")
@@ -52,26 +112,31 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
         stderr=stderr_fh,
     )
 
-    m = None
+    # QEMU announces each pty in -serial order, labelled serialN when it
+    # says so; fall back to that order otherwise.
+    want = ["serial0", "serial1"] if net == "slip" else ["serial1"]
+    ptys = {}
     for _ in range(10):
         time.sleep(1)
         stdout_fh.flush()
         stdout_fh.seek(0)
         out = stdout_fh.read()
-        m = re.search(r"redirected to (/dev/pts/\d+)", out)
-        if m:
+        found = re.findall(r"redirected to (/dev/pts/\d+)(?: \(label (serial\d)\))?", out)
+        ptys = {(label or want[i] if i < len(want) else f"serial{i}"): path
+                for i, (path, label) in enumerate(found)}
+        if all(k in ptys for k in want):
             break
         if proc.poll() is not None:
             stderr_fh.flush()
             err = open(os.path.join(report_dir, "qemu-stderr.log")).read()
             sys.exit(f"QEMU failed to start: {out[:300]} {err[:300]}")
     stdout_fh.close()
-    if not m:
+    if not all(k in ptys for k in want):
         proc.terminate()
-        sys.exit("Could not find pty in QEMU output (searched 10s)")
+        sys.exit(f"Could not find {want} pty in QEMU output (searched 10s)")
     os.unlink(stdout_path)
 
-    return proc, m.group(1), qmp_path
+    return proc, ptys["serial1"], qmp_path, ptys.get("serial0")
 
 
 def warm_reset_timer_wedge(report_dir):

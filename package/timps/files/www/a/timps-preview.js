@@ -1,30 +1,15 @@
-/* timps-preview.js - the live-preview <img>, fullscreen modal, endpoint list
- * and shared settings-page wiring for timps's own streamer pages
- * (streamer-*.html, tool-sensor-data.html - they <script>-include this file
- * directly). Named timps-preview.js, not preview.js, to avoid colliding with
- * core's own a/preview.js (see WEBUI-NOTES.md). Talks to timps directly via
- * window.timpsApi; no /x/json-prudynt.cgi bridge.
- */
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-// NATIVE pages drive their own controls straight against timps /control
-// (timps-api.js) and must not also be wired by this file's legacy-bridge
-// code below, or a change would double-submit.
 const nativeImagePage =
   document.body && document.body.id === "page-streamer-image";
 const nativeOsdPage =
-  document.body && /^page-streamer-osd[01]$/.test(document.body.id);
+  document.body && document.body.id === "page-streamer-overlays";
 const nativeEncoderPage =
-  document.body && /^page-streamer-(main|substream)$/.test(document.body.id);
+  document.body && document.body.id === "page-streamer-video";
 
-// Direct-to-timps media URLs (no proxy CGIs):
-//   live:  http://<host>:<port>/stream.mjpeg?chn=<N>&token=<tok>
-//   still: http://<host>:<port>/snapshot.jpg?chn=<N>&token=<tok>
-// Token comes from /x/timps-token.cgi; see WEBUI-NOTES.md for why it travels as
-// ?token= and the retry/fallback behavior on failure.
-let timpsMediaInfo = null; // {token, port} after the first fetch
-let timpsMediaPending = null; // in-flight fetch (dedup)
+let timpsMediaInfo = null;
+let timpsMediaPending = null;
 
 function fetchTimpsMediaInfo(force = false) {
   if (timpsMediaInfo && !force) return Promise.resolve(timpsMediaInfo);
@@ -38,6 +23,7 @@ function fetchTimpsMediaInfo(force = false) {
           token: data && data.token ? String(data.token) : "",
           port: data && data.port ? parseInt(data.port, 10) : 8880,
           tls: !!(data && data.tls),
+          scheme: data && data.scheme ? String(data.scheme) : "",
         };
         return timpsMediaInfo;
       });
@@ -45,13 +31,19 @@ function fetchTimpsMediaInfo(force = false) {
   return timpsMediaPending;
 }
 
-// kind "live" -> /stream.mjpeg, "still" -> /snapshot.jpg; chn is the numeric
-// timps channel (data-stream "ch0" -> 0, "ch1" -> 1). host defaults to the
-// address the WebUI itself was opened on.
+function timpsMediaScheme(info) {
+  if (!info) return "http";
+  if (info.scheme === "both") {
+    return window.location.protocol === "https:" ? "https" : "http";
+  }
+  if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+  return info.tls ? "https" : "http";
+}
+
 function timpsMediaUrl(kind, chn, host) {
   const h = wrapIpv6Host(host || window.location.hostname || "127.0.0.1");
   const port = timpsMediaInfo ? timpsMediaInfo.port : 8880;
-  const scheme = timpsMediaInfo && timpsMediaInfo.tls ? "https" : "http";
+  const scheme = timpsMediaScheme(timpsMediaInfo);
   const path = kind === "still" ? "/snapshot.jpg" : "/stream.mjpeg";
   let url = `${scheme}://${h}:${port}${path}?chn=${chn}`;
   if (timpsMediaInfo && timpsMediaInfo.token) {
@@ -128,9 +120,6 @@ function rgba2alpha(hex8) {
   return alpha;
 }
 
-// set a color picker (+ its optional "-alpha" slider) from a "#rrggbbaa"
-// value. timps OSD colors carry a real alpha byte (0xAARRGGBB), so the alpha
-// slider is populated and enabled whenever the streamer echoes 8 hex digits.
 function setOsdColorInputs(streamIndex, name, hex8) {
   const el = $(`#osd${streamIndex}_${name}`);
   if (el) {
@@ -147,8 +136,6 @@ function setOsdColorInputs(streamIndex, name, hex8) {
   }
 }
 
-// combined color of one picker: "#rrggbb" + alpha from its "-alpha" slider
-// ("ff" when the slider is absent or still disabled) -> "#rrggbbaa"
 function osdColorValue(streamId, base) {
   const colorEl = $(`#osd${streamId}_${base}`);
   const alphaEl = $(`#osd${streamId}_${base}-alpha`);
@@ -222,7 +209,7 @@ function renderPreviewEndpoints() {
   const list = $("#preview-endpoint-list");
   if (!list) return;
   const host =
-    window.network_address || window.location.hostname || "localhost";
+    window.location.hostname || window.network_address || "localhost";
   const rtspHost = formatPreviewHostWithPort(
     wrapIpv6Host(host),
     previewEndpointState.rtsp.port,
@@ -316,7 +303,7 @@ function updatePreviewEndpointState(msg) {
 }
 
 async function initPreviewEndpoints() {
-  await fetchTimpsMediaInfo(); // token + port for the direct media URLs
+  await fetchTimpsMediaInfo();
   renderPreviewEndpoints();
 }
 
@@ -347,7 +334,6 @@ function handleOsdData(osd, streamIndex) {
     }
   }
 
-  // Logo element
   if (osd.logo) {
     if (osd.logo.enabled !== undefined) {
       const el = $(`#osd${streamIndex}_logo_enabled`);
@@ -365,7 +351,6 @@ function handleOsdData(osd, streamIndex) {
     }
   }
 
-  // Time element
   if (osd.time) {
     if (osd.time.enabled !== undefined) {
       const el = $(`#osd${streamIndex}_time_enabled`);
@@ -396,7 +381,6 @@ function handleOsdData(osd, streamIndex) {
     }
   }
 
-  // Uptime element
   if (osd.uptime) {
     if (osd.uptime.enabled !== undefined) {
       const el = $(`#osd${streamIndex}_uptime_enabled`);
@@ -424,7 +408,6 @@ function handleOsdData(osd, streamIndex) {
     }
   }
 
-  // Usertext element
   if (osd.usertext) {
     if (osd.usertext.enabled !== undefined) {
       const el = $(`#osd${streamIndex}_usertext_enabled`);
@@ -506,9 +489,6 @@ function handleMessage(msg) {
     handleOsdData(msg.stream1.osd, 1);
   }
 
-  // Encoder/stream/sensor settings need a streamer restart to take effect;
-  // "Restart streamer" in the menu calls /x/restart-prudynt.cgi. See
-  // WEBUI-NOTES.md for why only the json-prudynt.cgi bridge sets this flag.
   if (msg.restart_required && typeof window.showAlert === "function") {
     window.showAlert(
       "warning",
@@ -537,9 +517,6 @@ async function loadMotorParams() {
   }
 }
 
-// Map a timps GET /control snapshot to the prudynt-shaped message handleMessage
-// expects. timps has no RTSP creds/port in /control, so those keep their
-// existing defaults.
 function buildPreviewMsg(c) {
   const msg = { image: {}, stream0: {}, stream1: {} };
   if (c.image) {
@@ -548,7 +525,6 @@ function buildPreviewMsg(c) {
   }
   if (c.motion && c.motion.enabled !== undefined)
     msg.motion = { enabled: c.motion.enabled };
-  // privacy is per-region in timps; the control-bar flag is "on" if any mask is
   if (c.privacy) {
     let on = false;
     Object.keys(c.privacy).forEach((s) =>
@@ -566,8 +542,6 @@ function buildPreviewMsg(c) {
 }
 
 async function loadConfig() {
-  // native image/OSD/encoder pages load their own state from timps GET /control
-  // via a/streamer-image.js / a/streamer-osd.js / a/streamer-encoder.js
   if (nativeImagePage || nativeOsdPage || nativeEncoderPage) return;
   if (!window.timpsApi) return;
   showBusy("Loading camera configuration...");
@@ -581,10 +555,6 @@ async function loadConfig() {
   }
 }
 
-// NATIVE: apply a preview-page control change through timps /control,
-// translating legacy prudynt-shaped payloads (image is the main one still
-// used here; encoder/OSD editors live on their own native pages and only
-// arrive as a best-effort fallback).
 async function sendToEndpoint(payload) {
   if (!window.timpsApi || !payload || typeof payload !== "object") return;
   const out = {};
@@ -601,9 +571,6 @@ async function sendToEndpoint(payload) {
   if (!Object.keys(out).length) return;
   try {
     const r = await window.timpsApi.set(out);
-    // these fallback shapes have no per-field mapping here (their editors
-    // live on the native pages) - at least SAY when the daemon corrected a
-    // value instead of silently keeping the stale control
     const t = window.timpsApi.takeCorrections(r);
     if (t && typeof window.showAlert === "function")
       window.showAlert("info", window.timpsApi.correctionsText(t));
@@ -616,9 +583,7 @@ async function loadInitialData() {
   await Promise.all([loadConfig(), loadMotorParams()]);
 }
 
-// Init on load
 loadInitialData().then(async () => {
-  // Load webui config for focus tracking settings
   let webuiConfig = {
     track_focus: false,
     focus_timeout: 0,
@@ -642,15 +607,11 @@ loadInitialData().then(async () => {
     }
   }
 
-  // Load webui config before continuing
   await loadWebuiConfig();
 
-  // Expose config reload function globally for use in config-webui.js
   window.reloadPreviewFocusSettings = async () => {
     await loadWebuiConfig();
-    // Update event listeners based on new settings
     if (webuiConfig.track_focus) {
-      // Add listeners if not already added
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("blur", handleWindowBlur);
@@ -658,35 +619,24 @@ loadInitialData().then(async () => {
       window.addEventListener("focus", handleWindowFocus);
       window.addEventListener("blur", handleWindowBlur);
     } else {
-      // Remove listeners if tracking is disabled
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("blur", handleWindowBlur);
-      // Clear any pending timeouts
       if (focusTimeoutId) {
         clearTimeout(focusTimeoutId);
         focusTimeoutId = null;
       }
-      // Ensure window is marked as visible and start preview
       isWindowVisible = true;
       startPreview();
     }
   };
 
-  // Get stream from data-stream attribute, default to ch0 if not specified;
-  // "chN" maps to timps channel N (ch0 -> 0, ch1 -> 1)
   const preview = $("#preview");
-  const streamChannel = preview?.dataset?.stream || "ch0";
-  const streamChn = parseInt(streamChannel.replace(/^ch/, ""), 10) || 0;
-  // live MJPEG straight from timps; the cache-bust param forces the browser
-  // to reopen the multipart stream instead of showing a stale cached frame
-  const liveStreamUrl = (chn = streamChn) =>
+  const streamChn = () =>
+    parseInt((preview?.dataset?.stream || "ch0").replace(/^ch/, ""), 10) || 0;
+  const liveStreamUrl = (chn = streamChn()) =>
     `${timpsMediaUrl("live", chn)}&_=${Date.now()}`;
 
-  // `timeout` is a coarse last-resort safety net, not a per-frame liveness
-  // check: a multipart/x-mixed-replace <img> only fires "load" once, so
-  // lastLoadTime never advances on a healthy stream. Keep it long - see
-  // WEBUI-NOTES.md for why a short value here is actively harmful.
   const timeout = 120000;
   const restartBackoffInitialMs = 15000;
   const restartBackoffMaxMs = 60000;
@@ -695,9 +645,7 @@ loadInitialData().then(async () => {
   let focusTimeoutId = null;
   let nextRestartAt = 0;
   let restartBackoffMs = restartBackoffInitialMs;
-  let tokenRetried = false; // one re-fetch per failure (camera rebooted?)
 
-  // the direct media URLs need the timps token/port first
   await fetchTimpsMediaInfo();
 
   function startPreview() {
@@ -711,7 +659,6 @@ loadInitialData().then(async () => {
       nextRestartAt = 0;
     }
   }
-  // let main.js's visibility handling restart the stream on any page
   window.restartStreamPreview = startPreview;
 
   function stopPreview() {
@@ -725,7 +672,7 @@ loadInitialData().then(async () => {
 
   function stopPreviewWithDelay() {
     if (!webuiConfig.track_focus) {
-      return; // Don't stop if tracking is disabled
+      return;
     }
 
     if (focusTimeoutId) {
@@ -745,33 +692,32 @@ loadInitialData().then(async () => {
 
   startPreview();
 
-  // preview.src comes back absolutized by the browser, so compare by suffix
   const showsNoStream = () => (preview.src || "").endsWith(ImageNoStream);
+
+  let retryMs = 2000, retryTimer = null;
+  const reconnect = () => {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    fetchTimpsMediaInfo(true).then(() => {
+      if (isWindowVisible) preview.src = liveStreamUrl();
+    });
+  };
 
   preview.addEventListener("load", () => {
     lastLoadTime = Date.now();
     restartBackoffMs = restartBackoffInitialMs;
     nextRestartAt = 0;
-    if (!showsNoStream()) tokenRetried = false;
+    if (!showsNoStream()) retryMs = 2000;
   });
 
-  // Stream error (connection refused / 401): the per-boot token changes on
-  // a camera reboot, so re-fetch it once and retry; if the stream still
-  // fails, fall back to the nostream placeholder (the watchdog keeps
-  // retrying with backoff).
   preview.addEventListener("error", () => {
-    if (!isWindowVisible || showsNoStream() || !preview.src) return;
-    if (tokenRetried) {
-      preview.src = ImageNoStream;
-      return;
-    }
-    tokenRetried = true;
-    fetchTimpsMediaInfo(true).then(() => {
-      if (isWindowVisible) preview.src = liveStreamUrl();
-    });
+    if (!isWindowVisible || showsNoStream() || !preview.src || retryTimer) return;
+    retryTimer = setTimeout(reconnect, retryMs);
+    retryMs = Math.min(retryMs * 2, 30000);
   });
 
-  // Stream watchdog - restart if no frames received
+  document.addEventListener("timps-back", () => { retryMs = 2000; reconnect(); });
+
   setInterval(() => {
     const now = Date.now();
     if (
@@ -816,7 +762,6 @@ loadInitialData().then(async () => {
     window.addEventListener("blur", handleWindowBlur);
   }
 
-  // Full-screen preview modal
   const previewModal = $("#mdPreview");
   const previewFullsize = $("#preview_fullsize");
   let savedPreviewSrc = "";
@@ -825,7 +770,6 @@ loadInitialData().then(async () => {
     previewModal.addEventListener("show.bs.modal", () => {
       savedPreviewSrc = preview.src;
       preview.src = ImageNoStream;
-      // ch0 is always the full-screen stream, straight from timps
       previewFullsize.src = liveStreamUrl(0);
     });
 
@@ -848,6 +792,7 @@ const imagingFields = [
   "tone",
   "defog",
   "noise_reduction",
+  "dpc",
 ];
 
 const imageConfigKeyMap = {
@@ -860,12 +805,9 @@ const imageConfigKeyMap = {
   tone: "highlight_depress",
   defog: "defog_strength",
   noise_reduction: "sinter_strength",
+  dpc: "dpc_strength",
 };
 
-// Static per-field bounds, ported from the old json-imaging.cgi bridge (min 0,
-// max 255 except backlight 10; default 128 except backlight/tone 0). timps
-// GET /control reports the live value + caps.image (supported), but not the
-// UI bounds, so they live here now.
 const imageFieldBounds = {
   brightness: { min: 0, max: 255, default: 128 },
   contrast: { min: 0, max: 255, default: 128 },
@@ -873,9 +815,10 @@ const imageFieldBounds = {
   saturation: { min: 0, max: 255, default: 128 },
   backlight: { min: 0, max: 10, default: 0 },
   wide_dynamic_range: { min: 0, max: 255, default: 128 },
-  tone: { min: 0, max: 255, default: 0 },
+  tone: { min: 0, max: 10, default: 0 },
   defog: { min: 0, max: 255, default: 128 },
   noise_reduction: { min: 0, max: 255, default: 128 },
+  dpc: { min: 0, max: 255, default: 128 },
 };
 
 const previewSliderIds = [
@@ -888,6 +831,7 @@ const previewSliderIds = [
   "tone",
   "defog",
   "noise_reduction",
+  "dpc",
   "image_wb_bgain",
   "image_wb_rgain",
   "image_ae_compensation",
@@ -910,49 +854,6 @@ const previewSliderIds = [
   }
 })();
 
-// Load sensor information on sensor page
-(function loadSensorInfo() {
-  if (!$("#sensor-info")) {
-    return; // Not on sensor page
-  }
-
-  const sensorLoading = $("#sensor-loading");
-  const sensorDetails = $("#sensor-details");
-  const sensorFilePath = $("#sensor-file-path");
-  const sensorMd5 = $("#sensor-md5");
-  const sensorSocFamily = $("#sensor-soc-family");
-  const sensorModel = $("#sensor-model");
-
-  async function fetchSensorInfo() {
-    try {
-      const response = await fetch("/x/json-sensor-info.cgi");
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error.message || "Unknown error");
-      }
-
-      sensorFilePath.textContent = data.file_path || "Unknown";
-      sensorMd5.textContent = data.md5 || "Unknown";
-      if (sensorSocFamily)
-        sensorSocFamily.textContent = data.soc_family || "Unknown";
-      if (sensorModel) sensorModel.textContent = data.sensor_model || "Unknown";
-
-      sensorLoading.classList.add("d-none");
-      sensorDetails.classList.remove("d-none");
-    } catch (err) {
-      sensorLoading.textContent = `Error loading sensor info: ${err.message}`;
-    }
-  }
-
-  fetchSensorInfo();
-})();
-
-// Disable all imaging controls initially. Prefer the field's own <p> wrapper
-// so a single unsupported control never greys out a whole column.
 imagingFields.forEach((field) => {
   const input = $(`#${field}`);
   if (input) {
@@ -960,7 +861,6 @@ imagingFields.forEach((field) => {
     const wrapper = input.closest("p, .number-range, .col");
     if (wrapper) wrapper.classList.add("disabled");
   }
-  // Also disable the modal slider if it exists
   const slider = $(`#${field}-slider`);
   if (slider) slider.disabled = true;
 });
@@ -970,13 +870,11 @@ function updateImagingLabel(name, value) {
   if (input) {
     input.value = value === undefined || value === null ? "" : value;
   }
-  // Also update the slider value display in modal
   const sliderValue = $(`#${name}-slider-value`);
   if (sliderValue) {
     const displayValue = value === undefined || value === null ? "—" : value;
     sliderValue.textContent = displayValue;
   }
-  // Update the actual slider
   const slider = $(`#${name}-slider`);
   if (slider && value !== undefined && value !== null) {
     slider.value = value;
@@ -1035,9 +933,6 @@ function applyFieldMetadata(field, data) {
   updateImagingLabel(field, data.value);
 }
 
-// NATIVE: read the live image values from timps GET /control (no
-// json-imaging.cgi bridge). Enable a field only when its timps key is in
-// caps.image; bounds come from the static imageFieldBounds table.
 async function fetchImagingState() {
   if (!window.timpsApi) return;
   showBusy("Loading imaging settings...");
@@ -1064,9 +959,6 @@ async function fetchImagingState() {
   }
 }
 
-// NATIVE: apply a changed field straight to timps /control (debounced; the
-// single noise-reduction knob drives both ISP noise reducers). timps applies
-// live AND persists immediately.
 async function sendImagingUpdate(field, value, element) {
   const key = imageConfigKeyMap[field];
   if (!key || !window.timpsApi) return;
@@ -1080,9 +972,6 @@ async function sendImagingUpdate(field, value, element) {
   element?.classList.add("opacity-75");
   try {
     const r = await window.timpsApi.setDebounced({ image }, 150);
-    // the daemon may clamp tighter than the page's static bounds: prefer the
-    // EFFECTIVE value from the "applied" echo over what we sent, and say so
-    // up top (info, not an error - the write itself succeeded)
     const echo = r && r.corrections && r.corrections["image." + key];
     if (echo !== undefined) v = parseInt(echo, 10);
     const t = window.timpsApi.takeCorrections(r);
@@ -1103,15 +992,11 @@ async function sendImagingUpdate(field, value, element) {
   }
 }
 
-// Setup event handlers for imaging fields (number inputs and modal sliders).
-// Skipped on the native image page: a/streamer-image.js wires these controls
-// to timps /control directly (this handler would POST to json-imaging.cgi).
 if (!nativeImagePage)
 imagingFields.forEach((field) => {
   const input = $(`#${field}`);
   const slider = $(`#${field}-slider`);
 
-  // Handle text input changes
   if (input) {
     input.addEventListener("change", (ev) => {
       const value = parseInt(ev.target.value);
@@ -1120,7 +1005,6 @@ imagingFields.forEach((field) => {
       }
     });
 
-    // Double-click on input to reset to default
     input.addEventListener("dblclick", (ev) => {
       const min = Number(ev.target.dataset.min ?? 0);
       const max = Number(ev.target.dataset.max ?? 255);
@@ -1135,13 +1019,11 @@ imagingFields.forEach((field) => {
     });
   }
 
-  // Handle modal slider input (live update)
   if (slider) {
     slider.addEventListener("input", (ev) => {
       updateImagingLabel(field, ev.target.value);
     });
 
-    // Handle slider change (on release)
     slider.addEventListener("change", (ev) => {
       const value = parseInt(ev.target.value);
       if (!isNaN(value)) {
@@ -1149,7 +1031,6 @@ imagingFields.forEach((field) => {
       }
     });
 
-    // Double-click on slider to reset to default
     slider.addEventListener("dblclick", (ev) => {
       const min = Number(ev.target.min ?? 0);
       const max = Number(ev.target.max ?? 255);
@@ -1165,7 +1046,6 @@ imagingFields.forEach((field) => {
   }
 });
 
-// Streamer controls
 function coerceStreamValue(param, el) {
   if (el.type === "checkbox") {
     return el.checked;
@@ -1177,7 +1057,6 @@ function coerceStreamValue(param, el) {
     return "";
   }
 
-  // Treat any purely numeric string as a number so prudynt gets the correct type.
   if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
     return trimmed.includes(".")
       ? Number.parseFloat(trimmed)
@@ -1198,10 +1077,6 @@ function saveStreamValue(streamId, param) {
   sendToEndpoint(payload);
 }
 
-// Setup stream0 and stream1 controls. Skipped on the native encoder pages
-// (streamer-main/substream): a/streamer-encoder.js wires these controls to
-// timps /control directly, so this must not also wire them (double submit +
-// bridge). On other pages there are no stream fields, so this is inert.
 if (!nativeEncoderPage)
 [0, 1].forEach((streamId) => {
   stream_params.forEach((param) => {
@@ -1211,11 +1086,9 @@ if (!nativeEncoderPage)
       el.disabled = true;
     }
 
-    // Also handle modal slider if it exists
     const slider = $(`#stream${streamId}_${param}-slider`);
     if (slider) {
       slider.addEventListener("input", (ev) => {
-        // Update the text input while dragging
         if (el) el.value = ev.target.value;
         const sliderValue = $(`#stream${streamId}_${param}-slider-value`);
         if (sliderValue) sliderValue.textContent = ev.target.value;
@@ -1226,9 +1099,7 @@ if (!nativeEncoderPage)
   });
 });
 
-// OSD controls
 function sendOsdUpdate(streamId, osdPayload) {
-  // OSD changes require Video + OSD thread restart to take effect immediately
   const payload = {
     [`stream${streamId}`]: { osd: osdPayload },
     action: { restart_thread: ThreadVideo | ThreadOSD },
@@ -1255,7 +1126,6 @@ function setFont(streamId) {
 
   if (Object.keys(payload).length === 0) return;
   console.log(ts(), "setFont for stream", streamId, ":", payload);
-  // Font changes require Video + OSD thread restart for immediate effect
   const fullPayload = {
     [`stream${streamId}`]: { osd: payload },
     action: { restart_thread: ThreadVideo | ThreadOSD },
@@ -1263,12 +1133,8 @@ function setFont(streamId) {
   sendToEndpoint(fullPayload);
 }
 
-// Setup OSD controls for both stream0 and stream1. Skipped on the native
-// OSD pages: a/streamer-osd.js wires these controls to timps /control
-// directly (these handlers would POST to the json-prudynt.cgi bridge).
 if (!nativeOsdPage)
 [0, 1].forEach((streamId) => {
-  // Configuration for OSD controls
   const osdControls = [
     {
       id: "enabled",
@@ -1424,9 +1290,6 @@ if (!nativeOsdPage)
     },
   ];
 
-  // Fields start disabled and only re-enable once the streamer's echo
-  // confirms them (timps echoes its per-stream overlay set, prudynt echoes
-  // every field).
   osdControls.forEach(({ id, handler }) => {
     const el = $(`#osd${streamId}_${id}`);
     if (el) {
@@ -1436,7 +1299,6 @@ if (!nativeOsdPage)
   });
 });
 
-// Image controls (WB and AE)
 function saveImageValue(param) {
   const el = $("#image_" + param);
   if (!el) return;
@@ -1466,17 +1328,11 @@ const imageParams = [
 imageParams.forEach((param) => {
   const el = $("#image_" + param);
   if (el) {
-    // native image page: a/streamer-image.js owns these controls (they go
-    // straight to timps /control, not through the json-prudynt.cgi bridge)
     if (nativeImagePage) return;
     el.addEventListener("change", () => {
       console.log("Image param changed:", param);
       saveImageValue(param);
     });
-    // Disabled until the streamer's echo confirms the key: the timps
-    // json-prudynt.cgi bridge only echoes image.* keys listed in the
-    // caps.image capability array of GET /control, so controls the SoC
-    // cannot drive never get re-enabled by setValue().
     el.disabled = true;
     const wrapper = el.closest(
       ".range, .number-range, .number, .select, .boolean, .file",
@@ -1485,14 +1341,11 @@ imageParams.forEach((param) => {
   }
 });
 
-// Export configuration button
 const exportConfigBtn = $("#export-config");
 if (exportConfigBtn) {
   exportConfigBtn.addEventListener("click", async () => {
     exportConfigBtn.disabled = true;
     try {
-      // NATIVE: download the live timps /control snapshot as JSON (no
-      // json-prudynt-config.cgi bridge).
       const json = window.timpsApi ? await window.timpsApi.get() : {};
       const blob = new Blob([JSON.stringify(json, null, 2)], {
         type: "application/json",
@@ -1513,9 +1366,6 @@ if (exportConfigBtn) {
   });
 }
 
-// Save configuration button. timps persists every /control change to
-// /etc/timps.conf immediately, so there is nothing to save explicitly - the
-// button just confirms (no json-prudynt.cgi bridge).
 const saveConfigBtn = $("#save-config");
 if (saveConfigBtn) {
   saveConfigBtn.addEventListener("click", () => {
@@ -1531,12 +1381,8 @@ if (saveConfigBtn) {
   });
 }
 
-// native image/OSD pages: the page scripts load their state from timps
-// GET /control instead of the json-imaging.cgi bridge (the OSD pages have
-// no imaging fields at all - skip the pointless bridge call there too)
 if (!nativeImagePage && !nativeOsdPage) fetchImagingState();
 
-// Add reload button handler
 const reloadBtn = $("#preview-reload");
 if (reloadBtn) {
   reloadBtn.addEventListener("click", () => {

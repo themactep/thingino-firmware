@@ -6,6 +6,7 @@
 DAEMON="uhttpd"
 PIDFILE="/var/run/uhttpd.pid"
 PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_PENDING_FLAG="/run/portal_pending"
 
 UHTTPD_DOCROOT="${UHTTPD_DOCROOT:-/var/www}"
 UHTTPD_PORTAL_DOCROOT="${UHTTPD_PORTAL_DOCROOT:-/var/www-portal}"
@@ -45,6 +46,11 @@ build_uhttpd_args() {
 
 start() {
 	local display_hostname
+
+	if [ -f "$PORTAL_PENDING_FLAG" ] && [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Portal decision pending, deferring uhttpd"
+		return 0
+	fi
 
 	display_hostname="$(hostname 2>/dev/null)"
 	[ -z "$display_hostname" ] && display_hostname="localhost"
@@ -177,33 +183,29 @@ start() {
 stop() {
 	echo -c 15 "Stopping uhttpd"
 
-	# Try to kill using PID file first
 	if [ -f $PIDFILE ]; then
 		local pid=$(cat $PIDFILE)
-		if [ -n "$pid" ] && kill "$pid" 2>/dev/null; then
-			echo "Stopped uhttpd (PID: $pid)"
-		fi
+		[ -n "$pid" ] && kill "$pid" 2>/dev/null
 		rm -f $PIDFILE
 	fi
+	pkill -x uhttpd 2>/dev/null
 
-	# Fallback: kill any remaining uhttpd processes
-	if pgrep -x uhttpd >/dev/null 2>&1; then
-		echo "Killing remaining uhttpd processes"
-		pkill -x uhttpd 2>/dev/null
+	local i=0
+	while pgrep -x uhttpd >/dev/null 2>&1; do
+		i=$((i + 1))
+		[ "$i" -eq 5 ] && { echo "uhttpd ignoring TERM, sending KILL"; pkill -9 -x uhttpd 2>/dev/null; }
+		if [ "$i" -ge 8 ]; then
+			echo "WARNING: uhttpd would not exit"
+			return 1
+		fi
 		sleep 1
-	fi
-
-	# Verify it's stopped
-	if pgrep -x uhttpd >/dev/null 2>&1; then
-		echo "Some uhttpd processes may still be running"
-	else
-		echo "All uhttpd processes stopped"
-	fi
+	done
+	echo "uhttpd stopped"
+	return 0
 }
 
 restart() {
 	stop
-	sleep 1
 	start
 }
 

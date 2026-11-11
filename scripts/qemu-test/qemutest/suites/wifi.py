@@ -1,7 +1,7 @@
 """WiFi portal, provisioning and slirp host access."""
 
 import re
-from ..config import PORTAL_PORT, WEBUI_PORT
+from ..config import PORTAL_PORT, SLIP_GUEST_IP, SLIP_HOST_IP, WEBUI_PORT
 from ..launch import warm_reset_timer_wedge
 from ..playwright import run_playwright
 from ..probes import http_get, http_ok, until
@@ -27,9 +27,31 @@ def test_wifi_portal(ctx):
     m = re.search(r"200:(\d+)", out)
     portal_bytes = int(m.group(1)) if m else 0
     res.check("portal_serves_html", portal_bytes > 100, f"{portal_bytes} bytes")
+    # A 200 with HTML is not enough: a normal-mode uhttpd behind the portal
+    # AP serves the web UI login page, which is also a 200 and also HTML.
+    rc, out = guest.run("grep -c 'wlan_ssid' /tmp/_portal 2>/dev/null")
+    count = out.strip().split("\n")[-1].strip()
+    is_portal = count.isdigit() and int(count) > 0    # a count, never a stray message
+    res.check("portal_page_is_portal", is_portal,
+              f"{count} wlan_ssid references" if is_portal
+              else "fetched page has no wlan_ssid form (web UI instead of portal?)")
 
-    rc, out = guest.run("cat /run/portal_mode 2>&1")
-    res.check("portal_mode_flag", "No such file" not in out)
+    rc, out = guest.run("[ -f /run/portal_mode ] && echo FLAG_OK")
+    res.check("portal_mode_flag", "FLAG_OK" in out)
+
+    # The invariant both known races violate: once /run/portal_mode exists
+    # the running uhttpd must be the portal one. The transition may still be
+    # in flight right after the AP appears, so wait for it, then judge; the
+    # detail is what is actually running when it never arrives.
+    out = guest.run_until(
+        "[ -f /run/portal_mode ] && pgrep -f 'uhttpd -h /var/www-portal' "
+        ">/dev/null && echo PORTAL_UHTTPD; pgrep -af uhttpd",
+        lambda o: "PORTAL_UHTTPD" in o, 45, 3)
+    running = [l.strip() for l in out.splitlines() if "uhttpd -h" in l]
+    res.check("portal_uhttpd_mode", "PORTAL_UHTTPD" in out,
+              "" if "PORTAL_UHTTPD" in out
+              else ("running: " + " | ".join(running)[:110] if running
+                    else "no uhttpd running"))
 
 
 def test_wifi_modules(ctx):
@@ -40,6 +62,34 @@ def test_wifi_modules(ctx):
     rc, out = guest.run("cat /proc/net/dev")
     res.check("wlan0_exists", "wlan0" in out)
     res.check("wlan1_exists", "wlan1" in out)
+
+
+def portal_url(ctx):
+    """Where the host reaches the portal: straight at the AP address over
+    the serial link, or through the slirp forward."""
+    return "http://172.16.0.1" if ctx.slip else f"http://localhost:{PORTAL_PORT}"
+
+
+def webui_url(ctx):
+    return f"http://{SLIP_GUEST_IP}" if ctx.slip else f"http://localhost:{WEBUI_PORT + 1}"
+
+
+def slip_up(guest):
+    """Guest end of the serial IP link; safe to call again after a reboot."""
+    guest.run("pgrep -f 'slattach.*ttyS0' >/dev/null || "
+              "(slattach -p slip -s 115200 /dev/ttyS0 &); sleep 1", timeout=10)
+    guest.run(f"ip addr add {SLIP_GUEST_IP} peer {SLIP_HOST_IP} dev sl0 2>/dev/null; "
+              "ip link set sl0 up mtu 1500; true", timeout=10)
+    rc, out = guest.run("ip -4 addr show sl0 2>&1")
+    return SLIP_GUEST_IP in out
+
+
+def test_slip_setup(ctx):
+    """Bring up the guest end of the SLIP link and prove the host can use it."""
+    guest, res, slip = ctx.guest, ctx.res, ctx.slip
+    res.check("slip_guest_link", slip_up(guest), f"sl0 {SLIP_GUEST_IP} on ttyS0")
+    res.check("slip_host_ping", bool(until(lambda: slip.ping(), 20, 1)),
+              f"{SLIP_HOST_IP} -> {SLIP_GUEST_IP} over the serial line")
 
 
 def test_wifi_bridge_setup(ctx):
@@ -64,9 +114,10 @@ def test_provision_reboot_sta(ctx):
     timeout = max(ctx.args.timeout, 240)
     print("\n── Post-provision reboot ──")
     print("  Waiting for guest reboot...")
-    # Drop the SLIRP link for the STA boot: the qemu profile has a GMAC
-    # that real WiFi-only cameras lack, and an instant SLIRP lease on
-    # eth0 makes S40wired-gateway kill WiFi as "wired uplink present".
+    # Drop the SLIRP link for the STA boot on the slirp profiles: their
+    # GMAC is one real WiFi-only cameras lack, and an instant lease on eth0
+    # makes S40wired-gateway kill WiFi as "wired uplink present". Harmless
+    # on slip profiles, which have no wired MAC.
     if qmp:
         qmp.set_link("n0", False)
     # The portal reboots the camera itself; refuse any prompt until the
@@ -168,23 +219,24 @@ def test_provision_reboot_sta(ctx):
     # Static bridge config: a fresh DHCP exchange after the reboot gets
     # the next slirp address, but the host forwards point at the slirp
     # default (10.0.2.15).
-    guest.run("ip link set eth0 up", timeout=8)
-    guest.run_until("cat /sys/class/net/eth0/carrier 2>&1",
-                    lambda o: o.strip().endswith("1"), 10, 1)
-    guest.run("ip addr flush dev eth0; ip addr add 10.0.2.15/24 dev eth0; "
-              "ip route add default via 10.0.2.2 2>/dev/null; true",
-              timeout=10)
-    # The MAC is regenerated every boot; one ping refreshes slirp's ARP
-    # entry for 10.0.2.15, which otherwise points the host forwards at
-    # the previous boot's MAC until it expires.
-    guest.run("ping -c 1 -W 2 10.0.2.2", timeout=10)
-    webui_up = until(lambda: http_ok(f"http://localhost:{WEBUI_PORT + 1}/", 3),
-                     45, 2)
+    if ctx.slip:
+        slip_up(guest)
+    else:
+        guest.run("ip link set eth0 up", timeout=8)
+        guest.run_until("cat /sys/class/net/eth0/carrier 2>&1",
+                        lambda o: o.strip().endswith("1"), 10, 1)
+        guest.run("ip addr flush dev eth0; ip addr add 10.0.2.15/24 dev eth0; "
+                  "ip route add default via 10.0.2.2 2>/dev/null; true",
+                  timeout=10)
+        # The MAC is regenerated every boot; one ping refreshes slirp's ARP
+        # entry for 10.0.2.15, which otherwise points the host forwards at
+        # the previous boot's MAC until it expires.
+        guest.run("ping -c 1 -W 2 10.0.2.2", timeout=10)
+    webui_up = until(lambda: http_ok(f"{webui_url(ctx)}/", 3), 45, 2)
     res.check("webui_up_after_reboot", webui_up)
     if webui_up:
         run_playwright(res, report_dir, {
-            "login": {"url": f"http://localhost:{WEBUI_PORT + 1}",
-                      "password": "TestPass1"},
+            "login": {"url": webui_url(ctx), "password": "TestPass1"},
         }, check_name="webui_login_screens")
 
 
@@ -194,7 +246,7 @@ def test_host_portal_access(ctx):
     # and a loaded TCG guest can miss a single window; the in-guest twin
     # (portal_http_200) already polls, so poll here too.
     status, body, err = until(
-        lambda: http_get(f"http://localhost:{PORTAL_PORT}/", 5),
+        lambda: http_get(f"{portal_url(ctx)}/", 5),
         60, 3, ok=lambda r: r[0] == 200)
     res.check("host_portal_reachable", status == 200,
               "" if status == 200 else err)

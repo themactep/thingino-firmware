@@ -15,11 +15,9 @@ define WIFI_ATBM6012BX_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# The driver builds its own mac80211 into the module and imports nothing
+	# from the kernel's, so keep the kernel's out of the image.
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 	$(if $(BR2_PACKAGE_THINGINO_BLUETOOTH), \
 	    $(call KCONFIG_SET_OPT,CONFIG_BT,y))
 endef
@@ -39,8 +37,8 @@ define WIFI_ATBM6012BX_COPY_CONFIG_BLE
 endef
 
 define WIFI_ATBM6012BX_INSTALL_CONFIGS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(LINUX_CONFIG_LOCALVERSION)
+	touch $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \

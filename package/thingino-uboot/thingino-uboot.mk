@@ -24,6 +24,60 @@ ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE),y)
 UBOOT_MAKE_OPTS += CONFIG_BOOTARGS_EXTERNAL=1
 endif
 
+# NetConsole (U-Boot console over UDP), opt-in per camera via
+# BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE. That symbol is default n and gated in
+# Kconfig to the versions configured through Kconfig, because the 2013.07 tree
+# needs a patch instead. CONSOLE_MUX keeps serial alongside nc rather than
+# replacing it, and USE_PREBOOT runs the environment's preboot before the
+# autoboot window -- the only point early enough to redirect the console and
+# still interrupt boot. SYS_CONSOLE_IS_IN_ENV is pinned off: common/Kconfig makes
+# it default y whenever CONSOLE_MUX is set, and with it on, console_init_r()
+# takes stdin/stdout/stderr from the environment instead of the real stdio
+# devices -- so a saved stdout=nc would survive a reset and, with preboot also
+# cleared, leave no console on a camera whose serial header is not exposed. It
+# happens to resolve to n today only because buildroot expands the defconfig
+# before this hook runs and olddefconfig keeps the recorded value; pinning makes
+# that a property of the build rather than of the ordering. The environment that
+# makes netconsole reachable is injected in THINGINO_GENERATE_UBOOT_ENV below.
+# THINGINO_UBOOT_NETCONSOLE is a single internal flag so both effects -- the
+# Kconfig options and the injected environment -- follow from one condition.
+# THINGINO_UBOOT_NETCONSOLE_USB additionally marks boards that reach the
+# network over a USB-Ethernet dongle rather than the on-chip MAC: no wired
+# Ethernet, but a USB OTG data port. Their injected preboot runs `usb start`
+# first (see THINGINO_GENERATE_UBOOT_ENV). Nothing extra is compiled: the isvp
+# defconfigs already set USB_DWC2, USB_HOST_ETHER and the ASIX host drivers,
+# and it is THINGINO_UBOOT_DISABLE_USB_ETH below that strips them from boards
+# without an OTG port -- exactly the boards this flag excludes. No ethact is
+# selected either: THINGINO_UBOOT_DISABLE_WIRED_ETH drops the on-chip MAC
+# driver on the same !BR2_ETHERNET condition, so the dongle is the only
+# UCLASS_ETH device and eth_init() picks it up on its own.
+ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE),y)
+THINGINO_UBOOT_NETCONSOLE = y
+ifneq ($(BR2_ETHERNET),y)
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
+THINGINO_UBOOT_NETCONSOLE_USB = y
+endif
+endif
+define THINGINO_UBOOT_ENABLE_NETCONSOLE
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NETCONSOLE,$(@D)/.config)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CONSOLE_MUX,$(@D)/.config)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USE_PREBOOT,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SYS_CONSOLE_IS_IN_ENV,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+	@for opt in CONFIG_NETCONSOLE CONFIG_CONSOLE_MUX CONFIG_USE_PREBOOT; do \
+		grep -q "^$$opt=y" $(@D)/.config || { \
+			echo "thingino-uboot: $$opt did not survive olddefconfig; NetConsole would be inert" >&2; \
+			exit 1; \
+		}; \
+	done
+	@grep -q '^# CONFIG_SYS_CONSOLE_IS_IN_ENV is not set' $(@D)/.config || { \
+		echo "thingino-uboot: CONFIG_SYS_CONSOLE_IS_IN_ENV is set; the console could come from the environment" >&2; \
+		exit 1; \
+	}
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_ENABLE_NETCONSOLE
+endif
+
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG),y)
 UBOOT_MAKE_OPTS += CONFIG_PHY_RESET_AFTER_CONFIG=1
 UBOOT_MAKE_OPTS += CONFIG_GPIO_PHY_RESET=$(call qstrip,$(BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET))
@@ -98,7 +152,7 @@ define THINGINO_UBOOT_RMEM_SET_VALUE
 			nmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
 			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
+			[ $(ISP_NMEM_MB) -eq 0 ] || grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
 		else \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
@@ -118,8 +172,9 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_INIT='$(value BR2_PACKAGE_THINGINO_UBOOT_INIT)' sh -c 'grep -q "^init=" $(THINGINO_UENV_TXT) || echo "init=$$BR2_PACKAGE_THINGINO_UBOOT_INIT" | sed "s/=\"/=/;s/\"$$//" >> $(THINGINO_UENV_TXT)'
 	@env BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE" = "y" ]; then grep -q "^disable_sd=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_sd=.*/disable_sd=false/" $(THINGINO_UENV_TXT) || echo "disable_sd=false" >> $(THINGINO_UENV_TXT); else grep -q "^disable_sd=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_sd=.*/disable_sd=true/" $(THINGINO_UENV_TXT) || echo "disable_sd=true" >> $(THINGINO_UENV_TXT); fi'
 	@env BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE" = "y" ]; then grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=false/" $(THINGINO_UENV_TXT) || echo "disable_eth=false" >> $(THINGINO_UENV_TXT); else grep -q "^disable_eth=" $(THINGINO_UENV_TXT) && sed -i "s/^disable_eth=.*/disable_eth=true/" $(THINGINO_UENV_TXT) || echo "disable_eth=true" >> $(THINGINO_UENV_TXT); fi'
+	@env THINGINO_UBOOT_NETCONSOLE='$(THINGINO_UBOOT_NETCONSOLE)' THINGINO_UBOOT_NETCONSOLE_USB='$(THINGINO_UBOOT_NETCONSOLE_USB)' IP='$(strip $(IP))' sh -c 'if [ "$$THINGINO_UBOOT_NETCONSOLE" = "y" ]; then if [ "$$THINGINO_UBOOT_NETCONSOLE_USB" = "y" ]; then NC_PREBOOT="usb start;setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; else NC_PREBOOT="setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; fi; if echo "$$IP" | grep -Eq "^[0-9]{1,3}(\.[0-9]{1,3}){3}$$"; then NC_IPADDR="$$IP"; else NC_IPADDR=192.168.1.10; fi; grep -q "^preboot=" $(THINGINO_UENV_TXT) || echo "preboot=$$NC_PREBOOT" >> $(THINGINO_UENV_TXT); grep -q "^bootdelay=" $(THINGINO_UENV_TXT) || echo "bootdelay=5" >> $(THINGINO_UENV_TXT); grep -q "^ipaddr=" $(THINGINO_UENV_TXT) || echo "ipaddr=$$NC_IPADDR" >> $(THINGINO_UENV_TXT); fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
-	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
+	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && [ $(ISP_NMEM_MB) -ne 0 ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV

@@ -1,0 +1,30 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Tue Sep 9 10:00:00 2026 -0400
+Subject: [PATCH] cmd_fs: rename generic ls command to fsls
+
+isvp_common.h enables both CONFIG_CMD_FS_GENERIC and CONFIG_CMD_JFFS2,
+so the generic filesystem ls in cmd_fs.c and the jffs2 ls in
+cmd_jffs2.c both register a "ls" command and the linker fails with a
+duplicate _u_boot_list_2_cmd_2_ls symbol.
+
+Rename the generic filesystem ls to fsls, matching the fs-prefixed
+naming of the other jffs2 image commands (fsload, fsinfo, fsdump), and
+leaving "ls" to the jffs2 image lister as before.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ common/cmd_fs.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/cmd_fs.c b/common/cmd_fs.c
+--- a/common/cmd_fs.c
++++ b/common/cmd_fs.c
+@@ -45,7 +45,7 @@ int do_ls_wrapper(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+ }
+ 
+ U_BOOT_CMD(
+-	ls,	4,	1,	do_ls_wrapper,
++	fsls,	4,	1,	do_ls_wrapper,
+ 	"list files in a directory (default /)",
+ 	"<interface> [<dev[:part]> [directory]]\n"
+ 	"    - List files in directory 'directory' of partition 'part' on\n"

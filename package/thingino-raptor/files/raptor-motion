@@ -25,6 +25,8 @@ motor_active() {
 
 # shellcheck disable=SC1091  # prudynt-helpers is installed on the camera, not in the build tree
 . /usr/share/prudynt-helpers 2>/dev/null || true
+# shellcheck disable=SC1091  # send2common is installed on the camera, not in the build tree
+. /usr/share/send2common 2>/dev/null || true
 
 get_motion() {
 	key=$1
@@ -36,75 +38,6 @@ get_motion() {
 		val=$(jct "$PRUDYNT_JSON" get "motion.$key" 2>/dev/null)
 	fi
 	printf '%s' "$val"
-}
-
-ensure_rmr() {
-	pidof rmr >/dev/null 2>&1 && return 0
-	raptorctl config set recording enabled true >/dev/null 2>&1 || true
-	if command -v start-stop-daemon >/dev/null 2>&1 && [ -x /usr/bin/rmr ]; then
-		start-stop-daemon -S -b -x /usr/bin/rmr -- -c /etc/raptor.conf >/dev/null 2>&1 || true
-	elif [ -x /usr/bin/rmr ]; then
-		/usr/bin/rmr -c /etc/raptor.conf >/dev/null 2>&1 &
-	else
-		return 1
-	fi
-	i=0
-	while [ "$i" -lt 20 ]; do
-		pidof rmr >/dev/null 2>&1 && return 0
-		sleep 0.1 2>/dev/null || usleep 100000 2>/dev/null || sleep 1
-		i=$((i + 1))
-	done
-	pidof rmr >/dev/null 2>&1
-}
-
-raptor_storage_path() {
-	path=$(raptorctl config get recording storage_path 2>/dev/null | tr -d '\r\n"')
-	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
-	printf '%s' "$path"
-}
-
-raptor_newest_clip() {
-	clips="$(raptor_storage_path)/clips"
-	[ -d "$clips" ] || return 1
-	newest=""
-	newest_mtime=0
-	for f in "$clips"/*/*.mp4 "$clips"/*.mp4; do
-		[ -f "$f" ] || continue
-		mtime=$(stat -c %Y "$f" 2>/dev/null || echo 0)
-		if [ "$mtime" -ge "$newest_mtime" ]; then
-			newest=$f
-			newest_mtime=$mtime
-		fi
-	done
-	[ -n "$newest" ] || return 1
-	printf '%s' "$newest"
-}
-
-wait_stable() {
-	path=$1
-	max=${2:-20}
-	i=0
-	while [ ! -f "$path" ] && [ "$i" -lt "$max" ]; do
-		sleep 1
-		i=$((i + 1))
-	done
-	[ -f "$path" ] || return 1
-	prev=0
-	curr=$(stat -c%s "$path" 2>/dev/null || echo 0)
-	stable=0
-	i=0
-	while [ "$stable" -lt 2 ] && [ "$i" -lt "$max" ]; do
-		sleep 1
-		prev=$curr
-		curr=$(stat -c%s "$path" 2>/dev/null || echo 0)
-		if [ "$curr" -eq "$prev" ] && [ "$curr" -gt 0 ]; then
-			stable=$((stable + 1))
-		else
-			stable=0
-		fi
-		i=$((i + 1))
-	done
-	[ -s "$path" ]
 }
 
 start() {
@@ -144,34 +77,47 @@ start() {
 		fi
 	fi
 
-	if [ "$need_video" = "true" ]; then
-		if ensure_rmr; then
-			before=$(raptor_newest_clip 2>/dev/null || true)
-			# If RMD already started a clip (motion.record=true), just wait;
-			# otherwise start/stop our own timed clip.
+	if [ "$need_video" = "true" ] &&
+		command -v thingino_send2_raptor_ensure_rmr >/dev/null 2>&1; then
+		if thingino_send2_raptor_ensure_rmr; then
 			status=$(raptorctl rmr status 2>/dev/null || true)
+			mode=$(printf '%s' "$status" |
+				sed -n 's/.*"mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+			# RMD already writing a clip (motion.record): wait for it and copy
+			# that clip instead of starting and stopping our own. Continuous
+			# mode also reports recording=true but writes no clips.
 			already=no
-			printf '%s' "$status" | grep -q '"recording"[[:space:]]*:[[:space:]]*true' && already=yes
-			printf '%s' "$status" | grep -q '"clip"[[:space:]]*:[[:space:]]*true' && already=yes
-			if [ "$already" != "yes" ]; then
-				raptorctl rmr start >/dev/null 2>&1 || true
-				owned=yes
-			else
-				owned=no
+			if printf '%s' "$status" | grep -q '"clip"[[:space:]]*:[[:space:]]*true'; then
+				already=yes
+			elif [ "$mode" = motion ] &&
+				printf '%s' "$status" | grep -q '"recording"[[:space:]]*:[[:space:]]*true'; then
+				already=yes
 			fi
-			sleep "$CLIP_SECS"
-			if [ "$owned" = "yes" ]; then
-				raptorctl rmr stop >/dev/null 2>&1 || true
-				sleep 1
+			if [ "$already" = "yes" ]; then
+				before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+				sleep "$CLIP_SECS"
+				clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+				if [ -n "$clip" ] && [ "$clip" != "$before" ] &&
+					thingino_send2_wait_stable_file "$clip" 15; then
+					MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
+					if [ -n "$MOTION_VIDEO_FILE" ]; then
+						cp "$clip" "$MOTION_VIDEO_FILE" || {
+							rm -f "$MOTION_VIDEO_FILE"
+							MOTION_VIDEO_FILE=""
+						}
+					fi
+				fi
 			fi
-			clip=$(raptor_newest_clip 2>/dev/null || true)
-			if [ -n "$clip" ] && [ "$clip" != "$before" ] && wait_stable "$clip" 15; then
+			# Continuous mode, no live clip, or no writable storage: capture
+			# once here with the same helper send2 uses, so every service gets
+			# the shared clip instead of capturing one each.
+			if [ -z "$MOTION_VIDEO_FILE" ]; then
 				MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
 				if [ -n "$MOTION_VIDEO_FILE" ]; then
-					cp "$clip" "$MOTION_VIDEO_FILE" || {
+					if ! (thingino_send2_raptor_capture "$MOTION_VIDEO_FILE" "$CLIP_SECS"); then
 						rm -f "$MOTION_VIDEO_FILE"
 						MOTION_VIDEO_FILE=""
-					}
+					fi
 				fi
 			fi
 		fi

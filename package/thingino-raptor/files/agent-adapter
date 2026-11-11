@@ -5,6 +5,9 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/raptor.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 
+# The adapter owns the EXIT trap of the agentctl shell that sources it.
+trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$' EXIT
+
 agent_name() {
 	printf 'raptor'
 }
@@ -45,7 +48,60 @@ agent_config_get() {
 	section=$1
 	key=$2
 	command -v raptorctl >/dev/null 2>&1 || return 0
-	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
+	if agent_config_get_cached "$section" "$key"; then
+		return 0
+	fi
+	value=$(raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"')
+	# A single-key get only finds keys set in raptor.conf; the section listing
+	# also carries the defaults the daemons run with.
+	if [ -z "$value" ]; then
+		value=$(raptorctl config get "$section" 2>/dev/null |
+			sed -n "s/^$key = //p" | head -n 1 | tr -d '\r\n"')
+	fi
+	printf '%s' "$value"
+}
+
+AGENT_NL='
+'
+
+agent_config_var() {
+	_var=AGENT_CONF_$1
+	while :; do
+		case "$_var" in
+			*.*) _var="${_var%%.*}_${_var#*.}" ;;
+			*) break ;;
+		esac
+	done
+}
+
+# The section listing holds every effective value, set or default, so one
+# raptorctl call per section serves all of its keys.
+agent_config_preload() {
+	for _section in "$@"; do
+		agent_config_var "$_section"
+		# A failed read stays uncached so its keys fall back to single gets.
+		_listing=$(raptorctl config get "$_section" 2>/dev/null) &&
+			eval "$_var=\$_listing"
+	done
+}
+
+agent_config_get_cached() {
+	agent_config_var "$1"
+	eval "[ -n \"\${$_var+x}\" ]" || return 1
+	eval "_listing=\$$_var"
+	case "$_listing" in
+		*"$AGENT_NL$2 = "*) ;;
+		*) return 1 ;;
+	esac
+	value=${_listing#*"$AGENT_NL$2 = "}
+	value=${value%%"$AGENT_NL"*}
+	while :; do
+		case "$value" in
+			*\"*) value=${value%%\"*}${value#*\"} ;;
+			*) break ;;
+		esac
+	done
+	printf '%s' "$value"
 }
 
 agent_config_bool() {
@@ -94,6 +150,49 @@ agent_daemon_status() {
 	daemon=$1
 	command -v raptorctl >/dev/null 2>&1 || return 0
 	raptorctl "$daemon" status 2>/dev/null || true
+}
+
+agent_exposure_status() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl rvd get-exposure 2>/dev/null || true
+}
+
+# log2 of a positive integer, in 1/256 steps
+agent_log2_q8() {
+	x=$1
+	n=0
+	while [ "$x" -ge 2 ]; do
+		x=$((x / 2))
+		n=$((n + 1))
+	done
+	m=$(($1 * 65536 >> n))
+	f=0
+	i=0
+	while [ "$i" -lt 8 ]; do
+		m=$((m * m / 65536))
+		if [ "$m" -ge 131072 ]; then
+			m=$((m / 2))
+			f=$((f * 2 + 1))
+		else
+			f=$((f * 2))
+		fi
+		i=$((i + 1))
+	done
+	printf '%s' $((n * 256 + f))
+}
+
+# Scene brightness in percent from exposure time x gain on a log scale:
+# 100 us at 1x is 100 %, 25 s at 1x (log2 = 6291/256) is 0 %.
+agent_exposure_brightness() {
+	us=$(agent_json_number_field exposure_us "$1")
+	gain=$(agent_json_number_field total_gain "$1")
+	[ -n "$us" ] && [ -n "$gain" ] || return 0
+	e=$((us * gain / 256))
+	[ "$e" -ge 1 ] || e=1
+	pct=$((((6291 - $(agent_log2_q8 "$e")) * 100 + 2295) / 4590))
+	[ "$pct" -ge 0 ] || pct=0
+	[ "$pct" -le 100 ] || pct=100
+	printf '%s' "$pct"
 }
 
 agent_streamer_running() {
@@ -446,6 +545,24 @@ agent_profile_to_name() {
 
 agent_motion_enabled() {
 	agent_config_bool motion enabled false
+}
+
+# A running rmd answers config reads itself and keeps detecting, so it is
+# stopped before false is written and started after true is written.
+agent_motion_set_enabled() {
+	if [ "$1" = false ]; then
+		agent_ctl rmd stop >/dev/null 2>&1
+	fi
+	if ! agent_config_set motion enabled "$1"; then
+		# Put detection back if the write failed after stopping rmd.
+		[ "$1" = false ] && agent_ctl rmd start >/dev/null 2>&1
+		return 1
+	fi
+	agent_config_save
+	if [ "$1" = true ]; then
+		agent_ctl rmd start >/dev/null 2>&1 || return 1
+	fi
+	return 0
 }
 
 agent_motion_active() {
@@ -903,22 +1020,24 @@ agent_print_stream_osd() {
 	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.timestamp position)")"
 	_fill=$(agent_config_get osd font_color)
 	_stroke=$(agent_config_get osd stroke_color)
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	_fill=$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")
+	_stroke=$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '},'
 	printf '"uptime":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.uptime visible false)"
 	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.uptime template)")"
 	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.uptime position)")"
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '},'
 	printf '"usertext":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.camera visible false)"
 	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.camera template)")"
 	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.camera position)")"
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '}'
 	printf '}'
 }
@@ -1133,16 +1252,17 @@ agent_get_events() {
 			keepalive_counter=0
 		elif [ "$keepalive_counter" -ge 3 ]; then
 			agent_sse_emit keepalive "$(agent_sse_payload keepalive '')" || exit 0
-			# Sensor sample for timegraph / tooling (ric exposure metrics).
-			ric_status=$(agent_daemon_status ric)
-			ae_luma=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
-			ev=$(agent_json_number_field ev "$ric_status")
+			# Sensor sample for timegraph / tooling.
+			exposure_status=$(agent_exposure_status)
+			ae_luma=$(agent_json_number_field ae_luma "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
+			ev=$(agent_json_number_field ev "$exposure_status")
+			brightness=$(agent_exposure_brightness "$exposure_status")
 			daynight_mode=$(agent_daynight_running_mode)
 			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":%s,"daynight_mode":%s' \
 				"$(date +%s)" \
 				"$(agent_json_value_or "$ae_luma" null)" \
-				"$(agent_json_value_or "$ae_luma" null)" \
+				"$(agent_json_value_or "$brightness" null)" \
 				"$(agent_json_value_or "$total_gain" null)" \
 				"$(agent_json_value_or "$ev" null)" \
 				"$(agent_json_string "$daynight_mode")")
@@ -1313,10 +1433,10 @@ agent_get_runtime() {
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
 		heartbeat)
-			ric_status=$(agent_daemon_status ric)
+			exposure_status=$(agent_exposure_status)
 			daynight_mode=$(agent_daynight_running_mode)
-			daynight_brightness=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
+			daynight_brightness=$(agent_exposure_brightness "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
 			case "$daynight_mode" in
 				day) color_mode=0 ;;
 				night) color_mode=1 ;;
@@ -1343,6 +1463,16 @@ agent_get_runtime() {
 			printf '"wg_status":%s' "$(agent_heartbeat_wg_status)"
 			printf '}\n'
 			;;
+		encoder)
+			caps=$(agent_ctl rvd get-enc-caps 2>/dev/null)
+			case "$caps" in
+				*'"status":"ok"'*) printf '%s\n' "$caps" ;;
+				*)
+					echo "encoder capabilities unavailable" >&2
+					return 1
+					;;
+			esac
+			;;
 		*)
 			echo "unsupported runtime resource: $resource" >&2
 			return 1
@@ -1351,6 +1481,13 @@ agent_get_runtime() {
 }
 
 agent_get_config() {
+	command -v raptorctl >/dev/null 2>&1 &&
+		agent_config_preload sensor motion ircut recording audio rtsp \
+			stream0 stream1 osd osd.logo osd.timestamp osd.uptime osd.camera
+	agent_print_config
+}
+
+agent_print_config() {
 	printf '{'
 	printf '"image":{'
 	printf '"brightness":%s,' "$(agent_json_value_or "$(agent_image_raw brightness)" null)"
@@ -1511,16 +1648,19 @@ agent_osd_spec() {
 		time/enabled) printf 'osd.timestamp|visible|enabled|bool|element:timestamp\n' ;;
 		time/format) printf 'osd|time_format|format|text|time_format\n' ;;
 		time/position) printf 'osd.timestamp|position|position|text|element:timestamp\n' ;;
+		time/max-chars) printf 'osd.timestamp|max_chars|max_chars|int|element:timestamp\n' ;;
 		time/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		time/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		uptime/enabled) printf 'osd.uptime|visible|enabled|bool|element:uptime\n' ;;
 		uptime/format) printf 'osd.uptime|template|format|text|element:uptime\n' ;;
 		uptime/position) printf 'osd.uptime|position|position|text|element:uptime\n' ;;
+		uptime/max-chars) printf 'osd.uptime|max_chars|max_chars|int|element:uptime\n' ;;
 		uptime/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		uptime/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		usertext/enabled) printf 'osd.camera|visible|enabled|bool|element:camera\n' ;;
 		usertext/format) printf 'osd.camera|template|format|text|element:camera\n' ;;
 		usertext/position) printf 'osd.camera|position|position|text|element:camera\n' ;;
+		usertext/max-chars) printf 'osd.camera|max_chars|max_chars|int|element:camera\n' ;;
 		usertext/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		usertext/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		logo/enabled) printf 'osd.logo|visible|enabled|bool|element:logo\n' ;;
@@ -1532,8 +1672,10 @@ agent_osd_spec() {
 		privacy/text) printf 'osd.privacy|template|text|text|element:privacy\n' ;;
 		privacy/position) printf 'osd.privacy|position|position|text|element:privacy\n' ;;
 		privacy/font-size) printf 'osd.privacy|font_size|font_size|int|element:privacy\n' ;;
-		privacy/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
-		privacy/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
+		privacy/max-chars) printf 'osd.privacy|max_chars|max_chars|int|element:privacy\n' ;;
+		privacy/fill-color) printf 'osd.privacy|color|fill_color|text|element:privacy\n' ;;
+		privacy/stroke-color) printf 'osd.privacy|stroke_color|stroke_color|text|element:privacy\n' ;;
+		privacy/cover-color) printf 'osd|privacy_color|cover_color|text|global\n' ;;
 		*) return 1 ;;
 	esac
 }
@@ -1581,9 +1723,7 @@ agent_osd_color_to_ui() {
 	hex=$(printf '%s' "$value" | sed 's/^0[xX]//;s/^#//' | tr 'a-f' 'A-F')
 	case "$hex" in
 		????????)
-			aa=$(printf '%s' "$hex" | cut -c1-2)
-			rgb=$(printf '%s' "$hex" | cut -c3-8)
-			printf '#%s%s' "$rgb" "$aa"
+			printf '#%s%s' "${hex#??}" "${hex%??????}"
 			;;
 		*)
 			printf '%s' "$value"
@@ -1665,7 +1805,7 @@ agent_print_osd_setting() {
 			;;
 		text)
 			case "$response_key" in
-				fill_color | stroke_color)
+				fill_color | stroke_color | cover_color)
 					if [ -n "$raw" ]; then
 						raw=$(agent_osd_color_to_ui "$raw")
 					fi
@@ -1678,6 +1818,48 @@ agent_print_osd_setting() {
 			return 1
 			;;
 	esac
+}
+
+# A single `raptorctl config set` on a missing [osd.<name>] section creates it
+# with that one key only, and an element section without its type, template
+# or position scrambles the OSD regions on T20. Write the whole default
+# section first (values from raptor's stock raptor.conf), and repair a section
+# that exists but is missing any of those keys.
+agent_osd_ensure_section() {
+	section=$1
+	case "$section" in
+		osd.timestamp | osd.uptime | osd.camera | osd.privacy) required='type template position' ;;
+		osd.logo) required='type path width height position' ;;
+		*) return 0 ;;
+	esac
+	section_dump=$(raptorctl config get "$section" 2>/dev/null || true)
+	complete=1
+	for key in $required; do
+		printf '%s\n' "$section_dump" | grep -q "^[[:space:]]*${key}[[:space:]]*=" || complete=0
+	done
+	[ "$complete" = 1 ] && return 0
+	case "$section" in
+		osd.timestamp)
+			set -- type text visible false template %time% position top_left align left max_chars 22
+			;;
+		osd.uptime)
+			set -- type text visible false template %uptime% position top_right align right max_chars 18
+			;;
+		osd.camera)
+			set -- type text visible false template Camera position top_center align center max_chars 14 update change
+			;;
+		osd.privacy)
+			set -- type text visible false template 'Privacy Mode' position center align center max_chars 20 update change
+			;;
+		osd.logo)
+			set -- type image visible false path /usr/share/images/thingino_100x30.bgra width 100 height 30 position bottom_right
+			;;
+	esac
+	osd_section=$section
+	while [ $# -ge 2 ]; do
+		agent_config_set "$osd_section" "$1" "$2" || return 1
+		shift 2
+	done
 }
 
 agent_set_osd_setting() {
@@ -1713,7 +1895,7 @@ agent_set_osd_setting() {
 		text)
 			text_value=$(agent_unquote_string "$raw_value")
 			case "$response_key" in
-				fill_color | stroke_color)
+				fill_color | stroke_color | cover_color)
 					persist_value=$(agent_osd_color_to_raptor "$text_value")
 					;;
 				*)
@@ -1735,10 +1917,55 @@ agent_set_osd_setting() {
 		return 0
 	fi
 
-	agent_config_set "$section" "$config_key" "$persist_value" || return 1
+	osd_key=$config_key
+	osd_value=$persist_value
+	agent_osd_ensure_section "$section" || return 1
+	agent_config_set "$section" "$osd_key" "$osd_value" || return 1
 	agent_config_save
-	agent_osd_apply_runtime "$runtime_hint" "$config_key" "$persist_value"
+	agent_osd_apply_runtime "$runtime_hint" "$osd_key" "$osd_value"
 	agent_print_setting_update "$path" "$response_key" "$json_value"
+}
+
+# ric applies thresholds live but keeps them only in its in-memory config,
+# so each write is followed by a config save.
+agent_set_ric_setting() {
+	path=$1
+	body_file=$2
+	key=$(printf '%s' "${path#ric/}" | tr '-' '_')
+	raw_value=$(agent_setting_value "$body_file" "$key") || return 1
+	case "$key" in
+		trigger)
+			value=$(agent_unquote_string "$raw_value")
+			resp=$(agent_ctl ric set-trigger "$value" 2>/dev/null) || return 1
+			json_value=$(agent_json_string "$value")
+			;;
+		ir850 | ir940)
+			agent_validate_bool "$raw_value" || return 1
+			[ "$raw_value" = true ] && value=1 || value=0
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$raw_value
+			;;
+		night_luma | night_gain | day_gain_pct | night_threshold | day_threshold | hysteresis_sec | night_fps | probe_gain_pct | probe_holdoff_sec | photo_ev_night | photo_ev_deep | photo_ev_day | adc_night | adc_day)
+			agent_validate_int "$raw_value" || return 1
+			value=$raw_value
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$value
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+	case "$resp" in
+		*'"status":"ok"'*) ;;
+		*)
+			reason=$(printf '%s' "$resp" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+			echo "ric rejected $key: ${reason:-no reply}" >&2
+			return 1
+			;;
+	esac
+	agent_config_save
+	agent_print_setting_update "$path" "$key" "$json_value"
 }
 
 agent_print_storage_setting() {
@@ -1832,6 +2059,64 @@ agent_set_storage_setting() {
 	esac
 }
 
+# Audio input/output tuning. rad applies each value live but keeps only some
+# of them in its config, so every write is also saved to raptor.conf.
+agent_audio_rad() {
+	agent_ctl rad "$@" 2>/dev/null | grep -q '"status":"ok"' || {
+		echo "rad $1 failed" >&2
+		return 1
+	}
+}
+
+agent_audio_save() {
+	agent_config_set audio "$1" "$2" || return 1
+	agent_config_save
+}
+
+agent_audio_int() {
+	agent_json_value_or "$(agent_config_get audio "$1")" "$2"
+}
+
+# 0 = off, 1-3 = on at that rad noise suppression level.
+agent_audio_ns() {
+	if [ "$(agent_config_bool audio ns_enabled false)" = true ]; then
+		agent_audio_int ns_level 1
+	else
+		printf '0'
+	fi
+}
+
+agent_audio_codec_to_name() {
+	case "$1" in
+		aac) printf 'AAC' ;;
+		opus) printf 'OPUS' ;;
+		pcma) printf 'G711A' ;;
+		pcmu) printf 'G711U' ;;
+		l16) printf 'PCM' ;;
+		*) printf '%s' "$1" ;;
+	esac
+}
+
+agent_audio_codec_from_name() {
+	case "$1" in
+		AAC) printf 'aac' ;;
+		OPUS) printf 'opus' ;;
+		G711A) printf 'pcma' ;;
+		G711U) printf 'pcmu' ;;
+		PCM) printf 'l16' ;;
+		*) return 1 ;;
+	esac
+}
+
+# set-agc takes the switch, target and compression together.
+agent_audio_agc() {
+	enabled=$1
+	target=$2
+	compression=$3
+	[ "$enabled" = true ] && on=1 || on=0
+	agent_audio_rad set-agc "$on" "$target" "$compression"
+}
+
 agent_get_setting() {
 	path=$1
 	case "$path" in
@@ -1874,6 +2159,36 @@ agent_get_setting() {
 		audio/spk-enabled)
 			agent_print_setting_leaf spk_enabled "$(agent_command_bool speaker "$(agent_config_bool audio ao_enabled false)")"
 			;;
+		audio/mic-format)
+			agent_print_setting_leaf mic_format "$(agent_json_string "$(agent_audio_codec_to_name "$(agent_config_get audio codec)")")"
+			;;
+		audio/mic-vol)
+			agent_print_setting_leaf mic_vol "$(agent_audio_int volume null)"
+			;;
+		audio/mic-gain)
+			agent_print_setting_leaf mic_gain "$(agent_audio_int gain null)"
+			;;
+		audio/mic-noise-suppression)
+			agent_print_setting_leaf mic_noise_suppression "$(agent_audio_ns)"
+			;;
+		audio/mic-high-pass-filter)
+			agent_print_setting_leaf mic_high_pass_filter "$(agent_config_bool audio hpf_enabled false)"
+			;;
+		audio/mic-agc-enabled)
+			agent_print_setting_leaf mic_agc_enabled "$(agent_config_bool audio agc_enabled false)"
+			;;
+		audio/mic-agc-target-level-dbfs)
+			agent_print_setting_leaf mic_agc_target_level_dbfs "$(agent_audio_int agc_target_dbfs 10)"
+			;;
+		audio/mic-agc-compression-gain-db)
+			agent_print_setting_leaf mic_agc_compression_gain_db "$(agent_audio_int agc_compression_db 0)"
+			;;
+		audio/spk-vol)
+			agent_print_setting_leaf spk_vol "$(agent_audio_int ao_volume null)"
+			;;
+		audio/spk-gain)
+			agent_print_setting_leaf spk_gain "$(agent_audio_int ao_gain null)"
+			;;
 		motion/enabled)
 			agent_print_setting_leaf enabled "$(agent_motion_enabled)"
 			;;
@@ -1899,6 +2214,15 @@ agent_get_setting() {
 			;;
 		privacy/channel)
 			agent_print_setting_leaf channel '"all"'
+			;;
+		privacy/on-boot)
+			agent_print_setting_leaf on_boot "$(agent_json_value_or "$(agent_json_config_value "$THINGINO_CONFIG_FILE" privacy.on_boot)" false)"
+			;;
+		ric/settings)
+			agent_ctl ric get-thresholds 2>/dev/null || return 1
+			;;
+		ric/status)
+			agent_ctl ric status 2>/dev/null || return 1
 			;;
 		storage/*)
 			agent_print_storage_setting "$path"
@@ -2145,11 +2469,86 @@ agent_set_setting() {
 			agent_config_save
 			agent_print_setting_update "$path" spk_enabled "$value"
 			;;
+		audio/mic-format)
+			audio_value=$(agent_setting_value "$body_file" mic_format | tr -d '"') || return 1
+			codec=$(agent_audio_codec_from_name "$audio_value") || {
+				echo "unsupported codec: $audio_value" >&2
+				return 1
+			}
+			agent_audio_rad set-codec "$codec" || return 1
+			agent_audio_save codec "$codec" || return 1
+			agent_print_setting_update "$path" mic_format "$(agent_json_string "$audio_value")"
+			;;
+		audio/mic-vol | audio/mic-gain | audio/spk-vol | audio/spk-gain)
+			case "$path" in
+				audio/mic-vol) field=mic_vol key=volume cmd=set-volume ;;
+				audio/mic-gain) field=mic_gain key=gain cmd=set-gain ;;
+				audio/spk-vol) field=spk_vol key=ao_volume cmd=ao-set-volume ;;
+				audio/spk-gain) field=spk_gain key=ao_gain cmd=ao-set-gain ;;
+			esac
+			audio_value=$(agent_setting_value "$body_file" "$field") || return 1
+			agent_validate_int "$audio_value" || return 1
+			agent_audio_rad "$cmd" "$audio_value" || return 1
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
+		audio/mic-noise-suppression)
+			audio_value=$(agent_setting_value "$body_file" mic_noise_suppression) || return 1
+			agent_validate_int "$audio_value" || return 1
+			if [ "$audio_value" -le 0 ]; then
+				audio_value=0
+				agent_audio_rad set-ns 0 || return 1
+				agent_config_set audio ns_enabled false || return 1
+			else
+				[ "$audio_value" -gt 3 ] && audio_value=3
+				agent_audio_rad set-ns 1 "$audio_value" || return 1
+				agent_config_set audio ns_enabled true || return 1
+				agent_config_set audio ns_level "$audio_value" || return 1
+			fi
+			agent_config_save
+			agent_print_setting_update "$path" mic_noise_suppression "$audio_value"
+			;;
+		audio/mic-high-pass-filter)
+			audio_value=$(agent_setting_value "$body_file" mic_high_pass_filter) || return 1
+			agent_validate_bool "$audio_value" || return 1
+			[ "$audio_value" = true ] && on=1 || on=0
+			agent_audio_rad set-hpf "$on" || return 1
+			agent_audio_save hpf_enabled "$audio_value" || return 1
+			agent_print_setting_update "$path" mic_high_pass_filter "$audio_value"
+			;;
+		audio/mic-agc-enabled | audio/mic-agc-target-level-dbfs | audio/mic-agc-compression-gain-db)
+			enabled=$(agent_config_bool audio agc_enabled false)
+			target=$(agent_audio_int agc_target_dbfs 10)
+			compression=$(agent_audio_int agc_compression_db 0)
+			case "$path" in
+				audio/mic-agc-enabled)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_enabled) || return 1
+					agent_validate_bool "$audio_value" || return 1
+					enabled=$audio_value field=mic_agc_enabled key=agc_enabled
+					;;
+				audio/mic-agc-target-level-dbfs)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_target_level_dbfs) || return 1
+					agent_validate_int "$audio_value" || return 1
+					target=$audio_value field=mic_agc_target_level_dbfs key=agc_target_dbfs
+					;;
+				*)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_compression_gain_db) || return 1
+					agent_validate_int "$audio_value" || return 1
+					compression=$audio_value field=mic_agc_compression_gain_db key=agc_compression_db
+					;;
+			esac
+			# rad has no separate target/compression command, so they only
+			# reach it while AGC is on; the saved values apply when it is.
+			if [ "$enabled" = true ] || [ "$key" = agc_enabled ]; then
+				agent_audio_agc "$enabled" "$target" "$compression" || return 1
+			fi
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
 		motion/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_config_set motion enabled "$value" || return 1
-			agent_config_save
+			agent_motion_set_enabled "$value" || return 1
 			agent_print_setting_update "$path" enabled "$value"
 			;;
 		motion/sensitivity)
@@ -2246,6 +2645,18 @@ agent_set_setting() {
 					;;
 			esac
 			agent_print_setting_update "$path" channel "$value"
+			;;
+		privacy/on-boot)
+			value=$(agent_setting_value "$body_file" on_boot) || return 1
+			agent_validate_bool "$value" || return 1
+			jct "$THINGINO_CONFIG_FILE" set privacy.on_boot "$value" >/dev/null 2>&1 || {
+				echo "failed to persist privacy.on_boot" >&2
+				return 1
+			}
+			agent_print_setting_update "$path" on_boot "$value"
+			;;
+		ric/*)
+			agent_set_ric_setting "$path" "$body_file"
 			;;
 		storage/*)
 			agent_set_storage_setting "$path" "$body_file"
@@ -2473,7 +2884,7 @@ agent_apply_config() {
 	done
 
 	value=$(agent_json_config_value "$source_file" motion.enabled)
-	[ -n "$value" ] && agent_config_set motion enabled "$value"
+	[ -n "$value" ] && agent_motion_set_enabled "$value"
 
 	value=$(agent_json_config_value "$source_file" daynight.enabled)
 	case "$value" in
@@ -2508,8 +2919,10 @@ agent_snapshot() {
 		echo "snapshot is not supported on this camera" >&2
 		return 1
 	}
-	tmp=$(mktemp /tmp/agent-snap.XXXXXX.jpg) || return 1
-	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
+	tmp=$(mktemp /tmp/agent-snap.XXXXXX) || return 1
+	# raptorctl exits 0 on a failed save and reports it only in its JSON reply.
+	if ! raptorctl rvd save jpeg "$tmp" "$channel" 2>/dev/null | grep -q '"status":"ok"' ||
+		[ ! -s "$tmp" ]; then
 		rm -f "$tmp"
 		echo "failed to capture snapshot" >&2
 		return 1

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Photosensing</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-photosensing">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container">
+    <div data-app-controls></div>
+
+    <section>
+      <h3 class="mb-3">Photosensing</h3>
+      <p class="text-secondary small mb-3">
+        The streamer switches between day and night by itself. These settings
+        apply immediately and are saved to /etc/raptor.conf.
+      </p>
+
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <div class="card bg-dark-subtle mb-3 p-3">
+            <h6 class="mb-2">Trigger</h6>
+            <div class="col-sm-6">
+              <select id="ric_trigger" class="form-select form-select-sm" aria-label="Trigger">
+                <option value="luma">Scene brightness (luma)</option>
+                <option value="gain">Sensor gain</option>
+                <option value="adc">Light sensor (ADC)</option>
+                <option value="photo">Exposure value (EV)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card bg-dark-subtle mb-3 p-3" data-trigger="luma">
+            <h6 class="mb-2">Brightness thresholds</h6>
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_night_luma">Night below luma</label>
+                <input type="number" id="ric_night_luma" class="form-control form-control-sm" min="0" max="255">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_night_gain">Night above gain</label>
+                <input type="number" id="ric_night_gain" class="form-control form-control-sm" min="0">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_day_gain_pct">Day below gain (% of night)</label>
+                <input type="number" id="ric_day_gain_pct" class="form-control form-control-sm" min="1" max="100">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_probe_gain_pct">Probe on gain dip (%, 0 = off)</label>
+                <input type="number" id="ric_probe_gain_pct" class="form-control form-control-sm" min="0" max="99">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_probe_holdoff_sec">Seconds between probes</label>
+                <input type="number" id="ric_probe_holdoff_sec" class="form-control form-control-sm" min="1" max="86400">
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-dark-subtle mb-3 p-3" data-trigger="gain">
+            <h6 class="mb-2">Gain thresholds</h6>
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_night_threshold">Night above gain</label>
+                <input type="number" id="ric_night_threshold" class="form-control form-control-sm" min="0">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_day_threshold">Day below gain</label>
+                <input type="number" id="ric_day_threshold" class="form-control form-control-sm" min="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-dark-subtle mb-3 p-3" data-trigger="adc">
+            <h6 class="mb-2">Light sensor thresholds</h6>
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_adc_night">Night below</label>
+                <input type="number" id="ric_adc_night" class="form-control form-control-sm" min="0">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_adc_day">Day above</label>
+                <input type="number" id="ric_adc_day" class="form-control form-control-sm" min="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-dark-subtle mb-3 p-3" data-trigger="photo">
+            <h6 class="mb-2">Exposure value thresholds</h6>
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_photo_ev_night">Night above EV</label>
+                <input type="number" id="ric_photo_ev_night" class="form-control form-control-sm" min="0">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_photo_ev_deep">Very dark above EV</label>
+                <input type="number" id="ric_photo_ev_deep" class="form-control form-control-sm" min="0">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_photo_ev_day">Day below EV</label>
+                <input type="number" id="ric_photo_ev_day" class="form-control form-control-sm" min="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-dark-subtle mb-3 p-3">
+            <h6 class="mb-2">Switching</h6>
+            <div class="row g-2 mb-2">
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_hysteresis_sec">Seconds before switching</label>
+                <input type="number" id="ric_hysteresis_sec" class="form-control form-control-sm" min="1" max="300">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-0" for="ric_night_fps">Night frame rate (0 = off)</label>
+                <input type="number" id="ric_night_fps" class="form-control form-control-sm" min="0" max="120">
+              </div>
+            </div>
+            <p class="form-switch mb-1">
+              <input type="checkbox" id="ric_ir850" role="switch" class="form-check-input">
+              <label for="ric_ir850" class="form-check-label small">Use the 850 nm IR LEDs at night</label>
+            </p>
+            <p class="form-switch mb-0">
+              <input type="checkbox" id="ric_ir940" role="switch" class="form-check-input">
+              <label for="ric_ir940" class="form-check-label small">Use the 940 nm IR LEDs at night</label>
+            </p>
+          </div>
+
+          <button type="button" id="save-photosensing" class="btn btn-primary">
+            <i class="bi bi-floppy me-1"></i> Save configuration
+          </button>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card bg-dark-subtle p-3">
+            <h6 class="mb-2">Live</h6>
+            <dl class="row small mb-0">
+              <dt class="col-6">State</dt><dd class="col-6" id="live_state">-</dd>
+              <dt class="col-6">Mode</dt><dd class="col-6" id="live_mode">-</dd>
+              <dt class="col-6">Luma</dt><dd class="col-6" id="live_luma">-</dd>
+              <dt class="col-6">Gain</dt><dd class="col-6" id="live_gain">-</dd>
+              <dt class="col-6">EV</dt><dd class="col-6" id="live_ev">-</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/daynight-thresholds.js"></script>
+</body>
+</html>

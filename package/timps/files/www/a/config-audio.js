@@ -1,32 +1,12 @@
-/* config-audio.js - NATIVE Audio Settings page. Talks directly to the timps
- * streamer over window.timpsApi (GET/POST /control on timps's own port,
- * per-boot token) - no json-prudynt.cgi bridge for this page.
- *
- * LIVE controls (volume/gain/alc_gain/...) enable only when caps.audio
- * lists their key, and POST debounced+live via timpsApi.setDebounced().
- * PERSIST+RESTART controls (codec/samplerate/bitrate, plus high_pass/agc/ns
- * - see the FIELD_MAP comment below for why) are deliberately NOT in
- * caps.audio; they enable whenever "audio" carries them, and show the
- * "Restart streamer" hint after saving. See WEBUI-NOTES.md for the full
- * load/save/offline behavior spec.
- */
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-config-audio") return;
 
-  // page field id (prudynt-era name) -> timps audio.* key.
-  // live:true = in caps.audio and applied immediately by the HAL;
-  // live:false = persist-only, needs a streamer restart to take effect.
-  // (The page has no mic on/off switch - the control bar's mic button is the
-  // live mute; it maps to audio.mute elsewhere.)
   var FIELD_MAP = {
     audio_mic_vol: { key: "volume", live: true },
     audio_mic_gain: { key: "gain", live: true },
     audio_mic_alc_gain: { key: "alc_gain", live: true },
-    // high_pass/agc/ns are restart-required: libimp runs these DSP modules on
-    // its own record thread and frees them unlocked, so a live toggle races the
-    // vendor thread -> crash. Persist + "applies on restart", like codec.
     audio_mic_high_pass_filter: { key: "high_pass", live: false },
     audio_mic_agc_enabled: { key: "agc", live: false },
     audio_mic_agc_target_level_dbfs: { key: "agc_target_dbfs", live: false },
@@ -35,14 +15,8 @@
     audio_mic_format: { key: "codec", live: false },
     audio_mic_sample_rate: { key: "samplerate", live: false },
     audio_mic_bitrate: { key: "bitrate", live: false },
-    // speaker AO volume/gain: live, gated on caps.audio carrying spk_volume/
-    // spk_gain (only when timps is built with a play or backchannel pipeline).
     audio_spk_vol: { key: "spk_volume", live: true },
     audio_spk_gain: { key: "spk_gain", live: true },
-    // ONVIF backchannel (client -> camera speaker via native IMP_AO): gated on
-    // caps.backchannel.available (compiled in) instead of "value present in
-    // audio{}" - the backend always echoes these three keys even when the
-    // feature is compiled out, so BC_FIELDS gets its own enable check in load().
     audio_backchannel_enabled: { key: "backchannel", live: false },
     audio_backchannel_codec: { key: "backchannel_codec", live: false },
     audio_backchannel_rate: { key: "backchannel_rate", live: false },
@@ -54,28 +28,17 @@
     "audio_backchannel_rate",
   ];
 
-  // no control surface for these in timps: the speaker sampling rate is fixed
-  // by the pipeline (not a settable AO attribute) and stereo capture is not
-  // supported. Speaker volume/gain ARE live now (see FIELD_MAP), so they are
-  // no longer here.
   var UNSUPPORTED = [
     "audio_spk_sample_rate",
     "audio_force_stereo",
   ];
 
-  // page codec names <-> timps canonical codec spelling. The page options
-  // timps cannot encode (G726/OPUS/PCM) are disabled in wireControls().
   var CODEC_TO_TIMPS = { AAC: "aac", G711U: "pcmu", G711A: "pcma" };
   var CODEC_FROM_TIMPS = { aac: "AAC", pcmu: "G711U", pcma: "G711A" };
 
-  // backchannel_codec is a small int (0=PCMU 1=PCMA 2=AAC), not a string like
-  // the mic codec above - see config.h.
   var BC_CODEC_TO_TIMPS = { PCMU: 0, PCMA: 1, AAC: 2 };
   var BC_CODEC_FROM_TIMPS = { 0: "PCMU", 1: "PCMA", 2: "AAC" };
 
-  // reverse of FIELD_MAP (timps "audio.<key>" -> page field id), so another
-  // open tab/client changing a setting shows up here live instead of only on
-  // next reload.
   var REVERSE = {};
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["audio." + FIELD_MAP[id].key] = id;
@@ -89,6 +52,11 @@
     else console.log("[config-audio]", type + ":", message);
   }
 
+  function restartVerdict(r, fullKey) {
+    if (!r || !Array.isArray(r.deferred_keys) ||
+        r.deferred_keys.indexOf(fullKey) >= 0) restartHint();
+  }
+
   function restartHint() {
     toast(
       "warning",
@@ -97,8 +65,6 @@
     );
   }
 
-  // same disabled styling audio.js/main.js always used: input.disabled + a
-  // "disabled" class on the wrapping block
   function setEnabled(id, on) {
     var el = $id(id);
     if (!el) return;
@@ -110,8 +76,6 @@
     if (wrap) wrap.classList.toggle("disabled", !on);
   }
 
-  // rebuild the sample-rate/bitrate <select> options from the data-* hints
-  // (same behavior initDynamicSelects() in a/audio.js provided)
   function populateDynamicSelect(select) {
     if (!select || select.dataset.dynamicOptionsReady === "1") return;
     var values = null;
@@ -149,9 +113,6 @@
     else el.value = value;
   }
 
-  // reverse of FIELD_MAP ("audio.<key>" -> page field id): puts a server-
-  // corrected (clamped) value straight back into the control that sent it,
-  // from the "applied" echo - no follow-up GET
   var REVERSE = {};
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["audio." + FIELD_MAP[id].key] = id;
@@ -162,17 +123,12 @@
     if (!corr) return;
     Object.keys(corr).forEach(function (k) {
       var id = REVERSE[k];
-      if (id) populate(id, corr[k]);   // handles the codec spellings too
+      if (id) populate(id, corr[k]);
     });
-    // take-once: a debounced flush settles every queued waiter with the same
-    // result; the element writes above are idempotent, the toast is not
     var t = window.timpsApi.takeCorrections(r);
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // one changed control -> POST {"audio":{key:val}} to timps. Live keys are
-  // debounced (slider drags coalesce); persist+restart keys go out directly
-  // and show the restart hint.
   function send(id) {
     var el = $id(id);
     var map = FIELD_MAP[id];
@@ -205,14 +161,11 @@
     } else {
       window.timpsApi
         .set({ audio: audio })
-        .then(function (r) { applyCorrections(r); restartHint(); }, fail)
+        .then(function (r) { applyCorrections(r); restartVerdict(r, "audio." + map.key); }, fail)
         .then(done);
     }
   }
 
-  // Test-sound control: a dropdown of system sounds (from caps.play.sounds)
-  // plus Play/Stop. Hidden entirely unless caps.play.available (the play queue
-  // is compiled in) - see applyPlayCaps().
   function wireTestSound() {
     var playBtn = $id("audio_spk_test_play");
     var stopBtn = $id("audio_spk_test_stop");
@@ -237,7 +190,6 @@
       });
   }
 
-  // show/populate (or hide) the test-sound control from GET caps.play
   function applyPlayCaps(caps) {
     var wrap = $id("spk-test-wrap");
     if (!wrap) return;
@@ -263,7 +215,6 @@
     populateDynamicSelect($id("audio_spk_sample_rate"));
     populateDynamicSelect($id("audio_backchannel_rate"));
 
-    // codecs timps cannot encode stay listed but not selectable
     var fmt = $id("audio_mic_format");
     if (fmt) {
       Array.prototype.forEach.call(fmt.options, function (opt) {
@@ -277,17 +228,14 @@
     Object.keys(FIELD_MAP).forEach(function (id) {
       var el = $id(id);
       if (!el) return;
-      setEnabled(id, false); // disabled until timps confirms support
+      setEnabled(id, false);
       el.addEventListener("change", function () { send(id); });
     });
 
-    // speaker sampling + stereo capture: no control surface, keep greyed out
     UNSUPPORTED.forEach(function (id) { setEnabled(id, false); });
 
     wireTestSound();
 
-    // timps applies + persists every change immediately; the button is
-    // kept only to reassure users trained on the old save-to-file step.
     var saveBtn = $id("save-prudynt-config");
     if (saveBtn) {
       saveBtn.addEventListener("click", function () {
@@ -324,7 +272,6 @@
     else if (container) container.appendChild(div);
   }
 
-  // silent=true: reload triggered by the button (toast instead of busy veil)
   function load(silent) {
     if (!window.timpsApi) {
       console.error("timps-api.js not loaded");
@@ -341,18 +288,12 @@
         Object.keys(FIELD_MAP).forEach(function (id) {
           var map = FIELD_MAP[id];
           populate(id, audio[map.key]);
-          // live keys: only what the SoC can drive (caps.audio); persist+
-          // restart keys are not listed in caps by design - enable them
-          // whenever timps reports a value for them
           var on = map.live
             ? capsAudio.indexOf(map.key) >= 0
             : audio[map.key] !== undefined;
           setEnabled(id, on);
         });
 
-        // backchannel keys are always echoed in audio{} even when the
-        // feature is compiled out, so gate them on caps.backchannel.available
-        // (USE_BACKCHANNEL compiled in; speaker output is native IMP_AO) instead.
         var bcAvailable = !!(
           json.caps &&
           json.caps.backchannel &&
@@ -393,8 +334,6 @@
       });
   }
 
-  // don't fight the user mid-drag on this same page; the value will land
-  // anyway once they let go and post their own change
   function onConfigEvent(type, data) {
     if (!data) return;
     if (data.resync) { load(false); return; }

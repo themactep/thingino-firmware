@@ -46,11 +46,20 @@ wait_for_active_creation() {
 	return 1
 }
 
+# Waits for the recorder to drop its .active file and returns 1 once the
+# limit expires with the file still there (a recorder that died mid-segment
+# can leave it behind).
 wait_for_active_completion() {
 	local file="$1"
+	local limit="$2"
+	local deadline
+
+	deadline=$(($(date +%s) + limit))
 	while [ -f "$file" ]; do
+		[ "$(date +%s)" -ge "$deadline" ] && return 1
 		sleep 1
 	done
+	return 0
 }
 
 read_config
@@ -112,7 +121,7 @@ fi
 
 [ -z "$duration" ] && duration=60
 [ -z "$filename" ] && filename="%Y/%m/%d/%H-%M-%S"
-[ -z "$mount" ] && mount="/mnt/mmcblk0p1"
+[ -z "$mount" ] && mount="$DEFAULT_RECORD_MOUNT"
 [ -z "$stream_number" ] && stream_number=0
 
 if ! echo "$duration" | grep -Eq '^[0-9]+$' || [ "$duration" -le 0 ]; then
@@ -153,9 +162,22 @@ if [ "$one_time" = "true" ]; then
 		*) file_path="$file_path.mp4" ;;
 	esac
 	ensure_dir "$(dirname "$file_path")"
+	start_ts=$(date +%s)
 	printf 'START path=%s dur=%s ch=%s\n' "$file_path" "$duration" "$stream_number" >"$FIFO_PATH"
 	if wait_for_active_creation "$ACTIVE_FILE" 10; then
-		wait_for_active_completion "$ACTIVE_FILE"
+		# A recorder that died mid-segment can leave the marker behind (seen
+		# on a full card: prudynt stopped on ENOSPC). Cap the wait at the
+		# clip length plus a minute of grace, measured from START.
+		completion_limit=$((duration + 60))
+		elapsed=$(($(date +%s) - start_ts))
+		remaining=$((completion_limit - elapsed))
+		if [ "$remaining" -le 0 ] || ! wait_for_active_completion "$ACTIVE_FILE" "$remaining"; then
+			echo_error "Recorder still marked active $completion_limit s after START ($ACTIVE_FILE); giving up on $file_path"
+			# The streamer-side fix will clear the stale marker; until then
+			# the next one-shot attempt will time out the same way.
+			[ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm -f "$LEDD_FLAG"
+			exit 1
+		fi
 	else
 		echo_warning "Recorder did not create $ACTIVE_FILE; clip may have failed"
 	fi

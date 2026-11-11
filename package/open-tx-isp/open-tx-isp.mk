@@ -6,8 +6,9 @@
 
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
-OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = 13fd24755114a1b7a2e09dc75236eb08f6185029
+# Release candidate v2026.11.07-rc3 (728ee0d8); the same tag is published
+# on the Lu-Fi/open-tx-isp open-stack fork.
+OPEN_TX_ISP_VERSION = v2026.11.07-rc3.1
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
@@ -62,6 +63,35 @@ define OPEN_TX_ISP_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_DMA_SHARED_BUFFER)
 endef
 endif
+endif
+
+# The T10/T20 drivers include the ingenic-sdk headers through
+# external/ingenic-sdk/{include,3.10.14/isp/<soc>,3.10.14/sensor-src/include}
+# (a git submodule that the buildroot download does not fetch). Point those
+# paths at the ingenic-sdk package build. The T10 driver compiles the T20 SDK
+# sources against its own headers, so it needs both isp/t10 and isp/t20.
+# Both SDK layouts are handled: per-kernel 3.10.14/ trees and the merged
+# common/ tree. Other families are self-contained.
+ifneq ($(filter t10 t20,$(SOC_FAMILY)),)
+OPEN_TX_ISP_SDK_DIR = $(firstword $(wildcard $(BUILD_DIR)/ingenic-sdk-*))
+define OPEN_TX_ISP_SDK_COMPAT_TREE
+	mkdir -p $(@D)/external/ingenic-sdk/3.10.14/isp \
+		$(@D)/external/ingenic-sdk/3.10.14/sensor-src
+	ln -sfn $(OPEN_TX_ISP_SDK_DIR)/include \
+		$(@D)/external/ingenic-sdk/include
+	if [ -d $(OPEN_TX_ISP_SDK_DIR)/3.10.14/isp ]; then \
+		isp=$(OPEN_TX_ISP_SDK_DIR)/3.10.14/isp; \
+		sinc=$(OPEN_TX_ISP_SDK_DIR)/3.10.14/sensor-src/include; \
+	else \
+		isp=$(OPEN_TX_ISP_SDK_DIR)/common/isp; \
+		sinc=$(OPEN_TX_ISP_SDK_DIR)/common/sensor/include; \
+	fi; \
+	ln -sfn $$isp/$(SOC_FAMILY) \
+		$(@D)/external/ingenic-sdk/3.10.14/isp/$(SOC_FAMILY) && \
+	ln -sfn $$isp/t20 $(@D)/external/ingenic-sdk/3.10.14/isp/t20 && \
+	ln -sfn $$sinc $(@D)/external/ingenic-sdk/3.10.14/sensor-src/include
+endef
+OPEN_TX_ISP_PRE_BUILD_HOOKS += OPEN_TX_ISP_SDK_COMPAT_TREE
 endif
 
 $(eval $(kernel-module))

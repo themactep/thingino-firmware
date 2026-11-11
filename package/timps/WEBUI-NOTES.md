@@ -33,8 +33,9 @@ which is accepted on the LAN. The token is per-boot, so it is fetched once
 and cached; when the stream errors (e.g. 401 after a camera reboot minted a
 new token) it is re-fetched once and the `<img>` retried, and if the token
 endpoint itself is unavailable the preview falls back to the nostream
-placeholder. Without a token the URLs still work on open timps configs
-(empty `http.user`) and from localhost.
+placeholder. Without a token an open camera (empty `http.user` and
+`rtsp.user`) still serves the URLs, but since timps v1.9.33 a cross-origin
+`fetch()` (MSE/RT preview) gets CORS only with the token or from loopback.
 
 ### `startPreview()` / the stream watchdog `timeout` constant
 
@@ -91,6 +92,13 @@ signal there has ever been, and `rejected>0` does discriminate correctly -
 so use it, but ONLY when the daemon did not tell us. On a current build this
 branch never runs.
 
+timps 1.10.1 adds a per-key `errors` object (`{"image.bogus":102}`) to the
+reply. On an error status `request()` appends it to the Error message
+(`errorsText()`: the `timps-errors.js` text when the page loads it, else
+`key: error N`), so every page that toasts `e.message` names the key and
+why. A 200 with `errors` (a partial refusal) is left to the page; the video
+and day/night pages show it.
+
 ## a/timps-control-bar.js
 
 ### File header: why a plugin script instead of a main.js fork, and why the override is safe
@@ -122,73 +130,139 @@ How the override works, and why it is safe:
   ("load", initAll)`, which is later still, so `initAll`'s click handlers
   already call the timps implementations.
 
-## a/streamer-osd.js
+## a/timps-auth-gate.js
 
-### File header: full data-flow spec (Phase 1, data-driven OSD items)
+### File header: why a second, earlier session check
 
-Talks directly to the timps streamer over `window.timpsApi` (GET/POST
-/control on timps's own port, per-boot token) - no json-prudynt.cgi bridge
-for these pages (the OSD wiring in `a/timps-preview.js` is gated off here;
-that script keeps only the live preview `<img>`, which already loads
-straight from timps).
+Core `main.js` already checks `/x/session-status.cgi` and redirects an
+unauthenticated visitor to `/login.html`, but it does that from
+`window.addEventListener("load", ...)` plus a 100 ms timeout - i.e. after
+every subresource has settled. The stock pages pull Bootstrap CSS/JS from
+jsdelivr and Montserrat from Google Fonts, so on a camera VLAN with no
+internet route `load` only fires once those requests hit their TCP timeout.
+Until then the visitor sits looking at a fully rendered `preview.html` -
+nav bar, empty video box, every control widget. Nothing leaks (the session
+cookie is `HttpOnly`, and `session-status.cgi`, `timps-token.cgi`, the
+snapshot CGIs and the stream all 401 on their own), but it looks like the
+camera let them in.
 
-Each video stream carries its own independent set of up to `MS_MAX_OSD`
-(=8) generic overlay items; every item is a text-or-logo slot with the same
-field set. Instead of four hard-coded named boxes (time/usertext/uptime/
-logo) this page renders one "card" per in-use item index and lets the user
-add/remove items (0..8), edit every field, and drive both streams' item N
-at once.
+This file closes that window without forking `main.js`:
+- It is a plugin-manifest "scripts" entry, so `assemble_plugins.py` injects
+  it as a plain `<script src>` before `</head>` - no `defer`, no `async`
+  (see `make_script_tag()`), so it is parser-blocking and runs before
+  `<body>` is parsed. There is therefore no moment at which page content
+  could paint before the gate is armed.
+- Arming is `document.documentElement.style.visibility = "hidden"`, and
+  revealing restores the previous inline value (normally `""`) rather than
+  writing `visible`, so it never overrides page CSS and there is no second
+  flash. `visibility` and not `display:none` so the themed page background
+  still paints - a blank dark page, not a white one.
+- The `HttpOnly` cookie is not readable from JS, so there is no way to know
+  the answer without the round trip. `credentials: "same-origin"` is fetch's
+  default for a same-origin URL and is spelled out here only to document
+  that the cookie does ride along (HttpOnly blocks JS *reads*, not sending).
 
-- **Stream**: detected from the page's body id (`page-streamer-osd0` ->
-  section "osd0", `page-streamer-osd1` -> "osd1"). Index IS the identity -
-  old configs (0=time, 1=user text, 2=uptime, 3=logo) load unchanged by
-  index, distinguished text-vs-logo by each item's "type".
-- **Load**: `timpsApi.get()` returns BOTH streams' item sets in one shot; we
-  populate this stream's cards and remember the other stream's items (for
-  the "apply to both" scope + its restart bookkeeping).
-- **Save**: per-item changed leaves apply LIVE via
-  `timpsApi.set({osdS:{N:{leaf:val}}})` and persist immediately. A card
-  scoped to "both streams" POSTs the same leaves to osd0.N AND osd1.N.
-- **Restart**: the global `osd.enabled` master switch is persist+restart,
-  and enabling an item that was OFF when the streamer started cannot be
-  applied live (its IMP region only exists when enabled at startup). Both
-  surface the "Restart streamer" hint; each card shows a per-item Live /
-  Needs-restart / Off status pill.
-- **Caps**: `caps.osd` lists the item leaf keys this build/SoC applies live
-  (text, x, y, font_size, color, transparency, outline, outline_color).
-  Each per-leaf control greys out when its key is absent. enabled, x/y
-  position and the structural controls are NOT caps-gated (enabled is
-  structural, never advertised in caps.osd).
-- **Type**: switching an item text<->logo (and logo upload) is Phase 2 - it
-  needs a persist-only "type"/"logo_path" leaf the streamer does not accept
-  over /control yet, so the type selector is disabled with a tooltip and
-  simply reflects the item's current type.
-- **Colors**: `<input type=color>` (#rrggbb) + its "-alpha" range make up
-  the timps "0xAARRGGBB" color and back. This is separate from
-  "transparency" (a 0..255 group alpha over the whole item).
-- **Offline**: if timps is unreachable the page shows a notice and no
-  cards; it never throws.
+Fail-open, deliberately: a 1500 ms `setTimeout` reveals the page no matter
+what, and an `AbortController` on the same deadline drops the request. A
+network error, a 5xx, a non-JSON body or a missing `authenticated` key all
+reveal too. The gate never becomes the reason a camera looks bricked - a
+genuinely unauthenticated session still gets caught by `main.js`'s slower
+check on exactly today's timeline. 1500 ms is ~50x the measured LAN
+round trip (25-34 ms), so the timeout is a backstop, not a budget.
 
-### `applyCorrections()`: why the OTHER stream's echo is never rendered here
+Only a definitive answer redirects: HTTP 401/403, or `authenticated:false`.
+The target matches `main.js`'s `redirectToLogin()` (a bare `/login.html`;
+core keeps no return-to parameter, so neither does this). It uses
+`location.replace()` rather than assigning `location.href`, because this
+fires before paint: an `href` assignment would push a history entry for a
+page the user never saw, and Back from `/login.html` would land on it and
+be thrown forward again.
 
-DELIBERATE (a decision, not a gap): a "both" scope POST also carries echoes
-for the OTHER stream ("osd\<OTHER\>.\*"). This page renders cards for ONE
-stream only, so no visible widget shows the other stream's value - there is
-nothing that could go stale, and writing such an echo into THIS stream's
-cards would be wrong: the two streams legitimately hold different values
-(that is what the scopes are for). The toast still reports those
-corrections.
+Skipped pages (`SKIP`) are exactly the ones core does not gate: `/login.html`
+and `/401.html` (`redirectToLogin()` bails on both, to avoid a loop),
+`/wait.html` (the reboot splash - the CGI is down by design there, and a
+reboot must not end at the login form), `/gphotos-auth-callback.html` (an
+OAuth landing page that has to relay its code, and redirecting would lose
+it), and `/` + `/index.html` (an empty `<meta http-equiv="refresh">` stub
+with nothing to hide, whose refresh would race the gate). `wait.html`,
+`gphotos-auth-callback.html` and `login.html` do not load `main.js` at all;
+the injection is per-page-unconditional, hence the explicit list.
 
-### `sendBody()`: what `r.rejected > 0` on an otherwise-200 response means
+## Redirect stubs
 
-The daemon applied some leaves and refused others, and a silent success
-would lie about the refused ones. NOT about cleared text any more - timps
-`7893a1a` ("control: let an empty string clear a text field") makes `""` a
-valid value for STRING fields, meaning "clear this", so a cleared
-`.osd-text` is now accepted and stored empty. What still gets refused here
-is null/`"undefined"` anywhere, and `""` on the NON-string leaves of a card
-(font_size, transparency, x/y) - where `pint("")` would silently zero the
-setting rather than clear it (timps `src/control.c`, `apply_one`).
+Only the three the core WebUI links to stay: `tool-record.html` and
+`config-privacy.html` (control-bar.js buttons) and `tool-sensor-data.html`
+(control bar, and core ships its own page of that name, which would come
+back without ours). The other merged pages' old names were dropped.
+
+## Video pages: streamer-video.html + streamer-overlays.html
+
+Two pages replace the four per-stream pages (streamer-main/-substream/
+-osd0/-osd1.html, removed: nothing links to them any more). Each page
+shows both streams behind tabs; `a/timps-ui.js` holds what they share.
+
+### a/timps-ui.js
+
+- **Tabs**: `[data-stream-tab]` buttons. The stream comes from `?s=0|1`,
+  else the last choice (localStorage "timps-stream"), else 0; a switch
+  rewrites `?s=` and `#preview`'s `data-stream`, and `timps-preview.js`
+  re-reads that attribute on every stream (re)start.
+- **Restart bar**: `markPending(keys)` collects keys that wait for a
+  restart (from the POST reply's `deferred_keys`, or client-side knowledge
+  such as an OSD item without a boot-time region) into one fixed bar with
+  "Restart streamer" (`/x/restart-prudynt.cgi`), then polls `/control`
+  until the daemon is back and calls the page's reload hook.
+- **Badges**: `badge(live)` renders the live/restart tag used on field
+  labels.
+
+### a/streamer-encoder.js (streamer-video.html)
+
+- One form (`v-*` ids) refilled per tab from `GET /control` `video[i]`.
+- Live vs restart per field from `caps.video_live`, plus `rtsp_path`
+  (always live, graded live by the daemon since timps v1.9.20).
+- Rate-control fields that do nothing for the SoC/mode/codec are hidden
+  and named under the card, instead of shown disabled.
+- Live chips (kbit/s, fps, subscribers, clients) from the `stats` SSE, the
+  same feed as the preview page's stats card.
+- "Compare streams" renders both streams side by side from the last GET.
+- **Rotation** (timps v1.10.1): the select offers only `caps.rotation` and is
+  hidden without it or when it lists only 0; restart-bound like every
+  `videoN.*` geometry key. The note under the Picture card shows
+  `video[i].rotation_state` (why the stream runs unrotated since the last
+  start) and the POST reply's `errors["videoN.rotation"]` (what the next
+  start will refuse; the value is stored anyway). A POST that touches
+  rotation/width/height/fps/enabled resets that prediction.
+
+### a/timps-errors.js
+
+English text for timps' numeric `/control` codes (`errors`,
+`rotation_state`; timps `src/err_codes.h`, `docs/ai/error-codes.md`).
+`timpsErrors.text(code)` (unknown code -> "error N"), `list(errors)`,
+`known(code)`, `v` = the table version a page can compare with
+`caps.err_v`. timps' `scripts/test_webui_errors.js` fails when a code has
+no text here.
+
+### a/streamer-osd.js (streamer-overlays.html)
+
+- One compact row per in-use slot; clicking a row opens its editor.
+- **Position**: timps x/y are px, >0 from left/top, <0 from right/bottom,
+  0 = exactly centred (so no offset on a centred axis, and 1 px is the
+  smallest edge distance). The editor shows this as a 3x3 anchor plus two
+  offsets and prints the resulting `osdS.N.x/y`.
+- **Preview**: dashed boxes over the live image mark each overlay; their
+  size is an estimate (canvas text metrics of an expanded template, logo
+  100x30). Selected box: drag, or arrow keys 1 px / Shift 10 px (POSTed
+  debounced). A move on a locked (centred) axis shows a hint instead.
+- **Both streams**: a page-level switch (localStorage "timps-osd-link")
+  writes every change to osd0 and osd1, scaling font_size/outline/y by the
+  height ratio and x by the width ratio.
+- **Restart**: `osd.enabled` and enabling a slot that had no region at
+  startup go to the restart bar; rows show Live / Needs restart / Off.
+- **Caps**: leaves missing from `caps.osd` are shown disabled.
+- **Colours**: `<input type=color>` + opacity range form "0xAARRGGBB";
+  "transparency" is the separate group alpha.
+- **Remote changes**: a config event reloads the page state, but not while
+  an input has focus; the reload runs when focus leaves it.
 
 ## preview.html
 
@@ -220,7 +294,7 @@ hit-testable while still starting invisible, so hovering the circle still
 reveals them exactly as before - only the container layers around/behind
 them become click-through.
 
-### Statistics card: why two data sources (SSE + polled /control)
+### Statistics card: data sources (SSE + polled `/control?stats=1` + slow full GET)
 
 Fed by timps's `/events?stream=stats` SSE - same token + EventSource
 pattern as `/a/preview-motion.js`. Independent of the video player's own
@@ -230,15 +304,77 @@ it also shows other clients' activity on this channel.
 The SSE "stats" frame (`src/mp4/httpd.c` `stats_json`, ~every 2s by default)
 carries the fast-moving per-frame numbers: fps/kbps/subs/drop per enabled
 stream, plus uptime_s/clients. It does NOT carry the config-level encoder
-fields (gop/profile/rc_mode) or the ave_bitrate/day-night/motion status
-blocks - those only exist in GET /control, so a slow poll of /control (5s,
-the same cadence as the control-bar heartbeat elsewhere in this webui) fills
-in the rest via timps-api.js (loaded on demand by main.js's
-`timpsApiReady()`, already used by the control bar on every page). Both
-loops only run while the Statistics card is visible (toggled by
+fields (gop/profile/rc_mode) or the encoder-backlog block, so a slow 5s poll
+(the same cadence as the control-bar heartbeat elsewhere in this webui)
+fills in the rest via `timpsApi.statsExtra()`.
+
+That poll hits **`GET /control?stats=1`**, not plain `GET /control`: the
+scoped sub-endpoint (same own-small-buffer pattern as `?fields=1` /
+`?dn_history=1`, see `src/mp4/httpd.c`) returns only those fields - a few
+hundred bytes against the full snapshot's ~8 KB, every 5s for as long as the
+card is open.
+
+The Day/Night and Motion summary blocks are **pushed**, not polled: the card
+opens a second subscription via `timpsApi.events("daynight,motion", ...)`.
+timps emits the full state of both once on connect and again on every change
+(`src/mp4/httpd.c`, `events_stream()`), so a card opened mid-session renders
+current values immediately - no priming fetch, and no reason for them to
+live in the polled payload at all.
+
+A third, slow loop fetches the full `GET /control` every 15s for what no
+push or `?stats=1` carries: the per-stream fps/bitrate targets (bars, dashed
+target line), the recorder state, `queue_drops`/`last_errors` (health tile)
+and `version`. ~8 KB per 15s; moving these into `?stats=1` would let it go.
+
+All loops only run while the Statistics card is visible (toggled by
 `#ms-stats-toggle`).
 
-### `applyControlSnapshot()`: the `ave_bitrate` / queue-backlog fallback
+### Connected clients panel: `GET /control?clients=1`
+
+`fetchClients()` rides the 5 s `?stats=1` loop and fills `#st-clients` from
+`timpsApi.clients()` (timps >= 1.9.24). The panel stays hidden when the
+daemon has no such endpoint. The per-client rate is measured by timps at read
+time, so the page only formats it, like the `bytes` total ("Total"
+column, `-` on a daemon without it). `uaShort()` turns the User-Agent into a
+short name (Frigate, ffmpeg/Lavf, VLC, go2rtc, the browser); the full string
+is the cell's tooltip. The SSE `/events` connections of open WebUI tabs are
+listed too, which is why the "stream clients" tile (subscribers only) can
+show fewer.
+
+### `whepLatency()`: the `delay ≈ N ms` in the WebRTC status line
+
+Sum of the camera's share (`lat_ms` of this session's `?clients=1` entry,
+matched by the selected candidate pair's local port, refreshed every 5 s)
+and the browser's share from `getStats()` deltas over the last second:
+network (RTT/2), jitter buffer (`jitterBufferDelay/jitterBufferEmittedCount`)
+and decode (`totalDecodeTime/framesDecoded`). Without `lat_ms` (older timps)
+it shows `≥ N`. Breakdown in the status line's tooltip. Sensor exposure and
+display are not included (~1-2 frames). With audio the video jitter
+buffer is mostly Chrome's A/V sync, and that follows the viewer's audio
+output latency (~240 ms on Bluetooth: ~360 ms total vs ~180 ms on a built-in
+speaker and ~85 ms video-only on cam-01).
+
+### fMP4 delay (`pollFmp4CamLatency()`, `delayText()`)
+
+Real-time and the MSE modes show `delay ≈ N ms` too: the camera's `lat_ms`
+plus decode + render (Real-time) or the playback buffer
+(`buffered.end - currentTime`, MSE). The page cannot see its TCP port, so
+its `?clients=1` entry is picked by `fmp4`, stream, `navigator.userAgent` and
+the connection age closest to its own. Network is not included (TCP, small
+in a LAN).
+
+The client table has two latency columns: "Camera" is `lat_ms` for every
+client; "End-to-end" is filled only in this tab's own WebRTC / fMP4 row, from
+the same `delay ≈` value (`noteOwnDelay()`, matched by proto + port, stale
+after 5 s), with the breakdown as the cell's tooltip. Other viewers' buffers
+are invisible to the camera, so their rows stay `-`.
+
+Below 576 px the table drops Address, Stream, Connected and Total, shows the
+IP under the client name and Main/Sub under the protocol (`cl-ip`), and uses
+short labels (`cl-s`: Proto, Cam, E2E, RTSP/T, SSE), so Camera, End-to-end
+and Rate fit a 390 px phone without sideways scrolling.
+
+### `applyStatsExtra()`: the `ave_bitrate` / queue-backlog fallback
 
 `ave_bitrate` (`IMP_Encoder_GetChnAveBitrate`) only exists on T31; every
 other platform - and a T31 stream before its first frame - reports -1 and
@@ -258,6 +394,45 @@ string) and tear down the whole MediaSource -> black player, no video at
 all. When `wantAac` is false the code therefore probes video-only strings
 instead.
 
+### `applyStatsExtra()`: encode time and keyframes (OpenIMP T40/T41)
+
+Where the libimp exports `OpenIMP_Encoder_GetTelemetry`, `?stats=1` adds
+`idr`, `encode_us_avg` and `encode_us_max` per stream. The stream card footer
+then shows `encode N ms (max M)` and the keyframe count as tooltip. The fields
+are absent elsewhere, so the check is `es.encode_us_avg >= 0` (undefined
+compares false) and nothing is shown.
+
+### Test pattern banner (`#tp-panel`, `a/preview-testpattern.js`)
+
+A slim card above the statistics, drawn as the picture pipeline
+**Sensor → ISP → Encoder → IVS**. Each stage holds the button for the
+pattern that enters there:
+
+| Stage | Button | `testpattern.mode` | Enters |
+| --- | --- | --- | --- |
+| Sensor | Sensor pattern | 4 | the sensor itself; runs through the whole ISP (AE/AWB hold switches below) |
+| ISP | Mid-ISP | 5 | inside the ISP after sharpening (OpenIMP, T23 so far) |
+| Encoder | Still / Moving | 1 / 2 | replaces the ISP output |
+| IVS | Motion test | 3 | replaces the ISP output; scored against the motion detection (result tiles below) |
+
+`paint()` colours the path from the entry point: the entry stage gets
+`inj` (sensor/ISP) or the arrow ISP → Encoder gets the orange dot (modes
+1-3), every stage after it `pass`, every stage before it `skip`. While mode 4
+waits for day mode (`testpattern.pending`) the path is drawn as mode 4.
+A second click on the active button sends mode 0, as does Off.
+
+Impossible = shown + inactive: the Sensor button is disabled without
+`caps.testpattern.sensor`, Mid-ISP without `caps.testpattern.isp_mid` (timps
+v1.11.1+ with `OpenIMP_TestPattern_Supported(5)`), with the reason as tooltip.
+The whole banner only exists where `caps.testpattern.available`.
+
+Visibility: a toolbar toggle (`#ms-tp-toggle`, easel icon next to the stats
+toggle), **off by default**, remembered per browser in `localStorage` key
+`ms.tp`. While a pattern runs (or mode 4 is pending) the banner is shown
+regardless of the toggle, so nobody can miss that the camera is sending a
+synthetic picture and that day/night is held in day. Below 768 px the four
+stages become a 2 x 2 grid and the arrows are dropped.
+
 ## a/config-photosensing.js
 
 ### File header: field mapping and the removed "Time Schedule" column
@@ -265,17 +440,89 @@ instead.
 Full field map (all follow "daynight_\<key\>" -> "daynight.\<key\>", see
 `fillTimps()`/`collectTimps()`): `daynight_enabled`,
 `daynight_total_gain_night_threshold`, `daynight_total_gain_day_threshold`,
-`daynight_day_gain_pct`, `daynight_baseline_delay_s`,
-`daynight_night_reconfirm_s`, `daynight_boot_settle_s`/`_max_s`,
-`daynight_boot_stable_pct`, `daynight_mode` (sensor/time/sun),
-`daynight_time_night_start`/`day_start`, `daynight_sun_latitude`/
-`longitude`, `daynight_sun_sunrise`/`sunset_offset_min`. Read-only:
-`daynight_night_baseline`/`daynight_day_trigger` from the status fields of
-the same names (the adaptive trigger in effect).
+`daynight_day_confirm_s`, `daynight_jump_pct` (timps 1.10.1+),
+`daynight_heartbeat_s`/`_max_s`, `daynight_interval_ms`, `daynight_mode`
+(auto/schedule), `daynight_time_night_start`/`day_start`,
+`daynight_sun_latitude`/`longitude`, `daynight_sun_sunrise`/`sunset_offset_min`.
+Read-only: the `#dn-live` line (`night_baseline`/`day_trigger`) and
+`daynight_sun_computed_sunrise`/`_sunset`.
+
+An integer field is POSTed only when the loaded status object reported it
+(`reported`), so a 1.10.0 daemon never gets `jump_pct` and the
+`#dn-jump-row` stays hidden there. 1.10.1 retired `probe_min_gap_s`,
+`probe_confirm_s`, `boot_probe` and `diagnose_thresholds` (parsed from the
+file and ignored); the page no longer shows or sends them, also not to 1.10.0.
 
 The old "Time Schedule" column that also lived on
 `/x/json-config-daynight.cgi` was dead, orphaned config that nothing read -
-it has been replaced by the timps-native Override Mode selector.
+it has been replaced by the timps-native Decision source column.
+
+### `daynight_calendar` is a UI-only selector, derived from the values
+
+timps stores ONE calendar and picks it from the values themselves - a
+complete `time_night_start`+`time_day_start` window outranks `sun_latitude`/
+`longitude`, and 0/0 is "no location". There is no config key saying which was
+meant, so `calFromValues()` mirrors `dn_cal_kind()` in `daynight.c` to drive
+the selector, and `collectTimps()` always CLEARS the unselected calendar's
+values on save. Without that clear, a leftover time window keeps outranking a
+location the user just typed in and the save still reports success.
+
+### "Now" scale (`drawNow()`) and the preview's Day/Night tile
+
+Both plot the exposure index (`exposure`, what the decision runs on; falls
+back to `total_gain` on an older timps), and the scale depends on the mode.
+Day: the two thresholds (day below / hysteresis / night above). Night: the
+IR light keeps the exposure low, so the day thresholds say nothing there.
+What the night scale shows (`nightScale()`; the preview tile has the same
+branches inline):
+
+* timps 1.10.1 (status has `jump_pct`): `night_baseline` is the IR-lit level
+  at the last look and `day_trigger` the bar the reading WITHOUT IR must fall
+  below (`day_gain` or a scene bar after a failed check). The scale shows the
+  lit level against the jump bar `night_baseline × (1 - jump_pct/100)`
+  (yellow "new light": a look within 20 s). While idle-dark
+  (`ir_idle.dark`) the reading is without IR, so it is drawn against
+  `day_trigger` instead. With `ir_idle.reason = "no_illuminator"` the bar is
+  50 % (such cameras check instead of looking).
+* timps 1.10.0: `day_trigger` is a probe bar on the lit level and
+  `night_baseline` the night reference.
+
+The reference tick is left out when it would sit on the bar's tick. Before
+the level exists (-1) the bar is plain blue and the marker dimmed. timps
+publishes both numbers in day too (1.10.1); they are only shown at night.
+
+"Request a look now" POSTs `{"daynight":{"probe":1}}`: 200 = armed for the
+next tick, 409 = refused (no `daynight.irprobe_cmd`, or the illuminator was
+retired after two failures). Enabled only at night in auto mode; by day the
+request is dropped by timps.
+
+### Idle-Dark card (`daynight.ir_idle_off`, "IR light when idle")
+
+Switch `daynight_ir_idle_off`, field `daynight_ir_idle_linger_s` (0..3600)
+and a chip from the status object `daynight.ir_idle` (`cfg`, `available`,
+`reason`, `dark`, `watched`, `linger_left_s`). Only timps reaches this page
+(timps.mk installs it over thingino-daynightd's), and the card stays hidden
+unless the status carries `ir_idle`: an older timps neither shows it nor gets
+the two keys POSTed (it would count them as rejected). `caps.daynight.ir_idle
+= 0` (no FrameSource keepalive on this start) hides it too, except while the
+key is on, so the chip can say "no keepalive" and the switch can turn it off.
+
+The "IR off (idle)" text depends on the engine: 1.10.1 keeps reading the
+scene without the LED and checks the day picture after 30 s below
+`day_trigger`; 1.10.0 went to day at the first viewer instead.
+
+`idleView()` is pure (status, caps, age in s → chip text, colour, the
+explanation line incl. the fix per `reason`) and is tested on the host by
+timps's `scripts/test_webui_idle.js`, which extracts it by name - keep the
+name and keep it free of DOM access. `/events` pushes `daynight` only when
+`available`/`dark`/`reason` change (and on brightness/gain moves), so the
+linger countdown runs locally from the last status's `linger_left_s`.
+
+The page's own MJPEG preview (`#preview`, ch1) runs even on the Settings tab
+and is a picture consumer, so while the page is open the chip normally reads
+"IR on · watched"; "IR off (idle)" appears only after the preview stopped
+(browser tab hidden, `track_focus`) and the linger ran out, or in
+`GET /control` from elsewhere.
 
 ## a/preview-motion.js
 
@@ -304,6 +551,16 @@ while the tab is hidden and reopened when it becomes visible.
 
 ## a/privacy.js
 
+The "Privacy masks" tab of streamer-overlays.html (config-privacy.html is a
+redirect to `#privacy`). The stream comes from the page's stream tabs (the
+"timps-stream" event from `a/timps-ui.js`), the masks are drawn over the
+live `#preview` instead of a polled snapshot, and "both streams" is the
+page-wide `#osd-link` switch. Turning that switch on no longer mirrors all
+existing masks at once; like the overlays, only later edits are mirrored.
+Masks are listed like the overlays (only slots in use; a row opens the
+editor). Selected mask: arrows move 1 px, Shift 10 px, Ctrl/Cmd+arrows
+resize; Alt is avoided because Alt+Left is the browser's "back".
+
 ### `send()`: why mirrored OTHER-stream echoes are never folded back
 
 DELIBERATE (a decision, not a gap): the "apply to both" branch scales the
@@ -318,7 +575,7 @@ reports every correction.
 ### `markAvailable()`: the bug it fixes
 
 The old success path only did `classList.add("d-none")` on the warning: it
-never re-enabled `#pm-add` / `#pm-stream` and never restored the original
+never re-enabled `#pm-add` (then also a stream select) and never restored the original
 message markup. So ONE transient failure disabled the editor PERMANENTLY.
 That failure is real, not theoretical: a streamer restart tears the OSD
 groups down while /control keeps serving, and `caps.privacy.available` is
@@ -330,6 +587,84 @@ controls dead, leaving a page that looks fine yet cannot add or switch
 masks until the user reloads by hand. `#pm-reload` had the same problem -
 it was not disabled, so it re-ran `load()`, appeared to work, and still
 left a dead editor.
+
+## a/roi-crop.js
+
+The "ROI" and "Crop / zoom" tabs of streamer-overlays.html (timps encoder ROI
+`roi<S>.<N>.*` and ISP FrontCrop `image.fcrop_*`). Both read their tier from
+`caps.roi` / `caps.fcrop`: `effective` shows no warning, `experimental` a
+warning that the effect is unverified on this SoC, `unsupported` disables the
+controls. ROI boxes are drawn over `#preview` in stream pixels and snap to
+16 px macroblocks while dragging, so the box is what the encoder gets; the
+"both streams" switch is hidden on both tabs (no mirroring). The crop tab works
+in sensor pixels from `caps.fcrop.sensor`: zoom/pan sliders keep the sensor
+aspect ratio. The smallest window is `caps.fcrop.min_win` per axis (64x64
+when absent), the zoom slider (`step="any"`) runs from 1 to exactly the zoom
+of the smallest window (`cropEffMin`/`cropZoomMax`: min_win, tightened by
+`zoom_max` only when clearly lower; 8 without caps), and
+`caps.fcrop.zoomable` names the streams that show the crop in the note. ROI QP
+fields use `caps.roi.qp_delta`/`qp_abs` (and show `qp_delta_eff` when it is
+narrower). After each (debounced) POST it re-reads `caps.fcrop.state` and
+shows it; `waiting` is re-read every 3 s (10 times at most) because the switch
+to `on` at a stream start sends no config event.
+
+Zoom slider: `cropNative` is the zoom at which the window reaches the size of
+the largest enabled stream that shows the crop. Up to it the label says
+"Crop", above it "Crop + zoom, upscaled N× on stream i" (amber, from
+`cropScale` of the real window); the track is grey up to a white mark at that
+point and amber after it (`--nat` fraction on `.rc-zoom`). Without an amber
+part `#crop-zoom-h` says "Crop only (this camera does not upscale)"
+(`upscale_pct` 0) or "no upscaling at these stream sizes".
+
+Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
+crop is applied `#preview` shows only the window. In the crop tab `#frame`
+(`.rc-sens`) takes the sensor aspect (`--sa`) and stands for the whole sensor.
+Crop off (or the preview stream does not show the crop: `state` not `on`, or
+`caps.fcrop.zoomed[S]` 0): the live picture fills it and the crop window is
+the draggable box (`.rc-box.rc-crop`, body = pan, corner = zoom, pointer
+events, `cropDragView`). Crop on (`body.rc-pip`): `#preview` is placed at the
+window (`--cl/--ct/--cw/--ch` from `cropPct`) under the same box, so dragging
+the box moves the live cut-out; the rest is a dimmed backdrop picked by
+`cropBackdrop`: `#crop-ed`, the last full frame, or a grid. The frame is
+grabbed every 1.5 s while crop is off (not within 3 s of a POST) and stored in
+localStorage (`timps-crop-full:<host>:<sensor>`, 640 px JPEG 0.7) every 10 s;
+`#preview` is cross-origin (timps port) and taints a canvas, so the stored
+copy then comes from a CORS GET of `/snapshot.jpg` of stream S. The page
+never POSTs to get a frame. The wheel over the box zooms around the pointer
+(`cropZoomAt`, 1.1x per notch, clamped to the slider range, debounced like a
+drag; one POST 0.5 s after the last notch on start-only cameras). A click on
+the live picture outside the box opens the preview modal as on the other
+tabs. `#crop-scale` lists every enabled
+`video.<n>` with `cropScale` (stream size / window): "not zoomed" when
+`zoomed` (state on) or `zoomable` says the stream keeps the full frame, amber
+above 1x. Corner drag keeps the sensor aspect
+like the zoom slider; dragging the box never toggles the switch (place it with
+crop off, then enable), the sliders still switch it on as before. All edits go
+through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
+`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`/`cropDragView`/`cropZoomAt`/`cropBackdrop`
+(even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
+and one four-key POST; timps's
+`scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
+`caps.fcrop.live` 0 (T23, start-only) shows "Applies after restarting timps",
+sends nothing while dragging and one plain POST on release (slider `change`,
+`pointerup`), then shows "saved, applies after restart" since `state` cannot
+change before the restart.
+
+## a/streamer-image.js (streamer-image.html)
+
+Cards with sliders; every image key is live. Keys missing from `caps.image`
+are hidden and named under the preview. Red/blue gain are shown only in
+Manual or Custom white balance. Double-click resets a slider to its middle.
+
+## Record and timelapse pages
+
+`recordings.html` has two tabs: Clips (`a/recordings.js`) and Settings
+(`a/tool-record.js`; its reload button is `#rec-cfg-reload`, because
+`#rec-reload` belongs to the clip list). `timelapse-player.html` has Player
+(`a/timelapse-player.js`) and Settings (`a/tool-timelapse.js`). The tabs come
+from `timps-ui.js` `initPageTabs()`, and `#settings` deep-links, which is
+what the tool-record.html redirect uses (the core control bar's "Recording
+settings" link points there).
 
 ## a/config-audio.js
 
@@ -344,13 +679,15 @@ left a dead editor.
   compiled in); speaker sampling and stereo capture stay greyed out. A
   test-sound control (dropdown + Play/Stop) is shown when
   `caps.play.available` is set, driving the play queue via /control.
-- **Save**: LIVE keys (volume/gain/alc_gain/high_pass/agc/agc_target_dbfs/
-  agc_compression_db/ns) go straight to `timpsApi.set({audio:{...}})`,
-  debounced so slider drags coalesce into one POST; timps applies them live
-  AND persists immediately. PERSIST+RESTART keys (codec/samplerate/bitrate)
-  are saved the same way but only take effect after a streamer restart, so
-  those changes show the existing "Restart streamer" hint (the menu entry
-  calls /x/restart-prudynt.cgi).
+- **Save**: LIVE keys (volume/gain/alc_gain, speaker volume/gain) go
+  straight to `timpsApi.set({audio:{...}})`, debounced so slider drags
+  coalesce into one POST; timps applies them live AND persists immediately.
+  PERSIST+RESTART keys (codec/samplerate/bitrate, high_pass/agc/ns and the
+  AGC levels, backchannel) are saved the same way but only take effect after
+  a streamer restart. The "Restart streamer" hint (the menu entry calls
+  /x/restart-prudynt.cgi) follows the POST reply's `deferred_keys`, which
+  timps >= v1.9.20 fills for these keys; an older daemon without the field
+  gets the hint on every such save, as before.
 - **Offline**: if timps is unreachable the controls stay disabled and a
   small notice appears; nothing throws.
 
@@ -363,3 +700,87 @@ reflashed undetected (see the "2026-08 stale-build incident" note in
 `timps.mk`'s `TIMPS_BUILD_VERSION` section). Showing the running daemon's
 compiled-in `MS_VERSION` at a glance from the WebUI catches that class of
 drift without a manual /control fetch.
+
+### File uploads: sensor IQ and OSD font (`x/timps-upload.cgi`)
+
+The old IQ page and the overlay font dialog posted to `/x/preview.cgi`,
+which only prudynt-t ships, so neither upload worked on timps builds. Both
+now use `x/timps-upload.cgi?kind=iq|font` through `timpsUi.uploadCard()`:
+GET = file/size/md5, `custom` (copy in the overlay) and `stock` (one in
+`/rom`); POST the raw file to install it; POST `&reset` deletes the overlay
+copy. `iq` writes `/etc/sensor/<sensor>-<soc>.bin` (8 KB..2 MB, starts with
+the Ingenic version string like `2.10`); `font` writes
+`/usr/share/fonts/default.ttf` (TTF/OTF magic), the default `osd.font_path`.
+The font GET also lists every TTF/OTF there; the Overlays select box sets
+`osd.font_path` from it (restart key, so it lands in `deferred_keys`), and an
+upload switches the selection to `default.ttf` since that is what it replaced.
+`/etc/sensor` is a symlink to `/usr/share/sensor`, so the overlay copy lives
+under `/overlay/usr/share/sensor/`. Both are read at streamer start, so the
+cards raise the restart bar.
+
+### Photosensing controls (`x/timps-dn-controls.cgi`)
+
+timps runs `/usr/sbin/daynight day|night` on a switch, and that board script
+reads `daynight.controls.{color,ircut,ir850,ir940,white}` from
+`thingino.json`. The CGI that edits them (`json-config-daynight.cgi`) ships
+with thingino-daynightd, which timps builds do not have, so the page uses
+`x/timps-dn-controls.cgi` (GET with the script's defaults, POST only that
+exact shape).
+
+Menu: every page has exactly one entry. Removed duplicates: "File:
+timps.conf" (= Streamer config), "Streamer log" (= core "Log: logcat"),
+"Video Recorder" (= Recordings, Settings tab), "Privacy masks" (tab of
+"Overlays & privacy masks"), "Sensor IQ File" (card on Image Quality).
+
+### OSD frames and the preview after a restart
+
+The overlay frames mirror `msttf_render()`/`resolve_pos()`: the page loads the
+TTF timps rendered with (`osd.font_path`, via `timps-upload.cgi?kind=font&raw=`),
+measures advances without kerning at `font_size` px, adds the same pad
+(`font_size/4 + 1 + outline`), rounds the width up to even, places the region
+like timps (clamped to the frame) and draws the frame around the text, i.e.
+the region minus the pad. `{hostname}` uses the footer host, not the IP.
+
+A streamer restart ends the MJPEG connection and changes the per-boot token.
+`timps-api.js` fires `timps-back` when an event stream reconnects after an
+outage (the restart bar fires it too); the preview then re-fetches the token
+and reconnects, and the overlay page reloads its state. Failed preview loads
+retry with 2..30 s backoff instead of giving up after one attempt.
+
+### Day / Night page (`config-photosensing.html`)
+
+Photosensing and the Sensor Data Collector are one page: a "Now" box (mode,
+gain on a day | hysteresis | night bar, what comes next) above two tabs,
+`#settings` (default; the photosensing form: `config-photosensing.js`, field
+ids unchanged) and `#live` (preview, value tiles, history chart:
+`tool-sensor-data.js`, collecting even while its tab is hidden). The Now box rides the page's config SSE (`config,daynight`).
+`tool-sensor-data.html` redirects to `#live`. The chart shades night samples
+instead of drawing a mode line, and the window buttons show time spans
+(points × sample period: 2 s live, 10 s when the camera records).
+
+## streamer-image.html
+
+### Sticky preview (`.iq-pin`)
+
+The preview column stays in view while the controls scroll. The `sticky`
+class sits on the **column itself** (`col-12 col-xl-5`), not on an inner
+wrapper: a sticky element only sticks inside its containing block, and in the
+single-column layout below `xl` the column ends right after the image, so an
+inner wrapper would scroll away with it. As a flex item of `.row` the column
+sticks for the whole row. `align-self: flex-start` keeps it from stretching to
+the row height in the two-column layout (a stretched element has nothing to
+stick within). `top: 4.25rem` clears thingino's `sticky-top` navbar (56 px)
+plus a small gap. Below `xl` the image is capped at `34vh` (`object-fit:
+contain`) and gets the page background plus a soft shadow, so the controls
+pass cleanly underneath on a phone.
+
+## x/timps-dn-controls.cgi
+
+### The multi-line guard
+
+The body is matched with `grep`, which anchors per line, so a multi-line body
+is rejected first. The newline must be a literal one (`nl='` newline `'`):
+`$(printf '\n')` expands to an empty string (command substitution strips
+trailing newlines), which turned the guard into `*""*`, matched every body and
+answered 400 to every save (fixed 2026-10-24, thingino-firmware #1860).
+

@@ -6,8 +6,9 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.8
+TIMPS_VERSION = v1.12.1
 TIMPS_LICENSE = MIT
+TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
 
@@ -44,6 +45,10 @@ TIMPS_LICENSE = MIT
 # version otherwise.
 ifneq ($(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)),)
 TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
+endif
+# agg31: pinned commit from a local git checkout (TIMPS_SITE=/path): describe it
+ifneq ($(wildcard $(call qstrip,$(TIMPS_SITE))/.git),)
+TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_SITE)) describe --tags --always $(TIMPS_VERSION) 2>/dev/null)
 endif
 ifneq ($(TIMPS_GIT_DESCRIBE),)
 TIMPS_BUILD_VERSION = $(TIMPS_GIT_DESCRIBE)
@@ -152,6 +157,11 @@ endif
 # The upstream Makefile defaults to static: -l:libimp.a etc.
 # We override to use the shared libraries installed by ingenic-lib.
 TIMPS_IMPLIBS = -limp -lalog -lsysutils
+# timps imports no SU_*/alog symbol itself and OpenIMP's libimp does not link
+# libalog/libsysutils: with OpenIMP no Ingenic/neo blob is linked or shipped.
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+TIMPS_IMPLIBS = -limp
+endif
 
 # Additional system libs (extended from upstream -lpthread -lrt -lm)
 TIMPS_LIBS = -lpthread -lrt -lm
@@ -210,6 +220,7 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
+		USE_OPENIMP=$(if $(BR2_PACKAGE_OPENIMP),1,0) \
 		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
@@ -217,12 +228,11 @@ define TIMPS_BUILD_CMDS
 		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
-		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
-		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
 		USE_BC_WS=$(if $(BR2_PACKAGE_TIMPS_BC_WS),1,0) \
+		USE_WEBRTC=$(if $(BR2_PACKAGE_TIMPS_WEBRTC),1,0) \
 		HELIXLIB="-lhelix-aac" \
 		HELIX_INC=$(STAGING_DIR)/usr/include \
 		USE_PLAY=$(if $(BR2_PACKAGE_TIMPS_PLAY),1,0) \
@@ -250,11 +260,27 @@ define TIMPS_INSTALL_TARGET_CMDS
 
 	# One template for every board means every other sensor warns once per
 	# start. Buildroot knows the right name - the kernel driver is built from
-	# it. i2c_addr stays as shipped: buildroot does not carry it, and
-	# /proc/jz/sensor supplies it wherever that exists.
+	# it. i2c_addr stays unset (auto-detected, 0x37 fallback) except where a sensor's
+	# own driver hardcodes a different SENSOR_I2C_ADDRESS across every SoC
+	# variant it ships in - /proc/jz/sensor does not exist on T40/T41, so
+	# there is no runtime auto-detect fallback there.
 	if [ -n "$(call qstrip,$(BR2_SENSOR_1_NAME))" ]; then \
 		$(SED) 's|^sensor.model .*|sensor.model    = $(call qstrip,$(BR2_SENSOR_1_NAME))|' \
 			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
+		$(SED) 's|^#* *sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# Per-camera overrides: a profile's timps.conf lists only the keys that
+	# differ. A listed key replaces the shipped line, otherwise it is appended.
+	if [ -f "$(TIMPS_CAMERA_CONF)" ]; then \
+		awk 'NR==FNR{ if($$0 ~ /^[ \t]*[A-Za-z0-9_.]+[ \t]*=/){ k=$$0; sub(/[ \t]*=.*/,"",k); gsub(/^[ \t]+/,"",k); if(!(k in v)) o[++n]=k; v[k]=$$0 } next } \
+			{ k=$$0; if(k ~ /^[A-Za-z0-9_.]+[ \t]*=/){ sub(/[ \t]*=.*/,"",k); if(k in v){ print v[k]; u[k]=1; next } } print } \
+			END{ for(i=1;i<=n;i++) if(!(o[i] in u)) print v[o[i]] }' \
+			"$(TIMPS_CAMERA_CONF)" $(TARGET_DIR)/etc/timps.conf > $(TARGET_DIR)/etc/timps.conf.new && \
+		mv $(TARGET_DIR)/etc/timps.conf.new $(TARGET_DIR)/etc/timps.conf; \
 	fi
 
 	# When timps is built with TLS AND the WebUI's own uhttpd also has TLS
@@ -262,8 +288,31 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# only links the shared cert pair when it sees this already set, so
 	# leaving it commented meant every TLS+WebUI image needed a manual
 	# post-flash edit before HTTPS actually worked.
+	#
+	# The value shipped is 1, which since timps v1.9.11 means BOTH schemes on
+	# the one port (per-connection, by a first-byte peek), not TLS-only - that
+	# is now 2. So an http:// WebUI page and an https:// one both reach the
+	# preview port with their own scheme, and the old mixed-content failure
+	# (http:// page, https:// subresource fetch, self-signed cert, no possible
+	# interstitial) cannot happen from this default any more.
+	#
+	# This used to ALSO require BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y,
+	# back when 1 meant TLS-only and the preview therefore had to be kept on
+	# whatever single scheme uhttpd ended up serving. Dropped, for three
+	# reasons: the tri-state removed the mismatch it guarded against; the
+	# symbol is force-selected alongside UHTTPD_TLS by
+	# BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD, so the condition could never be
+	# false when the one above it was true; and it had the failure backwards -
+	# redirect=n means :80 is not redirected, NOT that :443 is gone, so
+	# suppressing http.https=1 there is what left an https:// page facing a
+	# plaintext-only preview port (and no cert generated, since S95timps keys
+	# ensure_tls_certs() off this same value).
+	#
+	# Writing 1 is purely additive on any TLS-capable build - plaintext keeps
+	# working - so there is no image on which not writing it is the safer
+	# choice.
 	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
-		$(SED) 's|^# http.https .*|http.https    = 1                       # serve the HTTP port over TLS|' \
+		$(SED) 's|^# http.https .*|http.https    = 1                       # 0 plain, 1 http+https on one port, 2 TLS only|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
@@ -740,10 +789,17 @@ endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
 endif
 
+endif
+
 # libstdc++.so is 2130 KB and, once timps links the C++ runtime statically and
 # libaudioprocess-neo replaces the proprietary (C++) libaudioProcess.so, has no
 # consumer left. Verify that before removing: NEEDED scan only, so this cannot
 # see dlopen - hence the opt-in Kconfig entry.
+#
+# Deliberately OUTSIDE the WebUI+CONTROL block above: nothing about the NEEDED
+# scan involves the web UI, and the Kconfig entry promises the drop on any
+# image. Nested in that block it silently did nothing on a headless build -
+# no removal, no "KEEPING" message, 2130 KB left behind.
 ifeq ($(BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP),y)
 define TIMPS_DROP_LIBSTDCPP
 	@users=$$(find $(TARGET_DIR) -type f \( -name '*.so*' -o -perm -u+x \) 2>/dev/null \
@@ -760,8 +816,6 @@ endef
 TARGET_FINALIZE_HOOKS += TIMPS_DROP_LIBSTDCPP
 endif
 
-endif
-
 # NOTE: motors-detection fix. Stock S48webui-config reports
 # window.thinginoUIConfig.device.motors=true whenever /etc/thingino.json HAS a
 # "motors" key at all - but configs/common.thingino.json ships one on every
@@ -772,11 +826,40 @@ endif
 # the preview page in general, not the /control API - so only gated on the
 # WebUI being present at all (nothing to override otherwise).
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+# Flash operations (dev builds) would sysupgrade to a stock release without
+# timps, so the page and its CGI are dropped and S48 never enables the entry.
 define TIMPS_INSTALL_WEBUI_CONFIG_FIX
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
+	rm -f $(TARGET_DIR)/var/www/tool-upgrade.html \
+		$(TARGET_DIR)/var/www/a/tool-upgrade.js \
+		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
+
+# assemble_plugins.py skips every preview.html (prudynt's ships its own PTZ
+# UI), but ours relies on the plugins' preview html + scripts (motors
+# joystick, drag-to-point). Apply them with the assembler's own functions,
+# from the manifests actually installed; the marker makes it run once.
+define TIMPS_PREVIEW_PLUGINS
+	@python3 -c 'import sys; sys.path.insert(0, "$(THINGINO_WEBUI_PKGDIR)/scripts"); \
+		from pathlib import Path; import assemble_plugins as a; \
+		t = Path("$(TARGET_DIR)"); p = t / "var/www/preview.html"; \
+		s = p.read_text(encoding="utf-8") if p.is_file() else ""; \
+		m = [x[0] for x in a.load_manifests(t)] if a.PREVIEW_BODY_MARKER in s else []; \
+		ts = a.ASSET_TS_RE.search(s); ts = ts.group(1) if ts else ""; \
+		m and p.write_text(a.inject_preview_scripts(a.inject_preview_body(s, m), m, ts), encoding="utf-8")'
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_PREVIEW_PLUGINS
+
+# thingino-webui tags its pages before timps installs, so timps pages and
+# changed timps scripts kept stale ?ts= cache keys
+TIMPS_ASSET_TAG := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a $(TIMPS_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
+define TIMPS_APPLY_ASSET_TAG
+	python3 $(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py \
+		"$(if $(TIMPS_ASSET_TAG),$(TIMPS_ASSET_TAG),$(shell date +%s))" $(TARGET_DIR)/var/www
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_APPLY_ASSET_TAG
 endif
 
 # NOTE: send-to-* notification toolkit now lives in package/thingino-send2.
