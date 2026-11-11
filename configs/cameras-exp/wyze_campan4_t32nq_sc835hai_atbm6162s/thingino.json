@@ -6,7 +6,7 @@
     "button_reset": 21,
     "speaker": 14,
     "ir850": 17,
-    "ircut": "72 73",
+    "ircut": "73 72",
     "mmc_cd": 42,
     "mmc_power": {
       "pin": 46,
