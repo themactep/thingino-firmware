@@ -48,7 +48,7 @@ raptor_bool_default() {
 }
 
 raptor_rtsp_scheme() {
-	if [ "$(raptor_bool_default rtsp tls true)" = "true" ]; then
+	if [ "$(raptor_bool_default rtsp tls false)" = "true" ]; then
 		echo "rtsps"
 	else
 		echo "rtsp"
@@ -170,6 +170,7 @@ start() {
 	tmpfile="$(mktemp -u).json"
 	echo '{}' >$tmpfile
 	configure_raptor_onvif_profiles
+	[ -n "$iface" ] && jct $tmpfile set server.ifs "$iface"
 	jct $ONVIF_CONFIG import $tmpfile
 	rm -f $tmpfile
 }

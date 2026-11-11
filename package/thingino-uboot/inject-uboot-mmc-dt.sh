@@ -125,6 +125,8 @@ if [ "$CD" -ge 0 ] && ! grep -q 'cd-gpios' "$DTS"; then
 	if [ -n "$CB" ]; then
 		{
 			printf '\n&msc0 {\t/* MMC card-detect, board gpio.mmc_cd=%s */\n' "$CD"
+			printf '\tstatus = "okay";\n'
+			printf '\tbus-width = <4>;\n'
 			printf '\t/delete-property/ broken-cd;\n'
 			printf '\tcd-gpios = <&gp%s %s 0x11>;\t/* GPIO_ACTIVE_LOW | GPIO_PULL_UP */\n' "$CB" "$((CD % 32))"
 			printf '};\n'

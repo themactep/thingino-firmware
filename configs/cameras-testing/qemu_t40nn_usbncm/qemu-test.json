@@ -1,0 +1,8 @@
+{
+  "soc": "t40nn",
+  "caps": [
+    "wired",
+    "usb_direct"
+  ],
+  "net": "slirp"
+}

@@ -2,6 +2,7 @@ config BR2_PACKAGE_THINGINO_HA
 	bool "thingino-ha"
 	depends on BR2_PACKAGE_THINGINO_MOSQUITTO_20X
 	depends on BR2_PACKAGE_THINGINO_JCT
+	depends on BR2_PACKAGE_THINGINO_AGENT
 	select BR2_PACKAGE_THINGINO_SYSUPGRADE
 	help
 	  Home Assistant MQTT integration for Thingino cameras.
@@ -9,8 +10,8 @@ config BR2_PACKAGE_THINGINO_HA
 	  (motion, IR cut, day/night, privacy, lights, PTZ, OTA, etc.)
 	  appear automatically in Home Assistant without manual YAML.
 	  Includes a native HA update entity (Settings -> Updates) that
-	  installs firmware via a config-preserving partial upgrade
-	  (sysupgrade -p); requires the sysupgrade package.
+	  installs firmware via a config-preserving full upgrade
+	  (sysupgrade -f -B); requires the sysupgrade package.
 	  Requires the MQTT broker settings to be configured under
 	  the mqtt_sub section and Home Assistant with MQTT integration.
 	  https://github.com/themactep/thingino-firmware

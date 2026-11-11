@@ -1,0 +1,8 @@
+{
+  "lamp_socket": {
+    "enabled": false,
+    "boot_state": "last",
+    "device": "",
+    "last_state": ""
+  }
+}

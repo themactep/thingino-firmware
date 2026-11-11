@@ -53,10 +53,8 @@
         </div>
       </div>
 
-      <!-- Error / offline alert -->
       <div id="isp-error-alert" class="alert alert-warning d-none"></div>
 
-      <!-- Live stats row -->
       <div class="d-flex align-items-center gap-2 mb-2" id="isp-header">
         <span class="fw-bold" id="isp-hdr-platform"></span>
         <span class="fw-bold" id="isp-hdr-sensor"></span>
@@ -77,10 +75,8 @@
         <span class="text-muted small" id="isp-hdr-orient"></span>
       </div>
       <div class="row row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2 mb-3" id="isp-stats-row">
-        <!-- Populated by JS -->
       </div>
 
-      <!-- Tabs: Charts / Raw / LLM Analysis -->
       <ul class="nav nav-tabs mb-3" id="ispTabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="charts-tab" data-bs-toggle="tab" data-bs-target="#tab-charts" type="button" role="tab">Charts</button>
@@ -94,7 +90,6 @@
       </ul>
 
       <div class="tab-content">
-        <!-- Charts -->
         <div class="tab-pane fade show active" id="tab-charts" role="tabpanel">
           <div class="row g-3 mb-3">
             <div class="col-12 col-xl-6">
@@ -130,7 +125,6 @@
           </div>
         </div>
 
-        <!-- Raw Data -->
         <div class="tab-pane fade" id="tab-raw" role="tabpanel">
           <div class="card">
             <div class="card-body">
@@ -148,7 +142,6 @@
           </div>
         </div>
 
-        <!-- LLM Analysis -->
         <div class="tab-pane fade" id="tab-llm" role="tabpanel">
           <div class="card mb-3">
             <div class="card-header"><h5 class="card-title mb-0">LLM Configuration</h5></div>
@@ -200,7 +193,6 @@
         </div>
       </div>
 
-      <!-- Issues log -->
       <div class="card mt-3 d-none" id="isp-issues-card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="card-title mb-0">Issue Log</h5>

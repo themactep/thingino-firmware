@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 18 Sep 2026 12:00:00 -0400
+Subject: [PATCH] mmc: t31: widen the TF/SDIO OCR range
+
+The T31 board data advertises only MMC_VDD_32_33 | MMC_VDD_33_34 for
+the TF slot and MMC_VDD_29_30 | MMC_VDD_30_31 for SDIO.  A card whose
+OCR does not include one of those exact windows fails
+mmc_select_voltage() with
+
+  mmc0: host doesn't support card's voltages
+  mmc0: error -22 whilst initialising SD card
+
+which is what a Wyze Cam v3 reports for some microSD cards.  The T23
+SDIO platform data already advertises the full 2.7-3.6 V range (see the
+old 0090 patch); do the same here for both controllers.  The slot still
+supplies 3.3 V, so this only widens the negotiation window.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ arch/mips/xburst/soc-t31/chip-t31/isvp/common/mmc.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/mmc.c b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/mmc.c
+--- a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/mmc.c
++++ b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/mmc.c
+@@ -21,7 +21,9 @@
+ struct jzmmc_platform_data tf_pdata = {
+ 	.removal  			= REMOVABLE,
+ 	.sdio_clk			= 1,
+-	.ocr_avail			= MMC_VDD_32_33 | MMC_VDD_33_34,
++	.ocr_avail			= MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 |
++					  MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
++					  MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36,
+ 	.capacity  			= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_4_BIT_DATA,
+ 	.pm_flags			= 0,
+ 	.recovery_info			= NULL,
+@@ -42,7 +44,9 @@
+  struct jzmmc_platform_data sdio_pdata = {
+ 	 .removal  			= MANUAL,
+ 	 .sdio_clk			= 1,
+-	 .ocr_avail			= MMC_VDD_29_30 | MMC_VDD_30_31,
++	 .ocr_avail			= MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 |
++					  MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
++					  MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36,
+ 	 .capacity  			= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ,
+ 	 .max_freq                       = CONFIG_MMC1_MAX_FREQ,
+ 	 .recovery_info			= NULL,
+-- 
+2.43.0

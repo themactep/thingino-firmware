@@ -1,0 +1,32 @@
+config BR2_PACKAGE_THINGINO_SECUREBOOP
+	bool "SPL patching for eFuse-locked SoCs (secureboop)"
+	help
+	  Patch the locally-built U-Boot SPL at build time so it boots
+	  on SoCs with eFuse-locked secure boot.
+
+	  T23/T32/T40/T41/A1: init-table write into the SPL header.
+	  T31: signature collision on the partial RSA check.
+
+	  Init-table SoCs need no extra configuration.  T31 requires the
+	  vendor RSA modulus (see sub-options).
+
+if BR2_PACKAGE_THINGINO_SECUREBOOP
+
+config BR2_PACKAGE_THINGINO_SECUREBOOP_T31_MODULUS
+	string "T31 RSA modulus (512 hex chars)"
+	depends on BR2_SOC_FAMILY = "t31"
+	help
+	  The 256-byte RSA-2048 public modulus from the vendor-signed
+	  SPL, as 512 hex characters.  This is the public key, not a
+	  secret.  Extract once from a stock flash dump:
+
+	    ingenic_t31_spl_patcher.py extract <stock.bin>
+
+config BR2_PACKAGE_THINGINO_SECUREBOOP_T31_EXPONENT
+	int "T31 RSA exponent"
+	depends on BR2_SOC_FAMILY = "t31"
+	default 65537
+	help
+	  RSA public exponent.  Almost always 65537 (0x10001).
+
+endif

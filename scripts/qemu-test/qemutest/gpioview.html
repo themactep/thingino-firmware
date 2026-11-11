@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pins</title>
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --line: #2a2f3a; --text: #d7dce5;
+  --dim: #8a93a3; --untouched: #242833; --func: #2f5f9e;
+  --out1: #3fb950; --out0: #1d5f2c; --in1: #d29922; --in0: #7a5300;
+  --irq1: #a371f7; --irq0: #5b3a99; --ext: #f0883e; --reset: #f85149;
+  --phase: #6e7681;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  padding: 8px 12px; background: var(--panel);
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--reset); margin-right: 6px; vertical-align: middle; }
+.dot.on { background: var(--out1); }
+button, select, input { background: #222733; color: var(--text);
+  border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px;
+  font: inherit; }
+button { cursor: pointer; }
+button:hover { border-color: var(--dim); }
+input[type=number] { width: 72px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px; padding: 12px; }
+section { background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 10px; min-width: 0; }
+section h2 { font-size: 12px; margin: 0 0 8px; color: var(--dim);
+  font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.left, .right { display: flex; flex-direction: column; gap: 12px;
+  min-width: 0; }
+#map { overflow-x: auto; }
+#map table { border-collapse: separate; border-spacing: 3px; }
+#map th { color: var(--dim); font-weight: 500; padding-right: 6px; }
+#map td { width: 24px; height: 24px; min-width: 24px; text-align: center;
+  border-radius: 4px; font-size: 10px; color: #c9d1d9; cursor: pointer; }
+#map td.absent { background: transparent; cursor: default; }
+td.untouched { background: var(--untouched); color: var(--dim); }
+td.func { background: var(--func); }
+td.out1 { background: var(--out1); color: #08130b; }
+td.out0 { background: var(--out0); }
+td.in1 { background: var(--in1); color: #1c1300; }
+td.in0 { background: var(--in0); }
+td.irq1 { background: var(--irq1); color: #120a24; }
+td.irq0 { background: var(--irq0); }
+td.sel { outline: 2px solid #fff; }
+td.flash { animation: flash .9s ease-out; }
+@keyframes flash { from { box-shadow: 0 0 0 4px rgba(255,255,255,.9); }
+  to { box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px;
+  color: var(--dim); font-size: 11px; }
+.legend i { display: inline-block; width: 10px; height: 10px;
+  border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+#tl { width: 100%; display: block; background: #12151b; border-radius: 4px;
+  cursor: grab; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hint { color: var(--dim); font-size: 11px; }
+#log { max-height: 300px; overflow: auto; }
+#log table, #hist table { width: 100%; border-collapse: collapse; }
+#log td, #hist td { padding: 1px 6px; border-bottom: 1px solid #1f232c;
+  white-space: nowrap; }
+#log td.t, #hist td.t { color: var(--dim); text-align: right; }
+td.ext { color: var(--ext); }
+tr.reset td { color: var(--reset); }
+#con { max-height: 260px; overflow: auto; white-space: pre-wrap;
+  word-break: break-all; font-size: 11px; color: #b8c0cc; }
+#insp dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  margin: 0 0 8px; }
+#insp dt { color: var(--dim); }
+#insp dd { margin: 0; }
+.funcs span { display: inline-block; padding: 0 5px; margin: 0 4px 2px 0;
+  border: 1px solid var(--line); border-radius: 3px; }
+.funcs span.cur { border-color: var(--func); background: #1d2f4a; }
+#hist { max-height: 200px; overflow: auto; }
+@media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Pins</h1>
+  <span><span id="dot" class="dot"></span><span id="status">connecting</span></span>
+  <span id="clock" class="hint"></span>
+  <span class="row">
+    <button id="stop" title="Pause the machine">Pause</button>
+    <button id="cont" title="Resume the machine">Resume</button>
+  </span>
+  <span class="row" title="Set an SADC channel's 12-bit sample">
+    ADC <select id="adcch"></select>
+    <input id="adcv" type="number" min="0" max="4095" value="2025">
+    <button id="adcset">Set</button>
+  </span>
+  <input id="filter" placeholder="filter pins (PB, 46, irq)" size="22">
+</header>
+<main>
+  <div class="left">
+    <section>
+      <h2>Pin map</h2>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i style="background:var(--untouched)"></i>reset state</span>
+        <span><i style="background:var(--func)"></i>device function</span>
+        <span><i style="background:var(--out1)"></i>out 1</span>
+        <span><i style="background:var(--out0)"></i>out 0</span>
+        <span><i style="background:var(--in1)"></i>in 1</span>
+        <span><i style="background:var(--in0)"></i>in 0</span>
+        <span><i style="background:var(--irq1)"></i>irq 1</span>
+        <span><i style="background:var(--irq0)"></i>irq 0</span>
+      </div>
+    </section>
+    <section>
+      <h2>Timeline</h2>
+      <canvas id="tl" height="200"></canvas>
+      <div class="hint">wheel zooms, drag pans, double-click follows the
+        newest again; red lines are resets, grey ones boot stages seen live</div>
+    </section>
+    <section>
+      <h2>Changes</h2>
+      <div id="log"><table><tbody id="logb"></tbody></table></div>
+    </section>
+  </div>
+  <div class="right">
+    <section id="insp">
+      <h2>Pin</h2>
+      <div id="inspb" class="hint">click a pin</div>
+    </section>
+    <section>
+      <h2>Console</h2>
+      <div id="con"></div>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const PORTS = "ABCDEF";
+const LOGMAX = 3000, CONMAX = 400;
+let meta = { pins: {} };
+let ports = 3, live = false, selected = null;
+let tmax = 0, lastWall = 0;
+const pins = {};              // "PB14" -> { gpio, st, hist: [[t, st]] }
+const resets = [], phases = [];
+const view = { t0: 0, t1: 1e9, follow: true };
+let dirtyMap = true, dirtyTl = true;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function fname(pin, n) {
+  const p = meta.pins[pin];
+  return p && p.func && p.func[n] ? p.func[n] : "";
+}
+
+function label(pin, st) {
+  if (!st) return "reset state";
+  if (st.fn === "func") {
+    const f = fname(pin, st.func);
+    return "func" + st.func + (f ? " (" + f + ")" : "");
+  }
+  if (st.fn === "irq")
+    return "irq " + st.trig + (st.mask ? " masked" : "") + " " + st.lvl;
+  return st.fn + " " + st.lvl;
+}
+
+function cls(st) {
+  if (!st) return "untouched";
+  return st.fn === "func" ? "func" : st.fn + st.lvl;
+}
+
+function secs(t) { return (t / 1e9).toFixed(6); }
+
+function matches(pin) {
+  const f = $("filter").value.trim().toLowerCase();
+  if (!f) return true;
+  const p = pins[pin];
+  return pin.toLowerCase().includes(f) ||
+    (p && String(p.gpio) === f) ||
+    (p && label(pin, p.st).toLowerCase().includes(f));
+}
+
+function buildMap() {
+  const table = Object.keys(meta.pins).length > 0;
+  let h = "<table>";
+  for (let n = 0; n < ports; n++) {
+    h += "<tr><th>P" + PORTS[n] + "</th>";
+    for (let i = 0; i < 32; i++) {
+      const pin = "P" + PORTS[n] + i;
+      if (table && !meta.pins[pin]) {
+        h += '<td class="absent"></td>';
+        continue;
+      }
+      h += '<td id="c' + pin + '" data-pin="' + pin + '">' + i + "</td>";
+    }
+    h += "</tr>";
+  }
+  $("map").innerHTML = h + "</table>";
+  $("map").querySelectorAll("td[data-pin]").forEach(td => {
+    td.addEventListener("click", () => select(td.dataset.pin));
+  });
+  dirtyMap = true;
+}
+
+function paintMap() {
+  for (let n = 0; n < ports; n++) {
+    for (let i = 0; i < 32; i++) {
+      const pin = "P" + PORTS[n] + i, td = $("c" + pin);
+      if (!td) continue;
+      const p = pins[pin], st = p ? p.st : null;
+      td.className = cls(st) + (pin === selected ? " sel" : "");
+      td.title = pin + " (" + (n * 32 + i) + "): " + label(pin, st);
+      td.style.opacity = matches(pin) ? 1 : 0.25;
+    }
+  }
+}
+
+function flash(pin) {
+  const td = $("c" + pin);
+  if (!td) return;
+  td.classList.remove("flash");
+  void td.offsetWidth;
+  td.classList.add("flash");
+}
+
+function addLog(cells, cls_) {
+  const tr = document.createElement("tr");
+  if (cls_) tr.className = cls_;
+  tr.innerHTML = cells;
+  const box = $("log"), body = $("logb");
+  const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  body.appendChild(tr);
+  while (body.rows.length > LOGMAX) body.deleteRow(0);
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+function onGpio(e) {
+  if (e.reset) {
+    resets.push(e.t);
+    for (const k in pins) pins[k].st = null;
+    if (e.ports && e.ports !== ports) { ports = e.ports; buildMap(); }
+    addLog('<td class="t">' + secs(e.t) + '</td><td colspan="4">reset</td>',
+      "reset");
+  } else {
+    const p = pins[e.pin] || (pins[e.pin] = { gpio: e.gpio, st: null, hist: [] });
+    const st = { fn: e.fn, func: e.func, lvl: e.lvl, trig: e.trig, mask: e.mask };
+    const was = label(e.pin, p.st);
+    p.st = st;
+    p.hist.push([e.t, st]);
+    const who = e.src ? '<td class="ext">ext</td>' : "<td>" + esc(e.pc || "") + "</td>";
+    if (matches(e.pin))
+      addLog('<td class="t">' + secs(e.t) + "</td><td>" + e.pin + "</td><td>" +
+        e.gpio + "</td><td>" + esc(was) + " &rarr; " + esc(label(e.pin, st)) +
+        "</td>" + who);
+    if (live) flash(e.pin);
+    if (e.pin === selected) showPin(selected);
+  }
+  if (e.t > tmax) tmax = e.t;
+  lastWall = performance.now();
+  dirtyMap = dirtyTl = true;
+}
+
+function now() {
+  // virtual time runs with the host clock while the machine runs
+  return live && !paused ? tmax + (performance.now() - lastWall) * 1e6 : tmax;
+}
+
+function onConsole(text) {
+  const con = $("con");
+  const atEnd = con.scrollTop + con.clientHeight >= con.scrollHeight - 4;
+  const div = document.createElement("div");
+  div.textContent = text;
+  con.appendChild(div);
+  while (con.childNodes.length > CONMAX) con.removeChild(con.firstChild);
+  if (atEnd) con.scrollTop = con.scrollHeight;
+  if (!live) return;
+  const stage = /U-Boot SPL/.test(text) ? "SPL" :
+    /^U-Boot 20/.test(text) ? "U-Boot" :
+    /Starting kernel/.test(text) ? "kernel" :
+    /Run \/init|Freeing unused kernel/.test(text) ? "userspace" : null;
+  if (stage) { phases.push([now(), stage]); dirtyTl = true; }
+}
+
+let paused = false;
+function setLive(on) {
+  $("dot").classList.toggle("on", on && !paused);
+  $("status").textContent = !on ? "disconnected" : paused ? "paused" : "live";
+}
+
+async function post(path) {
+  const r = await fetch(path, { method: "POST" });
+  if (!r.ok) alert((await r.json()).error || r.statusText);
+  return r.ok;
+}
+
+function showPin(pin) {
+  const p = pins[pin], t = meta.pins[pin] || {}, st = p ? p.st : null;
+  const n = PORTS.indexOf(pin[1]) * 32 + parseInt(pin.slice(2), 10);
+  let h = "<dl><dt>pin</dt><dd>" + pin + " (gpio " + n + ")</dd>" +
+    "<dt>now</dt><dd>" + esc(label(pin, st)) + "</dd>";
+  if (t.func) {
+    h += '<dt>functions</dt><dd class="funcs">' + t.func.map((f, i) =>
+      '<span class="' + (st && st.fn === "func" && st.func === i ? "cur" : "") +
+      '">' + i + ": " + esc(f || "-") + "</span>").join("") + "</dd>";
+    if (t.reset) h += "<dt>out of reset</dt><dd>" + esc(t.reset) + "</dd>";
+    if (t.power) h += "<dt>power</dt><dd>" + esc(t.power) + "</dd>";
+    if (t.qfn || t.bga)
+      h += "<dt>package</dt><dd>" + (t.qfn ? "QFN pin " + esc(t.qfn) : "") +
+        (t.qfn && t.bga ? ", " : "") + (t.bga ? "BGA " + esc(t.bga) : "") + "</dd>";
+  }
+  h += '</dl><div class="row"><button id="lo">drive 0</button>' +
+    '<button id="hi">drive 1</button><span class="hint">as a button or a' +
+    " card would, from outside</span></div>";
+  h += '<div id="hist"><table><tbody>' + (p ? p.hist.slice(-200).reverse().map(
+    ([tt, s]) => '<tr><td class="t">' + secs(tt) + "</td><td>" +
+      esc(label(pin, s)) + "</td></tr>").join("") : "") + "</tbody></table></div>";
+  $("inspb").innerHTML = h;
+  $("lo").onclick = () => post("/drive?pin=" + pin + "&level=0");
+  $("hi").onclick = () => post("/drive?pin=" + pin + "&level=1");
+}
+
+function select(pin) {
+  selected = pin;
+  showPin(pin);
+  dirtyMap = dirtyTl = true;
+}
+
+// timeline
+const tl = $("tl"), ctx = tl.getContext("2d");
+const LABEL = 200, ROWH = 18;
+
+function rows() {
+  return Object.keys(pins).filter(k => pins[k].hist.length && matches(k))
+    .sort((a, b) => pins[a].gpio - pins[b].gpio);
+}
+
+function firstAfter(hist, t) {
+  let lo = 0, hi = hist.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (hist[mid][0] < t) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+function drawTl() {
+  const list = rows();
+  const w = tl.clientWidth, h = Math.max(120, 24 + list.length * ROWH);
+  const dpr = window.devicePixelRatio || 1;
+  if (tl.width !== w * dpr || tl.height !== h * dpr) {
+    tl.width = w * dpr; tl.height = h * dpr; tl.style.height = h + "px";
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const end = now();
+  if (view.follow) {
+    view.t1 = Math.max(end, 1e9) * 1.02;
+    view.t0 = 0;
+  }
+  const span = Math.max(view.t1 - view.t0, 1000);
+  const X = t => LABEL + (t - view.t0) / span * (w - LABEL - 8);
+  ctx.font = "11px ui-monospace, Menlo, monospace";
+  ctx.textBaseline = "middle";
+  // ticks
+  ctx.fillStyle = "#6e7681";
+  const step = Math.pow(10, Math.floor(Math.log10(span / 6)));
+  const tick = [1, 2, 5, 10].map(m => m * step).find(s => span / s <= 8) || step * 10;
+  for (let t = Math.ceil(view.t0 / tick) * tick; t <= view.t1; t += tick) {
+    const x = X(t);
+    ctx.fillRect(x, 0, 1, h);
+    ctx.fillText((t / 1e9).toFixed(tick < 1e9 ? 3 : 1) + "s", x + 3, 8);
+  }
+  ctx.fillStyle = "#12151b";
+  ctx.fillRect(LABEL, 15, w - LABEL, 1);
+  for (const [t, name] of phases) {
+    const x = X(t);
+    ctx.fillStyle = "#6e7681"; ctx.fillRect(x, 0, 1, h);
+    ctx.fillText(name, x + 3, h - 8);
+  }
+  list.forEach((pin, r) => {
+    const y = 24 + r * ROWH, hi = y + 2, lo = y + ROWH - 4;
+    const p = pins[pin];
+    ctx.fillStyle = pin === selected ? "#ffffff" : "#c9d1d9";
+    ctx.fillText(pin.padEnd(5) + " " + label(pin, p.st).slice(0, 24), 4, y + ROWH / 2);
+    let i = Math.max(firstAfter(p.hist, view.t0) - 1, 0);
+    for (; i < p.hist.length; i++) {
+      const [t, st] = p.hist[i];
+      if (t > view.t1) break;
+      const t2 = i + 1 < p.hist.length ? p.hist[i + 1][0] : end;
+      const x1 = Math.max(X(t), LABEL), x2 = Math.min(X(t2), w - 8);
+      if (x2 < x1) continue;
+      if (st.fn === "func") {
+        ctx.fillStyle = "#2f5f9e";
+        ctx.fillRect(x1, y + ROWH / 2 - 3, Math.max(x2 - x1, 1), 6);
+        continue;
+      }
+      const col = st.fn === "out" ? "#3fb950" : st.fn === "in" ? "#d29922" : "#a371f7";
+      const yy = st.lvl ? hi : lo;
+      ctx.fillStyle = col;
+      ctx.fillRect(x1, yy, Math.max(x2 - x1, 1), 2);
+      ctx.fillRect(x1, hi, 1, lo - hi + 2);
+    }
+  });
+  ctx.fillStyle = "#f85149";
+  for (const t of resets) {
+    const x = X(t);
+    if (x >= LABEL) ctx.fillRect(x, 0, 1, h);
+  }
+}
+
+let drag = null;
+tl.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const w = tl.clientWidth, x = ev.offsetX;
+  if (x < LABEL) return;
+  const span = view.t1 - view.t0;
+  const at = view.t0 + (x - LABEL) / (w - LABEL - 8) * span;
+  const k = ev.deltaY > 0 ? 1.25 : 0.8;
+  view.follow = false;
+  view.t0 = Math.max(0, at - (at - view.t0) * k);
+  view.t1 = at + (view.t1 - at) * k;
+  dirtyTl = true;
+}, { passive: false });
+tl.addEventListener("mousedown", ev => {
+  drag = { x: ev.clientX, t0: view.t0, t1: view.t1 };
+  tl.style.cursor = "grabbing";
+});
+window.addEventListener("mouseup", () => { drag = null; tl.style.cursor = "grab"; });
+window.addEventListener("mousemove", ev => {
+  if (!drag) return;
+  const dt = (ev.clientX - drag.x) / (tl.clientWidth - LABEL - 8) * (drag.t1 - drag.t0);
+  view.follow = false;
+  view.t0 = Math.max(0, drag.t0 - dt);
+  view.t1 = view.t0 + (drag.t1 - drag.t0);
+  dirtyTl = true;
+});
+tl.addEventListener("dblclick", () => { view.follow = true; dirtyTl = true; });
+tl.addEventListener("click", ev => {
+  if (ev.offsetX >= LABEL) return;
+  const r = Math.floor((ev.offsetY - 24) / ROWH), list = rows();
+  if (r >= 0 && r < list.length) select(list[r]);
+});
+
+function frame() {
+  if (dirtyMap) { paintMap(); dirtyMap = false; }
+  if (dirtyTl || (live && !paused && view.follow)) { drawTl(); dirtyTl = false; }
+  $("clock").textContent = "t = " + (now() / 1e9).toFixed(3) + " s";
+  requestAnimationFrame(frame);
+}
+
+async function init() {
+  meta = await (await fetch("/meta")).json();
+  meta.pins = meta.pins || {};
+  $("title").textContent = [meta.name, meta.model, meta.machine]
+    .filter(Boolean).join(" · ");
+  document.title = "Pins: " + meta.name;
+  for (let i = 0; i < 8; i++)
+    $("adcch").insertAdjacentHTML("beforeend", "<option>" + i + "</option>");
+  const known = Object.keys(meta.pins).map(k => PORTS.indexOf(k[1]) + 1);
+  if (known.length) ports = Math.max(...known);
+  buildMap();
+  const es = new EventSource("/events");
+  es.addEventListener("gpio", ev => onGpio(JSON.parse(ev.data)));
+  es.addEventListener("console", ev => onConsole(JSON.parse(ev.data)));
+  es.addEventListener("live", () => { live = true; setLive(true); });
+  es.onerror = () => setLive(false);
+  $("stop").onclick = async () => { if (await post("/stop")) { paused = true; setLive(true); } };
+  $("cont").onclick = async () => {
+    if (await post("/cont")) { paused = false; lastWall = performance.now(); setLive(true); }
+  };
+  $("adcset").onclick = () => post("/adc?ch=" + $("adcch").value + "&value=" + $("adcv").value);
+  $("filter").addEventListener("input", () => { dirtyMap = dirtyTl = true; });
+  window.addEventListener("resize", () => { dirtyTl = true; });
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>

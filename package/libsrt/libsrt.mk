@@ -1,4 +1,4 @@
-LIBSRT_VERSION = 1.5.6
+LIBSRT_VERSION = 1.5.7
 LIBSRT_SOURCE = v$(LIBSRT_VERSION).tar.gz
 LIBSRT_SITE = https://github.com/Haivision/srt/archive/refs/tags
 LIBSRT_LICENSE = MPL-2.0

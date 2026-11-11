@@ -2,6 +2,11 @@ USBNET_VERSION = 1.0
 USBNET_SITE_METHOD = local
 USBNET_SITE = $(USBNET_PKGDIR)/files
 
+# The usb0/eth0 stanzas ship without the DHCPv6 flag; append it here so a
+# build without the IPv6 option does not advertise IPv6 DHCP support.
+USBNET_IPV6_USB0 = $(if $(BR2_PACKAGE_THINGINO_KOPT_IPV6),printf '   dhcp-v6-enabled true\n' >> $(TARGET_DIR)/etc/network/interfaces.d/usb0;)
+USBNET_IPV6_ETH0 = $(if $(BR2_PACKAGE_THINGINO_KOPT_IPV6),printf '   dhcp-v6-enabled true\n' >> $(TARGET_DIR)/etc/network/interfaces.d/eth0)
+
 
 ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM),y)
 USBNET_INSTALL_TARGET_CMDS = \
@@ -18,12 +23,29 @@ USBNET_INSTALL_TARGET_CMDS = \
 	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S36cdcnet-client \
 		$(TARGET_DIR)/etc/init.d/S36cdcnet; \
 	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/usb0 \
-		$(TARGET_DIR)/etc/network/interfaces.d/usb0
+		$(TARGET_DIR)/etc/network/interfaces.d/usb0; \
+	$(USBNET_IPV6_USB0)
 else
 USBNET_INSTALL_TARGET_CMDS = \
 	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/usb0 \
-		$(TARGET_DIR)/etc/network/interfaces.d/usb0
+		$(TARGET_DIR)/etc/network/interfaces.d/usb0; \
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/eth0 \
+		$(TARGET_DIR)/etc/network/interfaces.d/eth0; \
+	$(USBNET_IPV6_USB0) \
+	$(USBNET_IPV6_ETH0)
 endif
+
+# Host-mode USB ethernet adapters are pluggable, so enable ifplugd for
+# them the same way thingino-ethernet does for wired ports.
+ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM)$(BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT),)
+define USBNET_BUSYBOX_CONFIG_FIXUPS_ETH
+	$(call KCONFIG_ENABLE_OPT,CONFIG_IFPLUGD)
+endef
+endif
+
+define USBNET_BUSYBOX_CONFIG_FIXUPS
+	$(USBNET_BUSYBOX_CONFIG_FIXUPS_ETH)
+endef
 
 ifeq ($(or $(BR2_PACKAGE_USBNET_USB_DIRECT_NCM), $(BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT)),y)
 define USBNET_LINUX_CONFIG_FIXUPS_USB_DIRECT_NCM

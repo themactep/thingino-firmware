@@ -10,6 +10,10 @@
       $("#ftp_port").value = ftp.port || "21";
       $("#ftp_username").value = ftp.username || "";
       $("#ftp_password").value = ftp.password || "";
+      $("#ftp_use_ssl").checked =
+        ftp.use_ssl === true || ftp.use_ssl === "true";
+      $("#ftp_trust_cert").checked =
+        ftp.trust_cert === true || ftp.trust_cert === "true";
       $("#ftp_path").value = ftp.path || "";
       $("#ftp_template").value = ftp.template || "";
       $("#ftp_send_photo").checked =
@@ -27,6 +31,8 @@
           port: Number($("#ftp_port").value) || 21,
           username: $("#ftp_username").value.trim(),
           password: $("#ftp_password").value.trim(),
+          use_ssl: $("#ftp_use_ssl").checked,
+          trust_cert: $("#ftp_trust_cert").checked,
           path: $("#ftp_path").value.trim(),
           template: $("#ftp_template").value.trim(),
           send_photo: $("#ftp_send_photo").checked,

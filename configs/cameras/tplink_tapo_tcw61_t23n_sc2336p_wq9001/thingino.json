@@ -1,0 +1,30 @@
+{
+  "gpio": {
+    "button_reset": 62,
+    "ir850": 49,
+    "ircut": "57 58",
+    "mmc_cd": 59,
+    "mmc_power": {
+      "pin": 60,
+      "active_low": true
+    },
+    "speaker": 63,
+    "white": {
+      "pin": 50,
+      "active_low": true
+    },
+    "wlan": 51
+  },
+  "daynight": {
+    "controls": {
+      "color": true,
+      "ircut": true,
+      "ir850": true,
+      "ir940": false,
+      "white": false
+    }
+  },
+  "ha": {
+    "enable_ir940": false
+  }
+}

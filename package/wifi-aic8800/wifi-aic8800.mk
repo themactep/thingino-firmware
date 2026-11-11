@@ -1,7 +1,7 @@
 WIFI_AIC8800_SITE_METHOD = git
 WIFI_AIC8800_SITE = https://github.com/gtxaspec/aic8800-wifi
 WIFI_AIC8800_SITE_BRANCH = master
-WIFI_AIC8800_VERSION = 96cd509a9b6282d4f55adf2b394801ae9ae22599
+WIFI_AIC8800_VERSION = a870f7f15170a5899bf0b98769896fd1a7d4bf1e
 
 WIFI_AIC8800_LICENSE = GPL-2.0
 
@@ -33,11 +33,11 @@ define WIFI_AIC8800_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# aic8800 is a full-MAC cfg80211 driver (rwnx): the module imports zero
+	# mac80211 symbols, so the soft-MAC stack (~421 KB built-in) was dead
+	# weight that overflowed the NOR kernel partition. Keep cfg80211, drop
+	# mac80211 (same as the full-MAC wifi-atbm6062u package).
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
 # USB driver path

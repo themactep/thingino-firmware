@@ -1,0 +1,206 @@
+#!/bin/sh
+# shellcheck disable=SC2046,SC2086,SC2329,SC3026,SC3037
+
+gpiodir=/sys/class/gpio
+GPIO_MAX=95
+
+unexport=0
+
+show_help() {
+	echo "Usage: $0 <command with params>
+Commands:
+	export <pin>		Export <pin> from kernel space
+	unexport <pin>		Release <pin> back to the kernel space
+	input <pin>		Set <pin> as input
+	output <pin>		Set <pin> as output
+	set <pin> <1|0>		Set <pin> output state to HIGH or LOW
+	toggle <pin>		Toggle <pin> output state HIGH/LOW
+	read <pin>		Read values of <pin>
+	claim <pin>		Claim <pin> to the kernel
+	info <pin>		Get information about the <pin>
+	list			Show claimed pins via debugfs
+	scan [pin...]		Set pins to input and report state changes
+	sweep <pin1> <pin2>	Toggle a range of pins from pin1 to pin2
+Legacy:
+	high <pin>		Set <pin1> output state to HIGH
+	low <pin>		Set <pin1> output state to LOW
+	clear <pin>		Set pin1 output state to LOW
+" >&2
+	exit 1
+}
+
+list_pins() {
+	grep -q /sys/kernel/debug /proc/mounts || mount -t debugfs none /sys/kernel/debug
+	cat /sys/kernel/debug/gpio
+}
+
+claim_pin() {
+	export_pin
+	echo "$pin" >/proc/gpio_claim/gpio
+}
+
+export_pin() {
+	[ -d "$gpiodir/gpio$pin" ] && return
+	echo "$pin" >"$gpiodir/export"
+}
+
+unexport_pin() {
+	[ -d "$gpiodir/gpio$pin" ] || return
+	echo "$pin" >"$gpiodir/unexport"
+}
+
+set_direction() {
+	export_pin
+	echo "$1" >"$gpiodir/gpio$pin/direction"
+}
+
+set_value() {
+	set_direction "out"
+	echo "$1" >"$gpiodir/gpio$pin/value"
+}
+
+toggle_value() {
+	if [ "$(get_value)" -eq 0 ]; then
+		set_value 1
+	else
+		set_value 0
+	fi
+}
+
+get_pin_info() {
+	if [ ! -d "$gpiodir/gpio$pin" ]; then
+		export_pin
+		unexport=1
+	fi
+
+	printf "PIN: %d\nACT: %d\nDIR: %s\nVAL: %d\n" \
+		$pin \
+		$(cat "$gpiodir/gpio$pin/active_low") \
+		$(cat "$gpiodir/gpio$pin/direction") \
+		$(cat "$gpiodir/gpio$pin/value")
+
+	[ "0$unexport" -eq 1 ] && unexport_pin $pin
+}
+
+get_direction() {
+	export_pin "$pin"
+	cat "$gpiodir/gpio$1/direction"
+}
+
+get_value() {
+	if [ ! -d "$gpiodir/gpio$pin" ]; then
+		export_pin "$pin"
+		unexport=1
+	fi
+	if [ -f "$gpiodir/gpio$pin/value" ]; then
+		cat "$gpiodir/gpio$pin/value"
+	fi
+	if [ "0$unexport" -eq 1 ]; then
+		unexport_pin "$pin"
+	fi
+}
+
+sweep_pins() {
+	for i in $(seq $1 $2); do
+		echo $i
+		gpio set $i 1
+		sleep 1
+		gpio set $i 0
+	done
+}
+
+scan_pins() {
+	config_file=/etc/web.conf
+	exclude="55 56"
+	if [ -f "$config_file" ]; then
+		exclude="$exclude $(awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' "$config_file" | tr -d '"' | sort -g | uniq | xargs)"
+	fi
+	[ "$#" -gt 0 ] && exclude="$exclude $*"
+
+	echo "Excluded pins: $exclude"
+	echo -n "Set pins to input:"
+	for i in $(seq 0 $GPIO_MAX); do
+		case " $exclude " in
+			*" $i "*) continue ;;
+		esac
+		echo -n " $i"
+		pin=$i
+		set_direction "in"
+	done
+	echo
+	list_pins >/tmp/gpio.old
+
+	echo "Waiting for actions..."
+	while :; do
+		clear
+		list_pins >/tmp/gpio.new
+		diff /tmp/gpio.old /tmp/gpio.new
+		sleep 1
+	done
+}
+
+case "$1" in
+	list | scan)
+		;;
+	*)
+		pin=$(echo "$2" | sed s/[^0-9]//g)
+		if [ -z "$pin" ]; then
+			echo "PIN $pin IS NOT SET" >&2
+			show_help
+		fi
+		;;
+esac
+
+case "$1" in
+	export | catch)
+		export_pin
+		;;
+	unexport | release)
+		unexport_pin
+		;;
+	input)
+		set_direction "in"
+		;;
+	output)
+		set_direction "out"
+		;;
+	set)
+		set_value ${3:-1}
+		;;
+	toggle)
+		toggle_value
+		;;
+	get | read | value)
+		get_value
+		;;
+	claim)
+		claim_pin
+		;;
+	info)
+		get_pin_info
+		;;
+	list)
+		list_pins
+		;;
+	scan)
+		shift
+		scan_pins "$@"
+		;;
+	clear)
+		set_value 0
+		;;
+	high)
+		set_value 1
+		;;
+	low)
+		set_value 0
+		;;
+	sweep)
+		sweep_pins "$2" "$3"
+		;;
+	*)
+		show_help
+		;;
+esac
+
+exit 0

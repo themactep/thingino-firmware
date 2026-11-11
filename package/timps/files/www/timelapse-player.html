@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Timelapse</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    
+    #tlp-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: .375rem;
+      overflow: hidden;
+    }
+
+    #tlp-frame {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    #tlp-stamp {
+      position: absolute;
+      left: .5rem;
+      bottom: .5rem;
+      padding: .1rem .45rem;
+      border-radius: .25rem;
+      background: rgba(0, 0, 0, .55);
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      font-size: .85rem;
+      pointer-events: none;
+    }
+
+    #tlp-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      color: #adb5bd;
+    }
+
+    #tlp-counter {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body id="page-timelapse-player">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <h3 class="mb-0">Timelapse</h3>
+      <button type="button" id="tlp-reload" class="btn btn-outline-secondary btn-sm" title="Rescan the timelapse folder">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <span class="text-secondary small" id="tlp-info"></span>
+    </div>
+
+    <ul class="nav nav-tabs tv-tabs my-2" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="player">Player</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="settings">Settings</button></li>
+    </ul>
+    <div data-page-pane="player">
+    <div class="card mt-2">
+      <div class="card-header"><h2 class="tv-ct">Player</h2></div>
+      <div class="card-body">
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-12 col-md">
+            <label for="tlp-seq" class="form-label mb-1">Sequence</label>
+            <select class="form-select" id="tlp-seq">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-auto">
+            <label for="tlp-fps" class="form-label mb-1">Speed</label>
+            <select class="form-select" id="tlp-fps">
+              <option value="0.5">0.5 fps</option>
+              <option value="1">1 fps</option>
+              <option value="2">2 fps</option>
+              <option value="5">5 fps</option>
+              <option value="10" selected>10 fps</option>
+              <option value="15">15 fps</option>
+              <option value="25">25 fps</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-auto">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" id="tlp-loop" checked>
+              <label class="form-check-label" for="tlp-loop">Loop</label>
+            </div>
+          </div>
+        </div>
+
+        <div id="tlp-stage">
+          <img id="tlp-frame" alt="" hidden>
+          <div id="tlp-stamp" hidden></div>
+          <div id="tlp-empty">Loading…</div>
+        </div>
+
+        <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+          <div class="btn-group" role="group" aria-label="Playback">
+            <button type="button" class="btn btn-outline-secondary" id="tlp-first" title="First frame (Home)">
+              <i class="bi bi-skip-backward-fill"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="tlp-prev" title="Previous frame (Left arrow)">
+              <i class="bi bi-caret-left-fill"></i>
+            </button>
+            <button type="button" class="btn btn-primary" id="tlp-play" title="Play / pause (Space)">
+              <i class="bi bi-play-fill" id="tlp-play-icon"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="tlp-next" title="Next frame (Right arrow)">
+              <i class="bi bi-caret-right-fill"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="tlp-last" title="Last frame (End)">
+              <i class="bi bi-skip-forward-fill"></i>
+            </button>
+          </div>
+          <span class="text-secondary small" id="tlp-counter">0 / 0</span>
+          <input type="range" class="form-range flex-grow-1" id="tlp-scrub" min="0" max="0" value="0" step="1"
+            style="min-width:10rem" aria-label="Seek to frame">
+          <a class="btn btn-outline-secondary btn-sm" id="tlp-dl" href="#" download title="Download this frame">
+            <i class="bi bi-download"></i>
+          </a>
+        </div>
+
+        <p class="small text-secondary mb-0 mt-2" id="tlp-hint">&nbsp;</p>
+      </div>
+    </div>
+    </div>
+    <div data-page-pane="settings" hidden>
+<section>
+      <form id="tlForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="tv-ct">Timelapse</h2>
+            <small>A JPEG snapshot every interval under <code>&lt;dir&gt;/&lt;hostname&gt;/timelapses/</code>; saved live into <code>/etc/timps.conf</code>. The control-bar timelapse button toggles the same switch.</small>
+            <button type="button" class="btn btn-outline-secondary" id="tl-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+
+              <div class="col">
+                <h4>Storage</h4>
+                <small>where snapshots are written</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="tl_enabled">
+                  <label class="form-check-label" for="tl_enabled">Enable timelapse (also starts on boot)</label>
+                </p>
+                <p>
+                  <label for="tl_dir">Storage directory</label>
+                  <a href="/tool-file-manager.html" class="small text-decoration-none">
+                    <i class="bi bi-folder2-open ms-2 me-1"></i> Open in File Manager
+                  </a>
+                  <input type="text" class="form-control" id="tl_dir" placeholder="/mnt/mmcblk0p1"
+                    data-help="SD card or share mount; shots go under &lt;dir&gt;/&lt;hostname&gt;/timelapses/">
+                </p>
+                <p>
+                  <label for="tl_name">File name template</label>
+                  <input type="text" class="form-control strftime" id="tl_name" placeholder="%Y%m%d/%H/%Y%m%dT%H%M%S"
+                    data-help="strftime path under the timelapses folder (.jpg is appended)">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Capture</h4>
+                <small>source and cadence</small>
+                <p>
+                  <label for="tl_channel">Stream to capture</label>
+                  <select class="form-select" id="tl_channel">
+                    <option value="0">Main stream</option>
+                    <option value="1">Substream</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="tl_interval">Interval, seconds</label>
+                  <input type="number" class="form-control" id="tl_interval" min="1" max="86400" step="1"
+                    data-help="Save one snapshot every N seconds">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Retention</h4>
+                <small>automatic cleanup</small>
+                <p>
+                  <label for="tl_keepdays">Keep, days</label>
+                  <input type="number" class="form-control" id="tl_keepdays" min="0" max="3650" step="1"
+                    data-help="Snapshots older than this are deleted (0 = keep forever)">
+                </p>
+              </div>
+
+            </div>
+            <p class="small text-secondary mb-0" id="tl-status">&nbsp;</p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="tl-save">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
+    </section>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/timps-api.js"></script>
+<script src="/a/timps-ui.js"></script>
+<script src="/a/timelapse-player.js"></script>
+<script src="/a/tool-timelapse.js"></script>
+</body>
+</html>

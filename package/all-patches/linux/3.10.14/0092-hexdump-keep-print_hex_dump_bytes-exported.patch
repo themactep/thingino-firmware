@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 18 Sep 2026 05:05:00 -0400
+Subject: [PATCH] lib: hexdump: keep print_hex_dump_bytes exported with dynamic debug
+
+With CONFIG_DYNAMIC_DEBUG=y, include/linux/printk.h turns
+print_hex_dump_bytes() into a dynamic_hex_dump() macro and lib/hexdump.c
+compiles the real function out.  Vendor-built wireless modules - the
+ATBM6062CU blob, among others - link against the plain symbol, so enabling
+dynamic debug for a board makes them fail to load with
+
+    atbm606x_bt_usb: Unknown symbol print_hex_dump_bytes
+
+Undefine the macro in hexdump.c and always build and export the function.
+In-tree callers keep using the macro, so dynamic-debug behaviour is
+unchanged; only the exported symbol is restored for out-of-tree modules.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ lib/hexdump.c | 13 +++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/lib/hexdump.c b/lib/hexdump.c
+--- a/lib/hexdump.c
++++ b/lib/hexdump.c
+@@ -227,7 +227,16 @@
+ }
+ EXPORT_SYMBOL(print_hex_dump);
+ 
+-#if !defined(CONFIG_DYNAMIC_DEBUG)
++#if defined(CONFIG_DYNAMIC_DEBUG)
++/*
++ * printk.h replaces print_hex_dump_bytes() with a dynamic_hex_dump() macro
++ * when dynamic debug is enabled. Vendor-built modules still link against the
++ * plain symbol, so undefine the macro here and keep exporting the function.
++ * In-tree callers keep using the macro; only the exported symbol is restored.
++ */
++#undef print_hex_dump_bytes
++#endif
++
+ /**
+  * print_hex_dump_bytes - shorthand form of print_hex_dump() with default params
+  * @prefix_str: string to prefix each line with;
+@@ -247,5 +256,4 @@
+ 		       buf, len, true);
+ }
+ EXPORT_SYMBOL(print_hex_dump_bytes);
+-#endif /* !defined(CONFIG_DYNAMIC_DEBUG) */
+ #endif /* defined(CONFIG_PRINTK) */
+-- 
+2.43.0
