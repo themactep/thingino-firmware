@@ -40,42 +40,43 @@ fi
 # 1x1 JPEG, enough for the upload path.
 printf '\xff\xd8\xff\xe0\x00\x10\x4a\x46\x49\x46\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xdb\x00\x43\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\x09\x09\x08\x0a\x0c\x14\x0d\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c\x20\x24\x2e\x27\x20\x22\x2c\x23\x1c\x1c\x28\x37\x29\x2c\x30\x31\x34\x34\x34\x1f\x27\x39\x3d\x38\x32\x3c\x2e\x33\x34\x32\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00\x7f\xff\xd9' >/tmp/test.jpg
 
-for style in double single; do
-	echo "== attribute style: $style"
+for case in "double" "single" "double&delay=1"; do
+	label=$(echo "$case" | tr '&=' '__')
+	echo "== attribute style: $case"
 	curl -sf "$SERVER/reset" >/dev/null
-	XMPP_BOSH_URL="$BOSH_URL?style=$style"
+	XMPP_BOSH_URL="$BOSH_URL?style=$case"
 	export XMPP_BOSH_URL
 
-	msg="text $style openfire-style"
+	msg="text $label openfire-style"
 	if sh "$SCRIPT" -m "$msg"; then
-		pass "text $style delivery"
+		pass "text $label delivery"
 	else
-		bad "text $style delivery"
+		bad "text $label delivery"
 	fi
 	body=$(curl -sf "$SERVER/messages")
 	if json_has "$body" "$msg"; then
-		pass "text $style received by server"
+		pass "text $label received by server"
 	else
-		bad "text $style received by server ($body)"
+		bad "text $label received by server ($body)"
 	fi
 
 	curl -sf "$SERVER/reset" >/dev/null
-	if sh "$SCRIPT" -i /tmp/test.jpg -m "image $style"; then
-		pass "image $style delivery"
+	if sh "$SCRIPT" -i /tmp/test.jpg -m "image $label"; then
+		pass "image $label delivery"
 	else
-		bad "image $style delivery"
+		bad "image $label delivery"
 	fi
 	body=$(curl -sf "$SERVER/messages")
 	uploads=$(curl -sf "$SERVER/uploads")
 	if json_has "$body" "upload/get"; then
-		pass "image $style message carries upload URL"
+		pass "image $label message carries upload URL"
 	else
-		bad "image $style message carries upload URL ($body)"
+		bad "image $label message carries upload URL ($body)"
 	fi
 	if json_has "$uploads" '"size":'; then
-		pass "image $style bytes uploaded"
+		pass "image $label bytes uploaded"
 	else
-		bad "image $style bytes uploaded ($uploads)"
+		bad "image $label bytes uploaded ($uploads)"
 	fi
 done
 
