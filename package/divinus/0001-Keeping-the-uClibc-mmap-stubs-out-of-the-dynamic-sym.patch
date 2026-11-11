@@ -23,8 +23,8 @@ index 0ceedf5..5cee641 100644
 +#pragma GCC visibility push(hidden)
 +#define COMPAT_MMAP_HIDDEN 1
 +#endif
- void *mmap(void *start, size_t len, int prot, int flags, int fd, off_t off) {
-     return (void*)syscall(SYS_mmap2, start, len, prot, flags, fd, (long)(off >> 12));
+ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+     return (void*)syscall(SYS_mmap2, start, len, prot, flags, fd, off >> 12);
  }
 @@ -68,6 +72,9 @@ void *mmap64(void *start, size_t len, int prot, int flags, int fd, off_t off) {
      return (void*)syscall(SYS_mmap2, start, len, prot, flags, fd, (long)(off >> 12));
