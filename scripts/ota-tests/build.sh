@@ -12,7 +12,10 @@ REPO="$(cd "$HERE/../.." && pwd)"
 OUTROOT="${THINGINO_OUTPUT_ROOT_DIR:-$REPO/output}"
 SCRATCH="$OUTROOT/ota-tests"
 
-KERNEL_SRC="${KERNEL_SRC:-/usr/src/linux-source-6.19}"
+KERNEL_VERSION="${KERNEL_VERSION:-6.18.63}"
+KERNEL_SRC_EXPLICIT="${KERNEL_SRC:+1}"
+KERNEL_SRC="${KERNEL_SRC:-$SCRATCH/linux-$KERNEL_VERSION}"
+KERNEL_URL="${KERNEL_URL:-https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-${KERNEL_VERSION}.tar.xz}"
 KBUILD="$SCRATCH/kbuild"
 BUSYBOX_TARBALL="${BUSYBOX_TARBALL:-$HOME/Files/thingino/dl/busybox/busybox-1.38.0.tar.bz2}"
 BUSYBOX_SRC="$SCRATCH/busybox-1.38.0"
@@ -23,14 +26,41 @@ echo "== OTA test build, scratch: $SCRATCH"
 mkdir -p "$SCRATCH"
 
 # --- kernel ---------------------------------------------------------------
+# A build tree is only reusable for the source it was configured against.
+if [ -d "$KBUILD" ]; then
+	if [ -f "$KBUILD/.kernel-src" ]; then
+		if [ "$(cat "$KBUILD/.kernel-src")" != "$KERNEL_SRC" ]; then
+			echo "== kernel source changed, cleaning $KBUILD"
+			rm -rf "$KBUILD"
+		fi
+	elif [ -f "$KBUILD/.config" ]; then
+		echo "== stale kernel build without a source marker, cleaning $KBUILD"
+		rm -rf "$KBUILD"
+	fi
+fi
+
 if [ ! -f "$KBUILD/arch/x86/boot/bzImage" ]; then
 	if [ ! -d "$KERNEL_SRC" ]; then
-		echo "kernel source $KERNEL_SRC not found" >&2
-		exit 1
+		if [ -n "$KERNEL_SRC_EXPLICIT" ]; then
+			echo "kernel source $KERNEL_SRC not found" >&2
+			exit 1
+		fi
+		tarball="$SCRATCH/$(basename "$KERNEL_URL")"
+		if [ ! -f "$tarball" ]; then
+			echo "== downloading $(basename "$KERNEL_URL")"
+			curl -fL --retry 3 -o "$tarball" "$KERNEL_URL"
+		fi
+		echo "== extracting $(basename "$KERNEL_URL")"
+		tar xf "$tarball" -C "$SCRATCH"
+		[ -d "$KERNEL_SRC" ] || {
+			echo "kernel source $KERNEL_SRC not found after extraction" >&2
+			exit 1
+		}
 	fi
-	echo "== configuring minimal kernel"
+	echo "== configuring minimal kernel ($KERNEL_VERSION)"
 	mkdir -p "$KBUILD"
-	make -C "$KERNEL_SRC" O="$KBUILD" allnoconfig >/dev/null
+	echo "$KERNEL_SRC" >"$KBUILD/.kernel-src"
+	make -C "$KERNEL_SRC" O="$KBUILD" ARCH=x86_64 CROSS_COMPILE= CC=gcc HOSTCC=gcc allnoconfig >/dev/null
 	"$KERNEL_SRC/scripts/config" --file "$KBUILD/.config" \
 		--enable 64BIT --enable X86_64 --disable X86_32 \
 		--enable MULTIUSER --enable PRINTK --enable BUG --enable BINFMT_ELF --enable BINFMT_SCRIPT \
@@ -44,9 +74,9 @@ if [ ! -f "$KBUILD/arch/x86/boot/bzImage" ]; then
 		--enable MODULES --module MTD_BLOCK2MTD \
 		--enable PCI --enable VIRTIO_MENU --enable VIRTIO --enable VIRTIO_PCI \
 		--enable VIRTIO_BLK --enable BLK_DEV
-	make -C "$KERNEL_SRC" O="$KBUILD" olddefconfig >/dev/null
+	make -C "$KERNEL_SRC" O="$KBUILD" ARCH=x86_64 CROSS_COMPILE= CC=gcc HOSTCC=gcc olddefconfig >/dev/null
 	echo "== building kernel (this takes a few minutes)"
-	make -C "$KERNEL_SRC" O="$KBUILD" -j"$(nproc)" all >"$SCRATCH/kernel-build.log" 2>&1
+	make -C "$KERNEL_SRC" O="$KBUILD" ARCH=x86_64 CROSS_COMPILE= CC=gcc HOSTCC=gcc -j"$(nproc)" all >"$SCRATCH/kernel-build.log" 2>&1
 	[ -f "$KBUILD/drivers/mtd/devices/block2mtd.ko" ] || {
 		echo "block2mtd.ko not built" >&2
 		exit 1
@@ -62,12 +92,13 @@ if [ ! -x "$BB" ]; then
 		exit 1
 	fi
 	echo "== building busybox"
+	rm -rf "$BUSYBOX_SRC"
 	tar xf "$BUSYBOX_TARBALL" -C "$SCRATCH"
 	cd "$BUSYBOX_SRC"
-	make defconfig >/dev/null
-	sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/; s/^# CONFIG_FLASH_ERASEALL is not set/CONFIG_FLASH_ERASEALL=y/; s/^# CONFIG_FLASHCP is not set/CONFIG_FLASHCP=y/' .config
-	yes "" | make oldconfig >/dev/null
-	make -j"$(nproc)" >"$SCRATCH/busybox-build.log" 2>&1
+	make CC=gcc HOSTCC=gcc CROSS_COMPILE= defconfig </dev/null >/dev/null
+	sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/; s/^# CONFIG_FLASH_ERASEALL is not set/CONFIG_FLASH_ERASEALL=y/; s/^# CONFIG_FLASHCP is not set/CONFIG_FLASHCP=y/; s/^CONFIG_TC=y/# CONFIG_TC is not set/' .config
+	{ yes "" || true; } | make CC=gcc HOSTCC=gcc CROSS_COMPILE= oldconfig >/dev/null
+	make CC=gcc HOSTCC=gcc CROSS_COMPILE= -j"$(nproc)" >"$SCRATCH/busybox-build.log" 2>&1
 else
 	echo "== busybox already built"
 fi
@@ -76,7 +107,7 @@ fi
 INITRD_DIR="$SCRATCH/initramfs"
 echo "== assembling initramfs"
 rm -rf "$INITRD_DIR"
-mkdir -p "$INITRD_DIR"/{bin,sbin,lib,etc,proc,sys,dev,tmp,images}
+mkdir -p "$INITRD_DIR"/{bin,sbin,lib,etc,proc,sys,dev,tmp,run,images}
 cp "$BB" "$INITRD_DIR/bin/busybox"
 "$BB" --install -s "$INITRD_DIR/bin"
 # --install links applets to the build tree's absolute path; relink to busybox
@@ -96,7 +127,7 @@ if [ ! -f "$BLK2MTD_DIR/block2mtd.ko" ]; then
 	cp "$KERNEL_SRC/drivers/mtd/devices/block2mtd.c" "$BLK2MTD_DIR/"
 	sed -i 's/dev->mtd.type = MTD_RAM;/dev->mtd.type = MTD_NORFLASH;/; s/dev->mtd.flags = MTD_CAP_RAM;/dev->mtd.flags = MTD_CAP_NORFLASH;/' "$BLK2MTD_DIR/block2mtd.c"
 	printf 'obj-m := block2mtd.o\n' >"$BLK2MTD_DIR/Makefile"
-	make -C "$KBUILD" M="$BLK2MTD_DIR" modules >"$SCRATCH/block2mtd-build.log" 2>&1
+	make -C "$KBUILD" ARCH=x86_64 CROSS_COMPILE= CC=gcc HOSTCC=gcc M="$BLK2MTD_DIR" modules >"$SCRATCH/block2mtd-build.log" 2>&1
 fi
 cp "$BLK2MTD_DIR/block2mtd.ko" "$INITRD_DIR/block2mtd.ko"
 

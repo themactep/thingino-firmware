@@ -143,7 +143,7 @@ read_layout() {
 
 env_mtdparts() { # -> current mtdparts value in flash.img env (no name= prefix)
 	printf '%s\n' "$FLASH 0x30000 0x8000 0x10000" >"$SCRATCH/fw_env.config"
-	fw_printenv -c "$SCRATCH/fw_env.config" mtdparts 2>/dev/null | cut -d= -f2-
+	fw_printenv -l "$SCRATCH" -c "$SCRATCH/fw_env.config" mtdparts 2>/dev/null | cut -d= -f2-
 }
 
 # --- flash setup -----------------------------------------------------------
@@ -299,7 +299,7 @@ verify() {
 			assert_region_bytes "env blob at env partition (196608)" 196608 "$(stat -c%s "$IMG_DIR/u-boot-env.bin")" "$(md5sum "$IMG_DIR/u-boot-env.bin" | cut -d' ' -f1)"
 			local baked_env
 			printf '%s\n' "$IMG_DIR/u-boot-env.bin 0x0 0x8000 0x10000 1" >"$SCRATCH/fw_env.envbin"
-			baked_env=$(fw_printenv -c "$SCRATCH/fw_env.envbin" mtdparts 2>/dev/null | cut -d= -f2-)
+			baked_env=$(fw_printenv -l "$SCRATCH" -c "$SCRATCH/fw_env.envbin" mtdparts 2>/dev/null | cut -d= -f2-)
 			assert_cmd "env mtdparts now the new layout ($baked_env)" [ "$(env_mtdparts)" = "$baked_env" ]
 			assert_region "kernel region untouched" 320 1600 "$(pattern_md5 1600 33)"
 			assert_region "backup region untouched" 256 64 "$(pattern_md5 64 22)"

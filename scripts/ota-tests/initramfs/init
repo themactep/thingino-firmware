@@ -33,6 +33,7 @@ mount -t proc proc /proc 2>/dev/null
 mount -t sysfs sysfs /sys 2>/dev/null
 mount -t devtmpfs devtmpfs /dev 2>/dev/null
 mount -t tmpfs tmpfs /tmp 2>/dev/null
+mount -t tmpfs tmpfs /run 2>/dev/null
 
 # block2mtd turns the virtio disk into a 8 MiB MTD device with 64 KiB
 # erase blocks; the module is loaded here (not at boot) so the disk exists.
@@ -86,7 +87,7 @@ if [ "$t_mode" = rootfs ]; then
 	# prime the backing virtio-blk queue before the mount's nested block
 	# I/O; the first read through block2mtd->virtio otherwise races the
 	# completion and hangs the mount
-	dd if=/dev/mtdblock4 bs=512 count=1 >/dev/null 2>&1
+	dd if=/dev/mtdblock4 bs=65536 count=1 >/dev/null 2>&1
 	if mount -t squashfs /dev/mtdblock4 /fakeroot 2>/dev/null; then
 		rm -f /sbin/fw_printenv /sbin/fw_setenv /etc/fw_env.config
 		ln -s /fakeroot/sbin/fw_printenv /sbin/fw_printenv
@@ -97,6 +98,8 @@ if [ "$t_mode" = rootfs ]; then
 		echo "fakeroot: flash rootfs not mountable, keeping ramfs env tools"
 	fi
 fi
+
+mtd_size() { awk "/\"$1\"\$/{print \"0x\"\$2}" /proc/mtd; }
 
 echo "--- /proc/mtd ---"
 cat /proc/mtd
@@ -165,6 +168,16 @@ case "$t_mode" in
 		echo "flash-ota exit code: $?"
 		;;
 	boot)
+		# fw_ota.sh pads the boot file to the boot partition size before
+		# upload; do the same here so the size guard sees the real layout.
+		boot_part=$(mtd_size boot)
+		if [ -n "$boot_part" ]; then
+			boot_part=$((boot_part))
+			boot_len=$(stat -c%s /tmp/boot.bin)
+			if [ "$boot_len" -lt "$boot_part" ]; then
+				truncate -s "$boot_part" /tmp/boot.bin
+			fi
+		fi
 		echo "=== running: flash-ota boot /tmp/boot.bin /tmp/env.bin ==="
 		/tmp/flash-ota.sh boot /tmp/boot.bin /tmp/env.bin
 		echo "flash-ota exit code: $?"
