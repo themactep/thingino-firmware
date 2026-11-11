@@ -44,13 +44,11 @@ target_path() {
 process_file() {
 	local file="$1" kind="$2" rel dest_file
 
-	# empty / missing capture — don't invent junk names
 	[ -n "$file" ] && [ -f "$file" ] || return 0
 
 	rel=$(target_path "$kind")
 	dest_file="$dest_dir/$rel"
 
-	# template may contain directory components (e.g. %Y%m%d/%H)
 	if ! mkdir -p "$(dirname "$dest_file")"; then
 		echo_error "Failed to create directory: $(dirname "$dest_file")"
 		rm -f "$file"
@@ -65,14 +63,45 @@ process_file() {
 		return 1
 	fi
 
-	# capture paths stage via mktemp (mode 600) and cp preserves the mode;
-	# published files must stay world-readable for NAS/NFS shares
+	# captures stage mode 600; published files stay world-readable (NAS/NFS)
 	chmod 644 "$dest_file"
 
 	rm -f "$file"
 }
 
 read_config
+
+# Motion stages clips as .motion_<ts>.mp4 dotfiles at the mount root so
+# nothing half-written is visible on shares and renames stay atomic; a
+# crash leaves a stale dotfile behind — sweep those older than an hour.
+sweep_stale_staging() {
+	for sweep_dir in "$mount" "$dest_dir"; do
+		[ -d "$sweep_dir" ] || continue
+		find "$sweep_dir" -maxdepth 1 -type f -name '.motion_*.mp4' \
+			-mmin +60 -exec rm -f {} \; 2>/dev/null
+	done
+}
+
+process_video() {
+	sweep_stale_staging
+	case "$MOTION_VIDEO_FILE" in
+		"$mount"/*)
+			[ -f "$MOTION_VIDEO_FILE" ] || return 0
+			local dest_file
+			dest_file="$dest_dir/$(target_path video)"
+			mkdir -p "$(dirname "$dest_file")" || return 1
+			# The recording is finished here; only the rename can fail now.
+			if ! mv "$MOTION_VIDEO_FILE" "$dest_file"; then
+				echo_error "Failed to move $MOTION_VIDEO_FILE to $dest_file"
+				return 1
+			fi
+			chmod 644 "$dest_file"
+			;;
+		*)
+			process_file "$(copy_video)" video
+			;;
+	esac
+}
 
 # order is important!
 while getopts m:d:t:vSV flag; do
@@ -104,6 +133,11 @@ if [ ! -d "$mount" ]; then
 	exit 1
 fi
 
+if ! mountpoint -q "$mount" 2>/dev/null; then
+	echo_error "Mount point is not a mountpoint: $mount"
+	exit 1
+fi
+
 # Check if mount is writable
 if ! touch "$mount/.write_test" 2>/dev/null; then
 	echo_error "Mount point is not writable: $mount"
@@ -127,7 +161,7 @@ fi
 
 # Process media files
 if [ "true" = "$send_video" ]; then
-	process_file "$(copy_video)" video || exit 1
+	process_video || exit 1
 fi
 
 if [ "true" = "$send_photo" ]; then
