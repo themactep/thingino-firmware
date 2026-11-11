@@ -1,0 +1,26 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: define cpu_has_mxuv3 for the mainline kernel
+
+The recovered TMO selector tests the vendor cpu_has_mxuv3 feature flag,
+which the mainline 7.x kernel does not provide, so the T41 module does
+not compile.  The T41 is XBurst2-MXU3.1 and this module only builds for
+the T41, so expose the flag as always set in the compat header.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_kernel_compat.h
++++ b/driver/t41/tx_isp_t41_kernel_compat.h
+@@ -41,6 +41,13 @@
+ #define PDE_DATA(inode) pde_data(inode)
+ #endif
+ 
++/* The T41 is XBurst2-MXU3.1.  The mainline kernel does not expose the
++ * vendor's cpu_has_mxuv3 feature flag, and this module only builds for
++ * the T41, so the SIMD path is always available here. */
++#ifndef cpu_has_mxuv3
++#define cpu_has_mxuv3 1
++#endif
++
+ struct proc_dir_entry *jz_proc_mkdir(const char *name, ...);
+ 
+ /* set_fs()/KERNEL_DS are gone; the V4L2 bridge still spells them out. */

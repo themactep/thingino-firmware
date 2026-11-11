@@ -1,0 +1,20 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: map the raw-inject buffer with ioremap
+
+The mainline kernel removed ioremap_nocache(), so the raw-inject path
+leaves the module with an undefined symbol at modpost.  Map the buffer
+with ioremap(), which is uncached on this target.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_rawinject.c
++++ b/driver/t41/tx_isp_t41_rawinject.c
+@@ -71,7 +71,7 @@
+ 		pr_err("t41_rawinject: isp_malloc_buffer(%u) failed (ispmem/rmem?)\n", bytes);
+ 		return -ENOMEM;
+ 	}
+-	rj_virt = ioremap_nocache(rj_paddr, bytes);
++	rj_virt = ioremap(rj_paddr, bytes);
+ 	if (!rj_virt) {
+ 		isp_free_buffer(rj_paddr);
+ 		rj_paddr = 0;

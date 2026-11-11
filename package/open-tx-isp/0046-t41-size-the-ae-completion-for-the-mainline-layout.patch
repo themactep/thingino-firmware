@@ -1,0 +1,45 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: size the AE completion for the mainline layout
+
+The recovered code keeps the completion in a 16-byte OEM slot and
+asserts that sizeof(struct completion) is still 16.  On mainline 7.x the
+swait-based completion is a different size (the lock is empty on a UP
+build), so the module does not compile.
+
+Keep the OEM slot as the minimum, grow it to sizeof(struct completion)
+when the kernel needs more, and check the two offsets the recovered code
+actually depends on: done at +0 and the wait queue at +4.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -2521,7 +2521,13 @@
+ #else
+ static struct platform_device tx_isp_platform_device;
+ #endif
+-static unsigned char ae_algo_comp_storage[16] __attribute__((aligned(4)));
++/* The OEM 4.4 completion slot is 16 bytes; a mainline build may need more
++ * (swait/lockdep), so keep the larger of the two. */
++#define AE_ALGO_COMP_STORAGE_BYTES 16
++static unsigned char ae_algo_comp_storage[
++	sizeof(struct completion) > AE_ALGO_COMP_STORAGE_BYTES ?
++	sizeof(struct completion) : AE_ALGO_COMP_STORAGE_BYTES]
++	__attribute__((aligned(__alignof__(struct completion))));
+ #define ae_algo_comp (*(uint32_t *)(void *)ae_algo_comp_storage)
+ static uint32_t ae_info_mine;
+ static struct file_operations tx_isp_fops;
+--- a/driver/t41/tx_isp_t41_vae.h
++++ b/driver/t41/tx_isp_t41_vae.h
+@@ -401,7 +401,10 @@
+ 		kfree(info_blk);
+ 		return ret;
+ 	}
+-	BUILD_BUG_ON(sizeof(struct completion) != 16U);
++	/* The recovered code writes done at +0 and initialises the wait queue
++	 * at +4; the total size may differ on a mainline kernel. */
++	BUILD_BUG_ON(offsetof(struct completion, done) != 0U);
++	BUILD_BUG_ON(offsetof(struct completion, wait) != 4U);
+ 	if (!t41_ae_algo_comp_ready) {		/* once: a completion with a waiter must never be initialised again */
+ 		init_completion(T41_AE_ALGO_COMP);
+ 		t41_ae_algo_comp_ready = true;

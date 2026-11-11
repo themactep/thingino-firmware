@@ -1,0 +1,26 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t41: fall back to the IVDC device for the DMA buffer
+
+proc_ivdc_writel() allocates the IVDC work buffer through
+dma_alloc_coherent() with the device pointer the vendor subdev carries
+at +4.  The 7.x subdev path leaves that pointer NULL, so dma_alloc_attrs
+dereferences NULL + 0x9c and the kernel panics during tx-isp probe.
+
+Use the IVDC platform device, which owns this buffer and has its DMA
+mask set, when the subdev has no device pointer.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -26833,6 +26833,10 @@
+         dma_addr_t ivdc_dma_handle = 0;
+ 
+         s7 = *(uint32_t *)((char *)s5 + 4);
++        /* 7.x does not fill the vendor subdev's device pointer here; the
++         * IVDC platform device is the owner of this buffer. */
++        if (!s7)
++            s7 = (uint32_t)(uintptr_t)&tx_isp_ivdc_platform_device.dev;
+         s2 = (uintptr_t)dma_alloc_coherent((struct device *)(uintptr_t)s7,
+                                            s1, &ivdc_dma_handle, GFP_KERNEL);
+         local_40 = s2 ? (uint32_t)ivdc_dma_handle : 0;
