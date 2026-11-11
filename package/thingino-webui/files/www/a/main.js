@@ -1186,9 +1186,9 @@ function heartbeat() {
   startSlowHeartbeatStatus();
 }
 
-function initCopyToClipboard() {
+function initCopyToClipboard(root = document) {
   const clipboard = window.thinginoClipboard;
-  $$(".cb").forEach(function (el) {
+  root.querySelectorAll(".cb").forEach(function (el) {
     el.title = "Click to copy to clipboard";
     el.addEventListener("click", function (ev) {
       ev.preventDefault();
@@ -2178,7 +2178,12 @@ function initPasswordRevealToggles(root = document) {
 }
 
 (() => {
-  function initAll() {
+  function initContent(root = document) {
+    const within = (sel) => [
+      ...(root !== document && root.matches(sel) ? [root] : []),
+      ...root.querySelectorAll(sel),
+    ];
+
     function toggleAuto(el) {
       const id = el.dataset.for;
       const p = $("#" + id);
@@ -2195,18 +2200,14 @@ function initPasswordRevealToggles(root = document) {
       }
     }
 
-    $$("form,input").forEach((el) => (el.autocomplete = "off"));
+    within("form,input").forEach((el) => (el.autocomplete = "off"));
 
-    const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
+    within('[data-bs-toggle="tooltip"]').forEach((el) =>
+      bootstrap.Tooltip.getOrCreateInstance(el),
     );
 
-    // Populate the shared Send modal once the DOM is ready.
-    buildSendModalGrid();
-
     // ranges
-    $$("input[type=range]").forEach((el) => {
+    within("input[type=range]").forEach((el) => {
       el.addEventListener("change", (ev) => {
         if ($("#" + ev.target.id + "-show"))
           $("#" + ev.target.id + "-show").textContent = ev.target.value;
@@ -2217,31 +2218,30 @@ function initPasswordRevealToggles(root = document) {
       });
     });
 
-    // scan for confirmable buttons and observe future additions
-    scanConfirmTriggers();
-    initConfirmObserver();
+    // scan for confirmable buttons
+    scanConfirmTriggers(root);
 
     // toggle auto value
-    $$("input.auto-value").forEach((el) => {
+    within("input.auto-value").forEach((el) => {
       el.addEventListener("click", (ev) => toggleAuto(ev.target));
       toggleAuto(el);
     });
 
     // add password reveal toggles for password fields
-    initPasswordRevealToggles();
+    initPasswordRevealToggles(root);
 
     // reload window when refresh button is clicked
-    $$(".refresh").forEach((el) => {
+    within(".refresh").forEach((el) => {
       el.addEventListener("click", (ev) => {
         window.location.reload();
       });
     });
 
     // set links to external resources to open in a new window.
-    $$("a[href^=http]").forEach((el) => (el.target = "_blank"));
+    within("a[href^=http]").forEach((el) => (el.target = "_blank"));
 
     // handle sendto buttons
-    $$("button[data-sendto]").forEach((el) => {
+    within("button[data-sendto]").forEach((el) => {
       if (el.dataset.sendtoBypass === "1" || el.dataset.sendtoBypass === "true")
         return;
       el.addEventListener("click", async (ev) => {
@@ -2267,7 +2267,7 @@ function initPasswordRevealToggles(root = document) {
     });
 
     // async output of a command running on camera
-    const outputEl = $("pre#output");
+    const outputEl = within("pre#output")[0];
     if (outputEl) {
       let commandInFlight = false;
 
@@ -2414,7 +2414,18 @@ function initPasswordRevealToggles(root = document) {
       });
     }
 
-    initCopyToClipboard();
+    initCopyToClipboard(root);
+    attachSliderButtons(root);
+  }
+
+  window.thinginoInitContent = initContent;
+
+  function initAll() {
+    // Populate the shared Send modal before its buttons are bound.
+    buildSendModalGrid();
+    initContent(document);
+    initConfirmObserver();
+
     // Don't start heartbeat here - wait for password check to complete
 
     // setup recording button handlers
