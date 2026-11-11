@@ -12,7 +12,19 @@ U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
 SSTAR_IPL_MAGIC="49504c5f" # "IPL_", at offset 4 rather than 0
 GITHUB_URL="https://github.com"
+GITHUB_API_URL="https://api.github.com"
 BRANCH="ciao"
+# Release series published by each branch's CI.  Keep this in sync with the
+# TAG_NAME of the branch's firmware workflow so a device updates to an image
+# built from the same branch it is running.  ciao publishes the main
+# firmware-YYYY-MM-DD series; every other branch publishes <branch>-YYYY-MM-DD.
+release_prefix_for_branch() {
+	case "$1" in
+		master) echo "master" ;;
+		ciao) echo "firmware" ;;
+		*) echo "$1" ;;
+	esac
+}
 
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
@@ -214,6 +226,25 @@ download() {
 	curl -fL# --url "$1" -o "$file" $3 || return 1
 }
 
+# Return the tag of the newest GitHub release named "<prefix>-*" that
+# contains the firmware image for the given profile.  /releases/latest only
+# resolves non-prerelease releases, but the master series is published as
+# prereleases, so its tag has to be looked up through the API.  Skipping
+# releases without the image also skips failed or still-running builds.
+latest_release_tag() {
+	local prefix profile url
+	prefix="$1"
+	profile="$2"
+	url=$(curl -sfL --tls-max 1.2 \
+		"$GITHUB_API_URL/repos/themactep/thingino-firmware/releases?per_page=100" |
+		sed -n 's/.*"browser_download_url": *"\([^"]*\)".*/\1/p' |
+		grep -E "/releases/download/$prefix-[0-9]{4}-[0-9]{2}-[0-9]{2}/thingino-$profile\.bin$" |
+		head -n 1)
+	[ -n "$url" ] || return 1
+	url="${url#*/download/}"
+	echo "${url%%/*}"
+}
+
 expand_bb() {
 	echo "set up $1"
 	ln -s "$workdir/busybox" "$workdir/$1"
@@ -266,9 +297,21 @@ handle_payload() {
 		profile="${profile%-4.4}"
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
+		release_tag=""
 		if [ -n "$release_date" ]; then
-			gh_url="$gh_url/download/firmware-$release_date"
+			release_tag="$RELEASE_PREFIX-$release_date"
 			echo "Requested release from $release_date"
+		elif [ "$RELEASE_PREFIX" = "firmware" ]; then
+			# The firmware series is marked as the latest non-prerelease.
+			:
+		else
+			release_tag=$(latest_release_tag "$RELEASE_PREFIX" "$profile") ||
+				die "Cannot find a $RELEASE_PREFIX release for branch $RELEASE_BRANCH"
+			echo "Using latest $RELEASE_BRANCH release: $release_tag"
+		fi
+
+		if [ -n "$release_tag" ]; then
+			gh_url="$gh_url/download/$release_tag"
 		else
 			gh_url="$gh_url/latest/download"
 		fi
@@ -385,7 +428,7 @@ flush_memory() {
 }
 
 show_help() {
-	echo -e "Usage: $0 [-x] [-f|-k|-r|-b|-p|<file>|<URL>] [--backup|-B]
+	echo -e "Usage: $0 [-x] [-t BRANCH] [-f|-k|-r|-b|-p|<file>|<URL>] [--backup|-B]
 Where:
   -f      full upgrade with a binary from GitHub
   -k      kernel-only upgrade
@@ -393,6 +436,7 @@ Where:
   -b      bootloader-only upgrade
   -p      partial upgrade (rootfs + data + backup)
   -d      release date (the latest available, if omitted)
+  -t      target branch to download from (full upgrades only)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
   --backup|-B  create config backup before flashing
@@ -437,6 +481,7 @@ dl_dir="/tmp"
 fw_file="$workdir/fw.bin"
 download_dir_ready="false"
 do_backup="false"
+target_branch=""
 
 flush_memory
 
@@ -448,7 +493,7 @@ for arg in "$@"; do
 done
 
 ORIGINAL_ARG="$@"
-while getopts "b:Bd:fhkrpx" flag; do
+while getopts "b:Bd:fhkrpxt:" flag; do
 	case "$flag" in
 		b)
 			upgrade="boot"
@@ -474,6 +519,9 @@ while getopts "b:Bd:fhkrpx" flag; do
 			echo "Partial upgrades are not supported anymore."
 			exit 1
 			;;
+		t)
+			target_branch="$OPTARG"
+			;;
 		x)
 			selfupdate="false"
 			;;
@@ -483,6 +531,14 @@ while getopts "b:Bd:fhkrpx" flag; do
 	esac
 done
 shift "$((OPTIND - 1))"
+
+# -t switches which branch's release series is downloaded.  The upgrade
+# scripts themselves still self-update from the running branch.
+RELEASE_BRANCH="${target_branch:-$BRANCH}"
+if [ -n "$target_branch" ]; then
+	echo_c 112 "\nTarget branch: $RELEASE_BRANCH"
+fi
+RELEASE_PREFIX=$(release_prefix_for_branch "$RELEASE_BRANCH")
 
 # When a positional argument is present and is not a URL, it is a local
 # file.  Override any default GitHub URL that a mode flag may have set
@@ -525,6 +581,12 @@ if [ -z "$upgrade" ]; then
 			url="$1"
 			;;
 	esac
+fi
+
+# Switching branches replaces the whole image; partial upgrades would mix
+# partitions from two different builds.
+if [ -n "$target_branch" ] && [ "full" != "$upgrade" ]; then
+	die "Target branch (-t) is only supported for full upgrades (-f)."
 fi
 
 # For all modes that receive a local file, move it into the workdir.

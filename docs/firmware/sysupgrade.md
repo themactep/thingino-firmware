@@ -67,10 +67,23 @@ sysupgrade -k              kernel only from GitHub
 sysupgrade -r              rootfs + data from GitHub
 sysupgrade -B | --backup   create config backup before any flash
 sysupgrade -d DATE         request a specific GitHub release date
+sysupgrade -t BRANCH       full upgrade from another branch's release series
 
 sysupgrade <file>          auto-detect magic and flash accordingly
 sysupgrade <URL>           download from URL, then auto-detect
 ```
+
+GitHub downloads follow the release series of the branch the running image
+was built from: `master` firmware resolves the newest `master-YYYY-MM-DD`
+prerelease, while `ciao` resolves through `/releases/latest` to the
+`firmware-YYYY-MM-DD` series. `-d DATE` selects `master-DATE` or
+`firmware-DATE` accordingly. Other branches resolve `<branch>-YYYY-MM-DD`.
+
+Use `-t BRANCH` with a full upgrade to switch branches, for example
+`sysupgrade -f -t master` on a `ciao` device. The target branch's release
+series is used for the image; the upgrade scripts still self-update from the
+running branch. Partial upgrades reject `-t` because mixing partitions from
+two branches is not supported.
 
 ## Make Targets (OTA)
 

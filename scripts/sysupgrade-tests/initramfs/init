@@ -19,6 +19,9 @@
 #   t_do_backup=true|false      (full only)
 #   t_boot_k / t_env_k / t_backup_k / t_kernel_k / t_rootfs_k / t_data_k
 #                               new layout sizes in KiB
+#   t_branch      branch passed as -t (branch mode; empty for the default)
+#   t_upgrade     full|kernel|rootfs|boot   (branch mode)
+#   t_profile     IMAGE_ID written to /etc/os-release (branch mode)
 
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
@@ -52,6 +55,9 @@ t_backup_k=64
 t_kernel_k=1600
 t_rootfs_k=5120
 t_data_k=1152
+t_branch=
+t_upgrade=full
+t_profile=testcam_t31x_gc2053_atbm6031
 for kv in $(cat /proc/cmdline); do
 	case "$kv" in
 		t_mode=*) t_mode=${kv#t_mode=} ;;
@@ -63,6 +69,9 @@ for kv in $(cat /proc/cmdline); do
 		t_kernel_k=*) t_kernel_k=${kv#t_kernel_k=} ;;
 		t_rootfs_k=*) t_rootfs_k=${kv#t_rootfs_k=} ;;
 		t_data_k=*) t_data_k=${kv#t_data_k=} ;;
+		t_branch=*) t_branch=${kv#t_branch=} ;;
+		t_upgrade=*) t_upgrade=${kv#t_upgrade=} ;;
+		t_profile=*) t_profile=${kv#t_profile=} ;;
 	esac
 done
 
@@ -171,6 +180,58 @@ case "$t_mode" in
 				;;
 		esac
 		echo "flash-ota exit code: $?"
+		;;
+	branch)
+		echo "=== sysupgrade branch test: branch=${t_branch:-<default>} upgrade=$t_upgrade ==="
+		mkdir -p /etc /tmp/fakebin
+		printf 'IMAGE_ID=%s\n' "$t_profile" >/etc/os-release
+
+		cat >/tmp/releases.json <<EOF
+[
+ {"browser_download_url": "https://github.com/themactep/thingino-firmware/releases/download/firmware-2026-01-01/thingino-$t_profile.bin"},
+ {"browser_download_url": "https://github.com/themactep/thingino-firmware/releases/download/master-2026-01-01/thingino-$t_profile.bin"},
+ {"browser_download_url": "https://github.com/themactep/thingino-firmware/releases/download/master-2025-12-01/thingino-$t_profile.bin"},
+ {"browser_download_url": "https://github.com/themactep/thingino-firmware/releases/download/figata-2026-02-02/thingino-$t_profile.bin"}
+]
+EOF
+
+		# Pretend to be curl: answer the releases API from the fixture and
+		# log every other request, then fail so nothing is downloaded.
+		cat >/tmp/fakebin/curl <<'CURL'
+#!/bin/sh
+case "$*" in
+	*api.github.com*) cat /tmp/releases.json; exit 0 ;;
+esac
+echo "CURL-REQ $*" >&2
+exit 1
+CURL
+		chmod +x /tmp/fakebin/curl
+
+		case "$t_upgrade" in
+			full) flag=-f ;;
+			kernel) flag=-k ;;
+			rootfs) flag=-r ;;
+			boot) flag=-b ;;
+			*)
+				echo "ERROR: unknown upgrade $t_upgrade"
+				flag=-f
+				;;
+		esac
+		if [ -n "$t_branch" ]; then
+			set -- "$flag" -x -t "$t_branch"
+		else
+			set -- "$flag" -x
+		fi
+		echo "=== running: sysupgrade $* ==="
+		if [ "$t_upgrade" = "full" ]; then
+			# Feed the confirmation prompt; -x skips the self-update fetch.
+			printf '\n' | PATH=/tmp/fakebin:/bin:/sbin:/usr/bin:/usr/sbin \
+				/bin/sh /sysupgrade "$@"
+		else
+			PATH=/tmp/fakebin:/bin:/sbin:/usr/bin:/usr/sbin \
+				/bin/sh /sysupgrade "$@"
+		fi
+		echo "sysupgrade exit code: $?"
 		;;
 	*)
 		echo "ERROR: unknown mode $t_mode"

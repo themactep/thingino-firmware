@@ -24,7 +24,9 @@ FLASH="$SCRATCH/flash.img"
 QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 
 source "$HERE/scenarios.sh"
-ALL_SCENARIOS="scenario_full_same scenario_full_shrink scenario_full_grow scenario_full_shrink_nobackup scenario_part_boot_same scenario_part_boot_shrink scenario_part_boot_grow scenario_part_kernel_same scenario_part_kernel_different scenario_part_rootfs_same scenario_part_rootfs_grow scenario_part_rootfs_shrink"
+# Profile used by the branch tests; must match the fake release fixture.
+TEST_PROFILE="testcam_t31x_gc2053_atbm6031"
+ALL_SCENARIOS="scenario_full_same scenario_full_shrink scenario_full_grow scenario_full_shrink_nobackup scenario_part_boot_same scenario_part_boot_shrink scenario_part_boot_grow scenario_part_kernel_same scenario_part_kernel_different scenario_part_rootfs_same scenario_part_rootfs_grow scenario_part_rootfs_shrink scenario_branch_full_default scenario_branch_full_master scenario_branch_full_other scenario_branch_kernel_reject scenario_branch_rootfs_reject scenario_branch_boot_reject"
 
 PASS=0
 FAIL=0
@@ -97,6 +99,10 @@ pattern_md5_bytes() { # len_bytes octal
 
 log_has() { # substring
 	grep -qF -- "$1" "$SCRATCH/run-$NAME.log"
+}
+
+log_not_has() { # substring
+	! grep -qF -- "$1" "$SCRATCH/run-$NAME.log"
 }
 
 assert_region() { # label offset_k size_k expected_md5
@@ -241,6 +247,7 @@ run_vm() {
 	cmdline="$cmdline t_mode=$MODE t_part=${PART:-} t_do_backup=${DO_BACKUP:-false}"
 	cmdline="$cmdline t_boot_k=$NEW_BOOT_K t_env_k=$NEW_ENV_K t_backup_k=$NEW_BACKUP_K"
 	cmdline="$cmdline t_kernel_k=$NEW_KERNEL_K t_rootfs_k=$NEW_ROOTFS_K t_data_k=$NEW_DATA_K"
+	cmdline="$cmdline t_branch=${TARGET_BRANCH:-} t_upgrade=${UPGRADE_FLAG:-full} t_profile=$TEST_PROFILE"
 
 	echo "== booting VM (scenario $NAME)"
 	timeout 180 "$QEMU_BIN" -machine pc "${accel[@]}" -m 64M -smp 2 \
@@ -333,10 +340,23 @@ verify_part() {
 	esac
 }
 
+verify_branch() {
+	echo "== verifying $NAME (branch=${TARGET_BRANCH:-default}, upgrade=$UPGRADE_FLAG)"
+	assert_cmd "flash unchanged" \
+		[ "$(md5sum "$FLASH" | cut -d' ' -f1)" = "$flash_before" ]
+	if [ "$EXPECT" = "refuse" ]; then
+		assert_cmd "log: error ($ERR_MSG)" log_has "$ERR_MSG"
+		assert_cmd "log: no download attempted" log_not_has "CURL-REQ"
+		return
+	fi
+	assert_cmd "log: requested $EXPECT_URL" log_has "$EXPECT_URL"
+}
+
 verify() {
 	case "$MODE" in
 		full) verify_full ;;
 		part) verify_part ;;
+		branch) verify_branch ;;
 	esac
 }
 
@@ -360,6 +380,9 @@ run_scenario() {
 	DO_BACKUP=true
 	EXPECT=flash
 	ERR_MSG=
+	TARGET_BRANCH=
+	UPGRADE_FLAG=full
+	EXPECT_URL=
 	"$1"
 
 	OLD_DATA_K=$((8192 - (OLD_BOOT_K + OLD_ENV_K + OLD_BACKUP_K + OLD_KERNEL_K + OLD_ROOTFS_K)))

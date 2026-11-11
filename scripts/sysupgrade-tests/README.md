@@ -19,6 +19,10 @@ built by `scripts/ota-tests/build.sh`. Only the initramfs is built here.
   layout. A mismatch must be refused before anything is erased.
 - Kernel-only and rootfs-only flashes on a matching and a mismatched
   layout.
+- Branch selection in stage1: the default branch resolves the `firmware`
+  series through `/releases/latest`, `-t master` resolves `master-*` through
+  the releases API, and arbitrary branches resolve `<branch>-*`. Partial
+  upgrades with `-t` are refused before any download.
 
 ## Architecture
 
@@ -75,10 +79,21 @@ The flash is 8 MiB. Env, backup, and kernel sizes are fixed at 64, 64, and
 | 10 | `part-rootfs-same` | rootfs | 192K | 192K | rootfs + data flashed |
 | 11 | `part-rootfs-grow` | rootfs | 192K | 320K | rootfs + data flashed; data tail erased |
 | 12 | `part-rootfs-shrink` | rootfs | 320K | 192K | error; flash unchanged |
+| 13 | `branch-full-default` | branch/full | - | - | requests `/releases/latest/download/...` |
+| 14 | `branch-full-master` | branch/full `-t master` | - | - | requests `master-2026-01-01` |
+| 15 | `branch-full-other` | branch/full `-t figata` | - | - | requests `figata-2026-02-02` |
+| 16 | `branch-kernel-reject` | branch/kernel `-t master` | - | - | refuse; no download |
+| 17 | `branch-rootfs-reject` | branch/rootfs `-t master` | - | - | refuse; no download |
+| 18 | `branch-boot-reject` | branch/boot `-t master` | - | - | refuse; no download |
 
 Scenarios 6 and 7 cover the `flash-ota boot` guard: the padded boot image
 no longer matches the device boot partition, so env would land at the wrong
 offset.
+
+Scenarios 13-18 run stage1 itself with a fake `curl` on `PATH`. The fake
+answers `api.github.com` with a fixed release list and logs any other
+request as `CURL-REQ ...`, then fails, so URL selection is observable in
+the guest log while nothing is downloaded or flashed.
 
 ## Verification
 

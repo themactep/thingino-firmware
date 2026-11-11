@@ -161,3 +161,68 @@ scenario_part_rootfs_shrink() {
 	EXPECT=error
 	ERR_MSG="exceed combined partitions"
 }
+
+# --- branch selection (stage1 download source) ---
+#
+# These run the real stage1 sysupgrade with a fake curl.  The fake API
+# returns a fixed release list, and any non-API request is logged as
+# "CURL-REQ ..." and refused, so nothing is downloaded or flashed.
+#
+#   TARGET_BRANCH  branch passed as -t (empty: use the compiled-in branch)
+#   UPGRADE_FLAG   full | kernel | rootfs | boot
+#   EXPECT         download | refuse
+#   EXPECT_URL     URL substring expected in the log (download only)
+
+scenario_branch_full_default() {
+	NAME=branch-full-default
+	MODE=branch
+	TARGET_BRANCH=
+	UPGRADE_FLAG=full
+	EXPECT=download
+	EXPECT_URL="/releases/latest/download/thingino-$TEST_PROFILE.bin"
+}
+
+scenario_branch_full_master() {
+	NAME=branch-full-master
+	MODE=branch
+	TARGET_BRANCH=master
+	UPGRADE_FLAG=full
+	EXPECT=download
+	EXPECT_URL="/releases/download/master-2026-01-01/thingino-$TEST_PROFILE.bin"
+}
+
+scenario_branch_full_other() {
+	NAME=branch-full-other
+	MODE=branch
+	TARGET_BRANCH=figata
+	UPGRADE_FLAG=full
+	EXPECT=download
+	EXPECT_URL="/releases/download/figata-2026-02-02/thingino-$TEST_PROFILE.bin"
+}
+
+scenario_branch_kernel_reject() {
+	NAME=branch-kernel-reject
+	MODE=branch
+	TARGET_BRANCH=master
+	UPGRADE_FLAG=kernel
+	EXPECT=refuse
+	ERR_MSG="only supported for full upgrades"
+}
+
+scenario_branch_rootfs_reject() {
+	NAME=branch-rootfs-reject
+	MODE=branch
+	TARGET_BRANCH=master
+	UPGRADE_FLAG=rootfs
+	EXPECT=refuse
+	ERR_MSG="only supported for full upgrades"
+}
+
+scenario_branch_boot_reject() {
+	NAME=branch-boot-reject
+	MODE=branch
+	TARGET_BRANCH=master
+	UPGRADE_FLAG=boot
+	EXPECT=refuse
+	ERR_MSG="only supported for full upgrades"
+}
