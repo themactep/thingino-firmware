@@ -564,7 +564,7 @@ handle_post() {
 		wlan configure "$wifi_ssid" "$wifi_pass" "$wifi_bssid"
 	fi
 
-	emit_json "" '{"status":"ok"}'
+	emit_json "" '{"status":"ok","restart_pending":true}'
 }
 
 case "${REQUEST_METHOD:-GET}" in

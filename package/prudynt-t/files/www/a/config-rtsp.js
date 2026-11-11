@@ -24,7 +24,7 @@
   const passwordReveal = $("#rtsp_password_reveal");
   const submitButton = $("#rtsp_submit");
   const defaultHost =
-    window.network_address || window.location.hostname || "localhost";
+    window.location.hostname || window.network_address || "localhost";
   const rtspDefaults = {
     username: "thingino",
     password: "thingino",

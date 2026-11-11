@@ -796,8 +796,73 @@ async function toggleButton(el) {
     });
 }
 
+const NetworkRestartDismissKey = "thingino.networkRestartDismissed";
+
+function networkRestartDismissed() {
+  try {
+    return sessionStorage.getItem(NetworkRestartDismissKey) === "1";
+  } catch (err) {
+    return false;
+  }
+}
+
+function setNetworkRestartDismissed() {
+  try {
+    sessionStorage.setItem(NetworkRestartDismissKey, "1");
+  } catch (err) {
+    /* ignore unavailable sessionStorage */
+  }
+}
+
+function clearNetworkRestartDismissed() {
+  try {
+    sessionStorage.removeItem(NetworkRestartDismissKey);
+  } catch (err) {
+    /* ignore unavailable sessionStorage */
+  }
+}
+
+function updateNetworkRestartNotice(pending, force) {
+  const existing = document.getElementById("network-restart-notice");
+  if (!pending) {
+    if (existing) existing.remove();
+    clearNetworkRestartDismissed();
+    return;
+  }
+  if (force) clearNetworkRestartDismissed();
+  if (existing || networkRestartDismissed()) return;
+
+  const container =
+    document.querySelector("main > .container") ||
+    document.querySelector("main") ||
+    document.body;
+  if (!container) return;
+
+  const notice = document.createElement("div");
+  notice.id = "network-restart-notice";
+  notice.className =
+    "alert alert-warning d-flex align-items-center gap-2 shadow-sm mb-3";
+  notice.setAttribute("role", "alert");
+  notice.innerHTML =
+    '<i class="bi bi-exclamation-triangle-fill"></i>' +
+    '<div class="flex-grow-1">Network settings changed. Restart to apply them.</div>' +
+    '<a class="btn btn-sm btn-warning" href="/x/reboot.cgi">Reboot</a>' +
+    '<button type="button" class="btn-close" aria-label="Dismiss"></button>';
+  notice.querySelector(".btn-close").addEventListener("click", () => {
+    setNetworkRestartDismissed();
+    notice.remove();
+  });
+  container.insertBefore(notice, container.firstChild);
+}
+
+window.updateNetworkRestartNotice = updateNetworkRestartNotice;
+
 function updateHeartbeatUi(json) {
   if (!json) return;
+
+  if (typeof json.network_restart_pending !== "undefined") {
+    updateNetworkRestartNotice(json.network_restart_pending === true);
+  }
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&

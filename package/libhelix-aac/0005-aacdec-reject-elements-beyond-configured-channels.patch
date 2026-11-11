@@ -1,0 +1,34 @@
+AACDecode() bounds the per-element channel count against AAC_MAX_NCHANS,
+not against the channel count the instance was configured with. For a
+mono stream (raw block mode, AACSetRawBlockParams(nChans = 1)) a frame
+that parses as a CPE therefore passes the check, and StereoProcess()
+then reads coef[1] and the channel-1 scalefactors, which AllocateBuffers()
+never allocated. The result is a heap read past the end of the mono
+buffer inside StereoProcessGroup(), not an error return.
+
+This is reachable from a network client: a malformed or mis-framed AAC
+backchannel payload can parse as a CPE and take the process down.
+
+Bound the element channel count by aacDecInfo->nChans as well, and check
+that currBlockID indexes elementNumChans[] before using it. Invalid
+frames now return ERR_AAC_CHANNEL_MAP / ERR_AAC_INVALID_FRAME and the
+decoder instance stays usable.
+
+--- a/src/libhelix-aac/aacdec.c
++++ b/src/libhelix-aac/aacdec.c
+@@ -386,9 +386,13 @@
+             return err;
+         }
+ 
++        if (aacDecInfo->currBlockID < 0 ||
++            aacDecInfo->currBlockID >= NUM_ELEMENTS) {
++            return ERR_AAC_INVALID_FRAME;
++        }
+         elementChans = elementNumChans[aacDecInfo->currBlockID];
+-        if (baseChan + elementChans > AAC_MAX_NCHANS) {
+-            return ERR_AAC_NCHANS_TOO_HIGH;
++        if (baseChan + elementChans > aacDecInfo->nChans) {
++            return ERR_AAC_CHANNEL_MAP;
+         }
+ 
+         /* noiseless decoder and dequantizer */

@@ -331,6 +331,18 @@ _PWM_TRACE = {}
 # The families with the PWM block; the timer unit's channels are on all
 PWM_BLOCK = ("t32", "t33", "t41", "a1")
 
+# The encoders each SoC family's machine has, for --tap (the T41's JPEG
+# engine is a HELIX); QEMU applies a -global to their subtypes too
+TAP_ENCODERS = {
+    "t10": ("ingenic-helix",), "t20": ("ingenic-helix",),
+    "t21": ("ingenic-helix",), "t23": ("ingenic-helix",),
+    "t30": ("ingenic-helix", "ingenic-radix"),
+    "t31": ("ingenic-avpu",), "t40": ("ingenic-avpu",),
+    "t41": ("ingenic-avpu", "ingenic-helix"),
+    "t32": ("ingenic-hera", "ingenic-jpeg"),
+    "t33": ("ingenic-hera", "ingenic-jpeg"),
+}
+
 
 def pwm_trace_supported(qemu):
     """Whether this QEMU traces its PWM outputs (ingenic-tcu's trace)."""
@@ -1448,6 +1460,17 @@ def cmd_up(args, extra):
                     for k, v in (("ssid", ssid), ("psk", psk))]
         argv += ["-device", ",".join(dev)]
     argv += audio_argv(qemu, family, args.speaker, args.mic)
+    if args.tap:
+        encoders = TAP_ENCODERS.get(family[:3], ())
+        if not encoders:
+            die(f"no encoder to tap on {model}")
+        if "x-stream-tap" not in qemu_device_props(qemu, encoders[0]):
+            die(f"{qemu} has no stream tap (ingenic-0.7.11 has it)")
+        tap = os.path.abspath(args.tap)
+        os.makedirs(tap, exist_ok=True)
+        for enc in encoders:
+            argv += ["-global",
+                     f"{enc}.x-stream-tap={tap.replace(',', ',,')}"]
     if rv_qemu:
         # The core shares the DDR and reaches the rest over the socket;
         # this QEMU waits for it to connect before it starts
@@ -2271,6 +2294,11 @@ def main(argv=None):
                     help="what its microphones hear: tone[:HZ[:DBFS]] (1 kHz "
                     "at -20 dBFS by default), a 16-bit PCM WAV file to loop, "
                     "or host (the --speaker backend's input)")
+    sp.add_argument("--tap", metavar="DIR",
+                    help="write every stream the encoders code to DIR, "
+                    "files a player follows as they grow (ffplay -f h264 "
+                    "-follow 1 -i file:DIR/avpu-0.h264) or FIFOs made "
+                    "there first")
     sp.add_argument("--riscv", action="store_true",
                     help="run the SoC's RISC-V core beside it in "
                     "qemu-system-riscv32, for stock fast-boot firmware")

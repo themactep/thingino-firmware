@@ -25,7 +25,14 @@ class QemuSerial:
         while True:
             r, _, _ = select.select([self.fd], [], [], timeout)
             if r:
-                chunk = os.read(self.fd, 4096)
+                try:
+                    chunk = os.read(self.fd, 4096)
+                except OSError:
+                    chunk = b""
+                if not chunk:
+                    # QEMU closed its end: nothing more will come, and the
+                    # pty stays readable, so waiting on it would spin.
+                    break
                 buf += chunk
                 if self.log:
                     self.log.write(chunk)
@@ -98,6 +105,12 @@ class QemuSerial:
         booted = self.state != "rebooting"
         while time.time() < deadline:
             buf += self.read(1.0)
+            # qemu-dev's console is not given the QEMU process to watch
+            proc = getattr(self, "proc", None)
+            if proc is not None and proc.poll() is not None:
+                print(f"  QEMU exited with status {proc.returncode} "
+                      "during boot")
+                return False
             plain = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", buf)
             if not booted:
                 if re.search(r"Restarting system|U-Boot SPL|Starting kernel",

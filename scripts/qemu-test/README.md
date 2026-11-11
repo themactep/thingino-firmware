@@ -105,7 +105,7 @@ run.sh            exec harness.py --profile <name>
     onvif_client  SOAP + WS-UsernameToken               ──► onvif_simple_server
     usbpc         a host on the USB cable: DHCP, DNS    ──► usb0
     playwright    manifest-driven chromium scenarios    ──► uhttpd
-    suites/       common, wifi, net, onvif, webui, usb
+    suites/       common, wifi, net, onvif, webui, usb, webcam
     plan          the ordered suite table
     results       the ordered check list and its contract
     report        report.html with screenshots
@@ -120,6 +120,13 @@ a slirp on the hub forwards host ports 19180 (HTTP) and 19122 (SSH) to
 the camera's usb0, and in server mode `usbpc` is a second host on the hub
 that takes a lease from the camera's udhcpd and queries its dnsd. A
 client-mode camera leases `10.0.3.15` from that slirp instead. No root.
+
+The webcam profile (`qemu_t31x_webcam`, capability `usb_webcam`) cables
+the port to the fork's `dwc2-uvc-host` instead, a PC with a UVC driver:
+it streams MJPEG and then H.264 from g_webcam and rwc and saves 20 frames
+of each, and the `webcam` suite decodes them with ffmpeg and compares them
+with the pictures the encoder stream tap saw. It needs QEMU
+ingenic-0.7.12.
 
 ## Adding a suite
 
