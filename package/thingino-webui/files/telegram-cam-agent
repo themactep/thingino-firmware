@@ -55,7 +55,7 @@ publish_reply() {
 	[ -n "$username" ] && set -- "$@" -u "$username"
 	[ -n "$password" ] && set -- "$@" -P "$password"
 	if [ "$use_ssl" = "true" ]; then
-		set -- "$@" --capath /etc/ssl/certs
+		set -- "$@" --tls-use-os-certs
 		[ "$tls_skip_verify" = "true" ] && set -- "$@" --insecure
 	fi
 	mosquitto_pub "$@"
