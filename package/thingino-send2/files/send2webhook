@@ -41,7 +41,7 @@ while getopts f:m:u:vSV flag; do
 		f)
 			file=$OPTARG
 			send_photo="false"
-			send_photo="false"
+			send_video="false"
 			;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
