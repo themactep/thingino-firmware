@@ -524,6 +524,9 @@ def free_port(prefer=None):
             return s.getsockname()[1]
 
 
+CONSOLE_KICK_S = 3.0
+
+
 class Console(QemuSerial):
     """QemuSerial's guest state machine on a session's console, through
     its relay. QEMU writes the transcript itself, attached or not."""
@@ -536,11 +539,27 @@ class Console(QemuSerial):
         self._utf8 = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self.state = "boot"
         self.timeout_ok = None
+        self._kick_at = time.time() + CONSOLE_KICK_S
 
     def _take(self, timeout):
         """What has arrived within timeout, at most one read of it."""
-        if not select.select([self.fd], [], [], timeout)[0]:
-            return ""
+        end = time.time() + timeout
+        while True:
+            now = time.time()
+            # The vendor 4.4 ingenic_uart driver can lose its TX interrupt
+            # (stop_tx/start_tx race on two cores) and the console then goes
+            # silent until a byte arrives. XON frees one FIFO and the tty
+            # swallows it (IXON), so a silent wait sends one.
+            wait = min(max(end - now, 0), max(self._kick_at - now, 0))
+            if select.select([self.fd], [], [], wait)[0]:
+                break
+            now = time.time()
+            if timeout and now >= self._kick_at:
+                self._kick_at = now + CONSOLE_KICK_S
+                os.write(self.fd, b"\x11")
+            if now >= end:
+                return ""
+        self._kick_at = time.time() + CONSOLE_KICK_S
         try:
             chunk = os.read(self.fd, 65536)
         except OSError:
