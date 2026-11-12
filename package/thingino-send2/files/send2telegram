@@ -132,7 +132,7 @@ elif [ -n "$file" ] && [ -f "$file" ]; then
 	url="${url}sendDocument"
 	caption="$(parse_caption "$file")"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'document=@$1' -F 'caption=\"$caption\"' $url"
+	command="$command -F 'document=@$file' -F 'caption=\"$caption\"' $url"
 
 else
 	echo_error "Nothing to send"
