@@ -338,6 +338,7 @@
     brand.appendChild(brandLogo);
 
     const brandText = document.createElement("span");
+    brandText.dataset.navBrandLabel = "";
     brandText.textContent = deriveBrandLabel(document.title || "");
     brand.appendChild(brandText);
 
@@ -407,6 +408,14 @@
     container.appendChild(offcanvas);
     nav.appendChild(container);
     return nav;
+  }
+
+  function followLink(href) {
+    if (window.thinginoRouter && window.thinginoRouter.go) {
+      window.thinginoRouter.go(href);
+    } else {
+      window.location.href = href;
+    }
   }
 
   function createOffcanvasList(menuItems) {
@@ -479,13 +488,13 @@
                   offcanvasEl.addEventListener(
                     "hidden.bs.offcanvas",
                     function () {
-                      window.location.href = href;
+                      followLink(href);
                     },
                     { once: true },
                   );
                   offcanvasInstance.hide();
                 } else {
-                  window.location.href = href;
+                  followLink(href);
                 }
               }
             });
@@ -518,13 +527,13 @@
               offcanvasEl.addEventListener(
                 "hidden.bs.offcanvas",
                 function () {
-                  window.location.href = href;
+                  followLink(href);
                 },
                 { once: true },
               );
               offcanvasInstance.hide();
             } else {
-              window.location.href = href;
+              followLink(href);
             }
           }
         });
@@ -610,12 +619,43 @@
     }
     highlightActive(nav, globalConfig.activePath);
     ensureControlBarScript();
+    ensureRouterScript();
+  }
+
+  function refreshNavigation() {
+    const nav = $('nav[data-generated-nav="true"]');
+    if (!nav) return;
+    const label = nav.querySelector("[data-nav-brand-label]");
+    if (label) label.textContent = deriveBrandLabel(document.title || "");
+    nav.querySelectorAll(".active").forEach((el) => {
+      el.classList.remove("active");
+    });
+    highlightActive(nav);
+  }
+
+  function routerEnabled() {
+    try {
+      return localStorage.getItem("thingino-router") === "on";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function ensureRouterScript() {
+    if (!routerEnabled() || $("script[data-router-autoload]")) return;
+    const script = document.createElement("script");
+    script.src = withAssetTag("/a/router.js");
+    script.dataset.routerAutoload = "true";
+    (document.head || document.body || document.documentElement).appendChild(
+      script,
+    );
   }
 
   ready(mountNavigation);
 
   window.thinginoNav = {
     rebuild: mountNavigation,
+    refresh: refreshNavigation,
     menu: menuData,
   };
 })();
