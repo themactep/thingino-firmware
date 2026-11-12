@@ -1,3 +1,44 @@
 {
-  "gpio": {}
+  "gpio": {
+    "button_reset": {
+      "pin": 30,
+      "active_low": true
+    },
+    "ir850": 46,
+    "ircut": "50 49",
+    "led_b": {
+      "pin": 73,
+      "active_low": false
+    },
+    "mmc_cd": {
+      "pin": 62,
+      "active_low": false
+    },
+    "mmc_power": [
+      { "pin": 61, "active_low": true }
+    ],
+    "speaker": 63,
+    "wlan": [
+      { "pin": 60, "state": 1 }
+    ]
+  },
+  "motors": {
+    "homing": false,
+    "steps_pan": 5300,
+    "steps_tilt": 1100,
+    "presets": []
+  },
+  "sensor": {
+    "i2c_adapter": 0,
+    "i2c_addr": "0x29",
+    "mclk": 1,
+    "name": "gc4023",
+    "pwdn_gpio": -1,
+    "reset_gpio": -1
+  },
+  "notes": {
+    "t110": "gpio73=PC9 status LED (0.5s heartbeat); gpio58=PB26 WiFi IRQ; gpio62=PB30 SD-CD active-high; gpio30=PA30 reset button active-low; gpio61=PB29 SD power (active-low enable, BENCH-CONFIRMED 2026-10-26: U-Boot gpio clear 61 + mmc rescan enumerates the card; moved out of wlan seq, it was cutting SD power mid-boot); gpio60=PB28 REGON stays in wlan seq; speaker amp en gpio63. LeCam GPIOHelper set {0,46,49,50,63,73,75}: gpio46=IR LED, gpio49/50=ircut pair, gpio75=white lamp (device has light temperature+intensity profiles) - held in reserve until hardware-verified. MOTORS ARE PWM/TCU (motor.ko, pan maxstep 5300 / elev 1100, coil pins in SMHLROQP table, candidates B8/B9/B17/B18/C15/C18) - NOT GPIO; left unconfigured here pending coil-pin scope work; thingino has no motor.ko ioctl driver class yet.",
+    "t110_source": "Josh reverse-engineering 2026-10-22: DTS + boot logs + live QEMU + stock scripts; gpio61 SD-power correction from U-Boot bench probe 2026-10-26 (Josh). Ported to ciao 2026-10-26 (branch gino/noorio-t110-ciao): identical values as the validated master build.",
+    "t110_ciao": "Ported to ciao 2026-10-26 (branch gino/noorio-t110-ciao): identical values as the validated master build; ciao-specifics handled in the defconfig (2026.07 U-Boot pin) and the wifi-aic8800 WEXT cherry-pick (10188534b). SD power + card detect now flow through the same inject-uboot-mmc-dt.sh / inject-uboot-gpio-dt.sh / S09mmc plumbing as master (all present on ciao, gated only by the 2013.07 default)."
+  }
 }
