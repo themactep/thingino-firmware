@@ -34,19 +34,19 @@ jobs:
           fi
 
       - name: Lint shell scripts
-        # reviewdog surfaces shellcheck findings as inline check annotations on
-        # the PR/commit instead of burying them in the raw log. The action pins
-        # shellcheck 0.11.0 (matching local dev); both reviewers and the commit
-        # checks API get file/line-level feedback. filter_mode=added restricts
-        # reports to new findings on changed lines, so pre-existing issues in
-        # unrelated scripts never fail the build. fail_level=any still fails the
-        # job when a new finding appears.
+        # The action pins shellcheck 0.11.0 (matching local dev).
+        # On pull requests, reviewdog posts inline check annotations and filters
+        # to findings added by the PR.
+        # On pushes, report locally instead: the github-check reporter creates a
+        # check run through the checks API, and a failed PATCH there turned this
+        # job red even when shellcheck found nothing. The local reporter has no
+        # diff to filter against, so a push lints the whole scripts/ tree;
+        # fail_level=any still fails the job on a real finding.
         # Pinned to v1 tag commit so the action version can't drift quietly.
         uses: reviewdog/action-shellcheck@0722bbdb0d47f04c1b53b8734d2422ac63a45ec6
         with:
-          # report on the branch commit so it works on both push and PR runs
-          reporter: github-check
-          filter_mode: added
+          reporter: ${{ github.event_name == 'pull_request' && 'github-check' || 'local' }}
+          filter_mode: ${{ github.event_name == 'pull_request' && 'added' || 'nofilter' }}
           fail_level: any
           level: warning
           path: scripts/
