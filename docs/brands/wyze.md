@@ -2,7 +2,7 @@ Wyze
 ----
 - https://www.wyze.com/
 
-See [Hualai](hualai.md)
+See [Hualai](hualai.md), [Gwell](gwell.md)
 
 | FCC            | Model     | Name                                  | SOC   | CMOS   | RES            | SPI    | WIFI       | Link                                   |
 |----------------|-----------|---------------------------------------|-------|--------|----------------|--------|------------|----------------------------------------|
@@ -27,11 +27,15 @@ See [Hualai](hualai.md)
 | 2AUIUWYZEC3P   |           | Wyze Cam v3 Pro                       |       |        |                |        |            |                                        |
 | 2AUIUWYZECFL2  |           |                                       |       |        |                |        |            |                                        |
 | 2AUIUWYZECFLP  |           |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECGS   |           | Wyze Cam OG, Wyze Cam OG Telephoto 3x |       |        |                |        |            |                                        |
+| 2AUIUWYZECGS   |           | Wyze Cam OG, Wyze Cam OG Telephoto 3x | Realtek |        |                |        |            |                                        |
 | 2AUIUWYZECOP   |           | Wyze Battery Cam Pro                  |       |        |                |        |            |                                        |
 | 2AUIUWYZECP2   |           | Wyze Cam Pan v2                       |       |        |                |        |            |                                        |
 | 2AUIUWYZECP2A  |           | Wyze Cam Pan v2                       | T20?  |        |                |        |            |                                        |
 | 2AUIUWYZECPAN3 |           | Wyze Cam Pam V3                       | T31X  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
+
+### Notes
+
+- Wyze Cam OG / OG Telephoto 3x (FCC 2AUIUWYZECGS) are Gwell ODM hardware with a Realtek SoC — not Hualai, not Ingenic, therefore not supported by thingino. The Realtek part number, sensor, and WiFi chip are undocumented; leave the table cells blank until verified from a teardown.
 
 ### Modifications
 
