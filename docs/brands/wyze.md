@@ -26,7 +26,7 @@ See [Hualai](hualai.md), [Gwell](gwell.md)
 | 2AUIUWYZEC3F   | WYZEC3F   | Wyze Cam V3                           | T31A  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
 | 2AUIUWYZEC3P   |           | Wyze Cam v3 Pro                       |       |        |                |        |            |                                        |
 | 2AUIUWYZECFL2  |           |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECFLP  |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWYZECFLP  |           | Wyze Cam Floodlight Pro               | RTS3916 |        |                | FM25S01A NAND | RTL8822CU |                                        |
 | 2AUIUWYZECGS   |           | Wyze Cam OG, Wyze Cam OG Telephoto 3x | Realtek |        |                |        |            |                                        |
 | 2AUIUWYZECOP   |           | Wyze Battery Cam Pro                  |       |        |                |        |            |                                        |
 | 2AUIUWYZECP2   |           | Wyze Cam Pan v2                       |       |        |                |        |            |                                        |
@@ -36,6 +36,7 @@ See [Hualai](hualai.md), [Gwell](gwell.md)
 ### Notes
 
 - Wyze Cam OG / OG Telephoto 3x (FCC 2AUIUWYZECGS) are Gwell ODM hardware with a Realtek SoC — not Hualai, not Ingenic, therefore not supported by thingino. The Realtek part number, sensor, and WiFi chip are undocumented; leave the table cells blank until verified from a teardown.
+- Wyze Cam Floodlight Pro (FCC 2AUIUWYZECFLP) is single-core Realtek RTS3916 @ 800 MHz with 128 MiB Fudan FM25S01A SPI NAND and a Realtek RTL8822CU USB WiFi/BLE module — also not Ingenic, not supported by thingino. Do not confuse it with the supported original Wyze Cam Floodlight (profiles `wyze_camfl1_*`, Hualai ODM, Ingenic SoC). Community teardown (binbuf, 2026-11-12): secure boot chain (TF BL1/BL2 → U-Boot 2016.11, signed FIT images, dm-verity rootfs), Linux 4.9.217 Realtek RSDK 6.5.0, serial console ttyS1 57600 8N1.
 
 ### Modifications
 
