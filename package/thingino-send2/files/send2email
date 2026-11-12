@@ -1,6 +1,9 @@
 #!/bin/env sh
+# shellcheck shell=busybox
 
+# shellcheck source=prudynt-helpers
 . /usr/share/prudynt-helpers
+# shellcheck source=send2common
 . /usr/share/send2common
 
 domain="email"
@@ -64,8 +67,8 @@ done
 
 # use config settings only if not set from command line
 if [ -z "$send_photo$send_video" ]; then
-        send_photo=$(get_value send_photo)
-        send_video=$(get_value send_video)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 fi
 
 if [ -z "$host" ]; then
@@ -88,12 +91,12 @@ if [ -z "$body" ]; then
 	exit 1
 fi
 
-if ! echo "$from_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
+if ! echo "$from_address" | grep -E -q "$EMAIL_FORMAT" >/dev/null; then
 	echo_error "Invalid sender email address format"
 	exit 1
 fi
 
-if ! echo "$to_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
+if ! echo "$to_address" | grep -E -q "$EMAIL_FORMAT" >/dev/null; then
 	echo_error "Invalid recipient email address format"
 	exit 1
 fi
@@ -119,7 +122,6 @@ else
 fi
 
 email_date=$(date -uR)
-email_body=${body//"/\\"}
 command="$command -H 'From: \"$from_name\" <$from_address>'"
 command="$command -H 'To: \"$to_name\" <$to_address>'"
 command="$command -H 'Date: $email_date'"

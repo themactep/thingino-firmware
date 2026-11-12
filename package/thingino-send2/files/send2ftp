@@ -1,6 +1,9 @@
 #!/bin/env sh
+# shellcheck shell=busybox
 
+# shellcheck source=prudynt-helpers
 . /usr/share/prudynt-helpers
+# shellcheck source=send2common
 . /usr/share/send2common
 
 domain="ftp"
@@ -45,14 +48,14 @@ add_to_queue() {
 }
 
 # Rename by template. Extension comes from media kind, not the temp
-# path — motion/send2common use extensionless mktemp names (e.g.
+# path - motion/send2common use extensionless mktemp names (e.g.
 # /tmp/motion_XXXXXX), so ${file##*.} would invent junk suffixes.
 process_file() {
 	local file="$1"
 	local kind="$2" # photo | video
 	local ext="bin"
 
-	# empty / missing capture — don't invent junk names
+	# empty / missing capture - don't invent junk names
 	[ -n "$file" ] && [ -f "$file" ] || return 0
 
 	case "$kind" in
@@ -60,7 +63,8 @@ process_file() {
 		video) ext="mp4" ;;
 	esac
 
-	local name="/tmp/$(date +"$template").$ext"
+	local name
+	name="/tmp/$(date +"$template").$ext"
 	mv "$file" "$name"
 	add_to_queue "$name"
 	add_to_garbage "$name"
@@ -81,7 +85,11 @@ while getopts d:h:p:u:vP:f:skSV flag; do
 		P) password=$OPTARG ;;
 		# sending a file from the command line disables sending photo
 		# and video defined in config unless explicitly set so (-S/-V)
-		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
+		f)
+			file=$OPTARG
+			send_photo="false"
+			send_video="false"
+			;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
 		*) show_help ;;
@@ -90,8 +98,8 @@ done
 
 # use config settings only if not set from command line
 if [ -z "$send_photo$send_video" ]; then
-        send_photo=$(get_value send_photo)
-        send_video=$(get_value send_video)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 fi
 
 if [ -z "$host" ]; then
@@ -122,7 +130,8 @@ url="ftp://"
 url="$url@$host:$port"
 if [ -n "$path" ]; then
 	path="$(date +"$path")"
-	url="$url/${path// /%20}"
+	path=$(printf '%s' "$path" | sed 's/ /%20/g')
+	url="$url/$path"
 fi
 
 for local_file in $queue; do
@@ -131,7 +140,7 @@ for local_file in $queue; do
 	else
 		command="$CURL --silent"
 	fi
-	command="$command --url $url/$(basename $local_file) --upload-file $local_file --ftp-create-dirs"
+	command="$command --url $url/$(basename "$local_file") --upload-file $local_file --ftp-create-dirs"
 	if [ "true" = "$use_ssl" ]; then
 		command="$command --ssl-reqd"
 		[ "true" = "$trust_cert" ] && command="$command --insecure"

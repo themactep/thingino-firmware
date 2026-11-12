@@ -1,6 +1,9 @@
 #!/bin/env sh
+# shellcheck shell=busybox
 
+# shellcheck source=prudynt-helpers
 . /usr/share/prudynt-helpers
+# shellcheck source=send2common
 . /usr/share/send2common
 
 domain="gphotos"
@@ -71,7 +74,7 @@ build_filename_for() {
 
 get_mime_type() {
 	case "$1" in
-		jpg|jpeg) echo "image/jpeg" ;;
+		jpg | jpeg) echo "image/jpeg" ;;
 		png) echo "image/png" ;;
 		gif) echo "image/gif" ;;
 		mp4) echo "video/mp4" ;;
@@ -116,7 +119,7 @@ refresh_access_token() {
 	command="$command --data-urlencode 'grant_type=refresh_token'"
 
 	[ "true" = "$verbose" ] && echo_command "$command"
-	if ! sh -c "$command" > "$response_file"; then
+	if ! sh -c "$command" >"$response_file"; then
 		echo_error "Failed to refresh OAuth token"
 		return 1
 	fi
@@ -152,7 +155,7 @@ build_payload() {
   ]
 }
 EOF
-	} > "$output_file"
+	} >"$output_file"
 }
 
 upload_media_file() {
@@ -185,7 +188,7 @@ create_media_item() {
 	command="$command --data-binary @$(shell_escape "$payload_file")"
 
 	[ "true" = "$verbose" ] && echo_command "$command"
-	if ! sh -c "$command" > "$response_file"; then
+	if ! sh -c "$command" >"$response_file"; then
 		echo_error "Failed to finalize Google Photos upload"
 		[ "true" = "$verbose" ] && cat "$response_file" >&2
 		return 1
@@ -222,7 +225,7 @@ prepare_media_file() {
 			}
 			MEDIA_EXT="${MEDIA_PATH##*.}"
 			[ "$MEDIA_EXT" = "$MEDIA_PATH" ] && MEDIA_EXT="mp4"
-			MEDIA_EXT=$(printf '%s' "$MEDIA_EXT" | tr 'A-Z' 'a-z')
+			MEDIA_EXT=$(printf '%s' "$MEDIA_EXT" | tr '[:upper:]' '[:lower:]')
 			MEDIA_TEMPLATE="$video_name_template"
 			;;
 		*)

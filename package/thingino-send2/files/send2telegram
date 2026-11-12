@@ -1,6 +1,9 @@
 #!/bin/env sh
+# shellcheck shell=busybox
 
+# shellcheck source=prudynt-helpers
 . /usr/share/prudynt-helpers
+# shellcheck source=send2common
 . /usr/share/send2common
 
 domain="telegram"
@@ -82,6 +85,7 @@ command="curl --silent --tlsv1.2 --tls-max 1.2"
 [ "true" = "$verbose" ] && command="$command --verbose"
 command="$command -F 'chat_id=$channel'"
 [ "true" = "$silent" ] && command="$command -F 'disable_notification=true'"
+# shellcheck disable=SC3028 # BusyBox ash provides RANDOM
 command="$command -F 'rand=$RANDOM'"
 
 url="https://api.telegram.org/bot$token/"
@@ -91,7 +95,7 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	url="${url}sendMediaGroup"
 
 	photo=$(copy_photo)
-	caption=$(parse_caption $photo)
+	caption=$(parse_caption "$photo")
 	command="$command -F 'photo=@$photo'"
 	[ -n "$message" ] && caption="$caption $message"
 	media='{"type":"photo","media":"attach://photo","caption":"'$caption'"},'
@@ -106,7 +110,7 @@ elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
 	url="${url}sendVideo"
 	video=$(copy_video)
-	caption="$(parse_caption $video)"
+	caption="$(parse_caption "$video")"
 	[ -n "$message" ] && caption="$caption $message"
 	command="$command -F 'video=@$video' -F 'caption=\"$caption\"' $url"
 
@@ -114,7 +118,7 @@ elif [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto
 	url="${url}sendPhoto"
 	photo=$(copy_photo)
-	caption="$(parse_caption $photo)"
+	caption="$(parse_caption "$photo")"
 	[ -n "$message" ] && caption="$caption $message"
 	command="$command -F 'photo=@$photo' -F 'caption=\"$caption\"' $url"
 
@@ -126,7 +130,7 @@ elif [ -n "$message" ]; then
 elif [ -n "$file" ] && [ -f "$file" ]; then
 	# https://core.telegram.org/bots/api#senddocument
 	url="${url}sendDocument"
-	caption="$(parse_caption $file)"
+	caption="$(parse_caption "$file")"
 	[ -n "$message" ] && caption="$caption $message"
 	command="$command -F 'document=@$1' -F 'caption=\"$caption\"' $url"
 
