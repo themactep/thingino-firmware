@@ -60,32 +60,50 @@ if [ -z "$url" ]; then
 	exit 1
 fi
 
+# shellcheck disable=SC2086 # word-split CURL into the base arg list
+set -- $CURL
 if [ "true" = "$verbose" ]; then
-	command="$CURL --verbose"
+	set -- "$@" --verbose
 else
-	command="$CURL --silent"
+	set -- "$@" --silent
 fi
 
+has_attachment=""
+
 if [ -n "$file" ]; then
-	command="$command -F 'file=@$file'"
+	set -- "$@" -F "file=@$file"
+	has_attachment="true"
 fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -F 'image=@$photo'"
+	if [ -n "$photo" ] && [ -f "$photo" ]; then
+		set -- "$@" -F "image=@$photo"
+		has_attachment="true"
+	fi
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -F 'video=@$video'"
+	if [ -n "$video" ] && [ -f "$video" ]; then
+		set -- "$@" -F "video=@$video"
+		has_attachment="true"
+	fi
 fi
 
-command="$command -F \"message=$message\""
-command="$command --url \"$url\""
+# Multipart and raw body are mutually exclusive in curl. With an attachment
+# the message must be a form field; with none, keep the raw-body behavior
+# (ntfy-style receivers, documented in docs/thingino/send2webhook.md).
+if [ -n "$has_attachment" ]; then
+	set -- "$@" --form-string "message=$message"
+else
+	set -- "$@" -d "$message"
+fi
+set -- "$@" --url "$url"
 
-[ "true" = "$verbose" ] && echo_command "$command"
+[ "true" = "$verbose" ] && echo_command "$*"
 
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send webhook message"
 	exit 1
 fi

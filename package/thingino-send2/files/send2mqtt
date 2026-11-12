@@ -125,7 +125,7 @@ mqtt_pub() {
 	[ -n "$username" ] && set -- "$@" -u "$username"
 	[ -n "$password" ] && set -- "$@" -P "$password"
 	if [ "true" = "$use_ssl" ]; then
-		set -- "$@" --capath /etc/ssl/certs
+		set -- "$@" --tls-use-os-certs
 		[ "true" = "$tls_skip_verify" ] && set -- "$@" --insecure
 	fi
 	"$@"
@@ -134,9 +134,9 @@ mqtt_pub() {
 failed=0
 
 if message_looks_like_json "$message"; then
-	tmpfile="$(mktemp -u).json"
+	tmpfile="$(mktemp).json"
 	echo "$message" >"$tmpfile"
-	garbage="$garbage $tmpfile"
+	add_to_garbage "$tmpfile"
 
 	[ "true" = "$verbose" ] && echo_command "publish $tmpfile to $topic"
 	if ! mqtt_pub -t "$topic" -f "$tmpfile"; then

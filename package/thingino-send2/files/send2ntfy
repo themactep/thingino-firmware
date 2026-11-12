@@ -1,5 +1,5 @@
 #!/bin/env sh
-# shellcheck disable=SC1091,SC2034
+# shellcheck disable=SC1091,SC2034,SC2086
 # Sends data to ntfy.sh
 # https://docs.ntfy.sh/publish/
 
@@ -54,6 +54,7 @@ read_config() {
 	token=$(get_value token)
 	topic=$(get_value topic)
 	twilio_token=$(get_value twilio_token)
+	use_ssl=$(get_value use_ssl)
 	username=$(get_value username)
 }
 
@@ -101,53 +102,53 @@ fi
 
 [ -z "$host" ] && host="ntfy.sh"
 [ -z "$port" ] && port=80
+[ "true" = "$use_ssl" ] && scheme="https" || scheme="http"
 
-command="curl --tls-max 1.2 -X POST -H p:${priority:-3}"
+set -- $CURL -X POST
+
+if [ -n "$priority" ]; then
+	set -- "$@" -H "p: $priority"
+fi
 
 if [ "true" = "$verbose" ]; then
-	command="$command --verbose"
+	set -- "$@" --verbose
 else
-	command="$command --silent"
+	set -- "$@" --silent
 fi
 
 if [ -n "$token" ]; then
-	command="$command -H 'Authorization: Bearer $token'"
+	set -- "$@" -H "Authorization: Bearer $token"
 elif [ -n "$username" ] && [ -n "$password" ]; then
-	command="$command -u $username:$password"
+	set -- "$@" -u "$username:$password"
 fi
 
 if [ -n "$message" ]; then
 	message="$(date +"$message")"
-	command="$command -H 'Message: $message'"
+	set -- "$@" -H "Message: $message"
+fi
+
+if [ -n "$title" ]; then
+	title="$(date +"$title")"
+	set -- "$@" -H "Title: $title"
 fi
 
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
 if [ -n "$filename" ] && [ -f "$filename" ]; then
-	command="$command -T $filename -H 'Filename: $filename'"
+	set -- "$@" -T "$filename" -H "Filename: $(basename "$filename")"
 elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -T $photo -H 'Filename: $photo'"
+	[ -f "$photo" ] && set -- "$@" -T "$photo" -H "Filename: $(basename "$photo")"
 elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -T $video -H 'Filename: $video'"
+	[ -f "$video" ] && set -- "$@" -T "$video" -H "Filename: $(basename "$video")"
 fi
 
-#[ -n "$title" ] && command="$command -H 'Title: $title'"
-#[ -n "$delay" ] && command="$command -H 'Delay: $delay'"
-#[ -n "$tags" ] && command="$command -H 'Tags: $tags'"
-#[ -n "$attach" ] && command="$command -H 'Attach: $attach'"
-#[ -n "$click" ] && command="$command -H 'Click: $click'"
-#[ -n "$icon" ] && command="$command -H 'Icon: $icon'"
-#[ -n "$email" ] && command="$command -H 'Email: $email'"
-#[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
-#[ -n "$call" ] && [ -n "$twilio_token" ] && command="$command -H 'Call: $call' -u :$twilio_token"
+set -- "$@" "$scheme://$host:$port/$topic"
 
-command="$command $host:$port/$topic"
+[ "true" = "$verbose" ] && echo_command "$*"
 
-[ "true" = "$verbose" ] && echo_command "$command"
-
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send NTFY message"
 	exit 1
 fi
