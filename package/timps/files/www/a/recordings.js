@@ -49,8 +49,8 @@
     video.play().catch(function () {});
   }
 
-  function del(rel, tr) {
-    if (!window.confirm("Delete this recording?\n" + rel)) return;
+  async function del(rel, tr) {
+    if (!(await window.confirm("Delete this recording?\n" + rel))) return;
     fetch(url("del", rel), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function () { if (tr) tr.remove(); toast("success", "Recording deleted.", 2500); })
