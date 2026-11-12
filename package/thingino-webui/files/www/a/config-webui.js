@@ -130,6 +130,13 @@
       showAlert("", "");
       showOverlayMessage("Web UI settings saved.", "success");
       resetPasswordField();
+      // Apply now; main.js re-asks the server only every 10 minutes.
+      if (
+        window.thinginoTheme &&
+        typeof window.thinginoTheme.adopt === "function"
+      ) {
+        window.thinginoTheme.adopt(payload.theme);
+      }
       await loadConfig({ preserveBusy: true });
       // Reload preview focus settings if the function is available
       if (
