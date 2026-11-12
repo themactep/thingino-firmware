@@ -2,8 +2,8 @@ THINGINO_WEBUI_SITE_METHOD = local
 THINGINO_WEBUI_SITE = $(THINGINO_WEBUI_PKGDIR)/files
 THINGINO_WEBUI_LICENSE = MIT
 
-THINGINO_WEBUI_ASSET_TAG_RAW := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
-THINGINO_WEBUI_ASSET_TAG := $(if $(THINGINO_WEBUI_ASSET_TAG_RAW),$(THINGINO_WEBUI_ASSET_TAG_RAW),$(shell date +%s))
+THINGINO_WEBUI_ASSET_TAG_RAW = $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
+THINGINO_WEBUI_ASSET_TAG = $(if $(THINGINO_WEBUI_ASSET_TAG_RAW),$(THINGINO_WEBUI_ASSET_TAG_RAW),$(shell date +%s))
 
 define THINGINO_WEBUI_APPLY_ASSET_TAG
 	@asset_tag="$(THINGINO_WEBUI_ASSET_TAG)"; \
