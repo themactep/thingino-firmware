@@ -89,12 +89,16 @@ set_motor_phases() {
 
 home_motors() {
 	echo "Home motors"
-	motors -r
+	if ! run_motors motors -r; then
+		echo "Homing request failed after retries; continuing" >&2
+	fi
 }
 
 set_motors_speed() {
 	echo "Set motors speed to $speed_pan"
-	motors -s $1
+	if ! run_motors motors -s $1; then
+		echo "Speed setting failed after retries" >&2
+	fi
 }
 
 position_motors() {
@@ -117,7 +121,9 @@ position_motors() {
 	fi
 
 	echo "Move to $x,$y"
-	motors -d h -x $x -y $y
+	if ! run_motors motors -d h -x $x -y $y; then
+		echo "Preset-position move failed after retries" >&2
+	fi
 }
 
 start() {
@@ -181,8 +187,33 @@ start() {
 
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
-	# FIXME: daemon should be reporting running state from the very first moment
-	sleep 1
+
+	wait_for_daemon() {
+		local i=0
+		while [ "$i" -lt 100 ]; do
+			if motors -j >/dev/null 2>&1; then
+				return 0
+			fi
+			i=$((i + 1))
+			sleep 0.2
+		done
+		return 1
+	}
+
+	run_motors() {
+		local i=0
+		while [ "$i" -lt 3 ]; do
+			if "$@"; then
+				return 0
+			fi
+			i=$((i + 1))
+			sleep 0.5
+		done
+		echo "motors command failed after retries: $*" >&2
+		return 1
+	}
+
+	wait_for_daemon || echo "Warning: daemon not ready after 20s; continuing anyway" >&2
 
 	# FIXME: motors may have different speeds for pan and tilt
 	set_motors_speed $speed_pan
