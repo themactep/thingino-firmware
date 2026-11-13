@@ -9,6 +9,9 @@ on:
 jobs:
   sync-and-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
     steps:
       - uses: actions/checkout@v4
         with:
