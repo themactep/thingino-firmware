@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
+From: Gino (WLTB-Gino) <gino@wltechblog.com>
+Date: Tue, 11 Nov 2026 14:00:00 +0000
+Subject: [PATCH 6/6] motor: make remove() teardown safe against IRQs and timers
+
+motor_remove() tore things down in an order that leaves windows for
+use-after-free / NULL-deref on module unload and reload:
+
+- del_timer_sync() ran after gpio_free() and after motor->pdata = 0,
+  so an already-armed min/max debounce timer (armed from the GPIO
+  hardirq, firing 5ms later from softirq) could dereference the
+  released pdata.
+- mutex_destroy() and ingenic_tcu_counter_stop() ran while /dev/motor
+  was still registered and the procfs entry was still mounted, so a
+  racing open/ioctl or proc reader could take a mutex that is being
+  destroyed or drive a TCU channel that is being stopped.
+
+Order now: free all IRQs first (no new timer arms can happen), drain
+the debounce timers while pdata is still valid, drop pdata, remove
+the procfs entry and /dev/motor, and only then destroy the mutex and
+stop the TCU counter.
+
+Companion to 0005 (devres double-free); together they close the
+teardown races seen around runtime motor.ko reload on noorio t110.
+Regenerated against the restructured thingino/ingenic-sdk layout
+(4.4.94/misc/motor/motor.c); the 4.4.94 unified module-param patch
+was dropped since the restructured fork carries the interface
+upstream with identical switch-less limit semantics.
+Signed-off-by: Gino (WLTB-Gino) <gino@wltechblog.com>
+--- a/4.4.94/misc/motor/motor.c
++++ b/4.4.94/misc/motor/motor.c
+@@ -1014,9 +1014,6 @@
+ 	int i;
+ 	struct motor_device *mdev = platform_get_drvdata(pdev);
+ 	struct motor_driver *motor = NULL;
+-	ingenic_tcu_counter_stop(mdev->tcu);
+-	mutex_destroy(&mdev->dev_mutex);
+-
+ 	free_irq(mdev->run_step_irq, mdev);
+ 	for(i = 0; i < HAS_MOTOR_CNT; i++) {
+ 		motor = &(mdev->motors[i]);
+@@ -1041,19 +1038,22 @@
+ 
+ 		if (motor->pdata->motor_st4_gpio != -1)
+ 			gpio_free(motor->pdata->motor_st4_gpio);
++		del_timer_sync(&motor->min_timer);
++		del_timer_sync(&motor->max_timer);
+ 		motor->pdata = 0;
+ 		motor->min_pos_irq = 0;
+ 		motor->max_pos_irq = 0;
+ 		motor->min_pos_irq_cnt = 0;
+ 		motor->max_pos_irq_cnt = 0;
+-		del_timer_sync(&motor->min_timer);
+-		del_timer_sync(&motor->max_timer);
+ 	}
+ 
+ 	if (mdev->proc)
+ 		proc_remove(mdev->proc);
+ 
+ 	misc_deregister(&mdev->misc_dev);
++	mutex_destroy(&mdev->dev_mutex);
++
++	ingenic_tcu_counter_stop(mdev->tcu);
+ 
+ 	return 0;
+ }
