@@ -331,8 +331,11 @@ KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_
 JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
-# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
-JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
+# JFFS2 needs at least 5 erase blocks (4 for GC, 1 for data). Size that
+# minimum for a 64 KiB erase (320 KiB): xburst1 3.10 SFC NOR reports 64 KiB
+# at runtime even when CONFIG_ERASE_SIZE_64K is unset (issue #1896).
+# mkfs.jffs2 --eraseblock still follows JFFS2_ERASE_BLOCK (issue #1735).
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(ALIGN_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
@@ -388,7 +391,19 @@ U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
 KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
-ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
+# Largest rootfs that still leaves JFFS2_MIN_SIZE for data (issue #1896).
+# ROOTFS_OFFSET is defined further below; this is recursively expanded.
+ROOTFS_PARTITION_MAX = $(shell echo $$(($(FLASH_SIZE) - $(ROOTFS_OFFSET) - $(JFFS2_MIN_SIZE))))
+# Prefer a tight rootfs so leftover flash goes to data, but never let
+# data fall below JFFS2_MIN_SIZE. If the squashfs is larger than this
+# max, the data-partition recipe fails the build instead of emitting
+# an image with a read-only overlay.
+ROOTFS_PARTITION_SIZE = $(shell \
+	if [ -n "$(wildcard $(ROOTFS_BIN))" ] && [ $(ROOTFS_BIN_SIZE_ALIGNED) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		echo $(ROOTFS_PARTITION_MAX); \
+	else \
+		echo $(ROOTFS_BIN_SIZE_ALIGNED); \
+	fi)
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE
