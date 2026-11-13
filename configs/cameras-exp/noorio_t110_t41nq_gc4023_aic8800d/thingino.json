@@ -1,3 +1,64 @@
 {
-  "gpio": {}
+  "gpio": {
+    "button_reset": {
+      "pin": 30,
+      "active_low": true
+    },
+    "ir850": 46,
+    "ircut": "50 49",
+    "led_b": {
+      "pin": 73,
+      "active_low": false
+    },
+    "led_r": {
+      "pin": 75,
+      "active_low": false
+    },
+    "mmc_cd": {
+      "pin": 58,
+      "active_low": true
+    },
+    "mmc_power": [
+      { "pin": 61, "active_low": true }
+    ],
+    "speaker": 63,
+    "wlan": [
+      { "pin": 57, "state": 1 }
+    ]
+  },
+  "motors": {
+    "accel_pan": 0,
+    "accel_tilt": 0,
+    "gpio_focus": -1,
+    "gpio_invert": false,
+    "gpio_pan": "76 72 77 83",
+    "gpio_switch": false,
+    "gpio_tilt": "80 81 79 82",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "motion_driver": "legacy",
+    "presets": [
+      {
+        "id": 0,
+        "name": "Home",
+        "x": 2560,
+        "y": 868
+      }
+    ],
+    "preview_control_mode": "step",
+    "speed_pan": 700,
+    "speed_tilt": 700,
+    "steps_pan": 5300,
+    "steps_tilt": 1100
+  },
+  "sensor": {
+    "i2c_adapter": 0,
+    "i2c_addr": "0x29",
+    "mclk": 1,
+    "name": "gc4023",
+    "pwdn_gpio": -1,
+    "reset_gpio": -1
+  }
 }
