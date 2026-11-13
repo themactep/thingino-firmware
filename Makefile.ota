@@ -105,12 +105,17 @@ else
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
 	@echo ""
-	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
-	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
-	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
-	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
-	@if [ $(DATA_OFFSET) -gt $$(( 8 * 1024 * 1024 - $(JFFS2_MIN_SIZE) )) ]; then $(YELLOW) "WARNING: ROOTFS ENDS BEYOND 8MB MINUS MINIMAL JFFS2 PARTITION - IMAGE MAY NOT FIT AN 8MB FLASH"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@bad=0; \
+	if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; fi; \
+	if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_SIZE) bytes (max $(ROOTFS_PARTITION_MAX) to leave $(JFFS2_MIN_SIZE) for JFFS2 data)"; bad=1; fi; \
+	if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW: $(DATA_BIN_SIZE) > $(DATA_PARTITION_SIZE) bytes"; bad=1; fi; \
+	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; fi; \
+	if [ $(DATA_OFFSET) -gt $$(( 8 * 1024 * 1024 - $(JFFS2_MIN_SIZE) )) ]; then $(YELLOW) "WARNING: ROOTFS ENDS BEYOND 8MB MINUS MINIMAL JFFS2 PARTITION - IMAGE MAY NOT FIT AN 8MB FLASH"; fi; \
+	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE: image $(FIRMWARE_BIN_FULL_SIZE) > flash $(FLASH_SIZE) bytes"; bad=1; fi; \
+	if [ $$bad -ne 0 ]; then \
+		$(RED) "Refusing to emit a firmware image that does not fit a JFFS2-viable partition layout."; \
+		exit 1; \
+	fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
 # Per-build size and composition report, written to
@@ -197,11 +202,9 @@ toolchain: defconfig
 
 .PHONY: check-image-fits
 
-# Refuse to OTA a build whose partitions do not fit the flash layout.
-# pack prints these as warnings and still assembles the image; flashing it
-# truncates the data partition and can leave the camera without a usable
-# overlay. The checks mirror the SFC branch of pack (plus the bootloader
-# slot), but are fatal here.
+# Refuse to OTA (and, via the same checks, pack) a build whose partitions
+# do not fit a JFFS2-viable flash layout. Emitting or flashing such an
+# image leaves the camera without a usable overlay (issue #1896).
 check-image-fits:
 ifeq ($(SKIP_CAMERA_SELECTION),)
 ifneq ($(BR2_THINGINO_FLASH_NAND),y)
@@ -212,6 +215,9 @@ ifneq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	fi; \
 	if [ -f "$(KERNEL_BIN)" ] && [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
 		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ -f "$(ROOTFS_BIN)" ] && [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		$(RED) "ROOTFS too large to reserve $(JFFS2_MIN_SIZE) bytes for JFFS2 data: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_MAX) bytes"; bad=1; \
 	fi; \
 	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
 		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; \
