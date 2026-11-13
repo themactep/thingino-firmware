@@ -180,6 +180,17 @@ endif
 # create data partition image (merged config + extras, single overlay)
 $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		$(RED) "ROOTFS too large to reserve $(JFFS2_MIN_SIZE) bytes (5 x 64 KiB) for the JFFS2 data partition"; \
+		$(RED) "  rootfs: $(ROOTFS_BIN_SIZE) bytes, aligned $(ROOTFS_BIN_SIZE_ALIGNED)"; \
+		$(RED) "  max rootfs: $(ROOTFS_PARTITION_MAX) bytes (flash $(FLASH_SIZE) - offset $(ROOTFS_OFFSET) - data min $(JFFS2_MIN_SIZE))"; \
+		$(RED) "  overflow: $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
+		exit 1; \
+	fi
+	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
+		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; \
+		exit 1; \
+	fi
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
