@@ -22,6 +22,7 @@ jobs:
         run: |
           git config --global user.name "CRA Bot"
           git config --global user.email "cra@cra-consulting.com"
+          git remote add upstream https://github.com/themactep/thingino-firmware.git
           git fetch upstream
           git merge upstream/master --no-edit -X theirs || true
           git push origin cra-compliance
