@@ -1,0 +1,39 @@
+name: Sync Upstream + Vulnerability Scan
+on:
+  push:
+    branches: [ cra-compliance ]
+  schedule:
+    - cron: '0 0 * * 1' # Every Monday at midnight
+  workflow_dispatch:
+
+jobs:
+  sync-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: cra-compliance
+
+      - name: Sync with upstream
+        run: |
+          git config --global user.name "CRA Bot"
+          git config --global user.email "cra@cra-consulting.com"
+          git fetch upstream
+          git merge upstream/master --no-edit -X theirs || true
+          git push origin cra-compliance
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: 1
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
