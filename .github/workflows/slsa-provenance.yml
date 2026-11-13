@@ -1,0 +1,27 @@
+name: SLSA Provenance Generation
+
+# Supply Chain Security - SLSA Level 2 for CRA Compliance
+# Generates cryptographically verifiable provenance for builds
+on:
+  push:
+    branches: [ cra-compliance ]
+  schedule:
+    - cron: '0 0 * * 1' # Every Monday at midnight
+  workflow_dispatch:
+
+jobs:
+  generate-slsa:
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
+    with:
+      # Generate provenance for the entire repository
+      base64-subjects: ""
+      # Compile the generator into the provenance
+      compile-generator: "true"
+      # Upload generated assets (provenance files)
+      upload-assets: "true"
+    permissions:
+      contents: write  # Required for uploading artifacts
+      packages: write  # Required for container signing
+      actions: read    # Required for workflow access
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

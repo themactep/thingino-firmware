@@ -39,16 +39,15 @@ jobs:
 
       # ============================================
       # 3. GENERATE SBOM (CRA ARTICLE 11 - MANDATORY)
+      # Using Docker-based Syft (more reliable than GitHub action)
       # ============================================
-      - name: Generate SBOM with Syft
-        uses: anchore/syft-action@v0.15.0
-        with:
-          path: .
-          format: spdx-json
-          output-file: sbom.spdx.json
+      - name: Generate SBOM with Syft (Docker)
+        run: |
+          docker pull anchore/syft:latest
+          docker run --rm -v $(pwd):/src -w /src anchore/syft:latest . -o spdx-json > sbom.spdx.json
 
       - name: Upload SBOM as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # ✅ FIXED: v4 instead of v3
         with:
           name: sbom
           path: sbom.spdx.json
@@ -58,7 +57,7 @@ jobs:
       # 4. VULNERABILITY SCANNING
       # ============================================
 
-      # 4a. Trivy: Filesystem scan
+      # 4a. Trivy: Filesystem scan (keep as GitHub action)
       - name: Trivy filesystem vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -69,15 +68,11 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
 
-      # 4b. Grype: SBOM-based scan
+      # 4b. Grype: SBOM-based scan (Docker-based for reliability)
       - name: Grype SBOM vulnerability scan
-        uses: anchore/grype-action@v0.60.0
-        with:
-          sbom: sbom.spdx.json
-          format: sarif
-          output: grype-results.sarif
-          severity: 'CRITICAL,HIGH'
-          exit-code: 0
+        run: |
+          docker pull anchore/grype:latest
+          docker run --rm -v $(pwd):/src -w /src anchore/grype:latest sbom:sbom.spdx.json -o sarif > grype-results.sarif
 
       # 4c. Upload all vulnerability reports to Security tab
       - name: Upload Trivy results
@@ -113,9 +108,6 @@ jobs:
           echo "✅ Trivy Scan: Filesystem vulnerabilities"
           echo "✅ Grype Scan: SBOM-based vulnerabilities"
           echo "✅ Security Reports: In GitHub Security tab"
-          echo ""
-          echo "Note: SLSA provenance is NOT included in this workflow"
-          echo "      (requires separate workflow configuration)"
           echo ""
           echo "View results: https://github.com/Em1li0/thingino-firmware/security"
           echo "============================================"
