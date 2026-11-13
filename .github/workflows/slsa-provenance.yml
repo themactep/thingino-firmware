@@ -15,10 +15,10 @@ jobs:
     with:
       # Generate provenance for the entire repository
       base64-subjects: ""
-      # Compile the generator into the provenance
-      compile-generator: "true"
-      # Upload generated assets (provenance files)
-      upload-assets: "true"
+      # Compile the generator into the provenance (boolean, not string)
+      compile-generator: true
+      # Upload generated assets (provenance files) (boolean, not string)
+      upload-assets: true
     permissions:
       contents: write  # Required for uploading artifacts
       packages: write  # Required for container signing
