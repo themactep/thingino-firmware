@@ -1,6 +1,6 @@
 name: Sync Upstream + Vulnerability Scan
 
-# CRA Compliance: Sync + SBOM + Vulnerability Scanning + Supply Chain
+# CRA Compliance: Sync + SBOM + Vulnerability Scanning
 on:
   push:
     branches: [ cra-compliance ]
@@ -91,19 +91,7 @@ jobs:
           sarif_file: 'grype-results.sarif'
 
       # ============================================
-      # 5. SUPPLY CHAIN SECURITY (SLSA)
-      # ============================================
-      - name: Generate SLSA provenance
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
-        with:
-          base64-subjects: ""
-          compile-generator: "true"
-          upload-assets: "true"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ============================================
-      # 6. CLEANUP
+      # 5. CLEANUP
       # ============================================
       - name: Clean up temporary files
         if: always()
@@ -111,7 +99,7 @@ jobs:
           rm -f sbom.spdx.json trivy-results.sarif grype-results.sarif
 
       # ============================================
-      # 7. SUMMARY
+      # 6. SUMMARY
       # ============================================
       - name: Print completion summary
         run: |
@@ -124,8 +112,10 @@ jobs:
           echo "✅ SBOM Generated: Uploaded as artifact"
           echo "✅ Trivy Scan: Filesystem vulnerabilities"
           echo "✅ Grype Scan: SBOM-based vulnerabilities"
-          echo "✅ SLSA: Supply chain provenance generated"
           echo "✅ Security Reports: In GitHub Security tab"
+          echo ""
+          echo "Note: SLSA provenance is NOT included in this workflow"
+          echo "      (requires separate workflow configuration)"
           echo ""
           echo "View results: https://github.com/Em1li0/thingino-firmware/security"
           echo "============================================"
