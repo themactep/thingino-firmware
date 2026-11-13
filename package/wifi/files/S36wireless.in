@@ -309,6 +309,25 @@ start() {
 	@endif@
 	@endif@
 
+	@if WIFI_MODULE_IS_USB@
+	if ! grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
+		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
+		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
+	fi
+
+	m=150
+	while [ "$m" -gt 0 ]; do
+		ip link show dev "$IFACE" >/dev/null 2>&1 && break
+		m=$((m - 1))
+		sleep 0.1
+	done
+
+	if ! ip link show dev "$IFACE" >/dev/null 2>&1; then
+		echo "$WLAN_MODULE_NAME did not register $IFACE within 15s" >&2
+		exit 1
+	fi
+	@endif@
+
 	@if WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
 		if [ -f /usr/share/wifi/wifi_cfg ]; then
