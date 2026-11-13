@@ -11,6 +11,20 @@
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpd 22 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpc 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpc 11 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		};
+	};
 };
 
 &uart0 {
