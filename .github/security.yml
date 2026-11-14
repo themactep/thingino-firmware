@@ -1,0 +1,78 @@
+# CRA Compliance: Security Policy
+# See: https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-a-security-policy-to-your-repository
+
+## Security Policy for Thingino Firmware (CRA Compliant)
+
+### Reporting a Vulnerability
+
+**For CRA-compliant vulnerability reporting:**
+- Email: security@cra-consulting.com
+- Response time: Within 48 hours for critical vulnerabilities
+- Full disclosure: After patch is available
+
+### Supported Versions
+
+| Version | Supported | CRA Status |
+|---------|-----------|------------|
+| cra-compliance branch | ✅ Yes | CRA Compliant |
+| Other branches | ⚠️ Partial | Pre-compliance |
+
+### Vulnerability Assessment
+
+**Automated Scanning:**
+- **Trivy**: Filesystem vulnerability scanning on every push
+- **Grype**: SBOM-based vulnerability scanning on every push
+- **Dependabot**: Dependency vulnerability alerts (weekly)
+- **GitHub Security**: Code scanning alerts
+
+**Manual Assessment:**
+- Code reviews for all pull requests
+- Security check before releases
+- Quarterly penetration testing (recommended)
+
+### Security Updates
+
+**Process:**
+1. Dependabot opens PR for vulnerable dependencies
+2. Security team reviews within 24 hours
+3. Fix merged to cra-compliance branch
+4. Re-scan confirms fix
+5. Release note documents vulnerability
+
+**Timelines:**
+- Critical: 24 hours
+- High: 7 days
+- Medium: 30 days
+- Low: Next release
+
+### SBOM (Software Bill of Materials)
+
+**Generation:**
+- Tool: Syft (Anchore)
+- Format: SPDX JSON
+- Frequency: On every push to cra-compliance
+- Access: GitHub Actions Artifacts
+
+**CRA Compliance:**
+- ✅ Article 11: SBOM generation mandatory
+- ✅ Article 11: SBOM accessibility mandatory
+- ✅ Article 20: Transparency mandatory
+
+### Compliance
+
+**CRA (Cyber Resilience Act):**
+- This repository complies with EU CRA requirements
+- See: `.github/CRA-COMPLIANCE.md` for detailed implementation
+- Evidence: GitHub Security Tab + Workflow Artifacts
+
+**Other Standards:**
+- SLSA: Level 2 (Supply Chain)
+- SPDX: 2.3 (SBOM Format)
+- CVE: Monitored via Trivy/Grype
+
+### Links
+
+- [CRA Compliance Documentation](https://github.com/Em1li0/thingino-firmware/blob/cra-compliance/.github/CRA-COMPLIANCE.md)
+- [Vulnerability Database](https://github.com/Em1li0/thingino-firmware/security/advisories)
+- [Code Scanning Alerts](https://github.com/Em1li0/thingino-firmware/security/code-scanning)
+- [Dependabot Alerts](https://github.com/Em1li0/thingino-firmware/security/dependabot)

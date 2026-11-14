@@ -1,0 +1,11 @@
+# CRA Compliance: Code Owners for Thingino Firmware
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Security and Compliance
+.github/workflows/sync-and-scan.yml    @Em1li0
+.github/dependabot.yml                 @Em1li0
+.github/CRA-COMPLIANCE.md             @Em1li0
+.github/CODEOWNERS                    @Em1li0
+
+# Default: All code
+*    @Em1li0
