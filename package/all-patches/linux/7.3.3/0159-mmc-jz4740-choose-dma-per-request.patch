@@ -1,0 +1,140 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] mmc: jz4740: choose DMA per request, PIO for small transfers
+
+With DMA channels on an SDIO host (T31 MSC1 + ssv6158), every transfer
+went through the external DMA, including 4-byte CMD53 register reads
+into stack buffers. The DMA cache invalidate works on whole 32-byte
+lines, so dirty stack data next to such a buffer (the stack canary,
+saved registers) was thrown away, and short reads below the 8-word
+RX trigger may never be drained.
+
+Choose DMA per request like the vendor jzmmc_v12 driver (PIO below
+64 bytes): use PIO for transfers below 64 bytes, not a multiple of
+the 8-word burst, not word aligned, or on the stack. A request mapped
+in pre_req always uses DMA. On SDIO hosts ("ingenic,sdio_clk") DMA
+stays off unless jz4740_mmc.sdio_dma=1 (runtime writable). A failed
+DMA start now fails the request instead of waiting for an interrupt
+that never comes.
+
+---
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -24,6 +24,7 @@
+ #include <linux/property.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/scatterlist.h>
++#include <linux/sched/task_stack.h>
+ 
+ #include <asm/cacheflush.h>
+ 
+@@ -182,6 +183,8 @@
+ 	struct dma_chan *dma_rx;
+ 	struct dma_chan *dma_tx;
+ 	bool use_dma;
++	/* DMA chosen for the data of the current request */
++	bool data_dma;
+ 
+ /* The DMA trigger level is 8 words, that is to say, the DMA read
+  * trigger is when data words in MSC_RXFIFO is >= 8 and the DMA write
+@@ -297,6 +300,48 @@
+ 	data->host_cookie = COOKIE_UNMAPPED;
+ }
+ 
++/*
++ * Like the vendor jzmmc_v12 driver (PIO_THRESHOLD 64), short transfers
++ * use PIO. Transfers that are not a whole number of 8-word DMA bursts,
++ * not word aligned, or that sit on the stack also use PIO: the DMA
++ * cache invalidate works on whole cache lines and would drop dirty
++ * stack data next to a small buffer.
++ */
++#define JZ4740_MMC_PIO_THRESHOLD 64
++#define JZ4740_MMC_DMA_BURST_BYTES (JZ4740_MMC_FIFO_HALF_SIZE * 4)
++
++/* Allow DMA on SDIO hosts ("ingenic,sdio_clk"). Off by default. */
++static bool sdio_dma;
++module_param(sdio_dma, bool, 0644);
++MODULE_PARM_DESC(sdio_dma, "Use DMA on SDIO hosts (default: off, PIO)");
++
++static bool jz4740_mmc_data_dma(struct jz4740_mmc_host *host,
++				struct mmc_data *data)
++{
++	struct scatterlist *sg;
++	unsigned int len;
++	int i;
++
++	if (!host->use_dma || !data)
++		return false;
++	if (host->sdio_clk && !READ_ONCE(sdio_dma))
++		return false;
++
++	len = data->blocks * data->blksz;
++	if (len < JZ4740_MMC_PIO_THRESHOLD ||
++	    len % JZ4740_MMC_DMA_BURST_BYTES)
++		return false;
++
++	for_each_sg(data->sg, sg, data->sg_len, i) {
++		if ((sg->offset | sg->length) & 3)
++			return false;
++		if (object_is_on_stack(sg_virt(sg)))
++			return false;
++	}
++
++	return true;
++}
++
+ /* Prepares DMA data for current or next transfer.
+  * A request can be in-flight when this is called.
+  */
+@@ -381,10 +426,13 @@
+ 	struct jz4740_mmc_host *host = mmc_priv(mmc);
+ 	struct mmc_data *data = mrq->data;
+ 
+-	if (!host->use_dma)
++	if (!data)
+ 		return;
+ 
+ 	data->host_cookie = COOKIE_UNMAPPED;
++	if (!jz4740_mmc_data_dma(host, data))
++		return;
++
+ 	if (jz4740_mmc_prepare_dma_data(host, data, COOKIE_PREMAPPED) < 0)
+ 		data->host_cookie = COOKIE_UNMAPPED;
+ }
+@@ -723,7 +771,10 @@
+ 		cmdat |= JZ_MMC_CMDAT_DATA_EN;
+ 		if (cmd->data->flags & MMC_DATA_WRITE)
+ 			cmdat |= JZ_MMC_CMDAT_WRITE;
+-		if (host->use_dma) {
++		/* A request mapped in pre_req always goes through DMA. */
++		host->data_dma = cmd->data->host_cookie == COOKIE_PREMAPPED ||
++				 jz4740_mmc_data_dma(host, cmd->data);
++		if (host->data_dma) {
+ 			/*
+ 			 * The JZ4780's MMC controller has integrated DMA ability
+ 			 * in addition to being able to use the external DMA
+@@ -792,14 +843,22 @@
+ 		fallthrough;
+ 
+ 	case JZ4740_MMC_STATE_TRANSFER_DATA:
+-		if (host->use_dma) {
+-			/* Use DMA if enabled.
++		if (host->data_dma) {
++			/* Use DMA if chosen for this request.
+ 			 * Data transfer direction is defined later by
+ 			 * relying on data flags in
+ 			 * jz4740_mmc_prepare_dma_data() and
+ 			 * jz4740_mmc_start_dma_transfer().
+ 			 */
+-			timeout = jz4740_mmc_start_dma_transfer(host, data);
++			int ret = jz4740_mmc_start_dma_transfer(host, data);
++
++			if (ret) {
++				/* Fail the request instead of waiting for
++				 * an interrupt that never comes. */
++				data->error = ret;
++				host->state = JZ4740_MMC_STATE_DONE;
++				break;
++			}
+ 			data->bytes_xfered = data->blocks * data->blksz;
+ 		} else if (data->flags & MMC_DATA_READ)
+ 			/* Use PIO if DMA is not enabled.

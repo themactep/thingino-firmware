@@ -1,0 +1,26 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] MIPS: dts: ingenic: t31: give MSC1 its PDMA channels
+
+MSC0 already carries dmas for PDMA request types 0x1b (RX) and 0x1a (TX),
+but MSC1 has none, so jz4740_mmc falls back to PIO on MSC1 ("Failed to
+get dma_tx channel", "Using PIO"), which costs about 510 IRQ/s while an
+SDIO WiFi card streams. Add the MSC1 request types 0x1d (RX) and 0x1c
+(TX), taken from the vendor jzdma_req_type enum (MSC0 0x1a/0x1b, MSC1
+0x1c/0x1d).
+
+diff --git a/arch/mips/boot/dts/ingenic/t31.dtsi b/arch/mips/boot/dts/ingenic/t31.dtsi
+index 76db50bb1..82b39ee83 100644
+--- a/arch/mips/boot/dts/ingenic/t31.dtsi
++++ b/arch/mips/boot/dts/ingenic/t31.dtsi
+@@ -350,6 +350,11 @@ msc1: mmc@13460000 {
+ 		clocks = <&cgu T31_CLK_MSC1>;
+ 		clock-names = "mmc";
+ 
++		/* PDMA request types MSC1 RX 0x1d, TX 0x1c (as MSC0: 0x1b/0x1a) */
++		dmas = <&pdma 0x1d 0xffffffff>,
++		       <&pdma 0x1c 0xffffffff>;
++		dma-names = "rx", "tx";
++
+ 		status = "disabled";
+ 	};
+ 
