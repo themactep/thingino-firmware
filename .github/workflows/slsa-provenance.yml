@@ -1,7 +1,7 @@
 name: SLSA Provenance Generation
 
-# Supply Chain Security - SLSA Level 2 for CRA Compliance
-# Generates cryptographically verifiable provenance for builds
+# Supply Chain Security - Using GitHub's official attestation action
+# Generates SLSA Level 2 provenance for CRA Compliance Article 10
 on:
   push:
     branches: [ cra-compliance ]
@@ -10,14 +10,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  generate-slsa:
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
-    with:
-      base64-subjects: ""
-      compile-generator: true
-      upload-assets: true
+  generate-provenance:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
-      actions: read
-      id-token: write  # ✅ CRITICAL: Required for OIDC signing
+      id-token: write  # ✅ Required for OIDC signing
+      attestations: write  # ✅ Required for GitHub attestations
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate SLSA provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: thingino-firmware
+          subject-digest: ${{ hashFiles('**') }}
+          include-sbom: true
+          sbom-format: spdx-json
