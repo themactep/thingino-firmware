@@ -1,0 +1,113 @@
+name: Sync Upstream + Vulnerability Scan
+
+# CRA Compliance: Sync + SBOM + Vulnerability Scanning
+on:
+  push:
+    branches: [ cra-compliance ]
+  schedule:
+    - cron: '0 0 * * 1' # Every Monday at midnight
+  workflow_dispatch:
+
+jobs:
+  sync-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+    steps:
+      # ============================================
+      # 1. CHECKOUT CODE
+      # ============================================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: cra-compliance
+
+      # ============================================
+      # 2. SYNC WITH UPSTREAM (themactep/thingino-firmware)
+      # ============================================
+      - name: Sync with upstream
+        run: |
+          git config --global user.name "CRA Bot"
+          git config --global user.email "cra@cra-consulting.com"
+          git remote add upstream https://github.com/themactep/thingino-firmware.git
+          git fetch upstream
+          git merge upstream/master --no-edit -X theirs
+          git push origin cra-compliance
+
+      # ============================================
+      # 3. GENERATE SBOM (CRA ARTICLE 11 - MANDATORY)
+      # Using Docker-based Syft (more reliable than GitHub action)
+      # ============================================
+      - name: Generate SBOM with Syft (Docker)
+        run: |
+          docker pull anchore/syft:latest
+          docker run --network host --rm -v $(pwd):/src -w /src anchore/syft:latest . -o spdx-json > sbom.spdx.json || exit 1
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      # ============================================
+      # 4. VULNERABILITY SCANNING
+      # ============================================
+
+      # 4a. Trivy: Filesystem scan (keep as GitHub action)
+      - name: Trivy filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: 0
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      # 4b. Grype: SBOM-based scan (Docker-based for reliability)
+      - name: Grype SBOM vulnerability scan
+        run: |
+          docker pull anchore/grype:latest
+          docker run --network host --rm -v $(pwd):/src -w /src anchore/grype:latest sbom:sbom.spdx.json -o sarif > grype-results.sarif || exit 1
+
+      # 4c. Upload all vulnerability reports to Security tab
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v4  # ✅ FIXED: Updated from v3 to v4
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Upload Grype results
+        uses: github/codeql-action/upload-sarif@v4  # ✅ FIXED: Updated from v3 to v4
+        with:
+          sarif_file: 'grype-results.sarif'
+
+      # ============================================
+      # 5. CLEANUP
+      # ============================================
+      - name: Clean up temporary files
+        if: always()
+        run: |
+          rm -f sbom.spdx.json trivy-results.sarif grype-results.sarif
+
+      # ============================================
+      # 6. SUMMARY
+      # ============================================
+      - name: Print completion summary
+        run: |
+          echo ""
+          echo "============================================"
+          echo "  CRA COMPLIANCE WORKFLOW COMPLETED"
+          echo "============================================"
+          echo ""
+          echo "✅ Upstream Sync: Completed"
+          echo "✅ SBOM Generated: Uploaded as artifact"
+          echo "✅ Trivy Scan: Filesystem vulnerabilities"
+          echo "✅ Grype Scan: SBOM-based vulnerabilities"
+          echo "✅ Security Reports: In GitHub Security tab"
+          echo ""
+          echo "View results: https://github.com/Em1li0/thingino-firmware/security"
+          echo "============================================"

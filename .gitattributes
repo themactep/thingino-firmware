@@ -1,1 +1,48 @@
-*.patch -text
+# CRA Compliance: Git attributes for large binary files
+# See: https://git-scm.com/docs/gitattributes
+
+# Mark large binary files as generated/linguist-ignored
+# This prevents GitHub from processing them in code scanning
+# and reduces storage/performance impact
+
+# Buildroot download cache
+/dl/** linguist-generated=true
+/dl/** -text
+
+# Output directories (build artifacts)
+/output/** linguist-generated=true
+/output/** -text
+/output/** -diff
+
+# Toolchain directories
+/toolchain/** linguist-generated=true
+/toolchain/** -text
+
+# U-Boot patches (large text files)
+package/all-patches/uboot/**/*.patch linguist-generated=true
+
+# Linux kernel sources (if present)
+linux/** linguist-generated=true
+
+# Build artifacts
+*.bin linguist-generated=true
+*.img linguist-generated=true
+*.tar.gz linguist-generated=true
+*.zip linguist-generated=true
+
+# Firmware images
+*.fw linguist-generated=true
+*.squashfs linguist-generated=true
+*.jffs2 linguist-generated=true
+
+# Default for all binaries
+*.bin -text -diff
+*.img -text -diff
+*.iso -text -diff
+
+# Default for text files
+*.c text
+*.h text
+*.cpp text
+*.py text
+diff
