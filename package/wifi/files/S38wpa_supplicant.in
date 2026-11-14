@@ -412,6 +412,11 @@ start() {
 	echo -c 15 "Starting WPA Supplicant"
 
 	# Interface is not present
+	i=0
+	while ! iface_exists "$IFACE" && [ $i -lt 15 ]; do
+		sleep 1
+		i=$((i + 1))
+	done
 	if iface_exists "$IFACE"; then
 		echo "Found $IFACE interface"
 	else

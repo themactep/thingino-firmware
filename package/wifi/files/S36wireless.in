@@ -353,6 +353,12 @@ start() {
 	@if !WIFI_ATBM6461@
 	@if !WIFI_ATBM6441@
 	if [ -n "$wlan_mac" ]; then
+		i=0
+		while [ ! -d /sys/class/net/$IFACE ] && [ $i -lt 20 ]; do
+			sleep 1
+			i=$((i + 1))
+		done
+
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo "Bring interface $IFACE down"
 			ip link set dev $IFACE down
