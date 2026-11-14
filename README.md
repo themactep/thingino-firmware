@@ -99,4 +99,3 @@ Read [Building in a container](docs/build/container.md) for more info.
 [11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain-x86_64.yaml/badge.svg
 [12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-stable.yml/badge.svg
 [13]: http://github.com/gtxaspec/raptor
-
