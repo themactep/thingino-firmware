@@ -34,7 +34,7 @@ jobs:
           git config --global user.email "cra@cra-consulting.com"
           git remote add upstream https://github.com/themactep/thingino-firmware.git
           git fetch upstream
-          git merge upstream/master --no-edit -X theirs  # ✅ FIXED: Removed || true
+          git merge upstream/master --no-edit -X theirs
           git push origin cra-compliance
 
       # ============================================
@@ -44,7 +44,7 @@ jobs:
       - name: Generate SBOM with Syft (Docker)
         run: |
           docker pull anchore/syft:latest
-          docker run --network host --rm -v $(pwd):/src -w /src anchore/syft:latest . -o spdx-json > sbom.spdx.json || exit 1  # ✅ FIXED: Added --network host + error handling
+          docker run --network host --rm -v $(pwd):/src -w /src anchore/syft:latest . -o spdx-json > sbom.spdx.json || exit 1
 
       - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v4
@@ -72,16 +72,16 @@ jobs:
       - name: Grype SBOM vulnerability scan
         run: |
           docker pull anchore/grype:latest
-          docker run --network host --rm -v $(pwd):/src -w /src anchore/grype:latest sbom:sbom.spdx.json -o sarif > grype-results.sarif || exit 1  # ✅ FIXED: Added --network host + error handling
+          docker run --network host --rm -v $(pwd):/src -w /src anchore/grype:latest sbom:sbom.spdx.json -o sarif > grype-results.sarif || exit 1
 
       # 4c. Upload all vulnerability reports to Security tab
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4  # ✅ FIXED: Updated from v3 to v4
         with:
           sarif_file: 'trivy-results.sarif'
 
       - name: Upload Grype results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4  # ✅ FIXED: Updated from v3 to v4
         with:
           sarif_file: 'grype-results.sarif'
 
