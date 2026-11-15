@@ -1247,52 +1247,6 @@ if (exportConfigBtn) {
   });
 }
 
-// Save configuration button
-const saveConfigBtn = $("#save-config");
-if (saveConfigBtn) {
-  saveConfigBtn.addEventListener("click", async () => {
-    const helper = window.thinginoStreamer;
-    const confirmed = await confirm(
-      (helper && helper.saveConfirmMessage && helper.saveConfirmMessage()) ||
-        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
-    );
-    if (!confirmed) return;
-
-    try {
-      saveConfigBtn.disabled = true;
-      if (helper && helper.saveConfig) {
-        await helper.saveConfig();
-        alert(
-          (helper.saveSuccessMessage && helper.saveSuccessMessage()) ||
-            "Configuration saved successfully",
-        );
-        return;
-      }
-
-      const payload = { action: { save_config: null } };
-      const res = await apiFetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (data.action && data.action.save_config === "ok") {
-        alert("Configuration saved successfully");
-      } else {
-        throw new Error("Save failed");
-      }
-    } catch (err) {
-      console.error("Failed to save config:", err);
-      alert("Failed to save configuration: " + err.message);
-    } finally {
-      saveConfigBtn.disabled = false;
-    }
-  });
-}
-
 fetchImagingState();
 
 async function loadConfigFps() {
