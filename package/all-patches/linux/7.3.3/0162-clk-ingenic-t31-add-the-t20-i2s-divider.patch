@@ -1,0 +1,207 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] clk: ingenic: t31: add the T20 I2S divider
+
+The T20 builds on the T31 CGU driver with a private copy of the clock
+table, which only had entries up to T31_CLK_VPU (54). The AIC node in
+t31.dtsi references T31_CLK_I2S_SPK/T31_CLK_I2S_MIC (55/56), so on the
+T20 of_clk_src_onecell_get() returned -EINVAL and jz4740-i2s failed to
+probe with -22: no sound card.
+
+The T20 divider is not the T31 one: there is a single I2SCDR at CPM
+0x60 for playback and capture (the T31 has I2SSPKCDR 0x70 and
+I2SMICCDR 0x84), N in [12:0], M from bit 13, CE bit 29, the parent
+select in [31:30] (SCLK_A, MPLL, VPLL). The vendor T20 kernel writes
+M = 1 and N = parent / rate only, so do the same; the width of the M
+field is not documented and is left alone above bit 21. There is no
+stop or busy bit and CE is never cleared, as on the T31.
+
+Register it at T31_CLK_I2S_SPK in the T20 table copy and leave the
+T31_CLK_I2S_MIC slot empty; the T20 DT points both AIC clock inputs at
+the one clock so the clock framework keeps a single rate for it.
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+ drivers/clk/ingenic/t31-cgu.c | 146 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 144 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/clk/ingenic/t31-cgu.c b/drivers/clk/ingenic/t31-cgu.c
+index 64466738c..f37b85e95 100644
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -55,6 +55,17 @@
+ #define I2SCDR_M_MASK		GENMASK(28, 20)
+ #define I2SCDR_N_MASK		GENMASK(19, 0)
+ 
++/*
++ * The T20 has a single I2S divider I2SCDR (0x60) for playback and capture,
++ * with another field layout: N [12:0], M from bit 13, CE bit 29, the
++ * parent select in [31:30] as on the T31.  The vendor T20 kernel writes
++ * M = 1 and N = parent / rate only, so only M = 1 is used here; the width
++ * of the M field above bit 21 is not documented.
++ */
++#define CGU_REG_T20_I2SCDR	0x60
++#define T20_I2SCDR_M_MASK	GENMASK(21, 13)
++#define T20_I2SCDR_N_MASK	GENMASK(12, 0)
++
+ /* bits within the USBPCR register */
+ #define USBPCR_SIDDQ		BIT(21)
+ #define USBPCR_OTG_DISABLE	BIT(20)
+@@ -232,6 +243,127 @@ static const struct clk_ops t31_i2s_ops = {
+ 	.set_parent	= t31_i2s_set_parent,
+ };
+ 
++/*
++ * T20 I2S divider.  Fout = Fin * M / N with M = 1 as in the vendor kernel.
++ * There is no stop or busy bit; CE (bit 29) is set once and never cleared,
++ * as on the T31 dividers.  The T20 DT points both "i2s" and "i2s-rx" of
++ * the AIC at this one clock, so playback and capture share its rate.
++ */
++static unsigned long t20_i2s_recalc_rate(struct clk_hw *hw,
++					 unsigned long parent_rate)
++{
++	u32 v = readl(cgu->base + CGU_REG_T20_I2SCDR);
++	u32 m = FIELD_GET(T20_I2SCDR_M_MASK, v);
++	u32 n = FIELD_GET(T20_I2SCDR_N_MASK, v);
++
++	if (!m || !n)
++		return 0;
++
++	return div_u64((u64)parent_rate * m, n);
++}
++
++static int t20_i2s_calc(unsigned long rate, unsigned long parent_rate,
++			unsigned long *n)
++{
++	if (!rate || !parent_rate)
++		return -EINVAL;
++
++	*n = DIV_ROUND_CLOSEST(parent_rate, rate);
++
++	/* output at most parent / 2, see t31_i2s_calc() */
++	if (*n < 2 || *n > FIELD_MAX(T20_I2SCDR_N_MASK))
++		return -EINVAL;
++
++	return 0;
++}
++
++static int t20_i2s_determine_rate(struct clk_hw *hw,
++				  struct clk_rate_request *req)
++{
++	unsigned long n;
++	int ret;
++
++	ret = t20_i2s_calc(req->rate, req->best_parent_rate, &n);
++	if (ret)
++		return ret;
++
++	req->rate = req->best_parent_rate / n;
++	return 0;
++}
++
++static int t20_i2s_set_rate(struct clk_hw *hw, unsigned long rate,
++			    unsigned long parent_rate)
++{
++	void __iomem *reg = cgu->base + CGU_REG_T20_I2SCDR;
++	unsigned long n, flags;
++	int ret;
++	u32 v;
++
++	ret = t20_i2s_calc(rate, parent_rate, &n);
++	if (ret)
++		return ret;
++
++	spin_lock_irqsave(&cgu->lock, flags);
++	v = readl(reg) & ~(T20_I2SCDR_M_MASK | T20_I2SCDR_N_MASK);
++	v |= FIELD_PREP(T20_I2SCDR_M_MASK, 1) | FIELD_PREP(T20_I2SCDR_N_MASK, n);
++	writel(v, reg);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
++static int t20_i2s_enable(struct clk_hw *hw)
++{
++	void __iomem *reg = cgu->base + CGU_REG_T20_I2SCDR;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cgu->lock, flags);
++	writel(readl(reg) | I2SCDR_CE, reg);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
++static int t20_i2s_is_enabled(struct clk_hw *hw)
++{
++	return !!(readl(cgu->base + CGU_REG_T20_I2SCDR) & I2SCDR_CE);
++}
++
++static u8 t20_i2s_get_parent(struct clk_hw *hw)
++{
++	u32 sel = readl(cgu->base + CGU_REG_T20_I2SCDR) >> 30;
++
++	/* 2 and 3 both select the VPLL */
++	return sel > 2 ? 2 : sel;
++}
++
++static int t20_i2s_set_parent(struct clk_hw *hw, u8 index)
++{
++	void __iomem *reg = cgu->base + CGU_REG_T20_I2SCDR;
++	unsigned long flags;
++	u32 v;
++
++	if (index > 2)
++		return -EINVAL;
++
++	spin_lock_irqsave(&cgu->lock, flags);
++	v = readl(reg) & ~GENMASK(31, 30);
++	writel(v | ((u32)index << 30), reg);
++	spin_unlock_irqrestore(&cgu->lock, flags);
++
++	return 0;
++}
++
++static const struct clk_ops t20_i2s_ops = {
++	.recalc_rate	= t20_i2s_recalc_rate,
++	.determine_rate	= t20_i2s_determine_rate,
++	.set_rate	= t20_i2s_set_rate,
++	.enable		= t20_i2s_enable,
++	.is_enabled	= t20_i2s_is_enabled,
++	.get_parent	= t20_i2s_get_parent,
++	.set_parent	= t20_i2s_set_parent,
++};
++
+ /*
+  * T31 PLL OD encoding.
+  *
+@@ -688,9 +820,12 @@ static void __init t31_cgu_init(struct device_node *np)
+ 	 * CLKGR1 bit 0 gate.  Register 0x30 is the T31's EL150CDR and bit 0
+ 	 * is the T31 EL150 gate, so the clock only exists on the T20 and is
+ 	 * added to a copy of the table instead of the shared T31 one.
++	 * The same holds for the I2S divider: the T20 has one at 0x60 (the
++	 * T31 has two at 0x70/0x84), registered at T31_CLK_I2S_SPK.  The
++	 * T31_CLK_I2S_MIC slot stays empty on the T20.
+ 	 */
+ 	if (of_device_is_compatible(of_root, "ingenic,t20")) {
+-		t20_clocks = kcalloc(T31_CLK_VPU + 1, sizeof(*t20_clocks),
++		t20_clocks = kcalloc(T31_CLK_I2S_SPK + 1, sizeof(*t20_clocks),
+ 				     GFP_KERNEL);
+ 		if (!t20_clocks) {
+ 			pr_err("%s: failed to allocate the T20 clock table\n",
+@@ -709,8 +844,15 @@ static void __init t31_cgu_init(struct device_node *np)
+ 			.div = { CGU_REG_EL150CDR, 0, 1, 4, 29, 28, 27 },
+ 			.gate = { CGU_REG_CLKGR1, 0 },
+ 		};
++		t20_clocks[T31_CLK_I2S_SPK] = (struct ingenic_cgu_clk_info) {
++			.name = "i2s",
++			.type = CGU_CLK_CUSTOM,
++			.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++				     T31_CLK_VPLL, -1 },
++			.custom = { &t20_i2s_ops },
++		};
+ 		clocks = t20_clocks;
+-		num_clocks = T31_CLK_VPU + 1;
++		num_clocks = T31_CLK_I2S_SPK + 1;
+ 	}
+ 
+ 	cgu = ingenic_cgu_new(clocks, num_clocks, np);

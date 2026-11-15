@@ -1,0 +1,70 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] dt: thingino-t20: use the T20 I2S divider and the T20 codec
+
+- t20.dtsi: both AIC clock inputs ("i2s", "i2s-rx") name the one T20
+  I2S divider (T31_CLK_I2S_SPK); the T20 has no second divider.
+- t20.dtsi: codec "ingenic,t20-codec" (T10 analog register map).
+- thingino-t20.dts: the codec is bitclock/frame master, as patch 0150
+  did for the T31. The t31-i2s DAI only accepts codec-provided clocks,
+  so the old card (masters = <&aic>) failed to parse. Drop the unused
+  12 MHz aic stub and name the link "t20-aic".
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+ arch/mips/boot/dts/ingenic/t20.dtsi         | 14 ++++++++++++++
+ arch/mips/boot/dts/ingenic/thingino-t20.dts | 12 +++---------
+ 2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/arch/mips/boot/dts/ingenic/t20.dtsi b/arch/mips/boot/dts/ingenic/t20.dtsi
+index 05f7102e8..ce2ffad15 100644
+--- a/arch/mips/boot/dts/ingenic/t20.dtsi
++++ b/arch/mips/boot/dts/ingenic/t20.dtsi
+@@ -5,3 +5,17 @@ / {
+ 	compatible = "ingenic,t20";
+ 	model = "Ingenic T20";
+ };
++
++/*
++ * The T20 has one I2S divider for playback and capture (the T31 has two),
++ * so both AIC clock inputs name the same CGU clock.
++ */
++&aic {
++	clocks = <&cgu T31_CLK_AIC>,
++		 <&cgu T31_CLK_I2S_SPK>,
++		 <&cgu T31_CLK_I2S_SPK>;
++};
++
++&codec {
++	compatible = "ingenic,t20-codec";
++};
+diff --git a/arch/mips/boot/dts/ingenic/thingino-t20.dts b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+index 495f591ca..000a42afe 100644
+--- a/arch/mips/boot/dts/ingenic/thingino-t20.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+@@ -7,12 +7,6 @@ / {
+ 	compatible = "thingino,t20", "ingenic,t20";
+ 	model = "Thingino T20 Generic Board";
+ 
+-	aic_12m: aic-clock {
+-		compatible = "fixed-clock";
+-		#clock-cells = <0>;
+-		clock-frequency = <12000000>;
+-	};
+-
+ 	aliases {
+ 		serial1 = &uart1;
+ 	};
+@@ -47,10 +41,10 @@ sound {
+ 		simple-audio-card,name = "t20-aic";
+ 
+ 		simple-audio-card,dai-link@0 {
+-			link-name = "t31-aic";
++			link-name = "t20-aic";
+ 			format = "i2s";
+-			bitclock-master = <&aic>;
+-			frame-master = <&aic>;
++			bitclock-master = <&dailink0_codec>;
++			frame-master = <&dailink0_codec>;
+ 
+ 			cpu {
+ 				sound-dai = <&aic>;
