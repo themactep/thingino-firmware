@@ -1,0 +1,42 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] clk: ingenic: t41: fix the ISP divider CE and busy bits
+
+On the T41 CDR registers bit 29 is the change enable and bit 28 the busy
+flag (vendor 4.4 clk-t41.c: DIV() = busy 28, enable 29, stop 27; the
+T31 CGU in this tree uses the same layout). The ISPM/ISPS/ISPA dividers
+had them swapped, so a divider change was written without its change
+enable and never latched. ISPM clocks the ISP mscaler: its first register
+writes in the tuning init (0xf08e0..) then stall the bus and the
+watchdog resets the SoC with no oops.
+
+Only the three ISP dividers are changed here; they are proven on a T41NQ
+(ISP streams, no reset). The other T41 dividers carry the same swap and
+need their own check (SFC, MSC, DDR rates would start to latch).
+
+--- a/drivers/clk/ingenic/t41-cgu.c	2026-11-15 12:28:50.151308755 +0100
++++ b/drivers/clk/ingenic/t41-cgu.c	2026-11-15 12:28:50.152838785 +0100
+@@ -283,21 +283,21 @@
+ 		"ispm", CGU_CLK_MUX | CGU_CLK_DIV,
+ 		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_ISPMCDR, 30, 2 },
+-		.div = { CGU_REG_ISPMCDR, 0, 1, 4, 28, 29, 27 },
++		.div = { CGU_REG_ISPMCDR, 0, 1, 4, 29, 28, 27 },
+ 	},
+ 
+ 	[T41_CLK_ISPS] = {
+ 		"isps", CGU_CLK_MUX | CGU_CLK_DIV,
+ 		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_ISPSCDR, 30, 2 },
+-		.div = { CGU_REG_ISPSCDR, 0, 1, 4, 28, 29, 27 },
++		.div = { CGU_REG_ISPSCDR, 0, 1, 4, 29, 28, 27 },
+ 	},
+ 
+ 	[T41_CLK_ISPA] = {
+ 		"ispa", CGU_CLK_MUX | CGU_CLK_DIV,
+ 		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_ISPACDR, 30, 2 },
+-		.div = { CGU_REG_ISPACDR, 0, 1, 4, 28, 29, 27 },
++		.div = { CGU_REG_ISPACDR, 0, 1, 4, 29, 28, 27 },
+ 	},
+ 
+ 	[T41_CLK_VO] = {
