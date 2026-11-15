@@ -1,0 +1,22 @@
+prudynt-t: fix T41 antiflicker build after T32 patch
+
+0002-add-t32-platform.patch rewrote attr.freq to T32-only enum names,
+breaking T40/T41 builds (uint8_t freq; T41 headers have no FREQ_* enums
+and document plain 50/60). Restores the numeric form; T32 2.2.0 enums
+equal 50/60 so T32 behavior is unchanged.
+
+diff --git a/src/isp/imp_hal.cpp b/src/isp/imp_hal.cpp
+index a6733e2..189e788 100644
+--- a/src/isp/imp_hal.cpp
++++ b/src/isp/imp_hal.cpp
+@@ -948,8 +948,8 @@ int set_anti_flicker(int mode) {
+   IMPISPAntiflickerAttr attr{};
+   attr.mode = (mode == 0) ? IMPISP_ANTIFLICKER_DISABLE_MODE
+                           : IMPISP_ANTIFLICKER_NORMAL_MODE;
+-  attr.freq =
+-      (mode == 2) ? IMPISP_ANTIFLICKER_FREQ_60HZ : IMPISP_ANTIFLICKER_FREQ_50HZ;
++/* plain 50/60: T40/T41 take uint8_t; T32 2.2.0 enums equal these */
++  attr.freq = (mode == 2) ? 60 : 50;
+   return IMP_ISP_Tuning_SetAntiFlickerAttr(IMPVI, &attr);
+ #else
+   IMPISPAntiflickerAttr attr = IMPISP_ANTIFLICKER_DISABLE;
