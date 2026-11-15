@@ -6,9 +6,10 @@
 
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/Lu-Fi/openimp
-# next: PLATFORM_T20 uses the standard S_FMT ABI and S_CROP tolerates ENOTTY
-# when no crop is requested (ba36fccd), so the T20 package patches are gone.
-OPENIMP_VERSION = ba36fccdc194b294c5fb39e8feff1e1e193b3dc6
+# next, pinned to the commit #2026's T41 open-tx-isp bridge was tested
+# with. The T20 standard S_FMT ABI and S_CROP ENOTTY fixes (ba36fccd) are
+# included, so the T20 package patches stay gone.
+OPENIMP_VERSION = cd7ec4af5efee5f9a995294ca9ed260ceab81ca5
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
