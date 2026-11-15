@@ -2,6 +2,7 @@
 
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json"
+TZUSER_FILE="/etc/tz.user.json"
 TZNAME_FILE="/etc/timezone"
 
 start() {
@@ -20,9 +21,16 @@ start() {
 		exit 1
 	fi
 
-	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' |
-		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' |
-		grep -F "${tzname}:" | head -1 | cut -d: -f2-)
+	# /etc/tz.user.json is the partial override layer; a user entry wins.
+	tz=""
+	if [ -f "$TZUSER_FILE" ]; then
+		tz=$(jct "$TZUSER_FILE" get "$tzname" 2>/dev/null)
+	fi
+	if [ -z "$tz" ]; then
+		tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' |
+			sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' |
+			grep -F "${tzname}:" | head -1 | cut -d: -f2-)
+	fi
 
 	if [ -z "$tz" ]; then
 		echo -c 160 -e "Timezone $tzname not found in $TZJSON_FILE" >&2
