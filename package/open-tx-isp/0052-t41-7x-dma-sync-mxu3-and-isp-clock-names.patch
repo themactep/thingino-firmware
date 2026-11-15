@@ -1,0 +1,92 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] t41: 7.x DMA sync device, MXU3 bracket and ISP clock names
+
+Three 7.x-only fixes found bringing up the ISP on a T41NQ (openimp #548,
+#587):
+
+- private_dma_sync_single_for_device(): the vendor passes a NULL device,
+  which the 7.x DMA core dereferences (oops in QBUF). Use the IVDC
+  platform device, as the IVDC buffer allocation fallback does.
+- kernel_mxuv3_begin_partial()/kernel_mxuv3_end() were empty stubs: the
+  first MXU3 instruction in kernel mode (t41_tmo_mxu3_chunk) took a
+  coprocessor-unusable exception. Enable Status.CU2 with preemption off
+  for the bracket and clear it again; 7.x keeps no MXU3 state for user
+  tasks, so there is nothing to save.
+- Clock lookups for mux_ispm/mux_isps/mux_ispa and the vpll/mpll/sclka
+  parents, so the vendor clock setup (parent + rate) runs as on 4.4
+  instead of failing with "get mux_isp* failed".
+
+diff --git a/driver/t41/tx_isp_t41_compat.c b/driver/t41/tx_isp_t41_compat.c
+index 4a7ed4a9d..c9de425c4 100644
+--- a/driver/t41/tx_isp_t41_compat.c
++++ b/driver/t41/tx_isp_t41_compat.c
+@@ -12,6 +12,9 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/io.h>
+ #include <linux/sched.h>
++#include <linux/preempt.h>
++#include <asm/mipsregs.h>
++#include <asm/hazards.h>
+ #include <linux/of.h>
+ #include <linux/of_irq.h>
+ #include <linux/irqdomain.h>
+@@ -35,6 +38,14 @@ static const struct {
+ 	{ "gate_ispm", T41_CLK_ISPM },
+ 	{ "gate_isps", T41_CLK_ISPS },
+ 	{ "gate_ispa", T41_CLK_ISPA },
++	/* Vendor flow: clk_set_parent(mux_ispm, vpll), mux_isps/mux_ispa to
++	 * sclka, then the rates (300/550/550 MHz -> 270/368/368 MHz as on 4.4). */
++	{ "mux_ispm", T41_CLK_ISPM },
++	{ "mux_isps", T41_CLK_ISPS },
++	{ "mux_ispa", T41_CLK_ISPA },
++	{ "vpll", T41_CLK_VPLL },
++	{ "mpll", T41_CLK_MPLL },
++	{ "sclka", T41_CLK_SCLKA },
+ };
+ 
+ static struct clk *tx_isp_t41_clk_from_id(unsigned int id)
+@@ -137,13 +148,27 @@ int jzgpio_set_func(int port, int func, unsigned long pins, ...)
+ 	return 0;
+ }
+ 
++/*
++ * #548: the vendor 4.4 kernel enables the MXU3 unit (Status.CU2) for the
++ * bracket.  As an empty stub the first MXU3 instruction in kernel mode took
++ * a coprocessor-unusable exception ("COP2: Unhandled kernel unaligned access
++ * or invalid instruction" in t41_tmo_mxu3_chunk).  The mainline kernel keeps
++ * no MXU3 state for user tasks (CU2 from user space is SIGILL), so there is
++ * nothing to save: enable CU2 with preemption off and clear it again.
++ */
+ void kernel_mxuv3_begin_partial(int mode)
+ {
+ 	(void)mode;
++	preempt_disable();
++	set_c0_status(ST0_CU2);
++	irq_enable_hazard();
+ }
+ 
+ void kernel_mxuv3_end(void)
+ {
++	clear_c0_status(ST0_CU2);
++	irq_disable_hazard();
++	preempt_enable();
+ }
+ 
+ void warn_slowpath_null(const char *file, int line)
+diff --git a/driver/t41/tx_isp_t41_recovered.c b/driver/t41/tx_isp_t41_recovered.c
+index 3150bd660..70047f7cd 100644
+--- a/driver/t41/tx_isp_t41_recovered.c
++++ b/driver/t41/tx_isp_t41_recovered.c
+@@ -7799,6 +7799,12 @@ long private_wait_event_interruptible_timeout(wait_queue_head_t queue,
+ /* WHOLE_DRIVER_CANDIDATE fn_0000000000001048 origin=fragment_seed original=private_dma_sync_single_for_device */
+ void private_dma_sync_single_for_device(struct device *dev, dma_addr_t addr, size_t size, enum dma_data_direction dir)
+ {
++    /* The vendor passes dev == NULL (fine on 4.4 MIPS, the sync only needs
++     * the address); the 7.x DMA core dereferences dev (QBUF oops, BadVA
++     * 0xf0).  Use the IVDC platform device, as the IVDC buffer allocation
++     * fallback does. */
++    if (!dev)
++        dev = &tx_isp_ivdc_platform_device.dev;
+     dma_sync_single_for_device(dev, addr, size, dir);
+ }
+ 
