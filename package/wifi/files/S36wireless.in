@@ -312,10 +312,24 @@ start() {
 	@if WIFI_MODULE_IS_USB@
 	if ! grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
-		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
+		if ! modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS; then
+			echo "Failed to load $WLAN_MODULE_NAME module" >&2
+			exit 1
+		fi
+	else
+		echo "Module $WLAN_MODULE_NAME is already loaded"
 	fi
 
-	m=150
+	# USB radios can take a while to register the netdev. Default 30s,
+	# tunable per board via thingino.json (seconds).
+	netdev_timeout=$(jct "$WLAN_CONFIG_JSON" get wlan.netdev_timeout 2>/dev/null)
+	case "$netdev_timeout" in
+		'' | *[!0-9]*)
+			netdev_timeout=30
+			;;
+	esac
+
+	m=$((netdev_timeout * 10))
 	while [ "$m" -gt 0 ]; do
 		ip link show dev "$IFACE" >/dev/null 2>&1 && break
 		m=$((m - 1))
@@ -323,11 +337,10 @@ start() {
 	done
 
 	if ! ip link show dev "$IFACE" >/dev/null 2>&1; then
-		echo "$WLAN_MODULE_NAME did not register $IFACE within 15s" >&2
+		echo "$WLAN_MODULE_NAME did not register $IFACE within ${netdev_timeout}s" >&2
 		exit 1
 	fi
 	@endif@
-
 	@if WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
 		if [ -f /usr/share/wifi/wifi_cfg ]; then
@@ -353,6 +366,7 @@ start() {
 		sleep 0.1
 	done
 	@else@
+	@if !WIFI_MODULE_IS_USB@
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
@@ -366,6 +380,7 @@ start() {
 		m=$((m - 1))
 		sleep 0.1
 	done
+	@endif@
 	@endif@
 
 	@if !WIFI_IS_HI3881@
