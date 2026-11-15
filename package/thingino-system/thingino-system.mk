@@ -35,6 +35,9 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/firstboot \
 		$(TARGET_DIR)/usr/sbin/firstboot
 
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/tz-validate \
+		$(TARGET_DIR)/usr/sbin/tz-validate
+
 	# Optional utilities
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/usb-role \

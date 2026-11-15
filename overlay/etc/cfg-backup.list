@@ -14,6 +14,7 @@
 # Timezone
 /etc/TZ
 /etc/timezone
+/etc/tz.user.json
 
 # SSH host keys and authorized keys
 /etc/dropbear
