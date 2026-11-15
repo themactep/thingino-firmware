@@ -281,6 +281,9 @@ power_off_wlan_pins() {
 reset_usb_host() {
 	local drv=/sys/bus/platform/drivers/dwc2 dev name
 	[ -d "$drv" ] || return 0
+	# A board can opt out (gpio.wlan.usb_reset = false): after a dwc2 rebind its
+	# module does not enumerate again, and the GPIO power cycle is enough.
+	[ "false" = "$(jct "$WLAN_CONFIG_JSON" get gpio.wlan.usb_reset 2>/dev/null)" ] && return 0
 	for dev in "$drv"/*; do
 		# Only bound platform devices; the directory also holds the
 		# "module" symlink and the driver's control files.

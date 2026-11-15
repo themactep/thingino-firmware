@@ -57,6 +57,10 @@ define WIFI_ATBM6132U_COPY_CONFIG
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE is not set/CONFIG_ATBM_FUNC_P2P_ENABLE=y/' \
 		$(@D)/.config
+	# request_firmware() searches under /lib/firmware and prepends it to the
+	# name, so the name must be a basename, not an absolute path.
+	$(SED) 's#^CONFIG_ATBM_FW_NAME=.*#CONFIG_ATBM_FW_NAME="$(ATBM6132U_MODULE_NAME)_fw.bin"#' \
+		$(@D)/.config
 endef
 
 WIFI_ATBM6132U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132U_COPY_CONFIG
