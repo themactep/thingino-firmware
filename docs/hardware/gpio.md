@@ -71,6 +71,11 @@ Additional object fields:
 |              |           | driven to the opposite level, then to the desired |
 |              |           | level. Useful for active-low reset lines that     |
 |              |           | require a rising edge without writing two objects.|
+| `boot_state` | bool /    | `gpio.wlan` only: the level the U-Boot boot-window |
+|              | number /  |   hog holds while `state` remains the level S36   |
+|              | string    |   drives later. Keeps a USB module off until S36  |
+|              |           |   powers it on, instead of pre-powering it before |
+|              |           |   the kernel USB scan.                            |
 
 Examples:
 
@@ -100,6 +105,10 @@ Processing rules:
   high→low for active-low resets).
 - Multiple pins can be listed, and Wi-Fi bring-up tracks every pin involved
   so drivers like `bcmdhd` can unexport all of them afterwards.
+- `boot_state` is consumed at build time by the U-Boot GPIO injector, not by
+  `S36wireless`. On a USB Wi-Fi board whose module must not be powered before
+  S36, use `{"pin": 51, "state": 1, "boot_state": 0}`: U-Boot holds the pin
+  low, S36 drives it high and loads the driver.
 
 Update `/etc/thingino.json`, then restart the corresponding init script
 (`S09mmc` for storage power or `S36wireless` for Wi-Fi) to apply the new
