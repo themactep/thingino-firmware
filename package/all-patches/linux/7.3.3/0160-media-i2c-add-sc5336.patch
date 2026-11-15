@@ -8,6 +8,7 @@ sc4336p driver. The register sequence, gain table, chip-variant fixups
 VTS 1800 at 30 fps, HTS at its reset value. Selected per camera from
 the sensor name like the other Thingino sensor ports.
 
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
 ---
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig

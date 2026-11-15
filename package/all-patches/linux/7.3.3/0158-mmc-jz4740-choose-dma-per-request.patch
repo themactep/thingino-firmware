@@ -24,6 +24,7 @@ The probe message names the real default: SDIO hosts transfer by PIO
 unless sdio_dma=1, other hosts use DMA with PIO for short or unaligned
 transfers.
 
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
 ---
 --- a/drivers/mmc/host/jz4740_mmc.c
 +++ b/drivers/mmc/host/jz4740_mmc.c

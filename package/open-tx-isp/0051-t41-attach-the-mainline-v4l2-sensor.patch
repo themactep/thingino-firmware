@@ -13,6 +13,8 @@ streamer started early in boot finds the sensor.
 Based on the T41 bridge of patch 0038 (disabled), adapted to the current
 T41 driver (unregister through the bridge after the sensor ops quiesce).
 
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
 diff --git a/driver/common/tx_isp_sinfo.c b/driver/common/tx_isp_sinfo.c
 index 661419ba0..3138109c0 100644
 --- a/driver/common/tx_isp_sinfo.c

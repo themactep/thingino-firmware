@@ -16,6 +16,8 @@ Three 7.x-only fixes found bringing up the ISP on a T41NQ (openimp #548,
   parents, so the vendor clock setup (parent + rate) runs as on 4.4
   instead of failing with "get mux_isp* failed".
 
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
 diff --git a/driver/t41/tx_isp_t41_compat.c b/driver/t41/tx_isp_t41_compat.c
 index 4a7ed4a9d..c9de425c4 100644
 --- a/driver/t41/tx_isp_t41_compat.c

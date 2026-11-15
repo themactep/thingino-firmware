@@ -13,6 +13,8 @@ Only the three ISP dividers are changed here; they are proven on a T41NQ
 (ISP streams, no reset). The other T41 dividers carry the same swap and
 need their own check (SFC, MSC, DDR rates would start to latch).
 
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
 --- a/drivers/clk/ingenic/t41-cgu.c	2026-11-15 12:28:50.151308755 +0100
 +++ b/drivers/clk/ingenic/t41-cgu.c	2026-11-15 12:28:50.152838785 +0100
 @@ -283,21 +283,21 @@
