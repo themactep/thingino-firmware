@@ -1,22 +1,28 @@
-prudynt-t: fix T41 antiflicker build after T32 patch
+prudynt-t: pick the antiflicker freq form per platform
 
 0002-add-t32-platform.patch rewrote attr.freq to T32-only enum names,
-breaking T40/T41 builds (uint8_t freq; T41 headers have no FREQ_* enums
-and document plain 50/60). Restores the numeric form; T32 2.2.0 enums
-equal 50/60 so T32 behavior is unchanged.
+breaking T40/T41: their IMPISPAntiflickerAttr.freq is uint8_t and no
+IMPISP_ANTIFLICKER_FREQ_* enum exists there. Dropping back to plain
+numbers breaks T32 instead: T32 2.2.0 declares freq as
+IMPISPAntiflickerFreq, and C++ rejects an int-to-enum assignment.
+Guard the assignment by platform. The two enumerators are 50 and 60, so
+the values agree either way.
 
 diff --git a/src/isp/imp_hal.cpp b/src/isp/imp_hal.cpp
-index a6733e2..189e788 100644
+index a6733e2..f8a5d2b 100644
 --- a/src/isp/imp_hal.cpp
 +++ b/src/isp/imp_hal.cpp
-@@ -948,8 +948,8 @@ int set_anti_flicker(int mode) {
+@@ -948,8 +948,13 @@ int set_anti_flicker(int mode) {
    IMPISPAntiflickerAttr attr{};
    attr.mode = (mode == 0) ? IMPISP_ANTIFLICKER_DISABLE_MODE
                            : IMPISP_ANTIFLICKER_NORMAL_MODE;
--  attr.freq =
--      (mode == 2) ? IMPISP_ANTIFLICKER_FREQ_60HZ : IMPISP_ANTIFLICKER_FREQ_50HZ;
-+/* plain 50/60: T40/T41 take uint8_t; T32 2.2.0 enums equal these */
++#if defined(PLATFORM_T32)
+   attr.freq =
+       (mode == 2) ? IMPISP_ANTIFLICKER_FREQ_60HZ : IMPISP_ANTIFLICKER_FREQ_50HZ;
++#else
++  /* T40/T41: freq is uint8_t, plain Hz */
 +  attr.freq = (mode == 2) ? 60 : 50;
++#endif
    return IMP_ISP_Tuning_SetAntiFlickerAttr(IMPVI, &attr);
  #else
    IMPISPAntiflickerAttr attr = IMPISP_ANTIFLICKER_DISABLE;
