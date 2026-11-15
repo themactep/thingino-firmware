@@ -16,6 +16,14 @@ stays off unless jz4740_mmc.sdio_dma=1 (runtime writable). A failed
 DMA start now fails the request instead of waiting for an interrupt
 that never comes.
 
+If a DMA start fails (descriptor or mapping allocation), the request is
+failed and the controller's armed data phase is stopped: DMA enable
+cleared, controller reset as at power-up, bus clock restored.
+
+The probe message names the real default: SDIO hosts transfer by PIO
+unless sdio_dma=1, other hosts use DMA with PIO for short or unaligned
+transfers.
+
 ---
 --- a/drivers/mmc/host/jz4740_mmc.c
 +++ b/drivers/mmc/host/jz4740_mmc.c
@@ -100,7 +108,30 @@ that never comes.
  	if (jz4740_mmc_prepare_dma_data(host, data, COOKIE_PREMAPPED) < 0)
  		data->host_cookie = COOKIE_UNMAPPED;
  }
-@@ -723,7 +771,10 @@
+@@ -468,6 +516,22 @@
+ 	} while (status & JZ_MMC_STATUS_IS_RESETTING && --timeout);
+ }
+ 
++static int jz4740_mmc_set_clock_rate(struct jz4740_mmc_host *host, int rate);
++
++/*
++ * A DMA data phase that could not be started: drop the DMA enable, reset
++ * the controller as at power-up and restore the bus clock (on SDIO hosts
++ * this also restarts the free-running clock).
++ */
++static void jz4740_mmc_abort_data(struct jz4740_mmc_host *host)
++{
++	if (host->version >= JZ_MMC_JZ4780)
++		writel(0, host->base + JZ_REG_MMC_DMAC);
++	jz4740_mmc_reset(host);
++	if (host->mmc->ios.clock)
++		jz4740_mmc_set_clock_rate(host, host->mmc->ios.clock);
++}
++
+ static void jz4740_mmc_request_done(struct jz4740_mmc_host *host)
+ {
+ 	struct mmc_request *req;
+@@ -723,7 +787,10 @@
  		cmdat |= JZ_MMC_CMDAT_DATA_EN;
  		if (cmd->data->flags & MMC_DATA_WRITE)
  			cmdat |= JZ_MMC_CMDAT_WRITE;
@@ -112,7 +143,7 @@ that never comes.
  			/*
  			 * The JZ4780's MMC controller has integrated DMA ability
  			 * in addition to being able to use the external DMA
-@@ -792,14 +843,22 @@
+@@ -792,14 +859,26 @@
  		fallthrough;
  
  	case JZ4740_MMC_STATE_TRANSFER_DATA:
@@ -129,8 +160,12 @@ that never comes.
 +			int ret = jz4740_mmc_start_dma_transfer(host, data);
 +
 +			if (ret) {
-+				/* Fail the request instead of waiting for
-+				 * an interrupt that never comes. */
++				/*
++				 * Fail the request instead of waiting for an
++				 * interrupt that never comes, and stop the data
++				 * phase the controller was armed for.
++				 */
++				jz4740_mmc_abort_data(host);
 +				data->error = ret;
 +				host->state = JZ4740_MMC_STATE_DONE;
 +				break;
@@ -138,3 +173,16 @@ that never comes.
  			data->bytes_xfered = data->blocks * data->blksz;
  		} else if (data->flags & MMC_DATA_READ)
  			/* Use PIO if DMA is not enabled.
+@@ -1192,8 +1271,11 @@
+ 	}
+ 	dev_info(&pdev->dev, "Ingenic SD/MMC card driver registered\n");
+ 
++	/* DMA is chosen per transfer (jz4740_mmc_data_dma()) */
+ 	dev_info(&pdev->dev, "Using %s, %d-bit mode\n",
+-		 host->use_dma ? "DMA" : "PIO",
++		 !host->use_dma ? "PIO" :
++		 host->sdio_clk ? "PIO (SDIO host, DMA with sdio_dma=1)" :
++				  "DMA (PIO for short or unaligned transfers)",
+ 		 (mmc->caps & MMC_CAP_8_BIT_DATA) ? 8 :
+ 		 ((mmc->caps & MMC_CAP_4_BIT_DATA) ? 4 : 1));
+ 
