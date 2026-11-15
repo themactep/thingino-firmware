@@ -10,7 +10,7 @@ OPEN_TX_ISP_SITE_METHOD = git
 # by the 0042-0044 patches in this directory.
 OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
 OPEN_TX_ISP_SITE_BRANCH = next
-OPEN_TX_ISP_VERSION = 91fec5399cba709b3e0878eec8c0a4de250f0858
+OPEN_TX_ISP_VERSION = b1257a8f1f95807a2172db070ef65b8d22705f0b
 # external/ingenic-sdk carries the per-SoC sensor IQ tuning blobs
 # (sensor-iq/<soc>/<model>.bin) installed by the open path; see the sensor IQ
 # section below.
@@ -24,6 +24,9 @@ OPEN_TX_ISP_LICENSE = GPL-3.0
 # was device-proven on the T20 (and the T31 work next has not merged yet):
 # 0042 carries the T31/common changes (gain model, diagnostics, sinfo
 # hardening), 0043 the T20 7.x bring-up, and 0044 the T41 mainline port.
+# 0045 and 0052 are 7.x fixes on top of the 0044 port (they touch files or
+# function bodies that only 0044 creates). The T20 crop/vb2 fixes and the T41
+# mainline sensor bridge are in next (guarded for 7.x), not patched here.
 # Everything else in this directory is the pre-next patch series, disabled
 # rather than deleted so it can be restored if the pin goes back to the fork.
 
