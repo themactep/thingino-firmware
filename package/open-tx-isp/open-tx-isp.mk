@@ -140,7 +140,7 @@ ifeq ($(KERNEL_VERSION),7.3.3)
 OPEN_TX_ISP_MAINLINE_SENSORS = sc2336 gc2053 gc4653 imx307 gc2083 gc4023 \
 	gc8613 imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
 	sc2336p sc301iot sc3235 sc3335 sc3336 sc3338 sc401ai sc4236 \
-	sc4336 sc4336p sc5235
+	sc4336 sc4336p sc5235 sc5336
 ifneq ($(SENSOR_1_MODEL),)
 OPEN_TX_ISP_SENSOR_1_CONFIG := CONFIG_VIDEO_$(shell echo $(SENSOR_1_MODEL) | tr a-z A-Z)
 endif
