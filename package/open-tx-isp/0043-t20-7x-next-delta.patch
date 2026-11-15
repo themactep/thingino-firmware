@@ -1,5 +1,5 @@
 diff --git a/driver/t20/Kbuild b/driver/t20/Kbuild
-index 633c94dd8..fec47a536 100644
+index 633c94d..fec47a5 100644
 --- a/driver/t20/Kbuild
 +++ b/driver/t20/Kbuild
 @@ -1,3 +1,5 @@
@@ -37,7 +37,7 @@ index 633c94dd8..fec47a536 100644
  ccflags-y += -Wno-error=implicit-int
 diff --git a/driver/t20/include/jz_proc.h b/driver/t20/include/jz_proc.h
 new file mode 100644
-index 000000000..ab5df8a9f
+index 0000000..ab5df8a
 --- /dev/null
 +++ b/driver/t20/include/jz_proc.h
 @@ -0,0 +1,15 @@
@@ -58,7 +58,7 @@ index 000000000..ab5df8a9f
 +#endif
 diff --git a/driver/t20/include/mach/tx_isp.h b/driver/t20/include/mach/tx_isp.h
 new file mode 100644
-index 000000000..927158c56
+index 0000000..927158c
 --- /dev/null
 +++ b/driver/t20/include/mach/tx_isp.h
 @@ -0,0 +1,64 @@
@@ -128,7 +128,7 @@ index 000000000..927158c56
 +#endif /*__TX_ISP_H__*/
 diff --git a/driver/t20/include/soc/gpio.h b/driver/t20/include/soc/gpio.h
 new file mode 100644
-index 000000000..d7ff9f646
+index 0000000..d7ff9f6
 --- /dev/null
 +++ b/driver/t20/include/soc/gpio.h
 @@ -0,0 +1,32 @@
@@ -166,7 +166,7 @@ index 000000000..d7ff9f646
 +#endif
 diff --git a/driver/t20/include/tx_isp_t20_compat.h b/driver/t20/include/tx_isp_t20_compat.h
 new file mode 100644
-index 000000000..a637b2130
+index 0000000..a637b21
 --- /dev/null
 +++ b/driver/t20/include/tx_isp_t20_compat.h
 @@ -0,0 +1,91 @@
@@ -263,7 +263,7 @@ index 000000000..a637b2130
 +#define strncpy tx_isp_strncpy
 diff --git a/driver/t20/include/tx_isp_t20_v4l2_sensor.h b/driver/t20/include/tx_isp_t20_v4l2_sensor.h
 new file mode 100644
-index 000000000..198be1623
+index 0000000..198be16
 --- /dev/null
 +++ b/driver/t20/include/tx_isp_t20_v4l2_sensor.h
 @@ -0,0 +1,18 @@
@@ -286,7 +286,7 @@ index 000000000..198be1623
 +
 +#endif /* __TX_ISP_T20_V4L2_SENSOR_H__ */
 diff --git a/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c b/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
-index bb98b5b37..35c570c63 100644
+index bb98b5b..35c570c 100644
 --- a/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
 +++ b/driver/t20/sdk/source/apical-isp/tx-isp-core-tuning.c
 @@ -4410,10 +4410,15 @@ static long image_tuning_vidioc_default(struct file *file, void *fh, bool valid_
@@ -407,7 +407,7 @@ index bb98b5b37..35c570c63 100644
  	tuning->video = vfd;
  	/* The node is live once registered: open() must find its state. */
 diff --git a/driver/t20/sdk/source/apical-isp/tx-isp-core.c b/driver/t20/sdk/source/apical-isp/tx-isp-core.c
-index 84d17a024..39a9a5b40 100644
+index 84d17a0..1fee263 100644
 --- a/driver/t20/sdk/source/apical-isp/tx-isp-core.c
 +++ b/driver/t20/sdk/source/apical-isp/tx-isp-core.c
 @@ -831,11 +831,23 @@ static int isp_core_init_clk(struct tx_isp_core_device *core)
@@ -446,6 +446,15 @@ index 84d17a024..39a9a5b40 100644
  
  	kfree(clks);
  	return 0;
+@@ -2065,7 +2079,7 @@ static int isp_core_frame_channel_free_buffer(struct tx_isp_core_device *core, i
+ 	if (tx_isp_t2x_entry_linked(&vbuf->buf.entry)) {
+ 		list_del_init(&vbuf->buf.entry);
+ 		pr_warn_ratelimited("tx-isp: chan%d: freed buffer %d was still on the core FIFO (#467)\n",
+-				    vdev->index, vbuf->vb.v4l2_buf.index);
++				    vdev->index, vbuf->vb.index);
+ 	}
+ 	spin_unlock_irqrestore(&chan->slock, flags);
+ 	return ISP_SUCCESS;
 @@ -2156,8 +2170,6 @@ static const struct v4l2_subdev_core_ops isp_core_subdev_core_ops ={
  	.init = isp_core_ops_init,
  	.reset = isp_core_ops_reset,
@@ -821,7 +830,7 @@ index 84d17a024..39a9a5b40 100644
  
  	core_dev->proc = proc;
 diff --git a/driver/t20/sdk/source/tx-isp-device.c b/driver/t20/sdk/source/tx-isp-device.c
-index 29164ceb4..bb7f8f146 100644
+index 29164ce..bb7f8f1 100644
 --- a/driver/t20/sdk/source/tx-isp-device.c
 +++ b/driver/t20/sdk/source/tx-isp-device.c
 @@ -282,7 +282,7 @@ static int tx_isp_create_media_link_and_pipeline(tx_isp_device_t* ispdev)
@@ -906,7 +915,7 @@ index 29164ceb4..bb7f8f146 100644
  		v4l2_err(v4l2_dev, "Failed to register subdev nodes!\n");
  		goto err_nodes;
 diff --git a/driver/t20/sdk/source/tx-isp-frame-channel.c b/driver/t20/sdk/source/tx-isp-frame-channel.c
-index 5f85d3497..1f79ab5c2 100644
+index 5f85d34..6dc32b2 100644
 --- a/driver/t20/sdk/source/tx-isp-frame-channel.c
 +++ b/driver/t20/sdk/source/tx-isp-frame-channel.c
 @@ -15,8 +15,10 @@
@@ -963,6 +972,15 @@ index 5f85d3497..1f79ab5c2 100644
  
  //	printk("~~~~~~~~ %s[%d] size = %d ~~~~~~~~~~\n",__func__,__LINE__,size);
  	INIT_LIST_HEAD(&vdev->active_list);
+@@ -140,7 +142,7 @@ static void frame_channel_vb2_buffer_cleanup(struct vb2_buffer *vb)
+ 	if (tx_isp_t2x_entry_linked(&buf->entry)) {
+ 		list_del_init(&buf->entry);
+ 		pr_warn_ratelimited("tx-isp: chan%d: freed buffer %d was still on the active list (#467)\n",
+-				    vdev->index, vb->v4l2_buf.index);
++				    vdev->index, vb->index);
+ 	}
+ 	spin_unlock_irqrestore(&vdev->slock, flags);
+ 
 @@ -156,7 +158,7 @@ static int frame_channel_vb2_buffer_prepare(struct vb2_buffer *vb)
  	frame_chan_vdev_t *vdev = vb2_get_drv_priv(vb->vb2_queue);
  	struct frame_channel_video_buffer *buf =
@@ -1176,7 +1194,7 @@ index 5f85d3497..1f79ab5c2 100644
  	vdev->interrupt_service_routine = frame_channel_video_irq_notify;
  	video_set_drvdata(vfd, vdev);
 diff --git a/driver/t20/sdk/source/tx-isp-interrupt.c b/driver/t20/sdk/source/tx-isp-interrupt.c
-index 806591331..58cbdbd17 100644
+index 8065913..58cbdbd 100644
 --- a/driver/t20/sdk/source/tx-isp-interrupt.c
 +++ b/driver/t20/sdk/source/tx-isp-interrupt.c
 @@ -1,5 +1,6 @@
@@ -1196,7 +1214,7 @@ index 806591331..58cbdbd17 100644
  		v4l2_err(v4l2_dev, "%s[%d] Not enough platform resources",__func__,__LINE__);
  		ret = irq < 0 ? irq : -ENODEV;
 diff --git a/driver/t20/sdk/source/tx-isp-video-in.c b/driver/t20/sdk/source/tx-isp-video-in.c
-index be8b2f388..b5d85e68d 100644
+index be8b2f3..b5d85e6 100644
 --- a/driver/t20/sdk/source/tx-isp-video-in.c
 +++ b/driver/t20/sdk/source/tx-isp-video-in.c
 @@ -5,10 +5,10 @@
@@ -1314,7 +1332,7 @@ index be8b2f388..b5d85e68d 100644
  		v4l2_err(v4l2_dev, "Failed to allocate sensor device\n");
  		ret = -ISP_ERROR;
 diff --git a/driver/t20/sdk/source/tx-isp-videobuf.c b/driver/t20/sdk/source/tx-isp-videobuf.c
-index 88297a19d..8892766b0 100644
+index 88297a1..8892766 100644
 --- a/driver/t20/sdk/source/tx-isp-videobuf.c
 +++ b/driver/t20/sdk/source/tx-isp-videobuf.c
 @@ -5,10 +5,22 @@
@@ -1481,14 +1499,14 @@ index 88297a19d..8892766b0 100644
  	buf->paddr = (dma_addr_t)vaddr;
  	buf->vaddr = (void *)vaddr;
 diff --git a/driver/t20/sdk/tx-isp-csi.c b/driver/t20/sdk/tx-isp-csi.c
-index 405aa23bd..6cc9f3b5a 100644
+index 405aa23..6cc9f3b 100644
 --- a/driver/t20/sdk/tx-isp-csi.c
 +++ b/driver/t20/sdk/tx-isp-csi.c
 @@ -1 +1 @@
 -#include "source/tx-isp-csi.c"
 +#include "../../../external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c"
 diff --git a/driver/t20/sdk/tx-isp-device.c b/driver/t20/sdk/tx-isp-device.c
-index b87c3896f..f9f48641e 100644
+index b87c389..f9f4864 100644
 --- a/driver/t20/sdk/tx-isp-device.c
 +++ b/driver/t20/sdk/tx-isp-device.c
 @@ -20,7 +20,12 @@ int __init init_module(void)
@@ -1505,14 +1523,14 @@ index b87c3896f..f9f48641e 100644
  		return ret;
  
 diff --git a/driver/t20/sdk/tx-isp-load-parameters.c b/driver/t20/sdk/tx-isp-load-parameters.c
-index c8b79feae..7f47ebefe 100644
+index c8b79fe..7f47ebe 100644
 --- a/driver/t20/sdk/tx-isp-load-parameters.c
 +++ b/driver/t20/sdk/tx-isp-load-parameters.c
 @@ -1 +1 @@
 -#include "source/apical-isp/tx-isp-load-parameters.c"
 +#include "../../../external/ingenic-sdk/3.10.14/isp/t20/apical-isp/tx-isp-load-parameters.c"
 diff --git a/driver/t20/sdk/tx-isp-vic.c b/driver/t20/sdk/tx-isp-vic.c
-index 4a6843bd8..57aeb832a 100644
+index 4a6843b..57aeb83 100644
 --- a/driver/t20/sdk/tx-isp-vic.c
 +++ b/driver/t20/sdk/tx-isp-vic.c
 @@ -1 +1 @@
@@ -1520,7 +1538,7 @@ index 4a6843bd8..57aeb832a 100644
 +#include "../../../external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c"
 diff --git a/driver/t20/tx_isp_t20_compat.c b/driver/t20/tx_isp_t20_compat.c
 new file mode 100644
-index 000000000..d2c0ff664
+index 0000000..d2c0ff6
 --- /dev/null
 +++ b/driver/t20/tx_isp_t20_compat.c
 @@ -0,0 +1,65 @@
@@ -1591,7 +1609,7 @@ index 000000000..d2c0ff664
 +MODULE_IMPORT_NS("DMA_BUF");
 diff --git a/driver/t20/tx_isp_t20_devices.c b/driver/t20/tx_isp_t20_devices.c
 new file mode 100644
-index 000000000..152fd360c
+index 0000000..152fd36
 --- /dev/null
 +++ b/driver/t20/tx_isp_t20_devices.c
 @@ -0,0 +1,141 @@
@@ -1737,7 +1755,7 @@ index 000000000..152fd360c
 +	platform_device_unregister(tx_isp_csi_dev);
 +}
 diff --git a/driver/t20/tx_isp_t20_sinfo.c b/driver/t20/tx_isp_t20_sinfo.c
-index fc5fdbe30..951157dd7 100644
+index fc5fdbe..951157d 100644
 --- a/driver/t20/tx_isp_t20_sinfo.c
 +++ b/driver/t20/tx_isp_t20_sinfo.c
 @@ -64,11 +64,14 @@ _Static_assert(T20_SINFO_ATTR_CHIP_ID_OFFSET == 4, "T20 sinfo attr chip_id offse
@@ -1757,7 +1775,7 @@ index fc5fdbe30..951157dd7 100644
  	.attr_chip_id_offset = T20_SINFO_ATTR_CHIP_ID_OFFSET,
 diff --git a/driver/t20/tx_isp_t20_v4l2_sensor.c b/driver/t20/tx_isp_t20_v4l2_sensor.c
 new file mode 100644
-index 000000000..0d332dcbc
+index 0000000..0d332dc
 --- /dev/null
 +++ b/driver/t20/tx_isp_t20_v4l2_sensor.c
 @@ -0,0 +1,435 @@
@@ -2196,3 +2214,174 @@ index 000000000..0d332dcbc
 +{
 +	return sensor && sensor->sd.ops == &tx_sensor_ops;
 +}
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
+index d93b50b..570d705 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
++++ b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/log.h
+@@ -20,7 +20,6 @@ extern const char * const log_level[LOG_MAX];
+ 
+ #define FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+ 
+-int printk(const char *fmt,...);
+ 
+ #define LOG(level,fmt,...) if((level)<=FW_LOG_LEVEL) printk("%s: %s(%d) %s: " fmt "\n",FILE,__func__,__LINE__,log_level[level],##__VA_ARGS__)
+ 
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
+index 1d5442c..492f4c6 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/apical-isp/system_chardev.c
+@@ -205,6 +205,6 @@ done:
+ 
+ int system_chardev_destroy(void)
+ {
+-	int rc = misc_deregister(&isp_miscdevice);
+-	return rc;
++	misc_deregister(&isp_miscdevice);
++	return 0;
+ }
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
+index 2d7935c..660101a 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-csi.c
+@@ -44,11 +44,18 @@ static int isp_csi_init_clk(struct tx_isp_csi_driver *csd)
+ 				goto failed_to_get_clk;
+ 			}
+ 		}
++		/* Keep the CSI gate open: see isp_core_init_clk(). */
++		ret = clk_prepare_enable(clks[i]);
++		if(ret){
++			v4l2_err(v4l2_dev, "Failed to enable %s clock\n", info[i].name);
++			goto failed_to_get_clk;
++		}
+ 	}
+ 	csd->clks = clks;
+ 	return ISP_SUCCESS;
+ failed_to_get_clk:
+ 	while(--i >= 0){
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
+ 	}
+ 	kfree(clks);
+@@ -79,8 +86,10 @@ static int isp_csi_release_clk(struct tx_isp_csi_driver *csd)
+ 
+ 	if(clks == NULL)
+ 		return 0;
+-	for (i = 0; i < csd->clk_num; i++)
++	for (i = 0; i < csd->clk_num; i++) {
++		clk_disable_unprepare(clks[i]);
+ 		clk_put(clks[i]);
++	}
+ 
+ 	kfree(clks);
+ 	return 0;
+@@ -444,8 +453,6 @@ static const struct v4l2_subdev_internal_ops csi_internal_ops = {
+ 
+ static const struct v4l2_subdev_core_ops csi_core_ops = {
+ //	.g_chip_ident = csi_g_chip_ident,
+-	.g_ctrl = csi_g_ctrl,
+-	.s_ctrl = csi_s_ctrl,
+ //	.queryctrl = csi_queryctrl,
+ //	.reset = csi_reset,
+ 	.init = csi_init,
+@@ -526,7 +533,7 @@ int register_tx_isp_csi_device(struct platform_device *pdev, struct v4l2_device
+ 
+ 	me->ops = &csi_media_ops;
+ //	me->parent = v4l2_dev->mdev;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to init media entity!\n");
+ 		ret = -ISP_ERROR;
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
+index 72e1084..3b9fa3f 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-debug.c
+@@ -33,14 +33,9 @@ int isp_debug_init(void)
+ 		ret = -ENOMEM;
+ 		goto fail;
+ 	}
+-	isp_debug_print = debugfs_create_u32("isp_print", S_IWUSR | S_IRUSR, isp_debug_dir, &isp_print_level);
+-	if (!isp_debug_print) {
+-		ret = -ENOMEM;
+-		goto fail_u8;
+-	}
++	debugfs_create_u32("isp_print", S_IWUSR | S_IRUSR, isp_debug_dir, &isp_print_level);
++	isp_debug_print = NULL;
+ 	return ret;
+-fail_u8:
+-	debugfs_remove(isp_debug_dir);
+ fail:
+ 	return ret;
+ }
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
+index 699ef5e..043516f 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-frame-channel.h
+@@ -49,6 +49,8 @@ struct frame_channel_buffer {
+ struct frame_channel_video_buffer{
+ 	struct vb2_buffer vb;
+ 	struct frame_channel_buffer buf;
++	struct v4l2_buffer v4l2_buf;
++	u32 sequence;
+ 	struct list_head entry;
+ };
+ 
+diff --git a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
+index 26e6266..acc07f4 100644
+--- a/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
++++ b/external/ingenic-sdk/3.10.14/isp/t20/tx-isp-vic.c
+@@ -432,18 +432,18 @@ static int isp_vic_frd_show(struct seq_file *m, void *v)
+ {
+ 	int len = 0;
+ 	struct tx_isp_vic_driver *vd = (struct tx_isp_vic_driver*)(m->private);
+-	len += seq_printf(m ," %d\n", vd->vic_frd_c);
++	seq_printf(m ," %d\n", vd->vic_frd_c);
+ 	return len;
+ }
+ static int dump_isp_vic_frd_open(struct inode *inode, struct file *file)
+ {
+ 	return single_open_size(file, isp_vic_frd_show, PDE_DATA(inode),8192);
+ }
+-static const struct file_operations isp_vic_frd_fops ={
+-	.read = seq_read,
+-	.open = dump_isp_vic_frd_open,
+-	.llseek = seq_lseek,
+-	.release = single_release,
++static const struct proc_ops isp_vic_frd_ops ={
++	.proc_read = seq_read,
++	.proc_open = dump_isp_vic_frd_open,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
+ };
+ 
+ int register_tx_isp_vic_device(struct platform_device *pdev, struct v4l2_device *v4l2_dev)
+@@ -503,7 +503,7 @@ int register_tx_isp_vic_device(struct platform_device *pdev, struct v4l2_device
+ 
+ 	me->ops = &vic_media_ops;
+ //	me->parent = v4l2_dev->mdev;
+-	ret = media_entity_init(me, TX_ISP_PADS_NUM, pads, 0);
++	ret = media_entity_pads_init(me, TX_ISP_PADS_NUM, pads);
+ 	if (ret < 0){
+ 		v4l2_err(v4l2_dev, "Failed to init media entity!\n");
+ 		ret = -ISP_ERROR;
+@@ -531,7 +531,7 @@ int register_tx_isp_vic_device(struct platform_device *pdev, struct v4l2_device
+ 	} else {
+ 		vsd->proc_vic = proc;
+ 	}
+-	proc_create_data("isp_vic_frd", S_IRUGO, proc, &isp_vic_frd_fops, (void *)vsd);
++	proc_create_data("isp_vic_frd", S_IRUGO, proc, &isp_vic_frd_ops, (void *)vsd);
+ 
+ 	return ISP_SUCCESS;
+ register_failed:
+diff --git a/external/ingenic-sdk/include/sensor-common.h b/external/ingenic-sdk/include/sensor-common.h
+index 4b7a8ed..24d39ec 100644
+--- a/external/ingenic-sdk/include/sensor-common.h
++++ b/external/ingenic-sdk/include/sensor-common.h
+@@ -4,7 +4,6 @@
+ #if defined(CONFIG_SOC_T10) || defined(CONFIG_SOC_T20)
+ #include <linux/videodev2.h>
+ #include <media/v4l2-device.h>
+-#include <media/v4l2-chip-ident.h>
+ #include <media/v4l2-mediabus.h>
+ #include <linux/i2c.h>
+ #include <soc/gpio.h>
