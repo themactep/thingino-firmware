@@ -60,9 +60,13 @@ read_config() {
 	ntp_server_3=""
 	dhcp_ignore_timezone=""
 	sync_status_raw_base64=""
+	tz_custom="{}"
 
 	[ -f /etc/timezone ] && tz_name="$(cat /etc/timezone)"
 	[ -f /etc/TZ ] && tz_data="$(cat /etc/TZ)"
+	if [ -f /etc/tz.user.json ]; then
+		tz_custom=$(jct /etc/tz.user.json print 2>/dev/null) || tz_custom="{}"
+	fi
 
 	if [ "user" = "$(cat /etc/timezone.source 2>/dev/null)" ]; then
 		dhcp_ignore_timezone="true"
@@ -121,7 +125,8 @@ handle_get() {
   "ntp_server_2": "$(json_escape "$ntp_server_2")",
   "ntp_server_3": "$(json_escape "$ntp_server_3")",
   "dhcp_ignore_timezone": "$(json_escape "$dhcp_ignore_timezone")",
-  "sync_status_raw_base64": "$(json_escape "$sync_status_raw_base64")"
+  "sync_status_raw_base64": "$(json_escape "$sync_status_raw_base64")",
+  "tz_custom": $tz_custom
 }
 EOF
 }
@@ -167,6 +172,35 @@ handle_post() {
 
 			write_config
 			send_json '{"status":"ok","message":"Time configuration updated"}'
+			;;
+
+		tz_custom_set)
+			tz_custom_name=$(jct "$REQ_FILE" get tz_custom_name 2>/dev/null)
+			tz_custom_posix=$(jct "$REQ_FILE" get tz_custom_posix 2>/dev/null)
+
+			if [ -z "$tz_custom_name" ] || [ -z "$tz_custom_posix" ]; then
+				json_error 422 "Custom time zone name and POSIX TZ string are required" "422 Unprocessable Entity"
+			fi
+
+			if message=$(timectl set-timezone-custom "$tz_custom_name" "$tz_custom_posix" 2>&1); then
+				send_json '{"status":"ok","message":"Custom time zone saved"}'
+			else
+				json_error 422 "$message" "422 Unprocessable Entity"
+			fi
+			;;
+
+		tz_custom_remove)
+			tz_custom_name=$(jct "$REQ_FILE" get tz_custom_name 2>/dev/null)
+
+			if [ -z "$tz_custom_name" ]; then
+				json_error 422 "Custom time zone name is required" "422 Unprocessable Entity"
+			fi
+
+			if message=$(timectl remove-timezone-custom "$tz_custom_name" 2>&1); then
+				send_json '{"status":"ok","message":"Custom time zone removed"}'
+			else
+				json_error 422 "$message" "422 Unprocessable Entity"
+			fi
 			;;
 
 		*)
