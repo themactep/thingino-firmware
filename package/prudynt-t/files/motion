@@ -42,8 +42,20 @@ start() {
 
 	# Generate timestamp for this motion event
 	MOTION_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-	MOTION_PHOTO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.jpg"
-	MOTION_VIDEO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.mp4"
+
+	# Capture into the configured storage location when it resolves to a
+	# mounted path. /tmp is a small tmpfs, and a 10 s clip on a 41 MB camera
+	# is enough to trigger the OOM killer, which takes prudynt down with it.
+	MOTION_TMP_DIR="/tmp"
+	STORAGE_MOUNT=$(jct /etc/send2.json get storage.mount 2>/dev/null)
+	STORAGE_PATH=$(jct /etc/send2.json get storage.device_path 2>/dev/null)
+	if [ -n "$STORAGE_MOUNT" ] && [ -d "$STORAGE_MOUNT" ]; then
+		STORAGE_PATH=$(echo "$STORAGE_PATH" | sed "s/%hostname/$(hostname)/g")
+		MOTION_TMP_DIR="${STORAGE_MOUNT}/${STORAGE_PATH}/.tmp"
+		mkdir -p "$MOTION_TMP_DIR" 2>/dev/null || MOTION_TMP_DIR="/tmp"
+	fi
+	MOTION_PHOTO_FILE="$MOTION_TMP_DIR/motion_${MOTION_TIMESTAMP}.jpg"
+	MOTION_VIDEO_FILE="$MOTION_TMP_DIR/motion_${MOTION_TIMESTAMP}.mp4"
 
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
