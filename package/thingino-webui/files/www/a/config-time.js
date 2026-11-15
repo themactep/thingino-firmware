@@ -2,6 +2,10 @@
   const form = $("#timeForm");
   const tzNameInput = $("#tz_name");
   const tzDataInput = $("#tz_data");
+  const tzCustomName = $("#tz_custom_name");
+  const tzCustomPosix = $("#tz_custom_posix");
+  const tzCustomSave = $("#tz_custom_save");
+  const tzCustomList = $("#tz_custom_list");
   const ntpServer0 = $("#ntp_server_0");
   const ntpServer1 = $("#ntp_server_1");
   const ntpServer2 = $("#ntp_server_2");
@@ -12,6 +16,8 @@
   const syncResult = $("#sync-time-result");
   const syncStatusRaw = $("#sync-status-raw");
 
+  let BASE_TZ = [];
+  let CUSTOM_TZ = {};
   let TZ = [];
 
   function showSyncResult(type, text) {
@@ -58,9 +64,61 @@
     return TZ.find((tz) => tz.n === tzName);
   }
 
+  function rebuildTimezones() {
+    const merged = new Map(BASE_TZ.map((tz) => [tz.n, tz.v]));
+    Object.entries(CUSTOM_TZ || {}).forEach(([name, value]) => {
+      merged.set(name, value);
+    });
+    TZ = Array.from(merged, ([n, v]) => ({ n, v })).sort((a, b) =>
+      a.n.localeCompare(b.n),
+    );
+    populateTimezones();
+    renderCustomTimezones();
+    updateTimezone();
+  }
+
+  function renderCustomTimezones() {
+    if (!tzCustomList) return;
+    tzCustomList.innerHTML = "";
+    const names = Object.keys(CUSTOM_TZ || {}).sort();
+    if (!names.length) {
+      const empty = document.createElement("div");
+      empty.className = "small text-secondary";
+      empty.textContent = "No custom time zones.";
+      tzCustomList.appendChild(empty);
+      return;
+    }
+    names.forEach((name) => {
+      const row = document.createElement("div");
+      row.className =
+        "d-flex flex-wrap justify-content-between align-items-center gap-2 border-top py-2";
+      const text = document.createElement("div");
+      text.className = "small";
+      const strong = document.createElement("strong");
+      strong.textContent = name;
+      const code = document.createElement("code");
+      code.className = "ms-2";
+      code.textContent = CUSTOM_TZ[name];
+      text.append(strong, code);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-outline-danger btn-sm";
+      button.textContent = "Remove";
+      button.disabled = name === tzNameInput.value;
+      button.title = button.disabled
+        ? "The active time zone cannot be removed"
+        : "Remove this custom time zone";
+      button.addEventListener("click", () => removeCustomTimezone(name));
+      row.append(text, button);
+      tzCustomList.appendChild(row);
+    });
+  }
+
   function updateTimezone() {
     const tz = findTimezone(tzNameInput.value);
-    tzDataInput.value = tz ? tz.v : "";
+    if (tz) {
+      tzDataInput.value = tz.v;
+    }
   }
 
   function useBrowserTimezone(event) {
@@ -86,9 +144,8 @@
     try {
       const response = await fetch("/a/tz.json");
       if (!response.ok) throw new Error("Failed to load timezone data");
-      TZ = await response.json();
-      populateTimezones();
-      updateTimezone();
+      BASE_TZ = await response.json();
+      rebuildTimezones();
     } catch (err) {
       console.error("Failed to load timezones:", err);
     }
@@ -107,6 +164,12 @@
       const data = await response.json();
       tzNameInput.value = data.tz_name || "";
       tzDataInput.value = data.tz_data || "";
+      CUSTOM_TZ =
+        data.tz_custom &&
+        typeof data.tz_custom === "object" &&
+        !Array.isArray(data.tz_custom)
+          ? data.tz_custom
+          : {};
       ntpServer0.value = data.ntp_server_0 || "";
       ntpServer1.value = data.ntp_server_1 || "";
       ntpServer2.value = data.ntp_server_2 || "";
@@ -115,7 +178,7 @@
         data.dhcp_ignore_timezone === "true" ||
         data.dhcp_ignore_timezone === true;
       renderSyncStatus(decodeSyncStatus(data));
-      updateTimezone();
+      rebuildTimezones();
     } catch (err) {
       renderSyncStatus("");
       showAlert("danger", err.message || "Unable to load time configuration.");
@@ -152,6 +215,81 @@
       showAlert("danger", err.message || "Failed to save time configuration.");
     } finally {
       toggleBusy(false);
+    }
+  }
+
+  async function saveCustomTimezone() {
+    if (!tzCustomName || !tzCustomPosix) return;
+    const name = tzCustomName.value.trim();
+    const posix = tzCustomPosix.value.trim();
+    if (!name || !posix) {
+      showAlert("danger", "Name and POSIX TZ string are required.");
+      return;
+    }
+
+    if (tzCustomSave) tzCustomSave.disabled = true;
+    try {
+      const response = await fetch("/x/json-config-time.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "tz_custom_set",
+          tz_custom_name: name,
+          tz_custom_posix: posix,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || (result && result.error)) {
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to save custom time zone";
+        throw new Error(message);
+      }
+      tzCustomName.value = "";
+      tzCustomPosix.value = "";
+      showAlert("", "");
+      showOverlayMessage(
+        result.message || "Custom time zone saved.",
+        "success",
+      );
+      await loadConfig({ preserveBusy: true });
+    } catch (err) {
+      showAlert("danger", err.message || "Failed to save custom time zone.");
+    } finally {
+      if (tzCustomSave) tzCustomSave.disabled = false;
+    }
+  }
+
+  async function removeCustomTimezone(name) {
+    if (!name) return;
+    if (!confirm(`Remove the custom time zone "${name}"?`)) return;
+
+    try {
+      const response = await fetch("/x/json-config-time.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "tz_custom_remove",
+          tz_custom_name: name,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || (result && result.error)) {
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to remove custom time zone";
+        throw new Error(message);
+      }
+      showAlert("", "");
+      showOverlayMessage(
+        result.message || "Custom time zone removed.",
+        "success",
+      );
+      await loadConfig({ preserveBusy: true });
+    } catch (err) {
+      showAlert("danger", err.message || "Failed to remove custom time zone.");
     }
   }
 
@@ -208,6 +346,18 @@
 
   $("#frombrowser").addEventListener("click", useBrowserTimezone);
   syncButton.addEventListener("click", syncTime);
+  if (tzCustomSave) {
+    tzCustomSave.addEventListener("click", saveCustomTimezone);
+  }
+  [tzCustomName, tzCustomPosix].forEach((input) => {
+    if (!input) return;
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveCustomTimezone();
+      }
+    });
+  });
 
   const reloadButton = $("#time-reload");
   if (reloadButton) {
