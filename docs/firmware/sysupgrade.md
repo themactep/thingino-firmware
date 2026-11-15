@@ -181,6 +181,7 @@ Default manifest (`/etc/cfg-backup.list`):
 /etc/passwd /etc/shadow               # user accounts
 /etc/wpa_supplicant.conf              # WiFi
 /etc/TZ /etc/timezone                 # timezone
+/etc/tz.user.json                     # user timezone overrides
 /etc/timezone.source /etc/ntp.source  # timezone/NTP source of truth
 /etc/default/ntp.conf                 # user NTP servers
 /etc/dropbear                         # SSH host keys
