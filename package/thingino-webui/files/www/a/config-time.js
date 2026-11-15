@@ -263,7 +263,7 @@
 
   async function removeCustomTimezone(name) {
     if (!name) return;
-    if (!confirm(`Remove the custom time zone "${name}"?`)) return;
+    if (!(await confirm(`Remove the custom time zone "${name}"?`))) return;
 
     try {
       const response = await fetch("/x/json-config-time.cgi", {
