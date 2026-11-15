@@ -1,35 +1,41 @@
 From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
 From: Gino (WLTB-Gino) <gino@wltechblog.com>
-Date: Tue, 11 Nov 2026 14:00:00 +0000
-Subject: [PATCH 6/6] motor: make remove() teardown safe against IRQs and timers
+Subject: [PATCH] motor: drain debounce timers before GPIO teardown in remove()
 
 motor_remove() tore things down in an order that leaves windows for
 use-after-free / NULL-deref on module unload and reload:
 
 - del_timer_sync() ran after gpio_free() and after motor->pdata = 0,
   so an already-armed min/max debounce timer (armed from the GPIO
-  hardirq, firing 5ms later from softirq) could dereference the
-  released pdata.
-- mutex_destroy() and ingenic_tcu_counter_stop() ran while /dev/motor
-  was still registered and the procfs entry was still mounted, so a
-  racing open/ioctl or proc reader could take a mutex that is being
-  destroyed or drive a TCU channel that is being stopped.
-
-Order now: free all IRQs first (no new timer arms can happen), drain
-the debounce timers while pdata is still valid, drop pdata, remove
-the procfs entry and /dev/motor, and only then destroy the mutex and
-stop the TCU counter.
+  hardirq, firing 5ms later from softirq; the callbacks dereference
+  motor->pdata and gpio_get_value() the min/max pin) could dereference
+  released data and freed pins. del_timer_sync() now runs first, per
+  motor, before any GPIO in that motor is freed or pdata is cleared.
+- gpio_free() ran before the matching free_irq(), so the IRQ could
+  fire one last mod_timer() against a GPIO that is already freed.
+  Order inside each motor is now del_timer_sync() -> free_irq() ->
+  gpio_free() -> clear state.
+- ingenic_tcu_counter_stop() ran while /dev/motor was still registered, so a
+  racing open/ioctl could drive a TCU channel that is being stopped. It now
+  runs after misc_deregister(): the counter stops only once no opener can
+  reach the device.
+- mutex_destroy() is dropped entirely (option A): dev_mutex is a debug-only
+  construct here (CONFIG_DEBUG_MUTEXES adds runtime checks, production
+  builds compile it to a no-op; the mutex is never re-initialized anywhere),
+  so the init/remove cycle stays balanced. The residual unregister-races-
+  teardown window (userspace can still open /dev/motor before
+  misc_deregister() returns) is the generic chardev teardown race present
+  throughout this SDK - closing it fully would need the probe/remove rework
+  the vendor driver never had, not a reorder.
 
 Companion to 0005 (devres double-free); together they close the
 teardown races seen around runtime motor.ko reload on noorio t110.
 Regenerated against the restructured thingino/ingenic-sdk layout
-(4.4.94/misc/motor/motor.c); the 4.4.94 unified module-param patch
-was dropped since the restructured fork carries the interface
-upstream with identical switch-less limit semantics.
+(4.4.94/misc/motor/motor.c).
 Signed-off-by: Gino (WLTB-Gino) <gino@wltechblog.com>
 --- a/4.4.94/misc/motor/motor.c
 +++ b/4.4.94/misc/motor/motor.c
-@@ -1014,9 +1014,6 @@
+@@ -1014,21 +1014,23 @@ static int motor_remove(struct platform_device *pdev)
  	int i;
  	struct motor_device *mdev = platform_get_drvdata(pdev);
  	struct motor_driver *motor = NULL;
@@ -39,14 +45,26 @@ Signed-off-by: Gino (WLTB-Gino) <gino@wltechblog.com>
  	free_irq(mdev->run_step_irq, mdev);
  	for(i = 0; i < HAS_MOTOR_CNT; i++) {
  		motor = &(mdev->motors[i]);
-@@ -1041,19 +1038,22 @@
- 
- 		if (motor->pdata->motor_st4_gpio != -1)
- 			gpio_free(motor->pdata->motor_st4_gpio);
+ 		if(motor->pdata == NULL)
+ 			continue;
++		/* Drain the debounce timers before touching the GPIOs: the
++		 * callbacks dereference motor->pdata and gpio_get_value() the
++		 * min/max pins, so both must stay valid until no timer can run. */
 +		del_timer_sync(&motor->min_timer);
 +		del_timer_sync(&motor->max_timer);
- 		motor->pdata = 0;
- 		motor->min_pos_irq = 0;
+ 		if (motor->min_pos_irq) {
+-			gpio_free(motor->pdata->motor_min_gpio);
+ 			free_irq(motor->min_pos_irq, motor);
++			gpio_free(motor->pdata->motor_min_gpio);
+ 		}
+ 		if (motor->max_pos_irq) {
+-			gpio_free(motor->pdata->motor_max_gpio);
+ 			free_irq(motor->max_pos_irq, motor);
++			gpio_free(motor->pdata->motor_max_gpio);
+ 		}
+ 		if (motor->pdata->motor_st1_gpio != -1)
+ 			gpio_free(motor->pdata->motor_st1_gpio);
+@@ -1046,14 +1048,13 @@
  		motor->max_pos_irq = 0;
  		motor->min_pos_irq_cnt = 0;
  		motor->max_pos_irq_cnt = 0;
@@ -58,9 +76,7 @@ Signed-off-by: Gino (WLTB-Gino) <gino@wltechblog.com>
  		proc_remove(mdev->proc);
  
  	misc_deregister(&mdev->misc_dev);
-+	mutex_destroy(&mdev->dev_mutex);
-+
-+	ingenic_tcu_counter_stop(mdev->tcu);
  
++	ingenic_tcu_counter_stop(mdev->tcu);
  	return 0;
  }
