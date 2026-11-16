@@ -203,6 +203,17 @@ command=$1
 [ -n "$command" ] || usage
 shift
 
+# Writes invalidate any read cache the backend adapter keeps.
+case "$command" in
+	set-setting | apply-config | record | privacy | daynight | service | restart-streamer)
+		# Drop it again on exit, so a read that raced the write can't keep it.
+		if command -v agent_cache_drop >/dev/null 2>&1; then
+			agent_cache_drop
+			trap agent_cache_drop EXIT
+		fi
+		;;
+esac
+
 case "$command" in
 	device)
 		print_device
