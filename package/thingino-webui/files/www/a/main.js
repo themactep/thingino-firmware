@@ -1720,34 +1720,48 @@ function buildSendModalGrid() {
   });
   downloadGroup.appendChild(downloadLinkCh1);
 
-  agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
-    .then((mediaConfig) => {
-      const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
-      const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
-      setDownloadLinkEnabled(
-        downloadLinkCh0,
-        ch0Enabled,
-        "Download main stream is not available on this camera.",
-      );
-      setDownloadLinkEnabled(
-        downloadLinkCh1,
-        ch1Enabled,
-        "Download substream is not available on this camera.",
-      );
-    })
-    .catch((error) => {
-      if (
-        typeof console !== "undefined" &&
-        typeof console.warn === "function"
-      ) {
-        console.warn(
-          "Could not load media capabilities for send modal downloads",
-          error,
+  // The links start enabled; the first open of the modal corrects them.
+  const loadSendModalMedia = () => {
+    agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
+      .then((mediaConfig) => {
+        const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
+        const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
+        setDownloadLinkEnabled(
+          downloadLinkCh0,
+          ch0Enabled,
+          "Download main stream is not available on this camera.",
         );
-      }
-      setDownloadLinkEnabled(downloadLinkCh0, true, "");
-      setDownloadLinkEnabled(downloadLinkCh1, true, "");
+        setDownloadLinkEnabled(
+          downloadLinkCh1,
+          ch1Enabled,
+          "Download substream is not available on this camera.",
+        );
+      })
+      .catch((error) => {
+        if (
+          typeof console !== "undefined" &&
+          typeof console.warn === "function"
+        ) {
+          console.warn(
+            "Could not load media capabilities for send modal downloads",
+            error,
+          );
+        }
+        setDownloadLinkEnabled(downloadLinkCh0, true, "");
+        setDownloadLinkEnabled(downloadLinkCh1, true, "");
+      });
+  };
+  const sendModalEl = document.getElementById("sendModal");
+  if (sendModalEl) {
+    let mediaLoaded = false;
+    sendModalEl.addEventListener("show.bs.modal", () => {
+      if (mediaLoaded) return;
+      mediaLoaded = true;
+      loadSendModalMedia();
     });
+  } else {
+    loadSendModalMedia();
+  }
 
   downloadCol.appendChild(downloadGroup);
   grid.appendChild(downloadCol);
