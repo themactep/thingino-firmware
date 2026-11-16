@@ -1,0 +1,196 @@
+From: Small6oy <14087376+Small6oy@users.noreply.github.com>
+Subject: [PATCH] file: serve pre-compressed .gz siblings, optional Cache-Control
+
+-z: when the client accepts gzip and file.gz is a readable regular file
+at least as new as file, send it with Content-Encoding: gzip (ETag,
+Content-Length and conditional requests use the .gz). Any file that has
+a .gz sibling also gets Vary: Accept-Encoding. A stale .gz is ignored.
+
+-M seconds: send Cache-Control: max-age for static files.
+
+uhttpd has no compression of its own; on a Wyze Cam v4 (T41) this cuts
+the web UI's text assets from 1154 KB to 311 KB.
+
+diff --git a/file.c b/file.c
+index b6dbc27..c700570 100644
+--- a/file.c
++++ b/file.c
+@@ -65,6 +65,7 @@ enum file_hdr {
+ 	HDR_IF_MATCH,
+ 	HDR_IF_NONE_MATCH,
+ 	HDR_IF_RANGE,
++	HDR_ACCEPT_ENCODING,
+ 	__HDR_MAX
+ };
+ 
+@@ -361,6 +362,11 @@ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
+ 		ustream_printf(cl->us, "ETag: %s\r\n", uh_file_mktag(s, buf, sizeof(buf)));
+ 		ustream_printf(cl->us, "Last-Modified: %s\r\n",
+ 			       uh_file_unix2date(s->st_mtime, buf, sizeof(buf)));
++		if (conf.static_max_age >= 0)
++			ustream_printf(cl->us, "Cache-Control: max-age=%d\r\n",
++				       conf.static_max_age);
++		if (cl->dispatch.file.vary)
++			ustream_printf(cl->us, "Vary: Accept-Encoding\r\n");
+ 	}
+ 	ustream_printf(cl->us, "Date: %s\r\n",
+ 		       uh_file_unix2date(time(NULL), buf, sizeof(buf)));
+@@ -633,15 +639,16 @@ static void uh_file_free(struct client *cl)
+ 	close(cl->dispatch.file.fd);
+ }
+ 
+-static void uh_file_data(struct client *cl, struct path_info *pi, int fd)
++static void uh_file_data(struct client *cl, struct path_info *pi, int fd,
++			 struct stat *st, bool gz)
+ {
+ 	/* test preconditions */
+ 	if (!cl->dispatch.no_cache &&
+-	    (!uh_file_if_modified_since(cl, &pi->stat) ||
+-	     !uh_file_if_match(cl, &pi->stat) ||
+-	     !uh_file_if_range(cl, &pi->stat) ||
+-	     !uh_file_if_unmodified_since(cl, &pi->stat) ||
+-	     !uh_file_if_none_match(cl, &pi->stat))) {
++	    (!uh_file_if_modified_since(cl, st) ||
++	     !uh_file_if_match(cl, st) ||
++	     !uh_file_if_range(cl, st) ||
++	     !uh_file_if_unmodified_since(cl, st) ||
++	     !uh_file_if_none_match(cl, st))) {
+ 		ustream_printf(cl->us, "\r\n");
+ 		uh_request_done(cl);
+ 		close(fd);
+@@ -649,13 +656,16 @@ static void uh_file_data(struct client *cl, struct path_info *pi, int fd)
+ 	}
+ 
+ 	/* write status */
+-	uh_file_response_200(cl, &pi->stat);
++	uh_file_response_200(cl, st);
+ 
+ 	ustream_printf(cl->us, "Content-Type: %s\r\n",
+ 			   uh_file_mime_lookup(pi->phys));
+ 
++	if (gz)
++		ustream_printf(cl->us, "Content-Encoding: gzip\r\n");
++
+ 	ustream_printf(cl->us, "Content-Length: %" PRIu64 "\r\n\r\n",
+-			   pi->stat.st_size);
++			   st->st_size);
+ 
+ 
+ 	/* send body */
+@@ -703,9 +713,41 @@ static void uh_file_request(struct client *cl, const char *url,
+ 		if (fd < 0)
+ 			goto error;
+ 
++		struct stat *st = &pi->stat;
++		struct stat gz_stat;
++		bool gz = false;
++
+ 		req->disable_chunked = true;
+ 		cl->dispatch.file.hdr = tb;
+-		uh_file_data(cl, pi, fd);
++		cl->dispatch.file.vary = false;
++
++		/* Pre-compressed sibling: serve file.gz when the client accepts
++		 * gzip and the .gz is a readable regular file at least as new as
++		 * the original, so a stale copy is never sent. */
++		if (conf.gzip_static) {
++			size_t len = strlen(pi->phys);
++			char *gz_path = alloca(len + 4);
++			char *ae = uh_file_header(cl, HDR_ACCEPT_ENCODING);
++			int gz_fd;
++
++			memcpy(gz_path, pi->phys, len);
++			memcpy(gz_path + len, ".gz", 4);
++
++			if (!stat(gz_path, &gz_stat) && S_ISREG(gz_stat.st_mode) &&
++			    (gz_stat.st_mode & S_IROTH) &&
++			    gz_stat.st_mtime >= pi->stat.st_mtime) {
++				cl->dispatch.file.vary = true;
++				if (ae && strstr(ae, "gzip") && !strstr(ae, "gzip;q=0") &&
++				    (gz_fd = open(gz_path, O_RDONLY)) >= 0) {
++					close(fd);
++					fd = gz_fd;
++					st = &gz_stat;
++					gz = true;
++				}
++			}
++		}
++
++		uh_file_data(cl, pi, fd, st, gz);
+ 		cl->dispatch.file.hdr = NULL;
+ 		return;
+ 	}
+@@ -916,6 +958,7 @@ static bool __handle_file_request(struct client *cl, char *url, bool is_error_ha
+ 		[HDR_IF_MATCH] = { "if-match", BLOBMSG_TYPE_STRING },
+ 		[HDR_IF_NONE_MATCH] = { "if-none-match", BLOBMSG_TYPE_STRING },
+ 		[HDR_IF_RANGE] = { "if-range", BLOBMSG_TYPE_STRING },
++		[HDR_ACCEPT_ENCODING] = { "accept-encoding", BLOBMSG_TYPE_STRING },
+ 	};
+ 	struct dispatch_handler *d;
+ 	struct blob_attr *tb[__HDR_MAX];
+diff --git a/main.c b/main.c
+index 72c003d..1c9f203 100644
+--- a/main.c
++++ b/main.c
+@@ -181,6 +181,8 @@ static int usage(const char *name)
+ 		"	-d string       URL decode given string\n"
+ 		"	-r string       Specify basic auth realm\n"
+ 		"	-m string       MD5 crypt given string\n"
++		"	-z              Serve file.gz for file when the client accepts gzip\n"
++		"	-M seconds      Cache-Control max-age for static files\n"
+ 		"\n", name
+ 	);
+ 	return 1;
+@@ -188,6 +190,7 @@ static int usage(const char *name)
+ 
+ static void init_defaults_pre(void)
+ {
++	conf.static_max_age = -1;
+ 	conf.script_timeout = 60;
+ 	conf.network_timeout = 30;
+ 	conf.http_keepalive = 20;
+@@ -341,7 +344,7 @@ int main(int argc, char **argv)
+ 	init_defaults_pre();
+ 	signal(SIGPIPE, SIG_IGN);
+ 
+-	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:")) != -1) {
++	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:M:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:z")) != -1) {
+ 		switch(ch) {
+ #ifdef HAVE_TLS
+ 		case 'C':
+@@ -525,6 +528,14 @@ int main(int argc, char **argv)
+ 			break;
+ 
+ 		/* md5 crypt */
++		case 'z':
++			conf.gzip_static = 1;
++			break;
++
++		case 'M':
++			conf.static_max_age = atoi(optarg);
++			break;
++
+ 		case 'm':
+ 			printf("%s\n", crypt(optarg, "$1$"));
+ 			return 0;
+diff --git a/uhttpd.h b/uhttpd.h
+index c4a184c..4444a90 100644
+--- a/uhttpd.h
++++ b/uhttpd.h
+@@ -109,6 +109,8 @@ struct config {
+ 	int ubus_cors;
+ 	int cgi_prefix_len;
+ 	int events_retry;
++	int gzip_static;
++	int static_max_age;
+ 	struct list_head cgi_alias;
+ 	struct list_head cgi_prefixes;
+ 	struct list_head lua_prefix;
+@@ -288,6 +290,7 @@ struct dispatch {
+ 	union {
+ 		struct {
+ 			struct blob_attr **hdr;
++			bool vary;
+ 			int fd;
+ 		} file;
+ 		struct dispatch_proc proc;

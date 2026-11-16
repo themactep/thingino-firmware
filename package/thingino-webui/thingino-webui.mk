@@ -370,6 +370,16 @@ define THINGINO_WEBUI_PARANOID_REWRITE
 endef
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
+# Pre-compress text assets for uhttpd -z (thingino-uhttpd 0008 patch). Runs
+# after the paranoid rewrite so the .gz siblings match the final files; the
+# .gz takes the original's mtime, and uhttpd ignores a .gz older than its file.
+define THINGINO_WEBUI_PRECOMPRESS
+	find $(TARGET_DIR)/var/www -type f \( -name '*.js' -o -name '*.css' \
+		-o -name '*.html' -o -name '*.svg' -o -name '*.json' \) -size +1k \
+		! -path '*/onvif/*' -exec sh -c 'gzip -9 -n -k -f "$$1" && touch -r "$$1" "$$1.gz"' _ {} \;
+endef
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PRECOMPRESS
+
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and re-applies
 # asset tags and CDN fallbacks.

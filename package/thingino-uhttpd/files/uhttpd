@@ -34,4 +34,6 @@ UHTTPD_ERROR_HANDLER="/x/legacy-url-recovery.cgi"
 
 # Additional uhttpd arguments
 # Add any extra arguments here
-EXTRA_ARGS=""
+# -z: serve file.gz for file when the client accepts gzip (0008 patch)
+# -M: Cache-Control max-age for static files, in seconds
+EXTRA_ARGS="-z -M 600"
