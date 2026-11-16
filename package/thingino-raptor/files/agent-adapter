@@ -138,39 +138,75 @@ agent_config_save() {
 	raptorctl config save >/dev/null 2>&1 || true
 }
 
-# GET /api/v1/config costs 1.5-3 s of shell work on a busy T41, and every
-# streamer page waits on it. Keep the last answer in RAM and serve it at
-# once; refresh it in the background once it is AGENT_CONFIG_CACHE_FRESH
-# seconds old. agentctl drops it on every write command, and a raptor.conf
-# newer than the cache (raptorctl config save) bypasses it.
-AGENT_CONFIG_CACHE=${AGENT_CONFIG_CACHE:-/tmp/agent-config.json}
-AGENT_CONFIG_CACHE_FRESH=${AGENT_CONFIG_CACHE_FRESH:-15}
-AGENT_CONFIG_CACHE_MAX=${AGENT_CONFIG_CACHE_MAX:-600}
+# Building agent JSON is slow in busybox sh on a loaded SoC (GET /config
+# 1.5-3 s, /runtime/all about 2 s), and the web UI waits on it. Cached
+# answers live in AGENT_CACHE_DIR: served at once while newer than
+# raptor.conf and under their max age, refreshed in the background once
+# older than their fresh age. agentctl calls agent_cache_drop around every
+# write command; a generation counter discards a refresh that raced a write.
+AGENT_CACHE_DIR=${AGENT_CACHE_DIR:-/tmp/agent-cache}
+
+agent_cache_gen() {
+	cat "$AGENT_CACHE_DIR/.gen" 2>/dev/null || echo 0
+}
 
 agent_cache_drop() {
-	# The marker tells a refresh already under way that its result is stale.
-	: >"$AGENT_CONFIG_CACHE.dirty" 2>/dev/null
-	rm -f "$AGENT_CONFIG_CACHE"
+	mkdir -p "$AGENT_CACHE_DIR" 2>/dev/null || return 0
+	echo $(($(agent_cache_gen) + 1)) >"$AGENT_CACHE_DIR/.gen"
+	rm -f "$AGENT_CACHE_DIR"/*.json /tmp/heartbeat.json
 }
 
 # mkdir is atomic; a lock left by a killed refresher expires after 60 s.
 agent_cache_lock() {
-	mkdir "$AGENT_CONFIG_CACHE.lock" 2>/dev/null && return 0
-	_lage=$(($(date +%s) - $(stat -c %Y "$AGENT_CONFIG_CACHE.lock" 2>/dev/null || date +%s)))
+	_lock="$AGENT_CACHE_DIR/$1.lock"
+	mkdir -p "$AGENT_CACHE_DIR" 2>/dev/null
+	mkdir "$_lock" 2>/dev/null && return 0
+	_lage=$(($(date +%s) - $(stat -c %Y "$_lock" 2>/dev/null || date +%s)))
 	[ "$_lage" -gt 60 ] || return 1
-	rmdir "$AGENT_CONFIG_CACHE.lock" 2>/dev/null
-	mkdir "$AGENT_CONFIG_CACHE.lock" 2>/dev/null
+	rmdir "$_lock" 2>/dev/null
+	mkdir "$_lock" 2>/dev/null
 }
 
-agent_config_cache_refresh() {
-	_c=$AGENT_CONFIG_CACHE
-	rm -f "$_c.dirty"
-	agent_get_config_live >"$_c.$$" 2>/dev/null
-	if [ -s "$_c.$$" ] && [ ! -e "$_c.dirty" ]; then
-		mv -f "$_c.$$" "$_c"
+agent_cache_refresh() {
+	_name=$1
+	shift
+	_f="$AGENT_CACHE_DIR/$_name.json"
+	_gen=$(agent_cache_gen)
+	"$@" >"$_f.$$" 2>/dev/null
+	if [ -s "$_f.$$" ] && [ "$_gen" = "$(agent_cache_gen)" ]; then
+		mv -f "$_f.$$" "$_f"
 	else
-		rm -f "$_c.$$"
+		rm -f "$_f.$$"
 	fi
+	rmdir "$AGENT_CACHE_DIR/$_name.lock" 2>/dev/null
+}
+
+# agent_cached <name> <fresh-seconds> <max-seconds> <command...>
+agent_cached() {
+	_name=$1
+	_fresh=$2
+	_max=$3
+	shift 3
+	_f="$AGENT_CACHE_DIR/$_name.json"
+	if [ -s "$_f" ] && [ "$_f" -nt "$AGENT_CONFIG" ]; then
+		_age=$(($(date +%s) - $(stat -c %Y "$_f" 2>/dev/null || echo 0)))
+		if [ "$_age" -ge 0 ] && [ "$_age" -lt "$_max" ]; then
+			cat "$_f"
+			# The refresher must not hold the listener's output pipe.
+			if [ "$_age" -ge "$_fresh" ] && agent_cache_lock "$_name"; then
+				(agent_cache_refresh "$_name" "$@") </dev/null >/dev/null 2>&1 &
+			fi
+			return 0
+		fi
+	fi
+	if agent_cache_lock "$_name"; then
+		agent_cache_refresh "$_name" "$@"
+		if [ -s "$_f" ]; then
+			cat "$_f"
+			return 0
+		fi
+	fi
+	"$@"
 }
 
 agent_ctl() {
@@ -1387,6 +1423,13 @@ agent_get_capabilities() {
 }
 
 agent_get_runtime() {
+	case "${1:-all}" in
+		all) agent_cached runtime-all 10 120 agent_get_runtime_live all ;;
+		*) agent_get_runtime_live "$@" ;;
+	esac
+}
+
+agent_get_runtime_live() {
 	resource=${1:-all}
 	case "$resource" in
 		all)
@@ -1516,31 +1559,7 @@ agent_get_runtime() {
 }
 
 agent_get_config() {
-	_c=$AGENT_CONFIG_CACHE
-	if [ -s "$_c" ] && [ "$_c" -nt "$AGENT_CONFIG" ]; then
-		_age=$(($(date +%s) - $(stat -c %Y "$_c" 2>/dev/null || echo 0)))
-		if [ "$_age" -ge 0 ] && [ "$_age" -lt "$AGENT_CONFIG_CACHE_MAX" ]; then
-			cat "$_c"
-			# One refresher at a time; it must not hold the listener's pipe.
-			if [ "$_age" -ge "$AGENT_CONFIG_CACHE_FRESH" ] &&
-				agent_cache_lock; then
-				(
-					agent_config_cache_refresh
-					rmdir "$_c.lock"
-				) </dev/null >/dev/null 2>&1 &
-			fi
-			return 0
-		fi
-	fi
-	if agent_cache_lock; then
-		agent_config_cache_refresh
-		rmdir "$_c.lock"
-		if [ -s "$_c" ]; then
-			cat "$_c"
-			return 0
-		fi
-	fi
-	agent_get_config_live
+	agent_cached config 15 600 agent_get_config_live
 }
 
 agent_get_config_live() {

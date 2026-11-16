@@ -23,7 +23,7 @@ send_headers
 
 while true; do
 	printf 'retry: %d\n' "$HEARTBEAT_RETRY_MS" || exit 0
-	data=$(thingino_heartbeat_payload)
+	data=$(thingino_heartbeat_payload_shared)
 	if [ -n "$data" ]; then
 		printf 'data: %s\n\n' "$data" || exit 0
 	else

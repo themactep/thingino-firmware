@@ -12,4 +12,4 @@ printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-cache\r\n'
 printf 'Connection: close\r\n\r\n'
 
-thingino_heartbeat_payload
+thingino_heartbeat_payload_shared

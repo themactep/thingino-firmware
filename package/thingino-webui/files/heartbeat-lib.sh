@@ -497,3 +497,39 @@ thingino_heartbeat_payload() {
 		thingino_heartbeat_native_payload
 	fi
 }
+
+# Every open WebUI tab runs its own SSE heartbeat loop, and a payload costs
+# about 0.5 s of shell work on a loaded SoC. Share one payload for
+# HEARTBEAT_SHARED_TTL seconds, so N tabs cost the same as one. The agent
+# adapter's agent_cache_drop removes the file after a settings write.
+THINGINO_HEARTBEAT_SHARED="${THINGINO_HEARTBEAT_SHARED:-/tmp/heartbeat.json}"
+
+thingino_heartbeat_payload_shared() {
+	_hb=$THINGINO_HEARTBEAT_SHARED
+	_age=$(($(date +%s) - $(stat -c %Y "$_hb" 2>/dev/null || echo 0)))
+	if [ -s "$_hb" ] && [ "$_age" -ge 0 ] && [ "$_age" -lt "${HEARTBEAT_SHARED_TTL:-4}" ]; then
+		cat "$_hb"
+		return 0
+	fi
+	if ! mkdir "$_hb.lock" 2>/dev/null; then
+		# Another request is building it; break a lock left by a killed one.
+		_lage=$(($(date +%s) - $(stat -c %Y "$_hb.lock" 2>/dev/null || date +%s)))
+		if [ "$_lage" -le 30 ] && [ -s "$_hb" ]; then
+			cat "$_hb"
+			return 0
+		fi
+		rmdir "$_hb.lock" 2>/dev/null
+		mkdir "$_hb.lock" 2>/dev/null || {
+			thingino_heartbeat_payload
+			return 0
+		}
+	fi
+	thingino_heartbeat_payload >"$_hb.$$" 2>/dev/null
+	if [ -s "$_hb.$$" ]; then
+		mv -f "$_hb.$$" "$_hb"
+	else
+		rm -f "$_hb.$$"
+	fi
+	rmdir "$_hb.lock" 2>/dev/null
+	cat "$_hb" 2>/dev/null
+}
