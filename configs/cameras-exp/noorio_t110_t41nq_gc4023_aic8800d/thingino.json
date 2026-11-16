@@ -1,7 +1,7 @@
 {
   "gpio": {
     "button_reset": {
-      "pin": 30,
+      "pin": 62,
       "active_low": true
     },
     "ir850": 46,
