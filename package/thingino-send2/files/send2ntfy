@@ -135,13 +135,7 @@ fi
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
 
-# ntfy names the attachment after the Filename header. copy_photo() and
-# copy_video() hand us atomic, extension-less temp files (send2_photo.XXXXXX)
-# so a hostile pre-planted name can't be followed in the sticky /tmp, but
-# publishing that basename produces extension-less attachments — ntfy iOS
-# saves them as generic "data" files. Derive a proper name instead; the
-# timestamp keeps repeated saves distinct. ntfy infers Content-Type from
-# the filename, so .jpg/.mp4 is all that's needed.
+# temp snapshot/clip files carry no extension; name the attachment for ntfy
 attachment_name() {
 	case "$1" in
 		*/send2_photo.*) echo "photo-$(date +%Y%m%d-%H%M%S).jpg" ;;
