@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Add ?ts=<tag> to /a/*.js and /a/*.css references in every HTML page.
+
+usage: apply_asset_tag.py <tag|auto> <www root>
+
+With "auto", the tag is a hash of everything under <www root>/a, so it
+changes whenever any asset changes, whichever package installed it.
+"""
+import hashlib
 import pathlib
 import re
 import sys
@@ -20,6 +28,17 @@ def iter_pages(root: pathlib.Path) -> Iterable[pathlib.Path]:
             yield path
 
 
+def content_tag(root: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    assets = root / 'a'
+    for path in sorted(p for p in assets.rglob('*') if p.is_file()):
+        digest.update(path.relative_to(assets).as_posix().encode())
+        digest.update(b'\0')
+        digest.update(path.read_bytes())
+        digest.update(b'\0')
+    return digest.hexdigest()[:12]
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         return 0
@@ -30,10 +49,13 @@ def main() -> int:
     if not tag or not root.exists():
         return 0
 
+    if tag == 'auto':
+        tag = content_tag(root)
+
     for path in sorted(iter_pages(root)):
         try:
             content = path.read_text(encoding='utf-8')
-        except OSError:
+        except (OSError, UnicodeDecodeError):
             continue
 
         def replace_attr(match: re.Match[str]) -> str:
