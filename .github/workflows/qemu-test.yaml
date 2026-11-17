@@ -211,8 +211,8 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dnsmasq tcpdump libpixman-1-0 libslirp0 || \
-            sudo apt-get install -y --no-install-recommends dnsmasq tcpdump libpixman-1 libslirp0
+          sudo apt-get install -y --no-install-recommends dnsmasq tcpdump ffmpeg libpixman-1-0 libslirp0 || \
+            sudo apt-get install -y --no-install-recommends dnsmasq tcpdump ffmpeg libpixman-1 libslirp0
 
       - name: Fetch released QEMU pinned by the firmware hash
         run: |

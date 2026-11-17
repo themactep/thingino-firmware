@@ -236,6 +236,14 @@ textarea.nowrap {
   align-items: center;
 }
 
+@media (max-width: 991.98px) {
+  .card-header .preview-header-actions {
+    position: static;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+}
+
 .card-header .btn {
   --bs-btn-padding-y: 0.2rem;
   --bs-btn-padding-x: 0.4rem;
