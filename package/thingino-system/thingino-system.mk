@@ -103,6 +103,8 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/usr/sbin/soc; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/S03mac \
 			$(TARGET_DIR)/etc/init.d/S03mac; \
+		$(INSTALL) -D -m 0644 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/lib-serial-mac \
+			$(TARGET_DIR)/etc/init.d/lib-serial-mac; \
 		if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE)" = "y" ]; then \
 			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/usb-role \
 				$(TARGET_DIR)/usr/sbin/usb-role; \
