@@ -1,0 +1,23 @@
+From d8f4ebe55b45532b98fe394b316c1b82e38c64de Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Tue, 17 Nov 2026 01:35:13 -0800
+Subject: [PATCH] arm: na51055: include global_data.h in timer.c
+
+DECLARE_GLOBAL_DATA_PTR with no declaration in scope is an implicit int,
+an error since GCC 14.
+---
+ arch/arm/mach-novatek/nvt_na51055_a32/timer.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/mach-novatek/nvt_na51055_a32/timer.c b/arch/arm/mach-novatek/nvt_na51055_a32/timer.c
+index a82363bc7..593b5636f 100755
+--- a/arch/arm/mach-novatek/nvt_na51055_a32/timer.c
++++ b/arch/arm/mach-novatek/nvt_na51055_a32/timer.c
+@@ -12,6 +12,7 @@
+ */
+ 
+ #include <common.h>
++#include <asm/global_data.h>
+ #include <asm/armv7.h>
+ #include <asm/io.h>
+ #include <asm/arch-armv7/globaltimer.h>

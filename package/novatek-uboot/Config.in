@@ -1,0 +1,29 @@
+config BR2_PACKAGE_NOVATEK_UBOOT
+	bool "Novatek U-Boot"
+	depends on BR2_SOC_VENDOR_NOVATEK
+	select BR2_PACKAGE_HOST_DTC
+	help
+	  U-Boot from Novatek-OSS, built with thingino's boot environment.
+	  The vendor loader stays on flash and starts it: from the card's
+	  FW<model>T.BIN for an SD install, from the uboot partition for a
+	  flash install.
+
+if BR2_PACKAGE_NOVATEK_UBOOT
+
+choice
+	prompt "Boot media"
+	default BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD
+
+config BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD
+	bool "SD card"
+	select BR2_TARGET_ROOTFS_EXT2
+	select BR2_PACKAGE_HOST_GENIMAGE
+	select BR2_PACKAGE_HOST_DOSFSTOOLS
+	select BR2_PACKAGE_HOST_MTOOLS
+	help
+	  Kernel and device tree on the card's FAT partition, root on its
+	  second partition (ext4). Onboard flash is never written.
+
+endchoice
+
+endif
