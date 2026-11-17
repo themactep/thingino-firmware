@@ -10,19 +10,28 @@ var API_BASE =
   (window.network_address || location.hostname) +
   ":8080/api/v1/config";
 
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
+// The API key ("" when none is set), fetched once per page on first use.
+function thinginoApiKey() {
+  if (!window.__thinginoApiKeyPromise) {
+    window.__thinginoApiKeyPromise = fetch("/x/api-key.cgi", {
+      cache: "no-store",
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : {};
+      })
+      .then(function (d) {
+        return d && d.exists && d.api_key ? d.api_key : "";
+      })
+      .catch(function () {
+        return "";
+      });
+  }
+  return window.__thinginoApiKeyPromise;
+}
+window.thinginoApiKey = thinginoApiKey;
 
 async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
+  var key = await thinginoApiKey();
   options = options || {};
   options.headers = options.headers || {};
   if (key) options.headers["X-API-Key"] = key;
