@@ -319,6 +319,15 @@ define THINGINO_RAPTOR_INSTALL_PREVIEW
 endef
 THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW
 
+# Raptor's copy of the imaging script, installed over thingino-webui's for the
+# same reason as preview.html above. The noise-reduction fields are left to
+# streamer-image.js, so the common script stays streamer-agnostic.
+define THINGINO_RAPTOR_INSTALL_PREVIEW_JS
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/preview.js \
+		$(TARGET_DIR)/var/www/a/preview.js
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW_JS
+
 # Raptor-only send2 capture (copy_photo/copy_video via raptorctl/RMR). Installed
 # from a finalize hook so it wins over package/thingino-send2's prudynt default
 # regardless of package install order. On a raptor image this is the only
