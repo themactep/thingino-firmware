@@ -192,6 +192,7 @@ Write and action commands:
   service <name> <start|stop|restart>
   restart-streamer
   reboot
+  invalidate                    Drop cached reads after a change made outside agentctl
 
 The agent owns the external API. The single backend adapter selected at build
 time (by the streamer package) is loaded from /usr/libexec/agent/adapter.sh.
@@ -203,14 +204,20 @@ command=$1
 [ -n "$command" ] || usage
 shift
 
-# Writes invalidate any read cache the backend adapter keeps.
+# Writes invalidate cached reads. Mark the change before the write and again
+# on exit, so a read that raced the write can't publish what it saw. The
+# adapter's own cleanup runs from the same trap.
+agent_write_exit() {
+	agent_mark_changed exit
+	if command -v agent_adapter_exit >/dev/null 2>&1; then
+		agent_adapter_exit
+	fi
+}
+
 case "$command" in
 	set-setting | apply-config | record | privacy | daynight | service | restart-streamer)
-		# Drop it again on exit, so a read that raced the write can't keep it.
-		if command -v agent_cache_drop >/dev/null 2>&1; then
-			agent_cache_drop
-			trap agent_cache_drop EXIT
-		fi
+		agent_mark_changed start
+		trap agent_write_exit EXIT
 		;;
 esac
 
@@ -293,6 +300,9 @@ case "$command" in
 		;;
 	reboot)
 		agent_reboot
+		;;
+	invalidate)
+		agent_mark_changed now
 		;;
 	*)
 		usage
