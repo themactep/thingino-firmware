@@ -1,24 +1,7 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
-
-async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
-  options = options || {};
-  options.headers = options.headers || {};
-  if (key) options.headers["X-API-Key"] = key;
-  return fetch(url, options);
-}
+// apiFetch() and thinginoApiKey() come from main.js, which loads first.
 
 // Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
@@ -287,15 +270,9 @@ function updatePreviewEndpointState(msg) {
 }
 
 async function loadPreviewEndpointApiKey() {
-  try {
-    const response = await fetch("/x/api-key.cgi", { cache: "no-store" });
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.exists && data.api_key) {
-      previewEndpointApiKey = data.api_key;
-    }
-  } catch (err) {
-    console.warn("Could not load API key for preview endpoints:", err);
+  const key = await thinginoApiKey();
+  if (key) {
+    previewEndpointApiKey = key;
   }
 }
 
