@@ -1,0 +1,25 @@
+From 307c9ffd3ddea4f82203c77095ff813debe76e0c Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Mon, 16 Nov 2026 23:41:14 -0800
+Subject: [PATCH] hwrng: nvt: credit the TRNG to the input pool
+
+With no quality the hwrng core never starts khwrngd, so on a boot with
+no saved seed getrandom() blocks until interrupt timing fills the pool.
+700/1024: 64K samples had no repeats or zero words and do not compress.
+---
+ drivers/char/hw_random/nvt-rng.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/char/hw_random/nvt-rng.c b/drivers/char/hw_random/nvt-rng.c
+index 406e9631a..4bcaa4978 100755
+--- a/drivers/char/hw_random/nvt-rng.c
++++ b/drivers/char/hw_random/nvt-rng.c
+@@ -122,6 +122,8 @@ static int nvt_rng_probe(struct platform_device *pdev)
+ 	rng->rng.init = nvt_rng_init;
+ 	rng->rng.cleanup = nvt_rng_cleanup;
+ 	rng->rng.read = nvt_rng_read;
++	/* without a quality the core never feeds the input pool, and getrandom() blocks for minutes at boot */
++	rng->rng.quality = 700;
+ 
+ 	ret = devm_hwrng_register(&pdev->dev, &rng->rng);
+ 	if (ret) {
