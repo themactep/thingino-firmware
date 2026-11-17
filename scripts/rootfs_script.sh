@@ -23,6 +23,12 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
 fi
 
+# Both locations above are Ingenic layouts. Elsewhere mtd1 holds something else
+# (the device tree on Novatek), so fw_setenv must have nothing to write through.
+if ! grep -q "^BR2_SOC_VENDOR_INGENIC=y" "$BR2_CONFIG"; then
+	rm -f "${TARGET_DIR}/etc/fw_env.config"
+fi
+
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
