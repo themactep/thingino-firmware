@@ -95,6 +95,11 @@ endif
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif
+# Novatek kernels take the DTB the vendor loader hands over; board/novatek/post-image.sh builds
+# and packs it, so the kernel tree gets no copy.
+ifeq ($(SOC_VENDOR),novatek)
+CAMERA_DTS_FILE =
+endif
 ifneq ($(CAMERA_DTS_FILE),)
 ifneq ($(words $(CAMERA_DTS_FILE)),1)
 $(error Camera profile $(CAMERA) has more than one .dts file: $(CAMERA_DTS_FILE))

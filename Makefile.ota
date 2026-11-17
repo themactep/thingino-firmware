@@ -65,9 +65,16 @@ distclean: clean-nfs-debug
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 # assemble final images
-pack: $(FIRMWARE_BIN_FULL)
+ifeq ($(SOC_VENDOR),ingenic)
+PACK_DEPS := $(FIRMWARE_BIN_FULL)
+endif
+pack: $(PACK_DEPS)
 	@$(TEAL) "$@"
-ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+ifneq ($(SOC_VENDOR),ingenic)
+	@# Other vendors' images come from their Buildroot post-image script
+	@ls -l $(OUTPUT_DIR)/images
+	@$(ORANGE) "Camera: $(CAMERA)"
+else ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(ORANGE) "Camera: $(CAMERA) (MMC boot)"
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
