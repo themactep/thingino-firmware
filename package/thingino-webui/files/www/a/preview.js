@@ -1,19 +1,27 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
+// Only the legacy :8080 API needs the key; fetch it on first use.
+var API_KEY_PROMISE = null;
+
+function getApiKey() {
+  if (!API_KEY_PROMISE) {
+    API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        return d.exists && d.api_key ? d.api_key : "";
+      })
+      .catch(function () {
+        return "";
+      });
+  }
+  return API_KEY_PROMISE;
+}
 
 async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
+  var key = await getApiKey();
   options = options || {};
   options.headers = options.headers || {};
   if (key) options.headers["X-API-Key"] = key;
