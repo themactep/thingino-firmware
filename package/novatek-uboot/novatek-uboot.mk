@@ -4,10 +4,10 @@
 #
 ################################################################################
 
-# REL_NT98529_SDK_TK_20260109
-NOVATEK_UBOOT_VERSION = 738e681c46f09368e0178905c94676dc5c15e1e4
-NOVATEK_UBOOT_SITE = https://github.com/Novatek-OSS/u-boot/archive
-NOVATEK_UBOOT_SOURCE = $(NOVATEK_UBOOT_VERSION).tar.gz
+# Novatek's REL_NT98529_SDK_TK_20260109 (U-Boot 2021.10) with the thingino changes on top
+NOVATEK_UBOOT_SITE = https://github.com/gtxaspec/u-boot-novatek
+NOVATEK_UBOOT_SITE_METHOD = git
+NOVATEK_UBOOT_VERSION = d8f4ebe55b45532b98fe394b316c1b82e38c64de
 NOVATEK_UBOOT_LICENSE = GPL-2.0+
 NOVATEK_UBOOT_LICENSE_FILES = Licenses/gpl-2.0.txt
 NOVATEK_UBOOT_INSTALL_TARGET = YES
