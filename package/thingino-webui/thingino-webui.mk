@@ -370,6 +370,20 @@ define THINGINO_WEBUI_PARANOID_REWRITE
 endef
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
+# Final asset tag — the install-time tag above covers only this package's
+# pages and hashes only its own files/www/a mtimes. Streamer packages (raptor,
+# prudynt-t, timps) install their pages and /a/ scripts later, and the
+# paranoid rewrite adds /a/vendor references, so re-tag every page here with
+# a hash of the final /var/www/a. uhttpd caches /a/ (-M/-F, 0008), so a page
+# must reference a new URL whenever an asset changes. A precompressed .gz
+# copy, when one is added, has to be made after this hook.
+define THINGINO_WEBUI_FINAL_ASSET_TAG
+	python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py" auto "$(TARGET_DIR)/var/www"
+endef
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_FINAL_ASSET_TAG
+endif
+
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and re-applies
 # asset tags and CDN fallbacks.
