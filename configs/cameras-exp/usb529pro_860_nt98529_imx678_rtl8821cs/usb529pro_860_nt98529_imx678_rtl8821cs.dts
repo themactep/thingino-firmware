@@ -1051,8 +1051,8 @@
 			};
 
 			DIRECTION {
-				mirror = <0x01>;
-				flip = <0x01>;
+				mirror = <0x00>;
+				flip = <0x00>;
 			};
 
 			POWER {

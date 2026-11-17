@@ -53,6 +53,9 @@ define NOVATEK_HDAL_INSTALL_TARGET_CMDS
 	done
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib $(@D)/lib/*.so
 	$(INSTALL) -m 0644 $(@D)/sensor/sen_$(NOVATEK_HDAL_SENSOR).cfg $(TARGET_DIR)/etc/sensor/
+	if [ -f $(@D)/sensor/$(NOVATEK_HDAL_SENSOR)_isp.dtb ]; then \
+		$(INSTALL) -m 0644 $(@D)/sensor/$(NOVATEK_HDAL_SENSOR)_isp.dtb $(TARGET_DIR)/etc/sensor/; \
+	fi
 	# The camera's MIPI lane and pinmux wiring, read by the raptor HAL.
 	if [ -f $(dir $(CAMERA_CONFIG_REAL))$(NOVATEK_HDAL_SENSOR).pinmux ]; then \
 		$(INSTALL) -m 0644 $(dir $(CAMERA_CONFIG_REAL))$(NOVATEK_HDAL_SENSOR).pinmux \
