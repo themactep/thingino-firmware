@@ -154,7 +154,7 @@ if ha_entity_enabled ota; then
 		'' | *[!0-9]*) ota_check_interval=21600 ;;
 	esac
 	# Enforce a floor so firmware checks cannot accidentally be configured to
-	# hammer api.github.com through very small intervals.
+	# hammer the release endpoint through very small intervals.
 	[ "$ota_check_interval" -lt 300 ] && ota_check_interval=300
 
 	for f in /etc/os-release /usr/lib/os-release; do
@@ -208,10 +208,11 @@ if ha_entity_enabled ota; then
 
 	check_ok=0
 	if [ "$should_check" = "1" ] && command -v curl >/dev/null 2>&1; then
-		fetched=$(curl -sf --max-time 10 \
-			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
-			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' |
-			tr -cd '[:alnum:]._+-')
+		fetched=$(curl -sI --max-time 10 \
+			"https://github.com/themactep/thingino-firmware/releases/latest" \
+			2>/dev/null | tr -d '\r' |
+			awk 'BEGIN { IGNORECASE=1 } /^Location:/ { print; exit }' |
+			sed 's#.*/tag/##' | tr -cd '[:alnum:]._+-')
 		if [ -n "$fetched" ]; then
 			latest="$fetched"
 			check_ok=1
@@ -234,7 +235,11 @@ if ha_entity_enabled ota; then
 		printf '%s\n' "$next_check" >"$next_check_cache"
 	fi
 
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
+	if [ -n "$latest" ]; then
+		sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '$latest'"
+	else
+		sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m 'unknown'"
+	fi
 fi
 
 # Flush all queued state publishes with rate limiting.
