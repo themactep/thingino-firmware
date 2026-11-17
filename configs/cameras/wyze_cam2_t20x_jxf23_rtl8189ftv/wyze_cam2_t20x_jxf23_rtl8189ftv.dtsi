@@ -58,3 +58,8 @@
 		};
 	};
 };
+
+/* Speaker amplifier enable: PB31 (GPIO 63), active high (vendor spk_gpio). */
+&codec {
+	speaker-enable-gpios = <&gpb 31 GPIO_ACTIVE_HIGH>;
+};

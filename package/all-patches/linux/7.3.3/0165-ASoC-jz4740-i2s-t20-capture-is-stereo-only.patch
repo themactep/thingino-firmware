@@ -1,0 +1,89 @@
+From: Lu-Fi <noreply@github.com>
+Subject: [PATCH] ASoC: jz4740-i2s: the T20 AIC captures stereo only
+
+On the T20 the AIC receive mono mode (CTRL bits 13:12, used for the T31)
+has no effect: a mono capture still gets both I2S slots, so ALSA counted
+twice the frame rate (50 periods of 20 ms in 0.495 s at 16 kHz on a Wyze
+Cam v2; stereo capture runs at the right rate, 0.991 s). Add a T20
+compatible whose capture is stereo only, as on the JZ4740/JZ4770; the mic
+is in the right slot. Playback is unchanged (mono works).
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+diff -ruN a/arch/mips/boot/dts/ingenic/thingino-t20.dts b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+--- a/arch/mips/boot/dts/ingenic/thingino-t20.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+@@ -57,6 +57,11 @@
+ 	};
+ };
+ 
++/* The T20 AIC captures both I2S slots: stereo-only capture */
++&aic {
++	compatible = "ingenic,t20-i2s", "ingenic,t31-i2s";
++};
++
+ &exclk {
+ 	clock-frequency = <24000000>;
+ };
+diff -ruN a/Documentation/devicetree/bindings/sound/ingenic,aic.yaml b/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
+--- a/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
++++ b/Documentation/devicetree/bindings/sound/ingenic,aic.yaml
+@@ -28,6 +28,9 @@
+       - items:
+           - const: ingenic,jz4725b-i2s
+           - const: ingenic,jz4740-i2s
++      - items:
++          - const: ingenic,t20-i2s
++          - const: ingenic,t31-i2s
+ 
+   '#sound-dai-cells':
+     const: 0
+diff -ruN a/sound/soc/jz4740/jz4740-i2s.c b/sound/soc/jz4740/jz4740-i2s.c
+--- a/sound/soc/jz4740/jz4740-i2s.c
++++ b/sound/soc/jz4740/jz4740-i2s.c
+@@ -517,6 +517,37 @@
+ 	.codec_master_only	= true,
+ };
+ 
++/*
++ * The T20 AIC has no working receive mono mode (CTRL bits 13:12): a mono
++ * capture still gets both I2S slots, so ALSA saw twice the frame rate.
++ * Capture is stereo only, as on the JZ4740/JZ4770; the mic is the right
++ * slot.
++ */
++static struct snd_soc_dai_driver t20_i2s_dai = {
++	.playback = {
++		.channels_min = 1,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_CONTINUOUS,
++		.formats = JZ4740_I2S_FMTS,
++	},
++	.capture = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_CONTINUOUS,
++		.formats = JZ4740_I2S_FMTS,
++	},
++	.ops = &jz4740_i2s_dai_ops,
++};
++
++static const struct i2s_soc_info t20_i2s_soc_info = {
++	.dai			= &t20_i2s_dai,
++	.field_rx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 24, 27),
++	.field_tx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 16, 20),
++	.field_i2sdiv_capture	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 16, 24),
++	.field_i2sdiv_playback	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 8),
++	.codec_master_only	= true,
++};
++
+ static int jz4740_i2s_suspend(struct snd_soc_component *component)
+ {
+ 	struct jz4740_i2s *i2s = snd_soc_component_get_drvdata(component);
+@@ -620,6 +651,7 @@
+ 	{ .compatible = "ingenic,jz4770-i2s", .data = &jz4770_i2s_soc_info },
+ 	{ .compatible = "ingenic,jz4780-i2s", .data = &jz4780_i2s_soc_info },
+ 	{ .compatible = "ingenic,x1000-i2s", .data = &x1000_i2s_soc_info },
++	{ .compatible = "ingenic,t20-i2s", .data = &t20_i2s_soc_info },
+ 	{ .compatible = "ingenic,t31-i2s", .data = &t31_i2s_soc_info },
+ 	{ /* sentinel */ }
+ };
