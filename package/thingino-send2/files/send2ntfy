@@ -134,14 +134,24 @@ fi
 
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
+
+# temp snapshot/clip files carry no extension; name the attachment for ntfy
+attachment_name() {
+	case "$1" in
+		*/send2_photo.*) echo "photo-$(date +%Y%m%d-%H%M%S).jpg" ;;
+		*/send2_video.* | */send2_clip.*) echo "clip-$(date +%Y%m%d-%H%M%S).mp4" ;;
+		*) basename "$1" ;;
+	esac
+}
+
 if [ -n "$filename" ] && [ -f "$filename" ]; then
 	set -- "$@" -T "$filename" -H "Filename: $(basename "$filename")"
 elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	[ -f "$photo" ] && set -- "$@" -T "$photo" -H "Filename: $(basename "$photo")"
+	[ -f "$photo" ] && set -- "$@" -T "$photo" -H "Filename: $(attachment_name "$photo")"
 elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	[ -f "$video" ] && set -- "$@" -T "$video" -H "Filename: $(basename "$video")"
+	[ -f "$video" ] && set -- "$@" -T "$video" -H "Filename: $(attachment_name "$video")"
 fi
 
 set -- "$@" "$scheme://$host:$port/$topic"
