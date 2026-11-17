@@ -47,6 +47,11 @@ REPLACEMENTS = [
         r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/chart\.js@[^"]*?/dist/chart\.umd(?:\.min)?\.js"[^>]*></script>',
         re.IGNORECASE,
     ), '<script src="/a/vendor/chart.umd.min.js"></script>'),
+    # Chart.js injected with document.write (tool-sensor-data.html) → local
+    (re.compile(
+        r"document\.write\('<script src=\"https://cdn\.jsdelivr\.net/npm/chart\.js@[^\"]*?/dist/chart\.umd(?:\.min)?\.js\"><\\/script>'\);",
+        re.IGNORECASE,
+    ), "document.write('<script src=\"/a/vendor/chart.umd.min.js\"><\\/script>');"),
 ]
 
 HTML_EXTENSIONS = {'.html', '.htm'}
