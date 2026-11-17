@@ -329,6 +329,17 @@ function applyThemeAttribute(theme) {
   }
 
   document.documentElement.setAttribute("data-bs-theme", resolvedTheme);
+  syncThemeToggle();
+}
+
+// Keep the footer toggle's aria-pressed in step with the theme in force,
+// whoever changed it: a click, the cached theme or the server's answer.
+function syncThemeToggle() {
+  const themeBtn = $("#theme-toggle");
+  if (!themeBtn) return;
+  const dark =
+    document.documentElement.getAttribute("data-bs-theme") === "dark";
+  themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
 }
 
 function rememberThemeState(activeTheme, preferenceTheme) {
@@ -727,6 +738,7 @@ function toggleTheme() {
       img.alt = newTheme === "dark" ? "Light mode" : "Dark mode";
     }
   }
+  syncThemeToggle();
 }
 
 async function toggleButton(el) {
@@ -1081,8 +1093,8 @@ function updateHeartbeatUi(json) {
     const autoBtn = $("#auto");
     if (autoBtn) {
       autoBtn.classList.remove("pending");
-      autoBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        autoBtn,
         json.daynight_enabled === true || json.daynight_enabled === 1,
       );
     }
