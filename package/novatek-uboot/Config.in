@@ -26,6 +26,14 @@ config BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD
 	  Kernel and device tree on the card's FAT partition, root on its
 	  second partition (ext4). Onboard flash is never written.
 
+config BR2_PACKAGE_NOVATEK_UBOOT_BOOT_NAND
+	bool "SPI NAND"
+	select BR2_PACKAGE_HOST_MTD
+	help
+	  Device tree in the fdt partition, kernel and squashfs root in UBI
+	  volumes. The loader partition is never written: a card boot always
+	  recovers.
+
 endchoice
 
 endif

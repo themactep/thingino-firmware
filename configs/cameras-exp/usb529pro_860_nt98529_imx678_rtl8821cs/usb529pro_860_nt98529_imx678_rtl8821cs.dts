@@ -228,7 +228,8 @@
 
 		partition_loader {
 			label = "loader";
-			reg = <0x00 0x00 0x00 0x40000>;
+			reg = <0x00 0x0 0x00 0x40000>;
+			read-only;
 		};
 
 		partition_fdt {
@@ -251,46 +252,12 @@
 			reg = <0x00 0x1c0000 0x00 0x20000>;
 		};
 
-		partition_kernel {
-			label = "kernel";
-			reg = <0x00 0x1e0000 0x00 0x660000>;
+		partition_ubi {
+			label = "ubi";
+			reg = <0x00 0x1e0000 0x00 0x7e20000>;
 		};
 
-		partition_rootfs {
-			label = "rootfs";
-			reg = <0x00 0x840000 0x00 0x500000>;
-		};
-
-		partition_rootfs1 {
-			label = "rootfs1";
-			reg = <0x00 0xd40000 0x00 0x1800000>;
-		};
-
-		partition_pstore {
-			label = "pstore";
-			reg = <0x00 0x2540000 0x00 0x500000>;
-		};
-
-		partition_app {
-			label = "app";
-			reg = <0x00 0x2a40000 0x00 0xf00000>;
-		};
-
-		partition_fdt.app {
-			label = "fdt.app";
-			reg = <0x00 0x3940000 0x00 0x80000>;
-		};
-
-		partition_rtos {
-			label = "rtos";
-			reg = <0x00 0x39c0000 0x00 0xa00000>;
-		};
-
-		partition_all {
-			label = "all";
-			reg = <0x00 0x00 0x00 0x8000000>;
-		};
-
+		/* The loader finds U-Boot through this index (pack id -> partition) */
 		nvtpack {
 			ver = "NVTPACK_FW_INI_16072017";
 			method = <0x01>;
@@ -304,7 +271,7 @@
 
 				id1 {
 					partition_name = "fdt";
-					source_file = "nvt-na51055-evb.bin";
+					source_file = "board.dtb";
 				};
 
 				id2 {
@@ -323,38 +290,8 @@
 				};
 
 				id5 {
-					partition_name = "kernel";
-					source_file = "uImage.bin";
-				};
-
-				id6 {
-					partition_name = "rootfs";
-					source_file = "rootfs.ramdisk.bin";
-				};
-
-				id7 {
-					partition_name = "rootfs1";
-					source_file = "rootfs_1.rw.ubifs.bin";
-				};
-
-				id8 {
-					partition_name = "pstore";
-					source_file = [00];
-				};
-
-				id9 {
-					partition_name = "app";
-					source_file = "appfs.cardv.ubifs.nand.bin";
-				};
-
-				id10 {
-					partition_name = "fdt.app";
-					source_file = "../application.bin";
-				};
-
-				id11 {
-					partition_name = "rtos";
-					source_file = "../rtos-main.bin";
+					partition_name = "ubi";
+					source_file = "ubi.img";
 				};
 			};
 		};
@@ -1312,10 +1249,6 @@
 
 		fdt {
 			reg = <0x1800000 0x40000>;
-		};
-
-		rtos {
-			reg = <0x1840000 0x780000>;
 		};
 
 		bridge {

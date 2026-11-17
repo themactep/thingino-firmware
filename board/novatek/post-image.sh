@@ -1,6 +1,7 @@
 #!/bin/sh
 # Novatek images: the camera's DTB; FW<model>T.BIN (DTB + U-Boot), which the vendor loader boots
-# from a card; sdcard.img for an SD install; rootfs.img (the squashfs as a U-Boot ramdisk) for netboot.
+# from a card; sdcard.img for an SD install; autoupdate-full.bin (NAND from the fdt partition up) for a
+# flash install; rootfs.img (the squashfs as a U-Boot ramdisk) for netboot.
 set -e
 
 BIN="$1"
@@ -32,4 +33,41 @@ if [ "$(cfg BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD)" = "y" ]; then
 	}
 	EOF
 	support/scripts/genimage.sh -c "$BIN/genimage-sd.cfg"
+fi
+
+if [ "$(cfg BR2_PACKAGE_NOVATEK_UBOOT_BOOT_NAND)" = "y" ]; then
+	# Offsets from the DT's NAND map, relative to the fdt partition: the loader (first 256 KiB) is
+	# never part of the image
+	cat >"$BIN/ubinize.cfg" <<-EOF
+	[kernel]
+	mode=ubi
+	vol_id=0
+	vol_type=static
+	vol_name=kernel
+	image=$BIN/uImage
+	[rootfs]
+	mode=ubi
+	vol_id=1
+	vol_type=static
+	vol_name=rootfs
+	image=$BIN/rootfs.squashfs
+	[overlay]
+	mode=ubi
+	vol_id=2
+	vol_type=dynamic
+	vol_name=overlay
+	vol_size=1MiB
+	vol_flags=autoresize
+	EOF
+	"$HOST_DIR/sbin/ubinize" -o "$BIN/ubi.img" -p 128KiB -m 2048 "$BIN/ubinize.cfg"
+
+	AU="$BIN/autoupdate-full.bin"
+	ff() { dd if=/dev/zero bs=1024 count=$(($1 / 1024)) 2>/dev/null | tr '\000' '\377'; }
+	put() { dd if="$1" of="$AU" bs=1024 seek=$(($2 / 1024)) conv=notrunc 2>/dev/null; }
+	ff 0x1a0000 >"$AU"
+	put "$BIN/board.dtb" 0x0
+	put "$BIN/u-boot.bin" 0x80000
+	put "$BIN/ubi.img" 0x1a0000
+	size=$(stat -c %s "$AU")
+	ff $(((0x20000 - size % 0x20000) % 0x20000)) >>"$AU"
 fi
