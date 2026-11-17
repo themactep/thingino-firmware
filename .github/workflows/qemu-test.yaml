@@ -4,7 +4,7 @@ on:
     inputs:
       profiles:
         type: string
-        description: 'Space-separated test profiles to build and run'
+        description: 'Space-separated test profiles to build and run, or "all" for every qemu_* profile'
         required: false
         default: 'qemu_t31x qemu_t31x_eth qemu_t31x_ethwifi'
       runner_arch:
@@ -15,6 +15,11 @@ on:
         options:
           - arm64
           - x86_64
+      publish:
+        type: boolean
+        description: 'Publish the built images to a qemu-images-YYYY-MM-DD pre-release (never latest)'
+        required: false
+        default: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -28,11 +33,21 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - name: Checkout profile list
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: "1"
+          sparse-checkout: configs/cameras-testing
+
       - name: Generate profile matrix
         id: set-matrix
         run: |
+          PROFILES="${{ github.event.inputs.profiles }}"
+          if [ "$PROFILES" = "all" ]; then
+            PROFILES=$(cd configs/cameras-testing && ls -d qemu_* | sort | tr '\n' ' ')
+          fi
           JSON="{\"profile\": ["
-          for P in ${{ github.event.inputs.profiles }}; do
+          for P in $PROFILES; do
             JSON+="\"$P\","
           done
           JSON="${JSON%,}]}"
@@ -236,3 +251,52 @@ jobs:
           name: qemu-test-report-${{ matrix.profile }}
           path: ${{ github.workspace }}/output/**/qemu-test-reports/${{ matrix.profile }}/
           if-no-files-found: warn
+
+  publish:
+    name: publish images
+    needs: [plan, build]
+    if: ${{ !cancelled() && github.event.inputs.publish == 'true' }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download built images
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: qemu-test-image-*
+          path: staging
+          merge-multiple: true
+
+      - name: Publish a qemu-images pre-release
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          cd staging
+          find . -mindepth 2 -type f -name 'thingino-qemu_*.bin' -exec mv {} . \;
+          ls thingino-qemu_*.bin > /dev/null
+          sha256sum thingino-qemu_*.bin > SHA256SUMS
+          cat SHA256SUMS
+          BASE="qemu-images-$(date -u +%Y-%m-%d)"
+          TAG="$BASE"
+          N=2
+          while gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; do
+            TAG="$BASE-$N"
+            N=$((N + 1))
+          done
+          BUILT=$(ls thingino-qemu_*.bin | sed 's/^thingino-//; s/\.bin$//' | tr '\n' ' ')
+          MISSING=""
+          for P in $(echo '${{ needs.plan.outputs.matrix }}' | jq -r '.profile[]'); do
+            [ -f "thingino-$P.bin" ] || MISSING="$MISSING $P"
+          done
+          {
+            echo "QEMU test images built from ${{ github.sha }} (${{ github.ref_name }})."
+            echo
+            echo "Built: $BUILT"
+            [ -z "$MISSING" ] || echo "Not built:$MISSING"
+            echo
+            echo "For the Ingenic QEMU fork's functional tests, pinned by SHA256SUMS. Not a camera firmware release: do not flash."
+          } > notes.md
+          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" \
+            --title "$TAG" --notes-file notes.md --prerelease --latest=false \
+            thingino-qemu_*.bin SHA256SUMS
+          echo "Published $TAG"
