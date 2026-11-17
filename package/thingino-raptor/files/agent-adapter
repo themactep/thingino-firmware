@@ -6,7 +6,7 @@ THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 
 # The adapter owns the EXIT trap of the agentctl shell that sources it.
-trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$' EXIT
+trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$ /tmp/agent-raptor-rvdconfig.$$' EXIT
 
 agent_name() {
 	printf 'raptor'
@@ -562,7 +562,7 @@ agent_wb_mode_raw() {
 }
 
 agent_wb_gain_raw() {
-	# $1 = r|b — prefer live get-wb, then ISP, then persisted image.wb_{r,b}
+	# $1 = r|b - prefer live get-wb, then ISP, then persisted image.wb_{r,b}
 	channel=$1
 	wb=$(agent_wb_json)
 	if [ -n "$wb" ]; then
@@ -806,6 +806,123 @@ agent_privacy_enabled() {
 	printf 'false'
 }
 
+agent_runtime_stream_json() {
+	_rvd_cache="/tmp/agent-raptor-rvdconfig.$$"
+	if [ ! -e "$_rvd_cache" ]; then
+		command -v raptorctl >/dev/null 2>&1 || return 1
+		raptorctl rvd config 2>/dev/null |
+			sed -n '/"streams"[[:space:]]*:/,$p' >"$_rvd_cache"
+	fi
+	[ -s "$_rvd_cache" ] || return 1
+	cat "$_rvd_cache" 2>/dev/null
+}
+
+agent_runtime_stream_field() {
+	json=$(agent_runtime_stream_json) || return 0
+	[ -n "$json" ] || return 0
+	printf '%s' "$json" | tr -d '\n' |
+		awk -v chn="$1" -v field="$2" '
+		{
+			if (chn !~ /^[0-9]+$/ || field !~ /^[A-Za-z_][A-Za-z_0-9]*$/) exit
+			line = $0
+			pat = "\"chn\""
+			plen = length(pat)
+			while ((pos = index(line, pat)) > 0) {
+				p = pos + plen
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				if (substr(line, p, 1) != ":") {
+					line = substr(line, pos + plen)
+					continue
+				}
+				p++
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				id = ""
+				while (substr(line, p, 1) ~ /[0-9]/) {
+					id = id substr(line, p, 1)
+					p++
+				}
+				if (id == "" || id + 0 != chn + 0) {
+					line = substr(line, pos + plen)
+					continue
+				}
+				obr = 0
+				for (i = pos; i > 0; i--) {
+					if (substr(line, i, 1) == "{") {
+						obr = i
+						break
+					}
+				}
+				obj = ""
+				if (obr > 0) {
+					depth = 0
+					for (i = obr; i <= length(line); i++) {
+						c = substr(line, i, 1)
+						if (c == "{") {
+							depth++
+						} else if (c == "}") {
+							depth--
+							if (depth == 0) {
+								obj = substr(line, obr, i - obr + 1)
+								break
+							}
+						}
+					}
+				}
+				obj_rest_offset = 1
+				while (match(substr(obj, obj_rest_offset), "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
+					# top-level fields only: match must sit at brace depth 1
+					mstart = obj_rest_offset + RSTART - 1
+					depth = 0
+					for (j = 1; j < mstart; j++) {
+						c = substr(obj, j, 1)
+						if (c == "{") depth++
+						else if (c == "}") depth--
+					}
+					if (depth == 1) {
+						value = substr(obj, mstart, RLENGTH)
+						sub(/^.*:[ \t]*/, "", value)
+						print value
+						exit
+					}
+					obj_rest_offset = mstart + RLENGTH
+				}
+				line = substr(line, pos + plen)
+			}
+			exit
+		}'
+}
+
+agent_runtime_codec_name() {
+	codec=$(agent_runtime_stream_field "$1" codec)
+	case "$codec" in
+		0) printf 'H264' ;;
+		1) printf 'H265' ;;
+		2) printf 'JPEG' ;;
+		3) printf 'MJPEG' ;;
+	esac
+}
+
+agent_runtime_rc_mode_name() {
+	rc=$(agent_runtime_stream_field "$1" rc_mode)
+	case "$rc" in
+		0) printf 'FIXQP' ;;
+		1) printf 'CBR' ;;
+		2) printf 'VBR' ;;
+		3) printf 'SMART' ;;
+		4) printf 'CAPPED_VBR' ;;
+		5) printf 'CAPPED_QUALITY' ;;
+	esac
+}
+
+agent_runtime_profile_name() {
+	profile=$(agent_runtime_stream_field "$1" profile)
+	case "$profile" in
+		0) printf 'baseline' ;;
+		1) printf 'main' ;;
+		2) printf 'high' ;;
+	esac
+}
+
 agent_stream_section() {
 	printf 'stream%s' "$1"
 }
@@ -827,6 +944,25 @@ agent_stream_field() {
 	stream_id=$1
 	field=$2
 	agent_config_get "$(agent_stream_section "$stream_id")" "$field"
+}
+
+agent_stream_nr_vbs() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	value=$(agent_stream_field "$1" nr_vbs)
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	value=$(agent_runtime_stream_field "$1" nr_vbs)
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	printf '2'
 }
 
 agent_stream_format() {
@@ -1049,21 +1185,43 @@ agent_print_stream_config() {
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$(agent_stream_enabled "$stream_id")"
 	printf '"audio_enabled":%s,' "$(agent_stream_audio_enabled)"
-	printf '"width":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"gop":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
-	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+	_width=$(agent_stream_field "$stream_id" width)
+	[ -n "$_width" ] || _width=$(agent_runtime_stream_field "$stream_id" w)
+	printf '"width":%s,' "$(agent_json_value_or "$_width" null)"
+	_height=$(agent_stream_field "$stream_id" height)
+	[ -n "$_height" ] || _height=$(agent_runtime_stream_field "$stream_id" h)
+	printf '"height":%s,' "$(agent_json_value_or "$_height" null)"
+	_fps=$(agent_stream_field "$stream_id" fps)
+	[ -n "$_fps" ] || _fps=$(agent_runtime_stream_field "$stream_id" fps)
+	printf '"fps":%s,' "$(agent_json_value_or "$_fps" null)"
+	_bitrate=$(agent_stream_field "$stream_id" bitrate)
+	[ -n "$_bitrate" ] || _bitrate=$(agent_runtime_stream_field "$stream_id" bitrate)
+	printf '"bitrate":%s,' "$(agent_json_value_or "$_bitrate" null)"
+	_gop=$(agent_stream_field "$stream_id" gop)
+	[ -n "$_gop" ] || _gop=$(agent_runtime_stream_field "$stream_id" gop)
+	printf '"gop":%s,' "$(agent_json_value_or "$_gop" null)"
+	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_nr_vbs "$stream_id")" null)"
 	_profile_raw=$(agent_stream_field "$stream_id" profile)
+	_profile_name=""
 	if [ -n "$_profile_raw" ]; then
-		printf '"profile":%s,' "$(agent_json_string "$(agent_profile_to_name "$_profile_raw")")"
+		_profile_name=$(agent_profile_to_name "$_profile_raw")
+	elif _profile_name=$(agent_runtime_profile_name "$stream_id") && [ -n "$_profile_name" ]; then
+		:
+	else
+		_profile_name=""
+	fi
+	if [ -n "$_profile_name" ]; then
+		printf '"profile":%s,' "$(agent_json_string "$_profile_name")"
 	else
 		printf '"profile":null,'
 	fi
 	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")")"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_format "$stream_id")")"
-	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_mode "$stream_id")")"
+	_format=$(agent_stream_format "$stream_id")
+	[ -n "$_format" ] || _format=$(agent_runtime_codec_name "$stream_id")
+	printf '"format":%s,' "$(agent_json_string_or_null "$_format")"
+	_mode=$(agent_stream_mode "$stream_id")
+	[ -n "$_mode" ] || _mode=$(agent_runtime_rc_mode_name "$stream_id")
+	printf '"mode":%s,' "$(agent_json_string_or_null "$_mode")"
 	printf '"osd":'
 	agent_print_stream_osd "$stream_id"
 	printf '}'
@@ -1710,7 +1868,7 @@ agent_send2_motion_set() {
 
 # Map canonical OSD leaf paths onto raptor's global [osd] / [osd.<element>] model.
 # Raptor OSD is mostly global; streamN only owns osd_enabled. Stream-scoped agent
-# paths still work — both streams read/write the same global element config.
+# paths still work: both streams read/write the same global element config.
 agent_osd_element_name() {
 	case "$1" in
 		time) printf 'timestamp' ;;
@@ -2353,7 +2511,7 @@ agent_get_setting() {
 		streams/[01]/buffers)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/buffers}
-			agent_print_setting_leaf buffers "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+			agent_print_setting_leaf buffers "$(agent_stream_nr_vbs "$stream_id")"
 			;;
 		streams/[01]/profile)
 			stream_id=${path#streams/}
@@ -3130,7 +3288,7 @@ agent_privacy() {
 	}
 
 	# Privacy state lives in RVD (rod privacy is redirected). Capture the
-	# command response — status queries do not include the privacy array.
+	# command response: status queries do not include the privacy array.
 	if [ "$channel" = "all" ]; then
 		resp=$(raptorctl rod privacy "$state" 2>/dev/null) || return 1
 	else
