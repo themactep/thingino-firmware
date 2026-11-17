@@ -3,6 +3,9 @@
 PORTAL_MODE_FLAG="/run/portal_mode"
 
 start() {
+	# No U-Boot env to mark (SoCs without fw_env.config)
+	[ -f /etc/fw_env.config ] || return 0
+
 	echo -c 15 "Checking sysupgrade"
 
 	if [ "true" != "$(fw_printenv -n sysupgrade_complete)" ]; then
