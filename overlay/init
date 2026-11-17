@@ -138,9 +138,9 @@ mount -t proc proc /proc ||
 if grep -q 'root=/dev/ram' /proc/cmdline; then
 	mount -t tmpfs -o mode=0755 tmpfs /overlay ||
 		die "Failed to mount tmpfs overlay!"
-# Skip if rootfs is NFS, MMC or RAM
+# NFS, MMC and RAM roots are writable as they are: no overlay, straight to /sbin/init
 elif grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
-	die "Not an MTD RootFS!"
+	exit 0
 # Mount data partition (single overlay covering whole filesystem)
 elif grep -q 'ubi\.mtd=' /proc/cmdline; then
 	mount_ubifs overlay /overlay
