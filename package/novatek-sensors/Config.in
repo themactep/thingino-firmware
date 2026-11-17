@@ -1,0 +1,9 @@
+config BR2_PACKAGE_NOVATEK_SENSORS
+	bool "Novatek sensor drivers"
+	depends on BR2_SOC_VENDOR_NOVATEK
+	depends on BR2_LINUX_KERNEL
+	help
+	  Image sensor driver for the camera's BR2_SENSOR_1_NAME, built
+	  from source against this kernel and the vendor HDAL modules.
+
+	  https://github.com/gtxaspec/novatek-sensors

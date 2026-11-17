@@ -1,6 +1,7 @@
 config BR2_PACKAGE_NOVATEK_HDAL
 	bool "Novatek HDAL"
 	depends on BR2_SOC_VENDOR_NOVATEK
+	select BR2_PACKAGE_NOVATEK_SENSORS
 	help
 	  Novatek's prebuilt media stack: HDAL kernel modules, libhdal and
 	  the vendor ISP libraries, the sensor driver and its config, loaded

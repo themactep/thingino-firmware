@@ -17,6 +17,7 @@ endif
 NOVATEK_HDAL_SENSOR = $(call qstrip,$(BR2_SENSOR_1_NAME))
 NOVATEK_HDAL_MODDIR = $(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)
 
+# The sensor driver itself comes from novatek-sensors, built from source.
 # Stock's load order (S10_SysInit2). The *_id_list masks are what stock
 # passes on NA51084-class chips such as the NT98529.
 define NOVATEK_HDAL_MODULES_D
@@ -47,8 +48,7 @@ define NOVATEK_HDAL_INSTALL_TARGET_CMDS
 		kflow_videocapture/kflow_videocapture.ko kflow_videoprocess/kflow_videoprocess.ko \
 		kdrv_gfx2d/kdrv_affine/affine_neon/kdrv_afn_neon.ko kdrv_gfx2d/kdrv_affine/kdrv_afn.ko \
 		kflow_gfx/nvt_gfx.ko kdrv_videocodec/kdrv_h26x.ko nvt_vencrc/nvt_vencrc.ko \
-		kflow_videoenc/unit/kflow_videoenc.ko isp/nvt_isp.ko awb/nvt_awb.ko iq/nvt_iq.ko ae/nvt_ae.ko \
-		sen_$(NOVATEK_HDAL_SENSOR)/nvt_sen_$(NOVATEK_HDAL_SENSOR).ko; do \
+		kflow_videoenc/unit/kflow_videoenc.ko isp/nvt_isp.ko awb/nvt_awb.ko iq/nvt_iq.ko ae/nvt_ae.ko; do \
 		$(INSTALL) -D -m 0644 $$m $(NOVATEK_HDAL_MODDIR)/hdal/$$m || exit 1; \
 	done
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib $(@D)/lib/*.so
