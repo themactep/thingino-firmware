@@ -1,0 +1,13 @@
+#!/bin/sh
+# libhdal reads the kernel memory map from /sys/kernel/debug/memblock.
+
+case "$1" in
+	start)
+		grep -q ' /sys/kernel/debug ' /proc/mounts || mount -t debugfs debugfs /sys/kernel/debug
+		;;
+	stop | restart) ;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

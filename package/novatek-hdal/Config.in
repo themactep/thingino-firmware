@@ -1,0 +1,18 @@
+config BR2_PACKAGE_NOVATEK_HDAL
+	bool "Novatek HDAL"
+	depends on BR2_SOC_VENDOR_NOVATEK
+	help
+	  Novatek's prebuilt media stack: HDAL kernel modules, libhdal and
+	  the vendor ISP libraries, the sensor driver and its config, loaded
+	  at boot through /etc/modules.d.
+
+if BR2_PACKAGE_NOVATEK_HDAL
+
+config BR2_PACKAGE_NOVATEK_HDAL_BLOBS
+	string "Vendor blob directory"
+	help
+	  Local directory holding the vendor files: hdal/ and vos/ (modules),
+	  lib/ (libraries), sensor/ (sen_<sensor>.cfg). Set it in
+	  user/<camera>/local.fragment.
+
+endif
