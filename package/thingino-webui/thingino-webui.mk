@@ -385,6 +385,20 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_FINAL_ASSET_TAG
 endif
 
+# Pre-compress text assets for uhttpd -z (thingino-uhttpd 0009), only when
+# BR2_PACKAGE_THINGINO_UHTTPD_GZIP_STATIC is on: other web servers don't serve
+# .gz siblings, and the copies cost about 300 KiB of flash. Runs after the
+# final asset tag so the .gz matches the final file; the .gz takes the
+# original's mtime, and uhttpd ignores a .gz older than its file.
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_GZIP_STATIC),y)
+define THINGINO_WEBUI_PRECOMPRESS
+	find $(TARGET_DIR)/var/www -type f \( -name '*.js' -o -name '*.css' \
+		-o -name '*.html' -o -name '*.svg' -o -name '*.json' \) -size +1k \
+		! -path '*/onvif/*' -exec sh -c 'gzip -9 -n -k -f "$$1" && touch -r "$$1" "$$1.gz"' _ {} \;
+endef
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PRECOMPRESS
+endif
+
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and re-applies
 # asset tags and CDN fallbacks.
