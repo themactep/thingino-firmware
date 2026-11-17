@@ -16,17 +16,18 @@ The header is sent on 200 and 304 responses. CGI, directory listings and
 error responses are unchanged. Without -M nothing changes.
 
 diff --git a/file.c b/file.c
-index b6dbc27..8a82ff5 100644
+index b6dbc27..23b7671 100644
 --- a/file.c
 +++ b/file.c
-@@ -353,6 +353,23 @@ static char *uh_file_header(struct client *cl, int idx)
+@@ -353,6 +353,30 @@ static char *uh_file_header(struct client *cl, int idx)
  	return (char *) blobmsg_data(cl->dispatch.file.hdr[idx]);
  }
  
 +/* Cache-Control for a static file: -1 sends no header, 0 sends no-cache,
 + * anything else is a max-age in seconds. With -F, only files under the
 + * prefix get the max-age; the rest get no-cache, so a page is revalidated
-+ * and picks up new asset URLs. */
++ * and picks up new asset URLs. A prefix that does not end in / matches
++ * whole path components, so -F /a does not match /abc. */
 +static int uh_file_max_age(struct path_info *pi)
 +{
 +	const char *prefix = conf.static_max_age_prefix;
@@ -34,8 +35,14 @@ index b6dbc27..8a82ff5 100644
 +	if (conf.static_max_age < 0)
 +		return -1;
 +
-+	if (prefix && strncmp(pi->name, prefix, strlen(prefix)))
-+		return 0;
++	if (prefix) {
++		size_t len = strlen(prefix);
++
++		if (strncmp(pi->name, prefix, len) ||
++		    (len && prefix[len - 1] != '/' && pi->name[len] != '\0' &&
++		     pi->name[len] != '/'))
++			return 0;
++	}
 +
 +	return conf.static_max_age;
 +}
@@ -43,7 +50,7 @@ index b6dbc27..8a82ff5 100644
  static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
  {
  	char buf[128];
-@@ -361,6 +378,11 @@ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
+@@ -361,6 +385,11 @@ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
  		ustream_printf(cl->us, "ETag: %s\r\n", uh_file_mktag(s, buf, sizeof(buf)));
  		ustream_printf(cl->us, "Last-Modified: %s\r\n",
  			       uh_file_unix2date(s->st_mtime, buf, sizeof(buf)));
@@ -55,7 +62,7 @@ index b6dbc27..8a82ff5 100644
  	}
  	ustream_printf(cl->us, "Date: %s\r\n",
  		       uh_file_unix2date(time(NULL), buf, sizeof(buf)));
-@@ -705,6 +727,7 @@ static void uh_file_request(struct client *cl, const char *url,
+@@ -705,6 +734,7 @@ static void uh_file_request(struct client *cl, const char *url,
  
  		req->disable_chunked = true;
  		cl->dispatch.file.hdr = tb;
