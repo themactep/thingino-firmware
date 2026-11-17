@@ -1319,10 +1319,10 @@
 		adoenc_maxpath = <0x01>;
 		adodec_maxpath = <0x01>;
 		gfx_maxjob = <0x02>;
-		stamp_maximg = <0x04>;
+		stamp_maximg = <0x20>;
 		vdoprc_maxstamp = <0x04 0x04>;
 		vdoprc_maxmask = <0x04 0x04>;
-		vdoenc_maxstamp = <0x04 0x04>;
+		vdoenc_maxstamp = <0x20 0x10>;
 		vdoenc_maxmask = <0x00 0x40>;
 		vdoout_maxstamp = <0x00 0x10>;
 		vdoout_maxmask = <0x00 0x40>;
