@@ -24,9 +24,14 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 fi
 
 # Both locations above are Ingenic layouts. Elsewhere mtd1 holds something else
-# (the device tree on Novatek), so fw_setenv must have nothing to write through.
+# (the device tree on Novatek): use the location the vendor's bootloader package
+# ships, or leave fw_setenv nothing to write through.
 if ! grep -q "^BR2_SOC_VENDOR_INGENIC=y" "$BR2_CONFIG"; then
-	rm -f "${TARGET_DIR}/etc/fw_env.config"
+	if [ -f "${TARGET_DIR}/usr/share/u-boot/fw_env.config" ]; then
+		mv "${TARGET_DIR}/usr/share/u-boot/fw_env.config" "${TARGET_DIR}/etc/fw_env.config"
+	else
+		rm -f "${TARGET_DIR}/etc/fw_env.config"
+	fi
 fi
 
 cd $BR2_EXTERNAL

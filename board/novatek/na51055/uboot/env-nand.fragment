@@ -1,0 +1,8 @@
+# Flash install: environment in the uenv partition
+# CONFIG_ENV_IS_NOWHERE is not set
+CONFIG_ENV_IS_IN_NAND=y
+CONFIG_ENV_OFFSET=0x1c0000
+CONFIG_ENV_SIZE=0x10000
+CONFIG_ENV_RANGE=0x20000
+# envinit drops the vendor driver's fixed fallback MAC before the first save
+CONFIG_ENV_OVERWRITE=y

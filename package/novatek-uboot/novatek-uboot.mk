@@ -10,16 +10,17 @@ NOVATEK_UBOOT_SITE = https://github.com/Novatek-OSS/u-boot/archive
 NOVATEK_UBOOT_SOURCE = $(NOVATEK_UBOOT_VERSION).tar.gz
 NOVATEK_UBOOT_LICENSE = GPL-2.0+
 NOVATEK_UBOOT_LICENSE_FILES = Licenses/gpl-2.0.txt
-NOVATEK_UBOOT_INSTALL_TARGET = NO
+NOVATEK_UBOOT_INSTALL_TARGET = YES
 NOVATEK_UBOOT_INSTALL_IMAGES = YES
 
 NOVATEK_UBOOT_BOARD_DIR = $(BR2_EXTERNAL_THINGINO_PATH)/board/novatek/$(SOC_FAMILY)/uboot
 
 ifeq ($(BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD),y)
-NOVATEK_UBOOT_ENV = $(NOVATEK_UBOOT_BOARD_DIR)/sd.env
+NOVATEK_UBOOT_MEDIA = sd
 else ifeq ($(BR2_PACKAGE_NOVATEK_UBOOT_BOOT_NAND),y)
-NOVATEK_UBOOT_ENV = $(NOVATEK_UBOOT_BOARD_DIR)/nand.env
+NOVATEK_UBOOT_MEDIA = nand
 endif
+NOVATEK_UBOOT_ENV = $(NOVATEK_UBOOT_BOARD_DIR)/$(NOVATEK_UBOOT_MEDIA).env
 
 NOVATEK_UBOOT_MAKE_OPTS = \
 	ARCH=arm \
@@ -31,7 +32,8 @@ NOVATEK_UBOOT_MAKE_OPTS = \
 define NOVATEK_UBOOT_CONFIGURE_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) $(NOVATEK_UBOOT_MAKE_OPTS) nvt-na51055_a32_nand_defconfig
 	cd $(@D) && ARCH=arm scripts/kconfig/merge_config.sh -m .config \
-		$(NOVATEK_UBOOT_BOARD_DIR)/thingino.fragment
+		$(NOVATEK_UBOOT_BOARD_DIR)/thingino.fragment \
+		$(NOVATEK_UBOOT_BOARD_DIR)/env-$(NOVATEK_UBOOT_MEDIA).fragment
 	echo 'CONFIG_DEFAULT_ENV_FILE="$(NOVATEK_UBOOT_ENV)"' >> $(@D)/.config
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) $(NOVATEK_UBOOT_MAKE_OPTS) olddefconfig
 endef
@@ -44,6 +46,13 @@ endef
 define NOVATEK_UBOOT_INSTALL_IMAGES_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/u-boot.bin $(BINARIES_DIR)/u-boot.bin
 	python3 $(BR2_EXTERNAL_THINGINO_PATH)/scripts/nvtpack.py binsum $(BINARIES_DIR)/u-boot.bin
+endef
+
+# fw_printenv/fw_setenv reach the same environment U-Boot keeps; the overlay carries an
+# Ingenic /etc/fw_env.config, so scripts/rootfs_script.sh moves this one over it
+define NOVATEK_UBOOT_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0644 $(NOVATEK_UBOOT_BOARD_DIR)/fw_env-$(NOVATEK_UBOOT_MEDIA).config \
+		$(TARGET_DIR)/usr/share/u-boot/fw_env.config
 endef
 
 $(eval $(generic-package))

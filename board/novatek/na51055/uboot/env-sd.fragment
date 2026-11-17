@@ -1,0 +1,9 @@
+# SD install: environment raw on the card, in the gap before the first partition (1 MiB)
+# CONFIG_ENV_IS_NOWHERE is not set
+CONFIG_ENV_IS_IN_MMC=y
+CONFIG_SYS_MMC_ENV_DEV=0
+CONFIG_SYS_MMC_ENV_PART=0
+CONFIG_ENV_OFFSET=0x80000
+CONFIG_ENV_SIZE=0x10000
+# envinit drops the vendor driver's fixed fallback MAC before the first save
+CONFIG_ENV_OVERWRITE=y
