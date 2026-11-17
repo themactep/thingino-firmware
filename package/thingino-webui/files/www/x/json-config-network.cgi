@@ -181,15 +181,19 @@ is_iface_dhcp() {
 }
 
 setup_dns() {
-	local primary="$1" secondary="$2"
+	local primary="$1" secondary="$2" conf="/etc/default/resolv.conf" tmp
+	tmp="$conf.tmp.$$"
 	[ -d "/etc/default" ] || mkdir -p /etc/default
-	{
+	if {
 		echo "# set from web ui"
 		for ip in $primary $secondary; do
-			[ -n "$ip" ] && echo "nameserver $ip"
+			echo "nameserver $ip"
 		done
-	} >/etc/default/resolv.conf.tmp.$$ &&
-		mv -f /etc/default/resolv.conf.tmp.$$ /etc/default/resolv.conf
+	} >"$tmp" && mv -f "$tmp" "$conf"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	return 1
 }
 
 setup_iface() {
@@ -200,8 +204,11 @@ setup_iface() {
 	local gateway=$5
 	local broadcast=$6
 	local ipv6=${7:-false}
+	local path tmp
+	path=$(iface_path "$interface")
+	tmp="$path.tmp.$$"
 
-	{
+	if {
 		printf 'auto %s\n' "$interface"
 		printf 'iface %s inet %s\n' "$interface" "$mode"
 		if [ "$mode" = "static" ]; then
@@ -211,14 +218,12 @@ setup_iface() {
 			[ -n "$broadcast" ] && printf '\tbroadcast %s\n' "$broadcast"
 		fi
 		printf '\tdhcp-v6-enabled %s\n' "$ipv6"
-	} >"$(iface_path "$interface").tmp.$$" &&
-		mv -f "$(iface_path "$interface").tmp.$$" "$(iface_path "$interface")" ||
-		{
-			rm -f "$(iface_path "$interface").tmp.$$"
-			return 1
-		}
-
-	touch /tmp/network-restart.txt
+	} >"$tmp" && mv -f "$tmp" "$path"; then
+		touch /tmp/network-restart.txt
+		return 0
+	fi
+	rm -f "$tmp"
+	return 1
 }
 
 normalize_mac() {
@@ -246,10 +251,46 @@ valid_ipv4() {
 	IFS="$oldifs"
 	[ "$#" -eq 4 ] || return 1
 	for octet in "$1" "$2" "$3" "$4"; do
-		case "$octet" in '' | *[!0-9]*) return 1 ;; esac
+		case "$octet" in '' | *[!0-9]* | 0?*) return 1 ;; esac
 		[ "$octet" -le 255 ] 2>/dev/null || return 1
 	done
 	return 0
+}
+
+valid_netmask() {
+	local oldifs octet rest=0
+	valid_ipv4 "$1" || return 1
+	oldifs="$IFS"
+	IFS=.
+	# shellcheck disable=SC2086
+	set -- $1
+	IFS="$oldifs"
+	[ "$1" -ne 0 ] || return 1
+	for octet in "$1" "$2" "$3" "$4"; do
+		if [ "$rest" -eq 1 ]; then
+			[ "$octet" -eq 0 ] || return 1
+			continue
+		fi
+		case "$octet" in
+			255) ;;
+			254 | 252 | 248 | 240 | 224 | 192 | 128 | 0) rest=1 ;;
+			*) return 1 ;;
+		esac
+	done
+	return 0
+}
+
+is_hex64() {
+	printf '%s' "$1" | grep -qE '^[0-9a-fA-F]{64}$'
+}
+
+lower_hex() {
+	printf '%s' "$1" | tr 'A-F' 'a-f'
+}
+
+# wpa_supplicant.conf holds a derived key bare and a passphrase in quotes
+stored_psk_is_derived() {
+	grep -qE '^[[:space:]]*psk=[0-9a-fA-F]{64}[[:space:]]*$' /etc/wpa_supplicant.conf 2>/dev/null
 }
 
 mac_json_key() {
@@ -487,7 +528,7 @@ process_interface_input() {
 			[ -n "$address" ] || json_error "400 Bad Request" "$iface IP address cannot be empty" "missing_address"
 			valid_ipv4 "$address" || json_error "400 Bad Request" "$iface IP address is not a valid IPv4 address" "invalid_address"
 			[ -n "$netmask" ] || json_error "400 Bad Request" "$iface netmask cannot be empty" "missing_netmask"
-			valid_ipv4 "$netmask" || json_error "400 Bad Request" "$iface netmask is not a valid IPv4 netmask" "invalid_netmask"
+			valid_netmask "$netmask" || json_error "400 Bad Request" "$iface netmask is not a valid IPv4 netmask" "invalid_netmask"
 			{ [ -z "$gateway" ] || valid_ipv4 "$gateway"; } || json_error "400 Bad Request" "$iface gateway is not a valid IPv4 address" "invalid_gateway"
 			{ [ -z "$broadcast" ] || valid_ipv4 "$broadcast"; } || json_error "400 Bad Request" "$iface broadcast is not a valid IPv4 address" "invalid_broadcast"
 		else
@@ -513,12 +554,13 @@ apply_interface_settings() {
 	local iface="$1" enabled="$2" mode="$3" address="$4" netmask="$5" gateway="$6" broadcast="$7" ipv6="$8" mac="$9"
 	[ -n "$mode" ] || mode="dhcp"
 	[ -n "$ipv6" ] || ipv6="false"
-	setup_iface "$iface" "$mode" "$address" "$netmask" "$gateway" "$broadcast" "$ipv6"
+	setup_iface "$iface" "$mode" "$address" "$netmask" "$gateway" "$broadcast" "$ipv6" || return 1
 	local json_key env_key
 	json_key=$(mac_json_key "$iface")
 	env_key=$(mac_env_key "$iface")
 	[ -n "$json_key" ] && jct "$CONFIG_JSON" set "$json_key" "$mac"
 	[ "$enabled" = "true" ] || disable_iface "$iface"
+	return 0
 }
 
 handle_post() {
@@ -564,7 +606,7 @@ handle_post() {
 	# a derived psk only works for the SSID it was derived from
 	stored_ssid="$(read_wpa_supplicant_value ssid)"
 	stored_psk="$(read_wpa_supplicant_value psk)"
-	if [ "$wlan0_enabled" = "true" ] && [ -n "$wifi_ssid$wifi_pass" ]; then
+	if [ -n "$wifi_ssid$wifi_pass" ]; then
 		[ -n "$wifi_ssid" ] || json_error "400 Bad Request" "Wi-Fi SSID cannot be empty" "missing_wifi_ssid"
 		if [ -z "$wifi_pass" ]; then
 			if [ -n "$stored_psk" ] && [ "$wifi_ssid" = "$stored_ssid" ]; then
@@ -573,19 +615,20 @@ handle_post() {
 				json_error "400 Bad Request" "Enter the Wi-Fi password for this network" "missing_wifi_pass"
 			fi
 		else
-			if [ "$wifi_ssid" != "$stored_ssid" ] && [ "$wifi_pass" = "$stored_psk" ] && printf '%s' "$wifi_pass" | grep -qE '^[0-9a-fA-F]{64}$'; then
+			if [ "$wifi_ssid" != "$stored_ssid" ] && stored_psk_is_derived && is_hex64 "$wifi_pass" && [ "$(lower_hex "$wifi_pass")" = "$(lower_hex "$stored_psk")" ]; then
 				json_error "400 Bad Request" "That is the saved key of the previous network; enter the Wi-Fi password instead" "stale_psk"
 			fi
 			[ ${#wifi_pass} -ge 8 ] || json_error "400 Bad Request" "Wi-Fi password must be at least 8 characters" "invalid_wifi_pass"
+			[ ${#wifi_pass} -le 63 ] || is_hex64 "$wifi_pass" || json_error "400 Bad Request" "Wi-Fi password must be 8 to 63 characters, or a 64-digit hex key" "invalid_wifi_pass"
 		fi
 	fi
 
-	apply_interface_settings eth0 "$eth0_enabled" "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast" "$eth0_ipv6" "$eth0_mac"
-	apply_interface_settings wlan0 "$wlan0_enabled" "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast" "$wlan0_ipv6" "$wlan0_mac"
-	apply_interface_settings usb0 "$usb0_enabled" "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast" "$usb0_ipv6" "$usb0_mac"
+	apply_interface_settings eth0 "$eth0_enabled" "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast" "$eth0_ipv6" "$eth0_mac" || json_error "500 Internal Server Error" "Could not write the eth0 configuration" "write_failed"
+	apply_interface_settings wlan0 "$wlan0_enabled" "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast" "$wlan0_ipv6" "$wlan0_mac" || json_error "500 Internal Server Error" "Could not write the wlan0 configuration" "write_failed"
+	apply_interface_settings usb0 "$usb0_enabled" "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast" "$usb0_ipv6" "$usb0_mac" || json_error "500 Internal Server Error" "Could not write the usb0 configuration" "write_failed"
 
 	update_hostname_files "$hostname_value"
-	setup_dns "$dns_primary" "$dns_secondary"
+	setup_dns "$dns_primary" "$dns_secondary" || json_error "500 Internal Server Error" "Could not write the DNS configuration" "write_failed"
 
 	# Persist netwatch settings
 	jct "$CONFIG_JSON" set netwatch.enabled "$netwatch_enabled"
@@ -599,11 +642,13 @@ handle_post() {
 		/etc/init.d/S52netwatch restart >/dev/null 2>&1 || true
 	fi
 
-	if [ "$wifi_ap_enabled" = "true" ]; then
-		# create wlan ap wpa_supplicant.conf
-		wlan configure "$wifi_ssid" "$wifi_pass" ap
-	else
-		wlan configure "$wifi_ssid" "$wifi_pass" "$wifi_bssid"
+	if [ -n "$wifi_ssid" ]; then
+		if [ "$wifi_ap_enabled" = "true" ]; then
+			# create wlan ap wpa_supplicant.conf
+			wlan configure "$wifi_ssid" "$wifi_pass" ap
+		else
+			wlan configure "$wifi_ssid" "$wifi_pass" "$wifi_bssid"
+		fi || json_error "500 Internal Server Error" "Could not save the Wi-Fi settings" "wifi_config_failed"
 	fi
 
 	emit_json "" '{"status":"ok","restart_pending":true}'
