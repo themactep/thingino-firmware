@@ -132,9 +132,6 @@ if [ -n "$title" ]; then
 	set -- "$@" -H "Title: $title"
 fi
 
-# Seems only one attachment is allowed at a time
-# so we prioritize file over snapshot over video.
-
 # temp snapshot/clip files carry no extension; name the attachment for ntfy
 attachment_name() {
 	case "$1" in
@@ -144,6 +141,8 @@ attachment_name() {
 	esac
 }
 
+# Seems only one attachment is allowed at a time
+# so we prioritize file over snapshot over video.
 if [ -n "$filename" ] && [ -f "$filename" ]; then
 	set -- "$@" -T "$filename" -H "Filename: $(basename "$filename")"
 elif [ "true" = "$send_photo" ]; then
