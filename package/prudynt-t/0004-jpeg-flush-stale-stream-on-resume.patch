@@ -1,0 +1,33 @@
+jpeg: flush buffered frames when resuming an idle encoder
+
+The JPEG worker pauses its encoder after a snapshot so an idle preview does
+not burn cycles. IMP_Encoder_StopRecvPic stops the acquisition but, as the
+IMP documentation states, the stream buffer is not eliminated. The frames
+left in that buffer stay there until they are read, and when the worker is
+woken by the next snapshot it reads those frames first. The IPC handler
+waits for frame_seq to advance, so it accepts the stale frame as fresh and
+a motion alert can carry a snapshot from the previous event, hours earlier.
+
+Flush the encoder right after restarting it, the same way VideoWorker clears
+its stream, so the next captured frame is encoded after the wake-up.
+
+diff --git a/src/video/JPEGWorker.cpp b/src/video/JPEGWorker.cpp
+index 600b5d1..7ab6255 100644
+--- a/src/video/JPEGWorker.cpp
++++ b/src/video/JPEGWorker.cpp
+@@ -351,6 +351,15 @@ void JPEGWorker::run() {
+       if (global_jpeg[jpgChn]->encoder_paused) {
+         IMP_Encoder_StartRecvPic(global_jpeg[jpgChn]->encChn);
+         global_jpeg[jpgChn]->encoder_paused = false;
++        // StopRecvPic leaves the encoded frames in the channel buffer. Without
++        // a flush the resumed worker reads those first and serves a snapshot
++        // from the previous request, which can be hours old.
++        int flush_ret = IMP_Encoder_FlushStream(global_jpeg[jpgChn]->encChn);
++        if (flush_ret != 0) {
++          LOG_WARN("jpeg" << jpgChn << ": IMP_Encoder_FlushStream("
++                          << global_jpeg[jpgChn]->encChn
++                          << ") failed: " << flush_ret);
++        }
+         LOG_INFO("jpeg" << jpgChn << ": encoder resumed");
+       }
+ 
