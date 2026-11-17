@@ -1,0 +1,29 @@
+From 6d2ea052b264422f8fee1a8f1f4365e0219d49d3 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Tue, 17 Nov 2026 05:43:19 -0800
+Subject: [PATCH] arm: na51055: power off through the RTC
+
+pm_power_off only printed: the stock firmware leaves power-off to the
+RTOS. Without it, poweroff halted with the board still powered.
+---
+ arch/arm/plat-novatek/plat-na51055/reset.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/plat-novatek/plat-na51055/reset.c b/arch/arm/plat-novatek/plat-na51055/reset.c
+index d8a66ee8f..7afb4e86e 100755
+--- a/arch/arm/plat-novatek/plat-na51055/reset.c
++++ b/arch/arm/plat-novatek/plat-na51055/reset.c
+@@ -85,9 +85,13 @@ static struct notifier_block nvt_reboot_notifier = {
+ };
+ */
+ 
++/* With no RTOS on core 0 to cut power, have the RTC drop PWR_EN */
+ static void nvt_power_off_done(void)
+ {
+ 	pr_info(" Power off \n");
++#ifdef CONFIG_RTC_DRV_NA51055
++	nvt_rtc_power_control(0);
++#endif
+ }
+ 
+ static int __init nvt_poweroff_setup(void)
