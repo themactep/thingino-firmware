@@ -134,12 +134,15 @@ trap 'on_exit "$@"' EXIT
 mount -t proc proc /proc ||
 	die "Failed to mount /proc!"
 
+# Netboot: a RAM-disk root gets a tmpfs overlay, lost at reboot
+if grep -q 'root=/dev/ram' /proc/cmdline; then
+	mount -t tmpfs -o mode=0755 tmpfs /overlay ||
+		die "Failed to mount tmpfs overlay!"
 # Skip if rootfs is NFS, MMC or RAM
-grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
+elif grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 	die "Not an MTD RootFS!"
-
 # Mount data partition (single overlay covering whole filesystem)
-if grep -q 'ubi\.mtd=' /proc/cmdline; then
+elif grep -q 'ubi\.mtd=' /proc/cmdline; then
 	mount_ubifs overlay /overlay
 else
 	mount_jffs2 data /overlay
