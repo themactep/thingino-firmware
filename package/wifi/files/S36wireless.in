@@ -284,6 +284,9 @@ start() {
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
 
+	@if WIFI_SDIO_PRESENT@
+	echo "SDIO card enumerated at boot"
+	@else@
 	if [ -d /proc/jz/mdio ]; then
 		echo "GMAC is enabled, disabling MSC1..."
 	else
@@ -306,6 +309,7 @@ start() {
 		@endif@
 		@endif@
 	fi
+	@endif@
 	@endif@
 	@endif@
 
