@@ -1,0 +1,6 @@
+config BR2_PACKAGE_WIFI_RTL8821CS
+	bool "Realtek RTL8821CS"
+	select BR2_LINUX_KERNEL
+	help
+	  Realtek's RTL8821CS SDIO driver (v5.15.9.3, as Novatek ships it).
+	  https://github.com/gtxaspec/rtl8821cs-wifi
