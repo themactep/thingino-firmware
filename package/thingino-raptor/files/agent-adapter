@@ -143,7 +143,33 @@ agent_ctl() {
 		echo "raptorctl is not available" >&2
 		return 1
 	}
-	raptorctl "$@"
+	# raptorctl exits 0 whenever the daemon replies, so an error reply has
+	# to be caught here.
+	_ctl_reply=$(raptorctl "$@") || return 1
+	printf '%s\n' "$_ctl_reply"
+	case "$_ctl_reply" in
+		*'"status":"error"'*)
+			echo "raptorctl $1 $2: $_ctl_reply" >&2
+			return 1
+			;;
+	esac
+}
+
+# Sinter/temper strength exist only on T20-T31; the HAL reports them as not
+# supported on later SoCs.
+agent_has_nr() {
+	[ -n "$AGENT_SOC_FAMILY" ] || AGENT_SOC_FAMILY=$(soc -f 2>/dev/null)
+	case "$AGENT_SOC_FAMILY" in
+		t20 | t21 | t23 | t30 | t31) return 0 ;;
+	esac
+	return 1
+}
+
+# rvd applies 128 when raptor.conf leaves sinter/temper unset.
+agent_image_nr() {
+	agent_has_nr || return 0
+	_nr=$(agent_config_get image "$1")
+	printf '%s' "${_nr:-128}"
 }
 
 agent_daemon_status() {
@@ -1652,8 +1678,8 @@ agent_print_config() {
 	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_image_raw contrast)" null)"
 	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_image_raw saturation)" null)"
 	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
-	printf '"noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
-	printf '"temporal_noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image temper)" null)"
+	printf '"noise_reduction":%s,' "$(agent_json_value_or "$(agent_image_nr sinter)" null)"
+	printf '"temporal_noise_reduction":%s,' "$(agent_json_value_or "$(agent_image_nr temper)" null)"
 	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
 	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_image_raw ae_comp)" null)"
 	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null)"
@@ -2293,10 +2319,10 @@ agent_get_setting() {
 			agent_print_setting_leaf sharpness "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
 			;;
 		image/noise-reduction)
-			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
+			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_image_nr sinter)" null)"
 			;;
 		image/temporal-nr)
-			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_config_get image temper)" null)"
+			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_image_nr temper)" null)"
 			;;
 		image/anti-flicker)
 			agent_print_setting_leaf anti_flicker "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
