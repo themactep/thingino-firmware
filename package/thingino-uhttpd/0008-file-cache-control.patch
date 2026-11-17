@@ -1,0 +1,144 @@
+file: optional Cache-Control for static files
+
+uhttpd sends ETag and Last-Modified for static files but no Cache-Control,
+so a browser either revalidates every asset on every page view (one 304
+round trip each) or falls back to heuristic freshness, which for files
+with an old mtime can keep a stale page for hours.
+
+-M seconds: send Cache-Control: max-age=<seconds> for static files
+            (-M 0 sends no-cache).
+-F prefix:  apply the max-age only to files under prefix (matched against
+            the canonical path below the document root); every other
+            static file gets Cache-Control: no-cache, so pages are always
+            revalidated and pick up new cache-busted asset URLs.
+
+The header is sent on 200 and 304 responses. CGI, directory listings and
+error responses are unchanged. Without -M nothing changes.
+
+diff --git a/file.c b/file.c
+index b6dbc27..8a82ff5 100644
+--- a/file.c
++++ b/file.c
+@@ -353,6 +353,23 @@ static char *uh_file_header(struct client *cl, int idx)
+ 	return (char *) blobmsg_data(cl->dispatch.file.hdr[idx]);
+ }
+ 
++/* Cache-Control for a static file: -1 sends no header, 0 sends no-cache,
++ * anything else is a max-age in seconds. With -F, only files under the
++ * prefix get the max-age; the rest get no-cache, so a page is revalidated
++ * and picks up new asset URLs. */
++static int uh_file_max_age(struct path_info *pi)
++{
++	const char *prefix = conf.static_max_age_prefix;
++
++	if (conf.static_max_age < 0)
++		return -1;
++
++	if (prefix && strncmp(pi->name, prefix, strlen(prefix)))
++		return 0;
++
++	return conf.static_max_age;
++}
++
+ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
+ {
+ 	char buf[128];
+@@ -361,6 +378,11 @@ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
+ 		ustream_printf(cl->us, "ETag: %s\r\n", uh_file_mktag(s, buf, sizeof(buf)));
+ 		ustream_printf(cl->us, "Last-Modified: %s\r\n",
+ 			       uh_file_unix2date(s->st_mtime, buf, sizeof(buf)));
++		if (cl->dispatch.file.max_age > 0)
++			ustream_printf(cl->us, "Cache-Control: max-age=%d\r\n",
++				       cl->dispatch.file.max_age);
++		else if (!cl->dispatch.file.max_age)
++			ustream_printf(cl->us, "Cache-Control: no-cache\r\n");
+ 	}
+ 	ustream_printf(cl->us, "Date: %s\r\n",
+ 		       uh_file_unix2date(time(NULL), buf, sizeof(buf)));
+@@ -705,6 +727,7 @@ static void uh_file_request(struct client *cl, const char *url,
+ 
+ 		req->disable_chunked = true;
+ 		cl->dispatch.file.hdr = tb;
++		cl->dispatch.file.max_age = uh_file_max_age(pi);
+ 		uh_file_data(cl, pi, fd);
+ 		cl->dispatch.file.hdr = NULL;
+ 		return;
+diff --git a/main.c b/main.c
+index 72c003d..8a76015 100644
+--- a/main.c
++++ b/main.c
+@@ -181,6 +181,8 @@ static int usage(const char *name)
+ 		"	-d string       URL decode given string\n"
+ 		"	-r string       Specify basic auth realm\n"
+ 		"	-m string       MD5 crypt given string\n"
++		"	-M seconds      Send Cache-Control: max-age for static files\n"
++		"	-F prefix       Limit -M to files under prefix, send no-cache for the rest\n"
+ 		"\n", name
+ 	);
+ 	return 1;
+@@ -188,6 +190,7 @@ static int usage(const char *name)
+ 
+ static void init_defaults_pre(void)
+ {
++	conf.static_max_age = -1;
+ 	conf.script_timeout = 60;
+ 	conf.network_timeout = 30;
+ 	conf.http_keepalive = 20;
+@@ -341,7 +344,7 @@ int main(int argc, char **argv)
+ 	init_defaults_pre();
+ 	signal(SIGPIPE, SIG_IGN);
+ 
+-	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:")) != -1) {
++	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:F:fh:H:I:i:K:k:L:l:M:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:")) != -1) {
+ 		switch(ch) {
+ #ifdef HAVE_TLS
+ 		case 'C':
+@@ -524,6 +527,27 @@ int main(int argc, char **argv)
+ 			conf.realm = optarg;
+ 			break;
+ 
++		/* Cache-Control max-age for static files */
++		case 'M': {
++			char *end = NULL;
++			long max_age = strtol(optarg, &end, 10);
++
++			if (!optarg[0] || *end || max_age < 0 || max_age > INT_MAX) {
++				fprintf(stderr, "uhttpd: invalid max-age: %s\n", optarg);
++				return 1;
++			}
++			conf.static_max_age = (int)max_age;
++			break;
++		}
++
++		case 'F':
++			if (optarg[0] != '/') {
++				fprintf(stderr, "uhttpd: -F prefix must start with /\n");
++				return 1;
++			}
++			conf.static_max_age_prefix = optarg;
++			break;
++
+ 		/* md5 crypt */
+ 		case 'm':
+ 			printf("%s\n", crypt(optarg, "$1$"));
+diff --git a/uhttpd.h b/uhttpd.h
+index c4a184c..5746771 100644
+--- a/uhttpd.h
++++ b/uhttpd.h
+@@ -109,6 +109,8 @@ struct config {
+ 	int ubus_cors;
+ 	int cgi_prefix_len;
+ 	int events_retry;
++	int static_max_age;
++	const char *static_max_age_prefix;
+ 	struct list_head cgi_alias;
+ 	struct list_head cgi_prefixes;
+ 	struct list_head lua_prefix;
+@@ -289,6 +291,7 @@ struct dispatch {
+ 		struct {
+ 			struct blob_attr **hdr;
+ 			int fd;
++			int max_age;
+ 		} file;
+ 		struct dispatch_proc proc;
+ #ifdef HAVE_UBUS
