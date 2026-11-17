@@ -55,7 +55,7 @@ def main() -> int:
     for path in sorted(iter_pages(root)):
         try:
             content = path.read_text(encoding='utf-8')
-        except OSError:
+        except (OSError, UnicodeDecodeError):
             continue
 
         def replace_attr(match: re.Match[str]) -> str:

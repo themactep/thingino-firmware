@@ -64,7 +64,7 @@ index b6dbc27..8a82ff5 100644
  		cl->dispatch.file.hdr = NULL;
  		return;
 diff --git a/main.c b/main.c
-index 72c003d..bf02575 100644
+index 72c003d..8a76015 100644
 --- a/main.c
 +++ b/main.c
 @@ -181,6 +181,8 @@ static int usage(const char *name)
@@ -93,18 +93,22 @@ index 72c003d..bf02575 100644
  		switch(ch) {
  #ifdef HAVE_TLS
  		case 'C':
-@@ -524,6 +527,23 @@ int main(int argc, char **argv)
+@@ -524,6 +527,27 @@ int main(int argc, char **argv)
  			conf.realm = optarg;
  			break;
  
 +		/* Cache-Control max-age for static files */
-+		case 'M':
-+			conf.static_max_age = atoi(optarg);
-+			if (conf.static_max_age < 0) {
++		case 'M': {
++			char *end = NULL;
++			long max_age = strtol(optarg, &end, 10);
++
++			if (!optarg[0] || *end || max_age < 0 || max_age > INT_MAX) {
 +				fprintf(stderr, "uhttpd: invalid max-age: %s\n", optarg);
 +				return 1;
 +			}
++			conf.static_max_age = (int)max_age;
 +			break;
++		}
 +
 +		case 'F':
 +			if (optarg[0] != '/') {
