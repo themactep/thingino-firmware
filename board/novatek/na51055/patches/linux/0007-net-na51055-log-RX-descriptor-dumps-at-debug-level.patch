@@ -1,0 +1,24 @@
+From 3d0f8e6bc2ccdcd35e67c6b1bb300158f31df6b3 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Tue, 17 Nov 2026 03:04:34 -0800
+Subject: [PATCH] net: na51055: log RX descriptor dumps at debug level
+
+Every errored frame printed its descriptor at KERN_ALERT, flooding the
+console on a noisy link.
+---
+ drivers/net/ethernet/novatek/na51055/DWC_ETH_QOS_drv.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/novatek/na51055/DWC_ETH_QOS_drv.c b/drivers/net/ethernet/novatek/na51055/DWC_ETH_QOS_drv.c
+index 338611a6b..0f73fe0c2 100755
+--- a/drivers/net/ethernet/novatek/na51055/DWC_ETH_QOS_drv.c
++++ b/drivers/net/ethernet/novatek/na51055/DWC_ETH_QOS_drv.c
+@@ -7013,7 +7013,7 @@ void dump_tx_desc(struct DWC_ETH_QOS_prv_data *pdata, int first_desc_idx,
+ 
+ void dump_rx_desc(UINT qInx, struct s_RX_NORMAL_DESC *desc, int desc_idx)
+ {
+-	printk(KERN_ALERT "\n Debug: RX_NORMAL_DESC[%02d %4p %03d RECEIVED FROM DEVICE]"\
++	printk(KERN_DEBUG "\n Debug: RX_NORMAL_DESC[%02d %4p %03d RECEIVED FROM DEVICE]"\
+ 		" = %#x:%#x:%#x:%#x\n",
+ 		qInx, desc, desc_idx, desc->RDES0, desc->RDES1,
+ 		desc->RDES2, desc->RDES3);
