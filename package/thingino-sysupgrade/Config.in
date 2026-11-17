@@ -1,4 +1,8 @@
 config BR2_PACKAGE_THINGINO_SYSUPGRADE
 	bool "thingino-sysupgrade"
+	depends on BR2_SOC_VENDOR_INGENIC
 	help
 	  Enables FOTA (firmware-over-the-air) support package
+
+	  It writes Ingenic flash layouts, so it is not offered for other
+	  SoC vendors.
