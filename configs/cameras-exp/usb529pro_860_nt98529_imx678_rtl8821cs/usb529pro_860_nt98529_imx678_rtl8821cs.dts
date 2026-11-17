@@ -322,6 +322,7 @@
 		interrupts = <0x00 0x22 0x04>;
 		sp-clk = <0x00>;
 		ref-clk-out = <0x00>;
+		emb-phy-driving = <0x0b>;
 	};
 
 	phy@f02b3800 {
