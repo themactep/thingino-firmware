@@ -1,0 +1,25 @@
+#!/bin/sh
+# shellcheck disable=SC2034
+#
+# Serial number -> MAC bytes for S04hostname, from the 56-bit OTP unique ID.
+# Sourced, not an init entry point.
+
+# Sets m1..m5 from the low 40 bits of the unique ID; returns 1 when it is unreadable.
+derive_serial_mac() {
+	uid=$(cat /proc/nvt_otp_op/otp_trim 2>/dev/null)
+	case "$uid" in
+		"" | *[!0-9a-f]* | 0000000000000000) return 1 ;;
+	esac
+	[ ${#uid} -eq 16 ] || return 1
+
+	low=${uid#??????}
+	m1=$((0x${low%????????}))
+	low=${low#??}
+	m2=$((0x${low%??????}))
+	low=${low#??}
+	m3=$((0x${low%????}))
+	low=${low#??}
+	m4=$((0x${low%??}))
+	m5=$((0x${low#??}))
+	return 0
+}

@@ -20,6 +20,14 @@ config BR2_PACKAGE_THINGINO_SYSTEM_INGENIC
 	  Another vendor supplies its own block rather than teaching these
 	  to branch.
 
+config BR2_PACKAGE_THINGINO_SYSTEM_NOVATEK
+	default y
+	bool "Novatek platform utilities"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_VENDOR_NOVATEK
+	help
+	  soc and lib-serial-mac, from files/novatek/. Both read the chip ID
+	  register and the OTP unique ID the Novatek kernel exposes.
+
 config BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE
 	default y
 	depends on BR2_PACKAGE_THINGINO_SYSTEM

@@ -1,0 +1,82 @@
+#!/bin/sh
+
+# Replaced at install with the model the image was built for.
+BUILD_MODEL="@SOC_MODEL@"
+
+read_chipid() {
+	chipid_raw=$(devmem 0xF00100F0 32)
+	chipid=${chipid_raw#0x}
+	chipid=$(echo "${chipid%????}" | tr A-F a-f)
+}
+
+read_uid() {
+	uid=$(cat /proc/nvt_otp_op/otp_trim 2>/dev/null)
+	uid=${uid#00}
+	case "$uid" in
+		"" | *[!0-9a-f]* | 00000000000000) return 1 ;;
+	esac
+}
+
+print_soc_model() {
+	read_chipid
+	case "$chipid" in
+		# NT98528 and NT98529 share this ID
+		5021) echo "$BUILD_MODEL" ;;
+		*) echo "unknown_$chipid" ;;
+	esac
+}
+
+print_soc_family() {
+	read_chipid
+	case "$chipid" in
+		5021) echo "na51055" ;;
+		*) echo "unknown_$chipid" ;;
+	esac
+}
+
+print_soc_architecture() {
+	echo "Cortex-A9"
+}
+
+print_soc_clocks() {
+	# The clock tree reports the CPU at pll8, an eighth of the real rate
+	pll8=$(awk '$1 == "pll8" {print $4}' /proc/nvt_info/nvt_clk/clk_summary 2>/dev/null)
+	[ -n "$pll8" ] && echo "CPU Speed: $(((pll8 * 8 + 500000) / 1000000))MHz"
+}
+
+print_serial_number() {
+	if ! read_uid; then
+		echo "Error: Unable to read serial number" >&2
+		return 1
+	fi
+	echo "$uid"
+}
+
+print_wiki_line() {
+	read_chipid
+	read_uid || uid="n/a"
+	printf "||| %s | 0x%s | %s |\n" "$chipid_raw" "$chipid" "$uid"
+}
+
+show_usage() {
+	echo "Usage: $0 [-c|-f|-m|-w|-a|-s]
+	-m	SoC model
+	-f	SoC family
+	-w	raw info for wiki
+	-a	CPU architecture
+	-c	CPU Clocks
+	-s	Serial number
+" >&2
+}
+
+case "$1" in
+	-c) print_soc_clocks ;;
+	-f) print_soc_family ;;
+	-m | "") print_soc_model ;;
+	-w) print_wiki_line ;;
+	-a) print_soc_architecture ;;
+	-s) print_serial_number ;;
+	*) show_usage ;;
+esac
+
+exit 0

@@ -114,6 +114,13 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 				$(TARGET_DIR)/usr/sbin/sensor; \
 		fi; \
 	fi
+	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_NOVATEK)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/novatek/soc \
+			$(TARGET_DIR)/usr/sbin/soc; \
+		$(SED) 's/@SOC_MODEL@/$(SOC_MODEL)/' $(TARGET_DIR)/usr/sbin/soc; \
+		$(INSTALL) -D -m 0644 $(THINGINO_SYSTEM_PKGDIR)/files/novatek/lib-serial-mac \
+			$(TARGET_DIR)/etc/init.d/lib-serial-mac; \
+	fi
 endef
 
 $(eval $(generic-package))
