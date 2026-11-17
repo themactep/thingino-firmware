@@ -20,6 +20,8 @@ config BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD
 	select BR2_PACKAGE_HOST_GENIMAGE
 	select BR2_PACKAGE_HOST_DOSFSTOOLS
 	select BR2_PACKAGE_HOST_MTOOLS
+	select BR2_PACKAGE_E2FSPROGS
+	select BR2_PACKAGE_E2FSPROGS_RESIZE2FS
 	help
 	  Kernel and device tree on the card's FAT partition, root on its
 	  second partition (ext4). Onboard flash is never written.

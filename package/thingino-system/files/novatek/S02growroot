@@ -1,0 +1,47 @@
+#!/bin/sh
+# SD install: grow the root partition (mmcblk0p2, the last one) and its ext4 to fill the card.
+# The kernel cannot re-read the table of a disk whose root is mounted, so the partition grows on
+# the first boot and the filesystem after the reboot that follows.
+
+DISK=mmcblk0
+PART=${DISK}p2
+DONE=/etc/.growroot-done
+
+le32() {
+	for shift in 0 8 16 24; do
+		# shellcheck disable=SC2059 # the byte is built as an octal escape
+		printf "\\$(printf %o $((($1 >> shift) & 255)))"
+	done
+}
+
+start() {
+	[ -e "$DONE" ] && return 0
+	grep -q "root=/dev/$PART" /proc/cmdline || return 0
+
+	echo -c 15 "Growing root to the card"
+	card=$(cat /sys/block/$DISK/size)
+	first=$(cat /sys/block/$DISK/$PART/start)
+	size=$(cat /sys/block/$DISK/$PART/size)
+	want=$((card - first))
+
+	if [ "$size" -lt "$want" ]; then
+		# MBR entry 2 starts at 462; its sector count is the LE32 at +12
+		le32 "$want" | dd of=/dev/$DISK bs=1 seek=474 count=4 conv=notrunc 2>/dev/null
+		sync
+		echo -c 240 -e "- Partition now $((want / 2048)) MiB, rebooting"
+		reboot
+	else
+		resize2fs /dev/$PART && touch "$DONE"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop | restart) ;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

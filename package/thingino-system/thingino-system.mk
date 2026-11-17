@@ -120,6 +120,10 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 		$(SED) 's/@SOC_MODEL@/$(SOC_MODEL)/' $(TARGET_DIR)/usr/sbin/soc; \
 		$(INSTALL) -D -m 0644 $(THINGINO_SYSTEM_PKGDIR)/files/novatek/lib-serial-mac \
 			$(TARGET_DIR)/etc/init.d/lib-serial-mac; \
+		if [ "$(BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD)" = "y" ]; then \
+			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/novatek/S02growroot \
+				$(TARGET_DIR)/etc/init.d/S02growroot; \
+		fi; \
 	fi
 endef
 
