@@ -1,0 +1,29 @@
+From baaa8f1895bc7abcbe4d9feb51e24d0037176f28 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Mon, 16 Nov 2026 22:30:35 -0800
+Subject: [PATCH 5/5] kbuild: generate nvtversion.h with printf
+
+The vendor rule only took its POSIX branch for SHELL=/bin/dash and
+otherwise used echo -e, which /bin/sh prints literally.
+---
+ Makefile | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 7baca83c1..83be55304 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1056,11 +1056,8 @@ define filechk_kernel.release
+ endef
+ 
+ define filechk_nvtversion.h
+-	if [ "$(SHELL)" == "/bin/dash" ]; then \
+-		echo "#define NVT_UTS_RELEASE \t\""$(KERNELVERSION)_$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --show-nvtver)"\""; \
+-	else \
+-		echo -e "#define NVT_UTS_RELEASE \t\""$(KERNELVERSION)_$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --show-nvtver)"\""; \
+-	fi
++	printf '#define NVT_UTS_RELEASE \t"%s_%s"\n' "$(KERNELVERSION)" \
++		"$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --show-nvtver)"
+ endef
+ 
+ # Store (new) KERNELRELEASE string in include/config/kernel.release

@@ -1,0 +1,23 @@
+From 8e278eb354a082c52c89badcb83d8259462b3fc2 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Mon, 16 Nov 2026 22:19:23 -0800
+Subject: [PATCH 3/5] scripts/dtc: Remove redundant YYLOC global declaration
+
+Backport of upstream e33a814e772c: GCC >= 10 defaults to -fno-common and
+the host dtc fails to link with a duplicate yylloc.
+---
+ scripts/dtc/dtc-lexer.l | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
+index 615b7ec65..d3694d6cf 100644
+--- a/scripts/dtc/dtc-lexer.l
++++ b/scripts/dtc/dtc-lexer.l
+@@ -38,7 +38,6 @@ LINECOMMENT	"//".*\n
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
+ extern bool treesource_error;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */

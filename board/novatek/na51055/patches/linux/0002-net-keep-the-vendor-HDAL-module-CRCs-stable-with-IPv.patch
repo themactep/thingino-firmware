@@ -1,0 +1,80 @@
+From f457139074cdb421e7b036438106f5655ce21648 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Mon, 16 Nov 2026 22:18:27 -0800
+Subject: [PATCH 2/5] net: keep the vendor HDAL module CRCs stable with IPv6 on
+
+The turnkey HDAL modules were built without IPv6. CONFIG_IPV6 changes the
+genksyms closure of struct device and task_struct through struct net,
+netns_mib, sk_buff and net_device, so their imports stop matching. Hide
+the IPv6-only members from genksyms; layout changes stay confined to
+networking, which the HDAL modules do not touch. Build networking modules
+from this tree, never from the vendor set. XFRM stays off (sk_buff layout).
+---
+ include/linux/netdevice.h   | 2 +-
+ include/linux/skbuff.h      | 2 +-
+ include/net/net_namespace.h | 5 +++--
+ include/net/netns/mib.h     | 2 +-
+ 4 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
+index 9dfa0ae17..4a96e2fde 100644
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -1808,7 +1808,7 @@ struct net_device {
+ #ifdef CONFIG_NET_L3_MASTER_DEV
+ 	const struct l3mdev_ops	*l3mdev_ops;
+ #endif
+-#if IS_ENABLED(CONFIG_IPV6)
++#if IS_ENABLED(CONFIG_IPV6) && !defined(__GENKSYMS__)
+ 	const struct ndisc_ops *ndisc_ops;
+ #endif
+ 
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index 80c3da1aa..39bf355d9 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -779,7 +779,7 @@ struct sk_buff {
+ 	__u8			csum_level:2;
+ 	__u8			csum_not_inet:1;
+ 	__u8			dst_pending_confirm:1;
+-#ifdef CONFIG_IPV6_NDISC_NODETYPE
++#if defined(CONFIG_IPV6_NDISC_NODETYPE) && !defined(__GENKSYMS__)
+ 	__u8			ndisc_nodetype:2;
+ #endif
+ 	__u8			ipvs_property:1;
+diff --git a/include/net/net_namespace.h b/include/net/net_namespace.h
+index 5007eaba2..c3c1abc63 100644
+--- a/include/net/net_namespace.h
++++ b/include/net/net_namespace.h
+@@ -107,7 +107,8 @@ struct net {
+ 	struct netns_packet	packet;
+ 	struct netns_unix	unx;
+ 	struct netns_ipv4	ipv4;
+-#if IS_ENABLED(CONFIG_IPV6)
++/* hidden from genksyms: keeps the CRCs the vendor HDAL modules were built against */
++#if IS_ENABLED(CONFIG_IPV6) && !defined(__GENKSYMS__)
+ 	struct netns_ipv6	ipv6;
+ #endif
+ #if IS_ENABLED(CONFIG_IEEE802154_6LOWPAN)
+@@ -147,7 +148,7 @@ struct net {
+ 	struct net_generic __rcu	*gen;
+ 
+ 	/* Note : following structs are cache line aligned */
+-#ifdef CONFIG_XFRM
++#if defined(CONFIG_XFRM) && !defined(__GENKSYMS__)
+ 	struct netns_xfrm	xfrm;
+ #endif
+ #if IS_ENABLED(CONFIG_IP_VS)
+diff --git a/include/net/netns/mib.h b/include/net/netns/mib.h
+index 830bdf345..6dbd7f6c0 100644
+--- a/include/net/netns/mib.h
++++ b/include/net/netns/mib.h
+@@ -13,7 +13,7 @@ struct netns_mib {
+ 	DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics);
+ 	DEFINE_SNMP_STAT_ATOMIC(struct icmpmsg_mib, icmpmsg_statistics);
+ 
+-#if IS_ENABLED(CONFIG_IPV6)
++#if IS_ENABLED(CONFIG_IPV6) && !defined(__GENKSYMS__)
+ 	struct proc_dir_entry *proc_net_devsnmp6;
+ 	DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6);
+ 	DEFINE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
