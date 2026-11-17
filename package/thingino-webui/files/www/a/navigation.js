@@ -276,11 +276,10 @@
     const li = document.createElement("li");
     li.className = "nav-item dropdown";
 
-    const toggle = document.createElement("a");
+    const toggle = document.createElement("button");
+    toggle.type = "button";
     toggle.className = "nav-link dropdown-toggle";
-    toggle.href = "#";
     toggle.id = section.id;
-    toggle.role = "button";
     toggle.setAttribute("data-bs-toggle", "dropdown");
     toggle.setAttribute("aria-expanded", "false");
     toggle.textContent = section.label;
