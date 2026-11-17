@@ -12,7 +12,41 @@ TBIN="FW${MODEL#nt}T.BIN"
 DTS="$BR2_EXTERNAL_THINGINO_PATH/$CAMERA_SUBDIR/$CAMERA/$CAMERA.dts"
 NVTPACK="python3 $BR2_EXTERNAL_THINGINO_PATH/scripts/nvtpack.py"
 
-"$HOST_DIR/bin/dtc" -q -I dts -O dtb -o "$BIN/board.dtb" "$DTS"
+# The camera's buttons and LEDs come from its thingino.json, as on the Ingenic 4.4 trees
+# (inject-button-dt.sh): button_reset is KEY_ENTER, active low; LEDs are active high unless
+# given as {"pin": N, "active_low": true}. The keys are polled: A_GPIO has no usable IRQ here.
+python3 - "$BR2_EXTERNAL_THINGINO_PATH/$CAMERA_SUBDIR/$CAMERA/thingino.json" "$DTS" >"$BIN/board.dts" <<'PY'
+import json, os, sys
+conf, dts = sys.argv[1], sys.argv[2]
+sys.stdout.write(open(dts).read())
+g = json.load(open(conf)).get("gpio", {}) if os.path.isfile(conf) else {}
+
+def pin(key, active_low):
+    v = g.get(key)
+    if isinstance(v, dict):
+        return v.get("pin"), int(v.get("active_low", active_low))
+    return v, int(active_low)
+
+keys, leds = [], []
+for name, key, code in (("reset", "button_reset", 28),):
+    n, low = pin(key, True)
+    if isinstance(n, int):
+        keys.append(f"\t\t{name} {{\n\t\t\tlabel = \"{name}\";\n\t\t\tgpios = <&gpio {n} {low}>;\n"
+                    f"\t\t\tlinux,code = <{code}>;\n\t\t}};\n")
+for c in "bgrvwy":
+    n, low = pin("led_" + c, False)
+    if isinstance(n, int):
+        leds.append(f"\t\tled_{c} {{\n\t\t\tlabel = \"led_{c}\";\n\t\t\tgpios = <&gpio {n} {low}>;\n"
+                    f"\t\t\tdefault-state = \"off\";\n\t\t}};\n")
+print("\n/* Generated from thingino.json */\n/ {")
+if keys:
+    print("\tgpio-keys {\n\t\tcompatible = \"gpio-keys-polled\";\n\t\tlabel = \"gpio-keys\";\n"
+          "\t\tpoll-interval = <50>;\n" + "".join(keys) + "\t};")
+if leds:
+    print("\tleds {\n\t\tcompatible = \"gpio-leds\";\n" + "".join(leds) + "\t};")
+print("};")
+PY
+"$HOST_DIR/bin/dtc" -q -I dts -O dtb -o "$BIN/board.dtb" "$BIN/board.dts"
 "$HOST_DIR/bin/mkimage" -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n thingino-rootfs \
 	-d "$BIN/rootfs.squashfs" "$BIN/rootfs.img" >/dev/null
 

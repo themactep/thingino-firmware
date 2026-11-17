@@ -308,8 +308,9 @@
 		trace-stdtable = <0x01>;
 	};
 
-	gpio@f0070000 {
+	gpio: gpio@f0070000 {
 		compatible = "nvt,nvt_gpio";
+		gpio-controller;
 		reg = <0xf0070000 0x10000>;
 		interrupts = <0x00 0x18 0x04>;
 		#gpio-cells = <0x02>;
