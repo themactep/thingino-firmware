@@ -272,6 +272,10 @@ else
 		echo "** add kernel headers: 4.4 (SOC: $(SOC_FAMILY))"; \
 		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y" >>$(OUTPUT_DIR)/.config; \
 		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y" >>$(OUTPUT_DIR)/.config; \
+	elif [ "$(KERNEL_VERSION)" = "4.19.91" ]; then \
+		echo "** add kernel headers: 4.19 (SOC: $(SOC_FAMILY))"; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_19=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_19=y" >>$(OUTPUT_DIR)/.config; \
 	else \
 		echo "** add kernel headers: 3.10 (SOC: $(SOC_FAMILY))"; \
 		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10=y" >>$(OUTPUT_DIR)/.config; \
