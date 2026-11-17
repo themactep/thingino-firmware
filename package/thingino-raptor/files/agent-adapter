@@ -2070,8 +2070,13 @@ agent_set_osd_setting() {
 			;;
 	esac
 
+	# OSD settings apply to every stream, whichever stream path the page used:
+	# the web UI edits one OSD, and a main/sub mismatch shows up as e.g. the logo
+	# still burned into the substream used by previews, ONVIF and NVR clients.
 	if [ "$section" = stream ]; then
-		agent_config_set "$(agent_stream_section "$stream_id")" osd_enabled "$persist_value" || return 1
+		for s in 0 1; do
+			agent_config_set "$(agent_stream_section "$s")" osd_enabled "$persist_value" || return 1
+		done
 		agent_config_save
 		agent_print_setting_update "$path" "$response_key" "$json_value"
 		return 0
@@ -2081,6 +2086,15 @@ agent_set_osd_setting() {
 	osd_value=$persist_value
 	agent_osd_ensure_section "$section" || return 1
 	agent_config_set "$section" "$osd_key" "$osd_value" || return 1
+	# rvd resolves an element's position from [osd] stream<N>_<name>_pos first and
+	# [osd.<name>] position only as a fallback, so per-stream keys left by earlier
+	# moves would override this on both streams. Keep them in step.
+	if [ "$osd_key" = position ]; then
+		elem_name=${section#osd.}
+		for s in 0 1; do
+			agent_config_set osd "stream${s}_${elem_name}_pos" "$osd_value" || return 1
+		done
+	fi
 	agent_config_save
 	agent_osd_apply_runtime "$runtime_hint" "$osd_key" "$osd_value"
 	agent_print_setting_update "$path" "$response_key" "$json_value"
