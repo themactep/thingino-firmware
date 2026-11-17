@@ -1,0 +1,30 @@
+#!/bin/sh
+# RTL8733BU: firmware power-save and Turbo-EDCA starve the T41 ISP AE thread.
+
+RTW=/proc/net/rtl8733bu/wlan0
+
+case "$1" in
+	start)
+		(
+			i=0
+			while [ ! -d "$RTW" ] && [ "$i" -lt 30 ]; do
+				i=$((i + 1))
+				sleep 1
+			done
+			[ -d "$RTW" ] || exit 0
+			echo 0 >"$RTW/en_fwps" 2>/dev/null
+			echo 1 >"$RTW/dis_turboedca" 2>/dev/null
+			iwconfig wlan0 power off 2>/dev/null
+		) &
+		;;
+	stop)
+		[ -d "$RTW" ] && {
+			echo 1 >"$RTW/en_fwps" 2>/dev/null
+			echo 0 >"$RTW/dis_turboedca" 2>/dev/null
+		}
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
