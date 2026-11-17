@@ -120,6 +120,10 @@ handle_post() {
 	new_en_snapshot=$(jct "$REQ_FILE" get enable_snapshot 2>/dev/null)
 	new_en_reboot=$(jct "$REQ_FILE" get enable_reboot 2>/dev/null)
 	new_en_ota=$(jct "$REQ_FILE" get enable_ota 2>/dev/null)
+	new_en_doorbell=$(jct "$REQ_FILE" get enable_doorbell 2>/dev/null)
+	new_en_firmware_version=$(jct "$REQ_FILE" get enable_firmware_version 2>/dev/null)
+	new_en_firmware_timestamp=$(jct "$REQ_FILE" get enable_firmware_timestamp 2>/dev/null)
+	new_en_live_view=$(jct "$REQ_FILE" get enable_live_view 2>/dev/null)
 
 	# Normalize
 	enabled=$(normalize_bool "$new_enabled")
@@ -138,6 +142,10 @@ handle_post() {
 	en_snapshot=$(normalize_bool "$new_en_snapshot")
 	en_reboot=$(normalize_bool "$new_en_reboot")
 	en_ota=$(normalize_bool "$new_en_ota")
+	en_doorbell=$(normalize_bool "$new_en_doorbell")
+	en_firmware_version=$(normalize_bool "$new_en_firmware_version")
+	en_firmware_timestamp=$(normalize_bool "$new_en_firmware_timestamp")
+	en_live_view=$(normalize_bool "$new_en_live_view")
 
 	device_name=$(strip_json_string "$new_device_name")
 	device_model=$(strip_json_string "$new_device_model")
@@ -194,6 +202,10 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.enable_snapshot" "$en_snapshot" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_reboot" "$en_reboot" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ota" "$en_ota" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_doorbell" "$en_doorbell" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_firmware_version" "$en_firmware_version" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_firmware_timestamp" "$en_firmware_timestamp" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_live_view" "$en_live_view" >/dev/null 2>&1
 
 	jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
 
