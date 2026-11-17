@@ -44,14 +44,18 @@ REPLACEMENTS = [
 
     # Chart.js UMD CDN → local
     (re.compile(
-        r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/chart\.js@[^"]*?/dist/chart\.umd(?:\.min)?\.js"[^>]*></script>',
+        r'<script\b[^>]*src=["\']https://cdn\.jsdelivr\.net/npm/chart\.js(?:@[^"\']*?)?/dist/chart\.umd(?:\.min)?\.js(?:\?[^"\']*)?["\'][^>]*></script>',
         re.IGNORECASE,
     ), '<script src="/a/vendor/chart.umd.min.js"></script>'),
-    # Chart.js injected with document.write (tool-sensor-data.html) → local
+    # Chart.js injected with document.write (tool-sensor-data.html) -> local.
+    # Swap only the URL, so the page's JS quoting, attributes and the escaped
+    # closing tag stay as they are.
     (re.compile(
-        r"document\.write\('<script src=\"https://cdn\.jsdelivr\.net/npm/chart\.js@[^\"]*?/dist/chart\.umd(?:\.min)?\.js\"><\\/script>'\);",
+        r'(document\.write(?:ln)?\s*\(\s*["\'`]\s*<script\b[^>]*?\bsrc=["\'])'
+        r'(https://cdn\.jsdelivr\.net/npm/chart\.js(?:@[^"\']*?)?/dist/chart\.umd(?:\.min)?\.js(?:\?[^"\']*)?)'
+        r'(["\'](?:[^>]*>\s*<\\?/script>\s*["\'`]\s*\)))',
         re.IGNORECASE,
-    ), "document.write('<script src=\"/a/vendor/chart.umd.min.js\"><\\/script>');"),
+    ), r'\1/a/vendor/chart.umd.min.js\3'),
 ]
 
 HTML_EXTENSIONS = {'.html', '.htm'}
