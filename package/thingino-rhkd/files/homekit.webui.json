@@ -1,0 +1,32 @@
+{
+  "name": "homekit",
+  "label": "HomeKit",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddServices",
+      "position": "after:Home Assistant",
+      "items": [
+        {
+          "label": "HomeKit",
+          "href": "/config-homekit.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "homekit": true
+  },
+  "cgi": [
+    "/x/json-homekit.cgi"
+  ],
+  "pages": [
+    "/config-homekit.html"
+  ]
+}

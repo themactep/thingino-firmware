@@ -1,0 +1,28 @@
+config BR2_PACKAGE_THINGINO_RHKD
+	bool "Thingino HomeKit camera (rhkd)"
+	depends on BR2_PACKAGE_THINGINO_RAPTOR
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	help
+	  rhkd: native Apple HomeKit camera daemon for raptor cameras,
+	  so the camera can be added to the Home app directly.
+
+	  Built on Apple's HomeKit ADK (Apache-2.0), with the camera
+	  streaming code ported from HAP-NodeJS. Live view (H.264 and
+	  Opus over SRTP, straight from raptor's rings), snapshots, a
+	  motion sensor fed by raptor's motion detection, and a
+	  Services > HomeKit web UI page with the setup code and QR.
+
+	  Installs /usr/bin/rhkd, /usr/bin/hap-setupgen,
+	  /usr/sbin/rhkd-setup, /etc/init.d/S98rhkd and
+	  /etc/default/rhkd. On first boot it creates a setup code and,
+	  once, switches raptor's audio to Opus (and the substream to
+	  H.264 if no stream is H.264), since HomeKit needs those.
+	  Pairing survives sysupgrade -B (cfg-backup.list).
+
+	  HomeKit ADK, mbedTLS 2.28 and raptor-ipc are fetched as extra
+	  downloads at pinned commits.
+
+	  https://github.com/Small6oy/thingino-homekit
+
+comment "rhkd needs raptor and a toolchain with threads"
+	depends on !BR2_PACKAGE_THINGINO_RAPTOR || !BR2_TOOLCHAIN_HAS_THREADS
