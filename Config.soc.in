@@ -15,6 +15,9 @@ config BR2_SOC_VENDOR_INGENIC
 config BR2_SOC_VENDOR_SIGMASTAR
 	bool "SigmaStar"
 
+config BR2_SOC_VENDOR_NOVATEK
+	bool "Novatek"
+
 endchoice
 
 config BR2_INGENIC_SOC_MODEL
@@ -48,6 +51,18 @@ config BR2_SIGMASTAR_SOC_MODEL
 
 	  Note: Model name is case-insensitive.
 
+config BR2_NOVATEK_SOC_MODEL
+	string "SoC Model"
+	depends on BR2_SOC_VENDOR_NOVATEK
+	default ""
+	help
+	  Enter the Novatek SoC model name for your device (e.g., nt98529).
+	  This value is used to automatically derive the SoC family.
+
+	  Supported models: nt98528, nt98529
+
+	  Note: Model name is case-insensitive.
+
 config BR2_SOC_FAMILY
 	string
 	default "t10" if BR2_INGENIC_SOC_MODEL = "t10l" || BR2_INGENIC_SOC_MODEL = "t10n" || BR2_INGENIC_SOC_MODEL = "t10a"
@@ -64,6 +79,7 @@ config BR2_SOC_FAMILY
 	# Only one vendor's model symbol is ever non-empty, so the two halves of
 	# this chain cannot both match and their order does not matter.
 	default "infinity6e" if BR2_SIGMASTAR_SOC_MODEL = "ssc30kq"
+	default "na51055" if BR2_NOVATEK_SOC_MODEL = "nt98528" || BR2_NOVATEK_SOC_MODEL = "nt98529"
 
 config BR2_SOC_RAM_MB
 	int "RAM size in MB"

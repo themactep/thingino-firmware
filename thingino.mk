@@ -10,6 +10,8 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # no vendor symbol at all.
 ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
 SOC_VENDOR := sigmastar
+else ifeq ($(BR2_SOC_VENDOR_NOVATEK),y)
+SOC_VENDOR := novatek
 else
 SOC_VENDOR := ingenic
 endif
@@ -18,7 +20,7 @@ endif
 # resolved here rather than read from the BR2_mipsel/BR2_arm the SoC fragment
 # already sets: fragments are appended to .config and never included as
 # makefiles, so that symbol is not readable when SED_CONFIG_VARS runs.
-ifeq ($(SOC_VENDOR),sigmastar)
+ifneq ($(filter sigmastar novatek,$(SOC_VENDOR)),)
 SOC_TARGET_ARCH := arm
 else
 SOC_TARGET_ARCH := mipsel
@@ -32,6 +34,9 @@ endif
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifeq ($(SOC_MODEL_INPUT),)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
+endif
+ifeq ($(SOC_MODEL_INPUT),)
+SOC_MODEL_INPUT := $(call qstrip,$(BR2_NOVATEK_SOC_MODEL))
 endif
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
