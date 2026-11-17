@@ -10,3 +10,5 @@ CONFIG_CMD_EXT4=y
 CONFIG_CMD_RUN=y
 CONFIG_CMD_EDITENV=y
 CONFIG_CMD_IMPORTENV=y
+# Same bad-block reserve as the vendor kernel: U-Boot attaches UBI first and sizes the overlay volume
+CONFIG_MTD_UBI_BEB_LIMIT=30
