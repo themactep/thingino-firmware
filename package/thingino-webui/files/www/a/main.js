@@ -537,6 +537,15 @@ function updateRecordingState(state) {
   updateRecordingIcons();
 }
 
+function reportRecordingFailure(action, channel) {
+  const message = `Failed to ${action} recording on channel ${channel}`;
+  if (typeof showAlert === "function") {
+    showAlert("danger", message);
+  } else {
+    alert(message);
+  }
+}
+
 function toggleRecording(channel) {
   const button = $(`#recorder-ch${channel}`);
   const isRecording = recordingState[`ch${channel}`];
@@ -564,18 +573,12 @@ function toggleRecording(channel) {
         return;
       }
       if (button) button.classList.remove("pending");
-      showAlert(
-        "danger",
-        `Failed to ${action} recording on channel ${channel}`,
-      );
+      reportRecordingFailure(action, channel);
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      showAlert(
-        "danger",
-        `Failed to ${action} recording on channel ${channel}`,
-      );
+      reportRecordingFailure(action, channel);
     });
 }
 
