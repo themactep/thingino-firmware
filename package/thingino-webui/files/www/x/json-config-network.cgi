@@ -186,9 +186,8 @@ setup_dns() {
 	[ -d "/etc/default" ] || mkdir -p /etc/default
 	if {
 		echo "# set from web ui"
-		for ip in $primary $secondary; do
-			echo "nameserver $ip"
-		done
+		[ -z "$primary" ] || echo "nameserver $primary"
+		[ -z "$secondary" ] || [ "$secondary" = "$primary" ] || echo "nameserver $secondary"
 	} >"$tmp" && mv -f "$tmp" "$conf"; then
 		return 0
 	fi
@@ -257,6 +256,27 @@ valid_ipv4() {
 	return 0
 }
 
+# an IPv6 address as resolv.conf writes it, a %zone allowed after it
+valid_ipv6() {
+	local addr="$1" zone
+	case "$addr" in
+		*%*)
+			zone="${addr#*%}"
+			addr="${addr%%%*}"
+			case "$zone" in '' | *[!0-9A-Za-z._-]*) return 1 ;; esac
+			;;
+	esac
+	case "$addr" in
+		'' | *[!0-9A-Fa-f:]* | *:::* | *::*::*) return 1 ;;
+	esac
+	[ "${#addr}" -le 39 ] || return 1
+	printf '%s' "$addr" | grep -qE '^(([0-9A-Fa-f]{1,4})?:){2,7}([0-9A-Fa-f]{1,4})?$'
+}
+
+valid_dns_server() {
+	valid_ipv4 "$1" || valid_ipv6 "$1"
+}
+
 valid_netmask() {
 	local oldifs octet rest=0
 	valid_ipv4 "$1" || return 1
@@ -288,9 +308,11 @@ lower_hex() {
 	printf '%s' "$1" | tr 'A-F' 'a-f'
 }
 
-# wpa_supplicant.conf holds a derived key bare and a passphrase in quotes
+# wpa_supplicant.conf holds a derived key bare and a passphrase in quotes; the
+# line asked is the one read_wpa_supplicant_value reads, the first psk
 stored_psk_is_derived() {
-	grep -qE '^[[:space:]]*psk=[0-9a-fA-F]{64}[[:space:]]*$' /etc/wpa_supplicant.conf 2>/dev/null
+	sed -n '/^[[:space:]]*psk=/{p;q;}' /etc/wpa_supplicant.conf 2>/dev/null |
+		grep -qE '^[[:space:]]*psk=[0-9a-fA-F]{64}[[:space:]]*$'
 }
 
 mac_json_key() {
@@ -348,6 +370,7 @@ read_wpa_supplicant_value() {
       value = $0
       sub("^[[:space:]]*" key "=", "", value)
       sub(/^[[:space:]]*/, "", value)
+      sub(/[[:space:]]*$/, "", value)
       if (value ~ /^"/) {
         sub(/^"/, "", value)
         sub(/"$/, "", value)
@@ -462,10 +485,13 @@ ensure_hostname() {
 }
 
 ensure_dns() {
+	local server
 	dns_primary=$(trim_value "$1")
 	dns_secondary=$(trim_value "$2")
-	[ -n "$dns_primary" ] || dns_primary="$dns_secondary"
-	[ -n "$dns_primary" ] || json_error "400 Bad Request" "At least one DNS server is required" "missing_dns"
+	[ -n "$dns_primary$dns_secondary" ] || json_error "400 Bad Request" "At least one DNS server is required" "missing_dns"
+	for server in "$dns_primary" "$dns_secondary"; do
+		[ -z "$server" ] || valid_dns_server "$server" || json_error "400 Bad Request" "A DNS server must be an IP address" "invalid_dns"
+	done
 }
 
 assign_iface_state() {
