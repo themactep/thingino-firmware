@@ -1,0 +1,35 @@
+#!/bin/sh
+# Ignition (ACC) events from thingino-button: KEY_PROG1 released = off, pressed = on.
+# ignition.off_delay in thingino.json powers the camera off that many seconds after the
+# ignition goes off; 0 or unset keeps it running.
+
+CONFIG_JSON="/etc/thingino.json"
+PIDFILE="/run/ignition-off.pid"
+
+cancel() {
+	[ -f "$PIDFILE" ] || return 0
+	kill "$(cat "$PIDFILE")" 2>/dev/null
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	off)
+		logger -t ignition "off"
+		delay=$(jct "$CONFIG_JSON" get ignition.off_delay 2>/dev/null)
+		case "$delay" in
+			'' | 0 | *[!0-9]*) exit 0 ;;
+		esac
+		cancel
+		logger -t ignition "powering off in ${delay}s unless it comes back"
+		(sleep "$delay" && rm -f "$PIDFILE" && logger -t ignition "powering off" && touch /run/poweroff && poweroff) &
+		echo $! >"$PIDFILE"
+		;;
+	on)
+		logger -t ignition "on"
+		cancel
+		;;
+	*)
+		echo "Usage: $0 {on|off}" >&2
+		exit 1
+		;;
+esac

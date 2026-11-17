@@ -67,6 +67,16 @@ define DOORBELL_BUTTON_CONF
 	fi
 endef
 
+# Novatek's RTC driver reports ignition as KEY_PROG1; the ignition script only acts when
+# thingino.json sets ignition.off_delay.
+ifeq ($(SOC_VENDOR),novatek)
+define IGNITION_BUTTON_CONF
+	$(INSTALL) -D -m 0755 $(THINGINO_BUTTON_PKGDIR)/files/ignition $(TARGET_DIR)/usr/sbin/ignition
+	printf 'KEY_PROG1 RELEASE 0 ignition off\nKEY_PROG1 PRESS 0 ignition on\n' \
+		>> $(TARGET_DIR)/etc/thingino-button.conf
+endef
+endif
+
 define THINGINO_BUTTON_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/thingino-button $(TARGET_DIR)/usr/bin/thingino-button
 
@@ -78,6 +88,7 @@ define THINGINO_BUTTON_INSTALL_TARGET_CMDS
 
 	$(DOORBELL_BUTTON_CONF)
 	$(CHECK_MULTIPLE_GPIO_BUTTONS)
+	$(IGNITION_BUTTON_CONF)
 endef
 
 $(eval $(generic-package))
