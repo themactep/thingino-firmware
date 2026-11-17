@@ -34,7 +34,7 @@ SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifeq ($(SOC_MODEL_INPUT),)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
 else ifneq ($(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)),)
-$(error BR2_INGENIC_SOC_MODEL and BR2_SIGMASTAR_SOC_MODEL are both set: a camera has one SoC)
+$(error BR2_INGENIC_SOC_MODEL and BR2_SIGMASTAR_SOC_MODEL are both set in $(CAMERA)'s defconfig: a camera has one SoC)
 endif
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
