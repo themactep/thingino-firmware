@@ -491,7 +491,7 @@ agent_wb_mode_raw() {
 }
 
 agent_wb_gain_raw() {
-	# $1 = r|b — prefer live get-wb, then ISP, then persisted image.wb_{r,b}
+	# $1 = r|b - prefer live get-wb, then ISP, then persisted image.wb_{r,b}
 	channel=$1
 	wb=$(agent_wb_json)
 	if [ -n "$wb" ]; then
@@ -735,17 +735,6 @@ agent_privacy_enabled() {
 	printf 'false'
 }
 
-# Runtime stream fallback
-# The Kconfig stream defaults are empty strings, so /etc/raptor.conf ships
-# streamN geometry keys commented out and the daemon runs on compiled-in
-# defaults. To show what the daemon is actually doing, fall back to the
-# live encoder state from `raptorctl rvd config` when a key is unset.
-
-# One `raptorctl rvd config` round trip per adapter invocation, cached via
-# a PID-keyed temp file (same pattern as the isp/wb caches) so every
-# fallback field and subshell reuses the copy instead of re-querying the
-# control socket. The file is created even when the query returns nothing,
-# so a dead rvd is attempted once per render, not once per field.
 agent_runtime_stream_json() {
 	_rvd_cache="/tmp/agent-raptor-rvdconfig.$$"
 	if [ ! -e "$_rvd_cache" ]; then
@@ -758,12 +747,6 @@ agent_runtime_stream_json() {
 }
 
 agent_runtime_stream_field() {
-	# $1 = stream id, $2 = field name; prints the value or nothing.
-	# config-show emits one flat object per stream ("chn":<id>{...}); the
-	# enclosing object is located by balanced braces, so a nested object no
-	# longer truncates the scan. Arguments are validated before use so
-	# untrusted values never become part of a match expression. The
-	# raptorctl guard lives in agent_runtime_stream_json.
 	json=$(agent_runtime_stream_json) || return 0
 	[ -n "$json" ] || return 0
 	printf '%s' "$json" | tr -d '\n' |
@@ -816,11 +799,7 @@ agent_runtime_stream_field() {
 				}
 				obj_rest_offset = 1
 				while (match(substr(obj, obj_rest_offset), "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
-					# Only trust a top-level field: the match must sit
-					# at brace depth 1 inside the stream object (obj
-					# opens at depth 1), so a same-named key inside a
-					# nested object is skipped and a later top-level
-					# match is still found.
+					# top-level fields only: match must sit at brace depth 1
 					mstart = obj_rest_offset + RSTART - 1
 					depth = 0
 					for (j = 1; j < mstart; j++) {
@@ -897,13 +876,6 @@ agent_stream_field() {
 }
 
 agent_stream_nr_vbs() {
-	# rvd treats an unset or <= 0 nr_vbs as "auto" and starts with 2 buffers
-	# (rvd_pipeline.c load_stream_config). Report the effective value so the
-	# Buffers field is not blank: an explicit positive config value wins,
-	# otherwise the resolved value rvd reports, otherwise the documented
-	# start value. Keyed on raptorctl availability (the same gate the config
-	# lookup uses), not on rvd running: the config file still declares the
-	# key when rvd is down.
 	command -v raptorctl >/dev/null 2>&1 || return 0
 	value=$(agent_stream_field "$1" nr_vbs)
 	case "$value" in
@@ -1142,9 +1114,6 @@ agent_print_stream_config() {
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$(agent_stream_enabled "$stream_id")"
 	printf '"audio_enabled":%s,' "$(agent_stream_audio_enabled)"
-	# Configured value wins; when the key is unset (commented out in
-	# /etc/raptor.conf), report the live encoder value from rvd so the
-	# WebUI shows what the daemon is actually running.
 	_width=$(agent_stream_field "$stream_id" width)
 	[ -n "$_width" ] || _width=$(agent_runtime_stream_field "$stream_id" w)
 	printf '"width":%s,' "$(agent_json_value_or "$_width" null)"
@@ -1817,7 +1786,7 @@ agent_send2_motion_set() {
 
 # Map canonical OSD leaf paths onto raptor's global [osd] / [osd.<element>] model.
 # Raptor OSD is mostly global; streamN only owns osd_enabled. Stream-scoped agent
-# paths still work — both streams read/write the same global element config.
+# paths still work: both streams read/write the same global element config.
 agent_osd_element_name() {
 	case "$1" in
 		time) printf 'timestamp' ;;
@@ -3237,7 +3206,7 @@ agent_privacy() {
 	}
 
 	# Privacy state lives in RVD (rod privacy is redirected). Capture the
-	# command response — status queries do not include the privacy array.
+	# command response: status queries do not include the privacy array.
 	if [ "$channel" = "all" ]; then
 		resp=$(raptorctl rod privacy "$state" 2>/dev/null) || return 1
 	else
