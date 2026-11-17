@@ -1,0 +1,277 @@
+From 37e00dc006f9c53fbbfb095e529592fa24c9a04b Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Tue, 17 Nov 2026 05:23:11 -0800
+Subject: [PATCH] read every key input device and add KEY_POWER/KEY_PROG1
+
+DEVICE=auto now opens all devices that report key events, not just the
+first gpio-keys one, so a board with a second source (an RTC power switch)
+is covered. KEY_PROG1 carries ignition where a board reports it.
+---
+ thingino-button.c | 162 ++++++++++++++++++++--------------------------
+ 1 file changed, 71 insertions(+), 91 deletions(-)
+
+diff --git a/thingino-button.c b/thingino-button.c
+index 5e4e4ea..c1245ab 100644
+--- a/thingino-button.c
++++ b/thingino-button.c
+@@ -52,38 +52,6 @@ static void trim_newline(char *text) {
+ 	text[strcspn(text, "\r\n")] = '\0';
+ }
+ 
+-static int contains_case_insensitive(const char *haystack, const char *needle) {
+-	size_t needle_len;
+-
+-	if (!haystack || !needle) {
+-		return 0;
+-	}
+-
+-	needle_len = strlen(needle);
+-	if (needle_len == 0) {
+-		return 1;
+-	}
+-
+-	for (; *haystack; haystack++) {
+-		size_t i;
+-
+-		for (i = 0; i < needle_len; i++) {
+-			if (haystack[i] == '\0') {
+-				return 0;
+-			}
+-			if (tolower((unsigned char)haystack[i]) != tolower((unsigned char)needle[i])) {
+-				break;
+-			}
+-		}
+-
+-		if (i == needle_len) {
+-			return 1;
+-		}
+-	}
+-
+-	return 0;
+-}
+-
+ static int extract_event_device(const char *handlers, char *device, size_t device_size) {
+ 	const char *event;
+ 
+@@ -103,58 +71,43 @@ static int extract_event_device(const char *handlers, char *device, size_t devic
+ 	return -1;
+ }
+ 
+-static int autodetect_gpio_keys_device(char *device, size_t device_size) {
+-	FILE *file;
++#define MAX_DEVICES 8
++
++// Every input device that reports key events (B: EV= has EV_KEY), so a board
++// with more than one source (gpio-keys, an RTC power switch) is fully covered.
++static int autodetect_key_devices(char devices[][256], int max) {
++	FILE *file = fopen("/proc/bus/input/devices", "r");
+ 	char line[512];
+-	char name[256] = "";
+ 	char handlers[256] = "";
++	unsigned long ev = 0;
++	int count = 0;
+ 
+-	file = fopen("/proc/bus/input/devices", "r");
+ 	if (!file) {
+-		return -1;
++		return 0;
+ 	}
+ 
+-	while (fgets(line, sizeof(line), file)) {
++	while (count < max && fgets(line, sizeof(line), file)) {
+ 		trim_newline(line);
+ 
+-		if (line[0] == '\0') {
+-			if ((contains_case_insensitive(name, "gpio-keys") ||
+-				 contains_case_insensitive(name, "gpio keys") ||
+-				 contains_case_insensitive(name, "gpio button")) &&
+-				extract_event_device(handlers, device, device_size) == 0) {
+-				fclose(file);
+-				return 0;
++		if (strncmp(line, "H: Handlers=", 12) == 0) {
++			copy_string(handlers, sizeof(handlers), line + 12);
++		} else if (strncmp(line, "B: EV=", 6) == 0) {
++			ev = strtoul(line + 6, NULL, 16);
++		} else if (line[0] == '\0') {
++			if ((ev & (1UL << EV_KEY)) && extract_event_device(handlers, devices[count], 256) == 0) {
++				count++;
+ 			}
+-
+-			name[0] = '\0';
+ 			handlers[0] = '\0';
+-			continue;
+-		}
+-
+-		if (strncmp(line, "N: Name=\"", 9) == 0) {
+-			char *start = line + 9;
+-			char *end = strrchr(start, '"');
+-
+-			if (end) {
+-				*end = '\0';
+-			}
+-
+-			copy_string(name, sizeof(name), start);
+-		} else if (strncmp(line, "H: Handlers=", 12) == 0) {
+-			copy_string(handlers, sizeof(handlers), line + 12);
++			ev = 0;
+ 		}
+ 	}
+ 
+-	fclose(file);
+-
+-	if ((contains_case_insensitive(name, "gpio-keys") ||
+-		 contains_case_insensitive(name, "gpio keys") ||
+-		 contains_case_insensitive(name, "gpio button")) &&
+-		extract_event_device(handlers, device, device_size) == 0) {
+-		return 0;
++	if (count < max && (ev & (1UL << EV_KEY)) && extract_event_device(handlers, devices[count], 256) == 0) {
++		count++;
+ 	}
+ 
+-	return -1;
++	fclose(file);
++	return count;
+ }
+ 
+ // Global variables
+@@ -188,7 +141,7 @@ void log_message(const char *format, ...) {
+ 	va_end(args);
+ }
+ 
+-// Support 0-9, MINUS, and ENTER
++// Support 0-9, MINUS, ENTER, POWER and PROG1 (ignition on boards that report it)
+ int event_code_from_name(const char *name) {
+ 	switch (name[4]) { // name' is in the format "KEY_X" where X is a character
+ 		case 'E':
+@@ -227,6 +180,10 @@ int event_code_from_name(const char *name) {
+ 		case 'M':
+ 			if (strcmp(name, "KEY_MINUS") == 0) return 12;
+ 			break;
++		case 'P':
++			if (strcmp(name, "KEY_POWER") == 0) return 116;
++			if (strcmp(name, "KEY_PROG1") == 0) return 148;
++			break;
+ 		default:
+ 			break;
+ 	}
+@@ -313,10 +270,10 @@ void execute_command(const char *command) {
+ 	}
+ }
+ 
+-void process_events(int fd) {
++void process_events(const int *fds, int nfds) {
+ 	struct input_event ev;
+ 	struct timeval press_times[256] = {{0, 0}};
+-	struct pollfd pfd;
++	struct pollfd pfds[MAX_DEVICES];
+ 	int poll_timeout = -1;
+ 
+ 	while (1) {
+@@ -325,16 +282,20 @@ void process_events(int fd) {
+ 		// second forever, even with no button ever pressed. A 10ms tick
+ 		// is only needed while a TIMED_FIRE countdown is armed; otherwise
+ 		// sleep in poll() until the input layer delivers an event.
+-		pfd.fd = fd;
+-		pfd.events = POLLIN;
+-		int pn = poll(&pfd, 1, poll_timeout);
++		for (int k = 0; k < nfds; k++) {
++			pfds[k].fd = fds[k];
++			pfds[k].events = POLLIN;
++			pfds[k].revents = 0;
++		}
++		int pn = poll(pfds, nfds, poll_timeout);
+ 		if (pn < 0 && errno != EINTR) {
+ 			perror("Error polling event device");
+ 			break;
+ 		}
+ 
++		for (int k = 0; k < nfds; k++) {
+ 		char buf[16];
+-		int n = read(fd, buf, sizeof(buf));
++		int n = read(fds[k], buf, sizeof(buf));
+ 		if (n == 16) {
+ 			ev.time.tv_sec = *(int32_t *)(buf);
+ 			ev.time.tv_usec = *(int32_t *)(buf + 4);
+@@ -408,7 +369,8 @@ void process_events(int fd) {
+ 			}
+ 		} else if (n == -1 && errno != EAGAIN) {
+ 			perror("Error reading event");
+-			break;
++			return;
++		}
+ 		}
+ 
+ 		// Check for timed fire events
+@@ -527,30 +489,46 @@ int main(int argc, char *argv[]) {
+ 		load_config();
+ 	}
+ 
++	char devices[MAX_DEVICES][256];
++	int ndev = 0;
++
+ 	if (strcmp(input_device, "auto") == 0 ||
+ 		strcmp(input_device, DEFAULT_DEVICE) == 0 ||
+ 		access(input_device, F_OK) != 0) {
+-		char detected_device[sizeof(input_device)];
+-
+-		if (autodetect_gpio_keys_device(detected_device, sizeof(detected_device)) == 0) {
+-			copy_string(input_device, sizeof(input_device), detected_device);
+-			log_message("Using auto-detected GPIO keys input device: %s\n", input_device);
++		// Input drivers can still be probing: wait for the first key device
++		for (int retries = 0; ndev == 0 && retries < 30; retries++) {
++			ndev = autodetect_key_devices(devices, MAX_DEVICES);
++			if (ndev == 0) {
++				sleep(1);
++			}
+ 		}
+ 	}
++	if (ndev == 0) {
++		copy_string(devices[0], sizeof(devices[0]), input_device);
++		ndev = 1;
++	}
+ 
+ 	// Register signal handlers
+ 	signal(SIGTERM, handle_signal);
+ 
+-	int fd = -1;
+-	int retries = 0;
+-	while (fd < 0 && retries < 30) {
+-		fd = open(input_device, O_RDONLY | O_NONBLOCK);
++	int fds[MAX_DEVICES];
++	int nfds = 0;
++	for (int i = 0; i < ndev; i++) {
++		int fd = -1;
++		for (int retries = 0; fd < 0 && retries < 30; retries++) {
++			fd = open(devices[i], O_RDONLY | O_NONBLOCK);
++			if (fd < 0) {
++				sleep(1);
++			}
++		}
+ 		if (fd < 0) {
+-			retries++;
+-			sleep(1);
++			log_message("Failed to open event device %s\n", devices[i]);
++			continue;
+ 		}
++		log_message("Using input device: %s\n", devices[i]);
++		fds[nfds++] = fd;
+ 	}
+-	if (fd < 0) {
++	if (nfds == 0) {
+ 		perror("Failed to open event device");
+ 		return 1;
+ 	}
+@@ -561,9 +539,11 @@ int main(int argc, char *argv[]) {
+ 		log_message("Input device opened successfully.\n");
+ 	}
+ 
+-	process_events(fd);
++	process_events(fds, nfds);
+ 
+-	close(fd);
++	for (int i = 0; i < nfds; i++) {
++		close(fds[i]);
++	}
+ 
+ 	if (silent_mode || daemon_mode) {
+ 		closelog();
