@@ -272,6 +272,7 @@ jobs:
           set -e
           REPO="${{ github.repository }}"
           cd staging
+          find . -mindepth 2 -type f -name 'thingino-qemu_*.bin' -exec mv {} . \;
           ls thingino-qemu_*.bin > /dev/null
           sha256sum thingino-qemu_*.bin > SHA256SUMS
           cat SHA256SUMS
