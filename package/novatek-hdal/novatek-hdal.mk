@@ -7,6 +7,7 @@
 NOVATEK_HDAL_SITE = $(call qstrip,$(BR2_PACKAGE_NOVATEK_HDAL_BLOBS))
 NOVATEK_HDAL_SITE_METHOD = local
 NOVATEK_HDAL_LICENSE = PROPRIETARY
+NOVATEK_HDAL_INSTALL_STAGING = YES
 NOVATEK_HDAL_DEPENDENCIES = linux
 
 ifeq ($(BR2_PACKAGE_NOVATEK_HDAL)$(NOVATEK_HDAL_SITE),y)
@@ -30,6 +31,12 @@ define NOVATEK_HDAL_MODULES_D
 		> $(TARGET_DIR)/etc/modules.d/30-hdal
 endef
 
+define NOVATEK_HDAL_INSTALL_STAGING_CMDS
+	$(INSTALL) -d $(STAGING_DIR)/usr/include/hdal
+	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/include/hdal $(@D)/include/*.h
+	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib $(@D)/lib/*.so
+endef
+
 define NOVATEK_HDAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -d $(NOVATEK_HDAL_MODDIR)/hdal $(TARGET_DIR)/etc/modules.d $(TARGET_DIR)/etc/sensor
 	$(INSTALL) -D -m 0644 $(@D)/vos/kwrap/kwrap.ko $(NOVATEK_HDAL_MODDIR)/vos/kwrap/kwrap.ko
@@ -46,6 +53,11 @@ define NOVATEK_HDAL_INSTALL_TARGET_CMDS
 	done
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib $(@D)/lib/*.so
 	$(INSTALL) -m 0644 $(@D)/sensor/sen_$(NOVATEK_HDAL_SENSOR).cfg $(TARGET_DIR)/etc/sensor/
+	# The camera's MIPI lane and pinmux wiring, read by the raptor HAL.
+	if [ -f $(dir $(CAMERA_CONFIG_REAL))$(NOVATEK_HDAL_SENSOR).pinmux ]; then \
+		$(INSTALL) -m 0644 $(dir $(CAMERA_CONFIG_REAL))$(NOVATEK_HDAL_SENSOR).pinmux \
+			$(TARGET_DIR)/etc/sensor/; \
+	fi
 	$(NOVATEK_HDAL_MODULES_D)
 	$(INSTALL) -D -m 0755 $(NOVATEK_HDAL_PKGDIR)/files/S10debugfs $(TARGET_DIR)/etc/init.d/S10debugfs
 endef

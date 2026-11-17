@@ -1,0 +1,7 @@
+# MIPI CSI, 4 lanes, I2C bus 1: the sensor_ssenif tree embedded in the stock cardv
+if_type=5
+sensor_pinmux=0x220
+serial_if_pinmux=0x301
+cmd_if_pinmux=0x01
+clk_lane_sel=0
+pin_map=0,1,2,3

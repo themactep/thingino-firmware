@@ -5,7 +5,10 @@ THINGINO_RAPTOR_SITE_METHOD = git
 THINGINO_RAPTOR_LICENSE = GPL-3.0
 THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
-THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
+THINGINO_RAPTOR_DEPENDENCIES += compy libschrift
+ifeq ($(BR2_SOC_VENDOR_INGENIC),y)
+THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib
+endif
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
 THINGINO_RAPTOR_DEPENDENCIES += thingino-webui thingino-agent
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
@@ -21,6 +24,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
 endif
 
+ifeq ($(BR2_SOC_VENDOR_INGENIC),y)
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
 endif
@@ -29,6 +33,7 @@ endif
 ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 ifeq ($(filter t40 t41,$(SOC_FAMILY)),)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-uclibc
+endif
 endif
 endif
 
@@ -129,6 +134,11 @@ endif
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RFS),y)
 THINGINO_RAPTOR_TARGETS += rfs
+endif
+
+# The Novatek HAL backend has no audio, OSD, IR-cut or IVS yet.
+ifeq ($(BR2_SOC_VENDOR_NOVATEK),y)
+THINGINO_RAPTOR_TARGETS := $(filter-out rad rac rod ric rmd rwc,$(THINGINO_RAPTOR_TARGETS))
 endif
 
 # Libraries are pre-built by their own packages and installed to staging.
