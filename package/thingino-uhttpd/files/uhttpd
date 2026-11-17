@@ -40,4 +40,6 @@ UHTTPD_TLS_REDIRECT="0"
 
 # Additional uhttpd arguments
 # Add any extra arguments here
-EXTRA_ARGS=""
+# -M 600 -F /a/: cache /a/ assets for 10 min (their URLs carry ?ts=<tag>,
+# which changes when they do); every other static file gets no-cache (0008)
+EXTRA_ARGS="-M 600 -F /a/"
