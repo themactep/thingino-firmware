@@ -12,6 +12,10 @@ NOVATEK_UBOOT_LICENSE = GPL-2.0+
 NOVATEK_UBOOT_LICENSE_FILES = Licenses/gpl-2.0.txt
 NOVATEK_UBOOT_INSTALL_TARGET = YES
 NOVATEK_UBOOT_INSTALL_IMAGES = YES
+NOVATEK_UBOOT_DEPENDENCIES = host-uboot-tools
+
+# Must match CONFIG_ENV_SIZE in env-*.fragment
+NOVATEK_UBOOT_ENV_SIZE = 0x10000
 
 NOVATEK_UBOOT_BOARD_DIR = $(BR2_EXTERNAL_THINGINO_PATH)/board/novatek/$(SOC_FAMILY)/uboot
 
@@ -43,9 +47,14 @@ define NOVATEK_UBOOT_BUILD_CMDS
 endef
 
 # The loader checks the bin-info stamp at 0x350, as the SDK's encrypt_bin SUM writes it
+# The image carries the environment, so it is valid from the first boot and fw_setenv never
+# starts from an empty one
 define NOVATEK_UBOOT_INSTALL_IMAGES_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/u-boot.bin $(BINARIES_DIR)/u-boot.bin
 	python3 $(BR2_EXTERNAL_THINGINO_PATH)/scripts/nvtpack.py binsum $(BINARIES_DIR)/u-boot.bin
+	sed -e '/^#/d' -e '/^$$/d' $(NOVATEK_UBOOT_ENV) > $(BINARIES_DIR)/u-boot-env.txt
+	$(HOST_DIR)/bin/mkenvimage -s $(NOVATEK_UBOOT_ENV_SIZE) -o $(BINARIES_DIR)/u-boot-env.bin \
+		$(BINARIES_DIR)/u-boot-env.txt
 endef
 
 # fw_printenv/fw_setenv reach the same environment U-Boot keeps; the overlay carries an

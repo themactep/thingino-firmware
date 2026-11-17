@@ -62,6 +62,7 @@ if [ "$(cfg BR2_PACKAGE_NOVATEK_UBOOT_BOOT_SD)" = "y" ]; then
 	}
 	image sdcard.img {
 		hdimage {}
+		partition uboot-env { in-partition-table = false image = "u-boot-env.bin" offset = 512K }
 		partition boot { partition-type = 0xC image = "boot.vfat" offset = 1M }
 		partition rootfs { partition-type = 0x83 image = "rootfs.ext2" }
 	}
@@ -101,6 +102,7 @@ if [ "$(cfg BR2_PACKAGE_NOVATEK_UBOOT_BOOT_NAND)" = "y" ]; then
 	ff 0x1a0000 >"$AU"
 	put "$BIN/board.dtb" 0x0
 	put "$BIN/u-boot.bin" 0x80000
+	put "$BIN/u-boot-env.bin" 0x180000
 	put "$BIN/ubi.img" 0x1a0000
 	size=$(stat -c %s "$AU")
 	ff $(((0x20000 - size % 0x20000) % 0x20000)) >>"$AU"
