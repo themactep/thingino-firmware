@@ -2,7 +2,8 @@
 # shellcheck disable=SC2068
 
 DAEMON="/usr/bin/thingino-button"
-DAEMON_ARGS="-d"
+# start-stop-daemon backgrounds it and records the pid: -d would fork again and orphan the pidfile
+DAEMON_ARGS="-s"
 
 PIDFILE="/run/thingino-button.pid"
 
