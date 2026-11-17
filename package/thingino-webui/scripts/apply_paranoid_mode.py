@@ -56,6 +56,11 @@ REPLACEMENTS = [
 
 HTML_EXTENSIONS = {'.html', '.htm'}
 
+EXTERNAL_ASSET = re.compile(
+    r'https://(?:cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)\b',
+    re.IGNORECASE,
+)
+
 
 def rewrite_file(path: pathlib.Path) -> bool:
     """Rewrite CDN references in a single HTML file. Returns True if changed."""
@@ -77,6 +82,20 @@ def rewrite_file(path: pathlib.Path) -> bool:
     return False
 
 
+def find_leftovers(root: pathlib.Path) -> list:
+    """Return HTML lines that still reference an external asset host."""
+    leftovers = []
+    for path in sorted(root.rglob('*.html')):
+        try:
+            lines = path.read_text(encoding='utf-8').splitlines()
+        except OSError:
+            continue
+        for number, line in enumerate(lines, 1):
+            if EXTERNAL_ASSET.search(line):
+                leftovers.append(f'{path}:{number}: {line.strip()}')
+    return leftovers
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <target-var-www-dir>", file=sys.stderr)
@@ -93,6 +112,16 @@ def main() -> int:
             count += 1
 
     print(f"thingino-webui: paranoid mode — {count} HTML file(s) rewritten to local assets")
+
+    leftovers = find_leftovers(root)
+    if leftovers:
+        print(
+            "ERROR: external assets remain after the paranoid rewrite:",
+            file=sys.stderr,
+        )
+        for item in leftovers:
+            print(f"  {item}", file=sys.stderr)
+        return 1
     return 0
 
 
