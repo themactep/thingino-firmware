@@ -13,3 +13,8 @@ env |
 	sort >/run/sync_status
 
 [ "$action" = "step" ] || [ "$action" = "stratum" ] && touch /run/sync_success
+
+# Keep a battery-backed RTC in step
+if [ -e /run/sync_success ] && [ -e /dev/rtc0 ] && command -v hwclock >/dev/null; then
+	hwclock -w -u
+fi

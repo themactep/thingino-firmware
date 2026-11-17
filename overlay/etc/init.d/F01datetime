@@ -10,7 +10,12 @@ start() {
 		exit 1
 	fi
 
-	if date -u -s "@$(awk -F'=' '/^BUILD_TIMESTAMP/{print $2}' "$OS_RELEASE_FILE")" >/dev/null; then
+	build=$(awk -F'=' '/^BUILD_TIMESTAMP/{print $2}' "$OS_RELEASE_FILE")
+
+	# A clock already past the build came from a battery-backed RTC
+	if [ "$(date -u +%s)" -ge "$build" ] 2>/dev/null; then
+		echo -c 240 -e "- $(date) (RTC)"
+	elif date -u -s "@$build" >/dev/null; then
 		echo -c 240 -e "- $(date) (fail-safe)"
 	else
 		echo -c 160 -e "Failed to set time" >&2
@@ -23,7 +28,10 @@ case "$1" in
 		start
 		;;
 	stop)
-		true
+		# Save NTP time to a battery-backed RTC
+		if [ -e /run/sync_success ] && [ -e /dev/rtc0 ] && command -v hwclock >/dev/null; then
+			hwclock -w -u
+		fi
 		;;
 	*)
 		echo "Usage: $0 {start|stop}"
