@@ -72,6 +72,7 @@ write_config() {
 	jct "$TMP_FILE" set "$DOMAIN.track_focus" "$track_focus" >/dev/null 2>&1
 	jct "$TMP_FILE" set "$DOMAIN.focus_timeout" "$focus_timeout" >/dev/null 2>&1
 	jct "$TMP_FILE" set "$DOMAIN.auth_bypass_ips" "$auth_bypass_ips" >/dev/null 2>&1
+	jct "$TMP_FILE" set "$DOMAIN.router" "$router" >/dev/null 2>&1
 	jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
 }
 
@@ -144,12 +145,14 @@ handle_post() {
 	new_focus_timeout=$(jct "$REQ_FILE" get focus_timeout 2>/dev/null)
 	new_password=$(jct "$REQ_FILE" get password 2>/dev/null)
 	new_auth_bypass_ips=$(jct "$REQ_FILE" get auth_bypass_ips 2>/dev/null)
+	new_router=$(jct "$REQ_FILE" get router 2>/dev/null)
 
 	theme=$(normalize_theme "$new_theme") || json_error 422 "Unsupported theme" "422 Unprocessable Entity"
 	paranoid=$(normalize_bool "$new_paranoid") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 	track_focus=$(normalize_bool "$new_track_focus") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 	focus_timeout=$(normalize_int "$new_focus_timeout" 0 300) || json_error 422 "Invalid integer value" "422 Unprocessable Entity"
 	auth_bypass_ips=$(normalize_bypass_ips "$new_auth_bypass_ips")
+	router=$(normalize_bool "$new_router") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 
 	write_config
 
