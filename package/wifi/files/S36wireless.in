@@ -284,9 +284,12 @@ start() {
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
 
-	if [ -d /proc/jz/mdio ]; then
-		echo "GMAC is enabled, disabling MSC1..."
-	else
+	@if WIFI_SDIO_SHARED_GMAC@
+	sdio_gmac_ok=1
+	@else@
+	sdio_gmac_ok=0
+	@endif@
+	if [ ! -d /proc/jz/mdio ] || [ "$sdio_gmac_ok" = "1" ]; then
 		@if WIFI_SDIO_UNSUPPORTED@
 		echo "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@" >&2
 		exit 1
@@ -305,6 +308,8 @@ start() {
 		mmc 1
 		@endif@
 		@endif@
+	else
+		echo "GMAC is enabled, disabling MSC1..."
 	fi
 	@endif@
 	@endif@

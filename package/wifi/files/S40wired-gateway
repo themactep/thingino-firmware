@@ -47,6 +47,32 @@ any_wired_iface_exists() {
 	return 1
 }
 
+stop_wireless() {
+	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant stop
+	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless stop
+	unload_wlan_module
+	@if WIFI_MODULE_IS_SDIO@
+	@if !WIFI_SDIO_UNSUPPORTED@
+	@if !WIFI_SDIO_RETURN_EARLY@
+	echo "Send REMOVE to MMC1"
+	mmc 1 -r
+	@endif@
+	@endif@
+	@endif@
+	start_web_server
+}
+
+start_wireless() {
+	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless start
+	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant start
+	# With no stored credentials S38 only records the pending decision;
+	# the boot path confirms it from watch_wired_uplink, so do the same
+	# when the wired link disappears after boot.
+	if [ -f /run/portal_pending ]; then
+		/etc/init.d/S38wpa_supplicant portal_confirmed
+	fi
+}
+
 watch_wired_uplink() {
 	# Only poll for wired uplink if wired interfaces exist
 	if any_wired_iface_exists; then
@@ -55,10 +81,7 @@ watch_wired_uplink() {
 			for iface in eth0; do
 				if has_wired_uplink "$iface"; then
 					echo "Wired uplink on $iface found, stopping WiFi" >&2
-					/etc/init.d/S38wpa_supplicant stop
-					/etc/init.d/S36wireless stop
-					unload_wlan_module
-					start_web_server
+					stop_wireless
 					exit 0
 				fi
 			done
@@ -72,11 +95,47 @@ watch_wired_uplink() {
 	fi
 }
 
+# Link-state follow-up from ifplugd. The boot probe only runs once, so
+# without this a plugged/unplugged USB Ethernet adapter leaves the WLAN
+# module either unloaded with no way back or running beside the cable.
+recheck() {
+	case "$1" in
+		up)
+			# Give DHCP a moment to install the default route before
+			# deciding that this really is the uplink.
+			attempt=0
+			while [ "$attempt" -lt 10 ]; do
+				for iface in eth0; do
+					if has_wired_uplink "$iface"; then
+						stop_wireless
+						return 0
+					fi
+				done
+				attempt=$((attempt + 1))
+				sleep 1
+			done
+			# Link is up but no usable route; keep WLAN off so the
+			# wired port remains the only uplink.
+			stop_wireless
+			;;
+		down)
+			# Another wired interface may still be the uplink.
+			for iface in eth0; do
+				has_wired_uplink "$iface" && return 0
+			done
+			start_wireless
+			;;
+	esac
+}
+
 case "$1" in
 	start)
 		# The uplink probe needs up to 10 s; on wifi-only cameras it
 		# always runs the full 10 s, so it must not hold up rcS.
 		watch_wired_uplink &
+		;;
+	recheck)
+		recheck "$2"
 		;;
 esac
 
