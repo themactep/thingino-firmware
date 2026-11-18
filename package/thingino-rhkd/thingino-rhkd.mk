@@ -6,28 +6,35 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.3.9
-THINGINO_RHKD_VERSION = 6ff10cb160e3f0a8fa85b6f41fbfdbaf8baa61e9
-THINGINO_RHKD_LICENSE = GPL-3.0-or-later, Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd)
+# v0.7.0
+THINGINO_RHKD_VERSION = 044a14f9a658c065f304cdd2b6085a9c3ff3714c
+THINGINO_RHKD_LICENSE = GPL-3.0-or-later, Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd), BSD-3-Clause (Opus), LGPL-2.1+ (faac)
 THINGINO_RHKD_LICENSE_FILES = LICENSE
 
 # Third-party sources, at the commits rhkd's deps.sh pins.
 THINGINO_RHKD_ADK_COMMIT = fb201f98f5fdc7fef6a455054f08b59cca5d1ec8
 THINGINO_RHKD_MBEDTLS_VERSION = 2.28.10
 THINGINO_RHKD_RIPC_COMMIT = 00810bb7b91c3e21210b5a76d43748a23758f36a
+# HomeKit Secure Video audio: Opus (raptor's ring) -> PCM -> AAC-LC.
+THINGINO_RHKD_OPUS_COMMIT = ddbe48383984d56acd9e1ab6a090c54ca6b735a6
+THINGINO_RHKD_FAAC_COMMIT = 78d8e0141600ac006a94ac6fd5601f599fa5b65b
 THINGINO_RHKD_EXTRA_DOWNLOADS = \
 	https://github.com/apple/HomeKitADK/archive/$(THINGINO_RHKD_ADK_COMMIT).tar.gz \
 	https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v$(THINGINO_RHKD_MBEDTLS_VERSION).tar.gz \
-	https://github.com/gtxaspec/raptor-ipc/archive/$(THINGINO_RHKD_RIPC_COMMIT).tar.gz
+	https://github.com/gtxaspec/raptor-ipc/archive/$(THINGINO_RHKD_RIPC_COMMIT).tar.gz \
+	https://github.com/xiph/opus/archive/$(THINGINO_RHKD_OPUS_COMMIT).tar.gz \
+	https://github.com/knik0/faac/archive/$(THINGINO_RHKD_FAAC_COMMIT).tar.gz
 
 # Unpack the extra downloads into src/ (unless an override source dir already has them), then apply
 # rhkd's HomeKitADK patches.
 define THINGINO_RHKD_FETCH_DEPS
 	if [ ! -d $(@D)/src/HomeKitADK/HAP ]; then \
-		mkdir -p $(@D)/src/HomeKitADK $(@D)/src/mbedtls $(@D)/src/raptor-ipc && \
+		mkdir -p $(@D)/src/HomeKitADK $(@D)/src/mbedtls $(@D)/src/raptor-ipc $(@D)/src/opus $(@D)/src/faac && \
 		tar -xzf $(THINGINO_RHKD_DL_DIR)/$(THINGINO_RHKD_ADK_COMMIT).tar.gz --strip-components=1 -C $(@D)/src/HomeKitADK && \
 		tar -xzf $(THINGINO_RHKD_DL_DIR)/v$(THINGINO_RHKD_MBEDTLS_VERSION).tar.gz --strip-components=1 -C $(@D)/src/mbedtls && \
 		tar -xzf $(THINGINO_RHKD_DL_DIR)/$(THINGINO_RHKD_RIPC_COMMIT).tar.gz --strip-components=1 -C $(@D)/src/raptor-ipc && \
+		tar -xzf $(THINGINO_RHKD_DL_DIR)/$(THINGINO_RHKD_OPUS_COMMIT).tar.gz --strip-components=1 -C $(@D)/src/opus && \
+		tar -xzf $(THINGINO_RHKD_DL_DIR)/$(THINGINO_RHKD_FAAC_COMMIT).tar.gz --strip-components=1 -C $(@D)/src/faac && \
 		for p in $(@D)/patches/HomeKitADK/*.patch; do patch -d $(@D)/src/HomeKitADK -p1 < $$p || exit 1; done; \
 	fi
 endef
