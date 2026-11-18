@@ -327,11 +327,20 @@ ALIGN_BLOCK := 65536
 # ("Perhaps the file system was created with the wrong erase size?").
 # Ingenic SFC NOR reports 32 KiB by default; only kernels whose config
 # explicitly selects CONFIG_ERASE_SIZE_64K use 64 KiB.
+#
+# The driver's source of truth is the chip table in the SoC's spi_bus.c:
+# drivers/mtd/devices/jz_sfc.c copies board_info->erasesize into
+# mtd->erasesize and picks the 0x52 or 0xD8 erase opcode from it. This
+# Kconfig symbol never reaches the driver, so the fragment line and the chip
+# table have to describe the same flash, or mkfs.jffs2, the partition floor
+# below and the kernel disagree about what an erase block is.
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
 JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
-# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
+# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data).
+# That is a block count, not a byte count: the floor follows the erase block
+# the kernel actually uses, so it doubles on a 64 KiB kernel.
 JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
@@ -388,7 +397,23 @@ U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
 KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
-ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
+
+# Largest rootfs that still leaves JFFS2_MIN_SIZE for the data partition.
+# Recursive on purpose: FLASH_SIZE and ROOTFS_OFFSET are defined further down.
+# Clamped at zero for a layout whose fixed partitions already use the flash.
+ROOTFS_PARTITION_MAX = $(shell v=$$(( $(FLASH_SIZE) - $(ROOTFS_OFFSET) - $(JFFS2_MIN_SIZE) )); [ $$v -lt 0 ] && v=0; echo $$v)
+
+# The data partition is the flash tail, so nothing stopped a growing rootfs
+# from starving it: below 5 erase blocks JFFS2 refuses to mount and the camera
+# boots with a read-only overlay. Cap the rootfs at ROOTFS_PARTITION_MAX and
+# let the data image recipe fail loudly when the squashfs no longer fits under
+# the cap, rather than emit an image that cannot mount its own data partition.
+ROOTFS_PARTITION_SIZE = $(shell \
+	if [ $(ROOTFS_BIN_SIZE_ALIGNED) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		echo $(ROOTFS_PARTITION_MAX); \
+	else \
+		echo $(ROOTFS_BIN_SIZE_ALIGNED); \
+	fi)
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE

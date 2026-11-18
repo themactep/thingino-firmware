@@ -1,0 +1,25 @@
+--- a/src/motor-daemon.c
++++ b/src/motor-daemon.c
+@@ -1340,6 +1340,22 @@
+     syslog(LOG_DEBUG, "Enhanced homing post-phase2: pos=%d,%d", status.x,
+       status.y);
+ 
++    /* Phase 2 ends with both axes parked on the 0-end mechanical stop.
++     * Open-loop steppers lose steps while grinding against the stop, but the
++     * driver keeps counting them, so the raw counter no longer maps to the
++     * physical position. The stop is a known reference: re-anchor both
++     * counters to zero before the centering moves. */
++    struct motor_reset_data anchor = {
++        .x_max_steps = (unsigned int)x_max,
++        .y_max_steps = (unsigned int)y_max,
++        .x_cur_step = 0,
++        .y_cur_step = 0,
++    };
++    syslog(LOG_INFO,
++           "Enhanced homing: re-anchoring counters at 0-end stop (was %d,%d)",
++           status.x, status.y);
++    motor_ioctl(MOTOR_RESET, &anchor);
++
+     motor_status_get(&status);
+     syslog(LOG_DEBUG, "Enhanced homing pre-phase3: pos=%d,%d", status.x,
+       status.y);

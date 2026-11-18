@@ -1,24 +1,7 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
-
-async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
-  options = options || {};
-  options.headers = options.headers || {};
-  if (key) options.headers["X-API-Key"] = key;
-  return fetch(url, options);
-}
+// apiFetch() and thinginoApiKey() come from main.js, which loads first.
 
 // Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
@@ -287,15 +270,9 @@ function updatePreviewEndpointState(msg) {
 }
 
 async function loadPreviewEndpointApiKey() {
-  try {
-    const response = await fetch("/x/api-key.cgi", { cache: "no-store" });
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.exists && data.api_key) {
-      previewEndpointApiKey = data.api_key;
-    }
-  } catch (err) {
-    console.warn("Could not load API key for preview endpoints:", err);
+  const key = await thinginoApiKey();
+  if (key) {
+    previewEndpointApiKey = key;
   }
 }
 
@@ -1243,52 +1220,6 @@ if (exportConfigBtn) {
       setTimeout(() => {
         exportConfigBtn.disabled = false;
       }, 1000);
-    }
-  });
-}
-
-// Save configuration button
-const saveConfigBtn = $("#save-config");
-if (saveConfigBtn) {
-  saveConfigBtn.addEventListener("click", async () => {
-    const helper = window.thinginoStreamer;
-    const confirmed = await confirm(
-      (helper && helper.saveConfirmMessage && helper.saveConfirmMessage()) ||
-        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
-    );
-    if (!confirmed) return;
-
-    try {
-      saveConfigBtn.disabled = true;
-      if (helper && helper.saveConfig) {
-        await helper.saveConfig();
-        alert(
-          (helper.saveSuccessMessage && helper.saveSuccessMessage()) ||
-            "Configuration saved successfully",
-        );
-        return;
-      }
-
-      const payload = { action: { save_config: null } };
-      const res = await apiFetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (data.action && data.action.save_config === "ok") {
-        alert("Configuration saved successfully");
-      } else {
-        throw new Error("Save failed");
-      }
-    } catch (err) {
-      console.error("Failed to save config:", err);
-      alert("Failed to save configuration: " + err.message);
-    } finally {
-      saveConfigBtn.disabled = false;
     }
   });
 }

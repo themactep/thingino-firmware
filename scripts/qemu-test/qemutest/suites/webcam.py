@@ -106,8 +106,11 @@ def test_usb_webcam(ctx):
             res.check(f"uvc_{name}_decodes", err == "", err[:200])
         n = _nb_frames(path)
         if name == "mjpeg":
-            res.check("uvc_mjpeg_frames", n == UVC_FRAMES,
-                      f"{n} decoded of {UVC_FRAMES}")
+            if n is None:
+                res.skip("uvc_mjpeg_frames", "no ffprobe on the host")
+            else:
+                res.check("uvc_mjpeg_frames", n == UVC_FRAMES,
+                          f"{n} decoded of {UVC_FRAMES}")
         else:
             # A decoder drops P pictures whose frame_num is not the next
             # one, and some of the stream's are not (see below), so count

@@ -31,6 +31,9 @@ def test_services(ctx):
     res.check("dropbear_running", "dropbear" in out)
     res.check("syslogd_running", "syslogd" in out)
     if ctx.has("wifi") and ctx.has("nowired"):
+        # A fast boot (the A1) reaches login before the portal starts it
+        out = guest.run_until("ps w | grep -v grep | grep wpa_supplicant",
+                              lambda o: "wpa_supplicant" in o, 60, 3)
         res.check("wpa_supplicant_running", "wpa_supplicant" in out)
 
 

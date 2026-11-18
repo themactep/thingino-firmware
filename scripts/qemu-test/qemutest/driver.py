@@ -31,7 +31,7 @@ import time
 from .config import PROFILES_DIR, REPO_ROOT, SOC_MACHINES
 from .context import Ctx
 from .guest import Guest
-from .launch import find_qemu, start_qemu
+from .launch import find_qemu, start_qemu, unpace_slip_uart
 from .plan import OPTIONAL_SUITES, run_suites
 from .profile import host_qemu, load as load_profile, newest_image
 from .netlab import enter_netns
@@ -291,6 +291,8 @@ def main():
             print(f"  (QMP unavailable: {e})")
 
         ctx.qmp = qmp
+        if slip and qmp:
+            unpace_slip_uart(qmp)
         run_suites(ctx, only)
 
         print("\n── Artifacts ──")
