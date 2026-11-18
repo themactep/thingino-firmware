@@ -280,6 +280,13 @@ config BR2_PACKAGE_THINGINO_KOPT_IPV6
 	help
 	  Enable IPv6 networking support.
 
+config BR2_PACKAGE_THINGINO_KOPT_I2C_DEV
+	bool "I2C userspace access"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  /dev/i2c-* character devices, for userspace drivers such as
+	  raptor's g-sensor reader.
+
 config BR2_PACKAGE_THINGINO_KOPT_NVT_AUDIO
 	bool "Novatek audio (ALSA)"
 	depends on BR2_PACKAGE_THINGINO_KOPT
