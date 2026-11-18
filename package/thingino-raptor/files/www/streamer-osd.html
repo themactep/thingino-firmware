@@ -195,6 +195,21 @@
               </div>
             </div>
           </div>
+          <div id="telematics_card" class="card bg-dark-subtle mb-3 p-3 d-none">
+            <h6 class="mb-2">GPS</h6>
+            <div class="row g-2">
+              <div class="col-auto" style="min-width:150px">
+                <label class="form-label small mb-0" for="telematics_speed_unit">Speed unit</label>
+                <select id="telematics_speed_unit" class="form-select form-select-sm">
+                  <option value="kmh">km/h</option>
+                  <option value="mph">mph</option>
+                </select>
+              </div>
+            </div>
+            <p class="text-secondary small mb-0 mt-2">
+              Shown by %speed%%unit% in an element's text; applies immediately.
+            </p>
+          </div>
           <p class="text-secondary small">
             Saved to /etc/raptor.conf. Raptor does not reliably apply OSD element
             changes to a running stream, so <a href="/x/reboot.cgi" class="confirm" data-confirm="Reboot the camera now?">reboot the camera</a>

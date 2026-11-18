@@ -17,6 +17,9 @@
   const alphaFill = document.getElementById("alpha_fill");
   const alphaOutline = document.getElementById("alpha_outline");
   const saveBtn = document.getElementById("save-osd-config");
+  const telematicsCard = document.getElementById("telematics_card");
+  const speedUnit = document.getElementById("telematics_speed_unit");
+  let loadedSpeedUnit = null;
 
   function updateSwatch(input, swatch) {
     let v = (input.value || "").trim();
@@ -209,6 +212,32 @@
     });
   });
 
+  // Only cameras with rtd (GPS) answer this leaf.
+  async function loadTelematics(helper) {
+    try {
+      const leaf = await helper.agentRequest(
+        "/api/v1/settings/telematics/speed-unit",
+        { cache: "no-store" },
+      );
+      if (!leaf || !leaf.speed_unit) return;
+      speedUnit.value = leaf.speed_unit;
+      loadedSpeedUnit = leaf.speed_unit;
+      telematicsCard.classList.remove("d-none");
+    } catch (err) {
+      /* no GPS on this camera */
+    }
+  }
+
+  async function saveTelematics(helper) {
+    if (loadedSpeedUnit === null || speedUnit.value === loadedSpeedUnit) return;
+    await helper.agentRequest("/api/v1/settings/telematics/speed-unit", {
+      method: "PATCH",
+      body: { speed_unit: speedUnit.value },
+      cache: "no-store",
+    });
+    loadedSpeedUnit = speedUnit.value;
+  }
+
   async function loadOsdConfig() {
     const helper = window.thinginoStreamer;
     if (!helper || !helper.agentRequest) return;
@@ -232,6 +261,7 @@
       syncAlphaFromInput(burninOutlineColor, alphaOutline);
       await loadElements(helper, osd);
       refreshPositionSelects();
+      await loadTelematics(helper);
     } catch (err) {
       console.warn("Failed to load OSD config", err);
     }
@@ -273,6 +303,7 @@
       await patchLeaves(helper, "time/", time);
 
       await saveElements(helper);
+      await saveTelematics(helper);
       showAlert(
         "success",
         "OSD configuration saved. Reboot the camera to apply it.",

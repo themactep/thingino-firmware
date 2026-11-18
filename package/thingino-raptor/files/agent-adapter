@@ -2235,6 +2235,14 @@ agent_get_setting() {
 		storage/*)
 			agent_print_storage_setting "$path"
 			;;
+		telematics/speed-unit)
+			[ -x /usr/bin/rtd ] || {
+				echo "no telematics on this camera" >&2
+				return 1
+			}
+			value=$(agent_config_get telematics speed_unit)
+			agent_print_setting_leaf speed_unit "$(agent_json_string "${value:-kmh}")"
+			;;
 		streams/[01]/enabled)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/enabled}
@@ -2684,6 +2692,20 @@ agent_set_setting() {
 			;;
 		storage/*)
 			agent_set_storage_setting "$path" "$body_file"
+			;;
+		telematics/speed-unit)
+			value=$(agent_setting_value "$body_file" speed_unit) || return 1
+			value=$(agent_unquote_string "$value")
+			case "$value" in
+				kmh | mph) ;;
+				*)
+					echo "speed_unit must be kmh or mph" >&2
+					return 1
+					;;
+			esac
+			agent_config_set telematics speed_unit "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" speed_unit "$(agent_json_string "$value")"
 			;;
 		streams/[01]/enabled)
 			stream_id=${path#streams/}
