@@ -40,28 +40,31 @@ switch_to_day() {
 
 	if [ "true" = "$day_night_ircut" ] && command_present ircut; then
 		echo_info "  set IR-CUT filter"
-		ircut on &
+		ircut on
 	fi
 
 	if [ "true" = "$day_night_ir850" ] && command_present light; then
 		echo_info "  turn IR LED 850nm OFF"
-		light ir850 off &
+		light ir850 off
 	fi
 
 	if [ "true" = "$day_night_ir940" ] && command_present light; then
 		echo_info "  turn IR LED 940nm OFF"
-		light ir940 off &
+		light ir940 off
 	fi
 
 	if [ "true" = "$day_night_white" ] && command_present light; then
 		echo_info "  turn White Light OFF"
-		light white off &
+		light white off
 	fi
 
 	if [ "true" = "$day_night_color" ] && command_present color; then
 		echo_info "  switch to color mode"
-		color on &
+		color on
 	fi
+
+	mkdir -p "$(dirname "$MODE_FILE")"
+	echo "day" > "$MODE_FILE"
 }
 
 switch_to_night() {
@@ -70,28 +73,31 @@ switch_to_night() {
 
 	if [ "true" = "$day_night_color" ] && command_present color; then
 		echo_info "  switch to monochrome mode"
-		color off &
+		color off
 	fi
 
 	if [ "true" = "$day_night_ircut" ] && command_present ircut; then
 		echo_info "  remove IR-CUT filter"
-		ircut off &
+		ircut off
 	fi
 
 	if [ "true" = "$day_night_ir850" ] && command_present light; then
 		echo_info "  turn IR LED 850nm ON"
-		light ir850 on &
+		light ir850 on
 	fi
 
 	if [ "true" = "$day_night_ir940" ] && command_present light; then
 		echo_info "  turn IR LED 940nm ON"
-		light ir940 on &
+		light ir940 on
 	fi
 
 	if [ "true" = "$day_night_white" ] && command_present light; then
 		echo_info "  turn White Light ON"
-		light white on &
+		light white on
 	fi
+
+	mkdir -p "$(dirname "$MODE_FILE")"
+	echo "night" > "$MODE_FILE"
 }
 
 state=$(awk 'NR==1 {print $1}' "$MODE_FILE" 2>/dev/null || echo "day")

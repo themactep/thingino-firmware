@@ -60,7 +60,14 @@ EOF
 
 send_config() {
 	local json="$1"
-	curl -s -X POST "$API_URL" -H "Content-Type: application/json" -d "$json" >/dev/null 2>&1
+	# Local controls must not depend on the HTTP listener's authentication.
+	if [ "$API_URL" = "http://127.0.0.1:8080/api/v1/config" ] &&
+		command -v prudyntctl >/dev/null 2>&1 &&
+		[ -S /run/prudynt/prudynt.sock ]; then
+		prudyntctl json "$json" >/dev/null
+		return $?
+	fi
+	curl -fsS -X POST "$API_URL" -H "Content-Type: application/json" -d "$json" >/dev/null
 	return $?
 }
 
@@ -119,6 +126,15 @@ case "$COMMAND" in
 				exit 1
 				;;
 		esac
+		# "color on" means day (0); raw "ispmode 1" means night.
+		if [ "$COMMAND" = "color" ]; then
+			if [ "$MODE_VALUE" -eq 1 ]; then
+				send_config "{\"image\": {\"running_mode\": 0, \"saturation\": 128}}"
+			else
+				send_config "{\"image\": {\"running_mode\": 1, \"saturation\": 0}}"
+			fi
+			exit $?
+		fi
 		send_config "{\"image\": {\"running_mode\": $MODE_VALUE}}"
 		;;
 	contrast)

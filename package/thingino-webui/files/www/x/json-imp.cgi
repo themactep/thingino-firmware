@@ -70,9 +70,15 @@ case "$cmd" in
     ;;
   color)
     echo "{\"daynight\":{\"enabled\":false},\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
+    if [ "$val" -eq 0 ]; then
+      daynight day >/dev/null 2>&1
+    else
+      daynight night >/dev/null 2>&1
+    fi
     ;;
   daynight)
     echo "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$val\"}}" | prudyntctl json - >/dev/null 2>&1
+    daynight "$val" >/dev/null 2>&1
     ;;
   ir850 | ir940 | white)
     echo '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
