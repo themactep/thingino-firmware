@@ -6,27 +6,25 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.7.2
-THINGINO_RHKD_VERSION = 1f41db756dc9a4fbd8fedbe3e7a7929c62c06b96
-THINGINO_RHKD_LICENSE = GPL-3.0-or-later (rhkd, raptor-ipc), Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd), BSD-3-Clause (Opus), LGPL-2.1+ (faac)
+# v0.7.7
+THINGINO_RHKD_VERSION = 72480d278cf8b23d0cc8f57100a451f2e12ce107
+THINGINO_RHKD_LICENSE = GPL-3.0-or-later (rhkd, raptor-ipc), Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd)
 # The extra downloads are unpacked into src/ at extract time (below), so their licenses reach legal-info.
-THINGINO_RHKD_LICENSE_FILES = LICENSE src/HomeKitADK/LICENSE.md src/mbedtls/LICENSE src/raptor-ipc/LICENSE \
-	src/opus/COPYING src/faac/COPYING
+THINGINO_RHKD_LICENSE_FILES = LICENSE src/HomeKitADK/LICENSE.md src/mbedtls/LICENSE src/raptor-ipc/LICENSE
+
+# Secure Video audio: AAC-LC straight from a rad AAC output when there is one; otherwise rad's Opus is
+# converted with the system libopus and libfaac (faac 2.x API).
+THINGINO_RHKD_DEPENDENCIES = faac opus
 
 # Third-party sources, at the commits (mbedTLS: the release tag) that rhkd's deps.sh pins. They are
 # hash-checked (thingino-rhkd.hash); the main git tarball is exempt, as for compy.
 THINGINO_RHKD_ADK_COMMIT = fb201f98f5fdc7fef6a455054f08b59cca5d1ec8
 THINGINO_RHKD_MBEDTLS_VERSION = 2.28.10
 THINGINO_RHKD_RIPC_COMMIT = 00810bb7b91c3e21210b5a76d43748a23758f36a
-# HomeKit Secure Video audio: Opus (raptor's ring) -> PCM -> AAC-LC.
-THINGINO_RHKD_OPUS_COMMIT = ddbe48383984d56acd9e1ab6a090c54ca6b735a6
-THINGINO_RHKD_FAAC_COMMIT = 78d8e0141600ac006a94ac6fd5601f599fa5b65b
 THINGINO_RHKD_EXTRA_DOWNLOADS = \
 	https://github.com/apple/HomeKitADK/archive/$(THINGINO_RHKD_ADK_COMMIT).tar.gz \
 	https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v$(THINGINO_RHKD_MBEDTLS_VERSION).tar.gz \
-	https://github.com/gtxaspec/raptor-ipc/archive/$(THINGINO_RHKD_RIPC_COMMIT).tar.gz \
-	https://github.com/xiph/opus/archive/$(THINGINO_RHKD_OPUS_COMMIT).tar.gz \
-	https://github.com/knik0/faac/archive/$(THINGINO_RHKD_FAAC_COMMIT).tar.gz
+	https://github.com/gtxaspec/raptor-ipc/archive/$(THINGINO_RHKD_RIPC_COMMIT).tar.gz
 
 BR_NO_CHECK_HASH_FOR += $(THINGINO_RHKD_SOURCE)
 
@@ -45,8 +43,6 @@ define THINGINO_RHKD_FETCH_DEPS
 	$(call THINGINO_RHKD_UNPACK_DEP,HomeKitADK,$(THINGINO_RHKD_ADK_COMMIT).tar.gz,LICENSE.md)
 	$(call THINGINO_RHKD_UNPACK_DEP,mbedtls,v$(THINGINO_RHKD_MBEDTLS_VERSION).tar.gz,LICENSE)
 	$(call THINGINO_RHKD_UNPACK_DEP,raptor-ipc,$(THINGINO_RHKD_RIPC_COMMIT).tar.gz,LICENSE)
-	$(call THINGINO_RHKD_UNPACK_DEP,opus,$(THINGINO_RHKD_OPUS_COMMIT).tar.gz,COPYING)
-	$(call THINGINO_RHKD_UNPACK_DEP,faac,$(THINGINO_RHKD_FAAC_COMMIT).tar.gz,COPYING)
 	for p in $(@D)/patches/HomeKitADK/*.patch; do \
 		if patch -d $(@D)/src/HomeKitADK -p1 -R -s -f --dry-run <$$p >/dev/null 2>&1; then continue; fi; \
 		patch -d $(@D)/src/HomeKitADK -p1 -s <$$p || exit 1; \
@@ -61,6 +57,8 @@ THINGINO_RHKD_MAKE_OPTS = \
 	EXTRA_CFLAGS="$(TARGET_CFLAGS)" \
 	EXTRA_LDFLAGS="$(TARGET_LDFLAGS)" \
 	STATIC="" \
+	SYSTEM_AUDIO=1 \
+	AUDIO_CFLAGS="-I$(STAGING_DIR)/usr/include/opus" \
 	LOG_LEVEL=3
 
 define THINGINO_RHKD_BUILD_CMDS
