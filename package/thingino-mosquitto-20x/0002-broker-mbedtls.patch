@@ -1379,9 +1379,12 @@ index f659ce4..928da3a 100644
  int pw__digest(const char *password, const unsigned char *salt, unsigned int salt_len, unsigned char *hash, unsigned int *hash_len, enum mosquitto_pwhash_type hashtype, int iterations)
  {
  	const EVP_MD *digest;
-@@ -1363,5 +1459,4 @@ int pw__digest(const char *password, const unsigned char *salt, unsigned int sal
- 
- 	return MOSQ_ERR_SUCCESS;
+@@ -1375,8 +1471,7 @@ int pw__digest(const char *password, const unsigned char *salt, unsigned int sal
+ 	if(ok){
+ 		return MOSQ_ERR_SUCCESS;
+ 	}else{
+ 		return MOSQ_ERR_UNKNOWN;
+ 	}
  }
 -
  #endif
@@ -1406,8 +1409,8 @@ index 688d3b8..f04f5e8 100644
  				if(in){
  					mosq->ssl = (SSL *)in;
  					if(!mosq->listener->ssl_ctx){
-@@ -196,7 +197,7 @@ static int callback_mqtt(
- 					mux__delete(mosq);
+@@ -200,7 +201,7 @@ static int callback_mqtt(
+ 					mosq->listener->client_count--;
  				}
  				mosq->wsi = NULL;
 -#ifdef WITH_TLS

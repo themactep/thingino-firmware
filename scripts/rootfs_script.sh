@@ -161,3 +161,10 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
+
+# Ensure SKW6316 depends on skw_usb_lite in modules.dep after depmod
+for dep in $(find ${TARGET_DIR}/lib/modules ${TARGET_DIR}/usr/lib/modules -name modules.dep 2>/dev/null); do
+	if grep -q "skw6316.ko" "$dep"; then
+		sed -i 's|^extra/skw6316.ko:.*|extra/skw6316.ko: extra/skw_usb_lite.ko|' "$dep"
+	fi
+done

@@ -1,6 +1,6 @@
 # Locally calculated after checking gpg signature
 # from https://mosquitto.org/files/source/mosquitto-2.0.23.tar.gz.asc
-sha256  47d66fc98d9f8714bdc700dfe690dbe80c9fbe93c00a21b04dc61d00e1667b34  mosquitto-2.0.23.tar.gz
+sha256  dc815cbd9f27db2fa7fcb06390f7ec1d65b5300827f4c1c7402e62ce9cfd5660  mosquitto-2.0.23.tar.gz
 
 # License files
 sha256  d3c4ccace4e5d3cc89d34cf2a0bc85b8596bfc0a32b815d0d77f9b7c41b5350c  LICENSE.txt

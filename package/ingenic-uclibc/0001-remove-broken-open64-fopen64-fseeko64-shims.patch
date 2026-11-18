@@ -1,0 +1,43 @@
+--- a/uclibc_shim.c
++++ b/uclibc_shim.c
+@@ -66,40 +66,6 @@
+ 	return fputc(c, stream);
+ }
+ 
+-FILE* fopen64(const char *path, const char *mode) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called fopen64. This is a shim and does nothing.\n");
+-	return fopen(path, mode);
+-}
+-
+-int open64(const char *path, int flags, ...) {
+-	mode_t mode = 0;
+-
+-	// Mode is only provided if O_CREAT is passed in flags
+-	if (flags & O_CREAT) {
+-		va_list args;
+-		va_start(args, flags);
+-		mode = va_arg(args, mode_t);
+-		va_end(args);
+-	}
+-
+-	DEBUG_PRINT(stderr, "[WARNING] Called open64. This is a shim and does nothing.\n");
+-	if (flags & O_CREAT) {
+-		return open(path, flags, mode);
+-	} else {
+-		return open(path, flags);
+-	}
+-}
+-
+-int fseeko64(FILE *stream, off_t offset, int whence) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called fseeko64. This is a shim and does nothing.\n");
+-	return fseeko(stream, offset, whence);
+-}
+-
+-void* mmap64(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+-return (void *)syscall(SYS_mmap2, start, len, prot, flags, fd, off >> 12);
+-}
+-
+-/* End Required for Xburst2 libraries */
+ 
+ /* glibc ctype compatibility for uclibc */
+ static unsigned short ctype_b_table[384];
