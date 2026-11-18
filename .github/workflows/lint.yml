@@ -44,8 +44,8 @@ jobs:
 
       - name: Lint shell scripts
         # The action pins shellcheck 0.11.0 (matching local dev).
-        # On pull requests, reviewdog posts inline check annotations and filters
-        # to findings added by the PR.
+        # On pull requests, reviewdog posts workflow annotations and filters to
+        # findings added by the PR, without needing the checks API.
         # On pushes, report locally instead: the github-check reporter creates a
         # check run through the checks API, and a failed PATCH there turned this
         # job red even when shellcheck found nothing. The local reporter has no
@@ -54,7 +54,7 @@ jobs:
         # Pinned to v1 tag commit so the action version can't drift quietly.
         uses: reviewdog/action-shellcheck@0722bbdb0d47f04c1b53b8734d2422ac63a45ec6
         with:
-          reporter: ${{ github.event_name == 'pull_request' && 'github-check' || 'local' }}
+          reporter: ${{ github.event_name == 'pull_request' && 'github-pr-annotations' || 'local' }}
           filter_mode: ${{ github.event_name == 'pull_request' && 'added' || 'nofilter' }}
           fail_level: any
           level: warning
