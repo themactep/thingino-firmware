@@ -1,0 +1,37 @@
+{
+  "daynight": {
+    "enabled": true,
+    "controls": {
+      "binswitch": false,
+      "color": true,
+      "ircut": true,
+      "ir850": true,
+      "ir940": false,
+      "white": false
+    }
+  },
+  "image": {
+    "isp_bypass": false,
+    "running_mode": 0,
+    "saturation": 128
+  },
+  "stream0": {
+    "enabled": true,
+    "format": "H264",
+    "width": 1920,
+    "height": 1080,
+    "fps": 15,
+    "bitrate": 3000
+  },
+  "stream1": {
+    "enabled": false
+  },
+  "stream2": {
+    "enabled": true,
+    "jpeg_channel": 0,
+    "jpeg_quality": 75
+  },
+  "stream3": {
+    "enabled": false
+  }
+}
