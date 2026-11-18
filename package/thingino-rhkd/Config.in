@@ -2,15 +2,30 @@ config BR2_PACKAGE_THINGINO_RHKD
 	bool "Thingino HomeKit camera (rhkd)"
 	depends on BR2_PACKAGE_THINGINO_RAPTOR
 	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_THINGINO_RAPTOR_RVD
+	select BR2_PACKAGE_THINGINO_RAPTOR_RAD
+	select BR2_PACKAGE_THINGINO_RAPTOR_OPUS
 	help
 	  rhkd: native Apple HomeKit camera daemon for raptor cameras,
 	  so the camera can be added to the Home app directly.
 
 	  Built on Apple's HomeKit ADK (Apache-2.0), with the camera
-	  streaming code ported from HAP-NodeJS. Live view (H.264 and
-	  Opus over SRTP, straight from raptor's rings), snapshots, a
-	  motion sensor fed by raptor's motion detection, and a
-	  Services > HomeKit web UI page with the setup code and QR.
+	  code ported from HAP-NodeJS. Live view (H.264 and Opus over
+	  SRTP, straight from raptor's rings), snapshots, HomeKit Secure
+	  Video recording (fragmented MP4 over the HomeKit Data Stream,
+	  AAC-LC audio), the camera settings in Home (on/off, night
+	  vision, status light), and a Services > HomeKit web UI page
+	  with the setup code and QR.
+
+	  Motion sensor (and so Secure Video recording triggers): fed by
+	  rvd's IVS motion detection (the default "move" algorithm; IVS
+	  object detection is not needed). It must be switched on in
+	  /etc/raptor.conf ([motion] enabled = true); until then Home
+	  shows the sensor as inactive. The package leaves it off,
+	  because [motion] also controls raptor's own recording.
+
+	  Selects raptor's RVD (video and JPEG rings), RAD (audio ring)
+	  and Opus support (live view audio is Opus).
 
 	  Installs /usr/bin/rhkd, /usr/bin/hap-setupgen,
 	  /usr/sbin/rhkd-setup, /etc/init.d/S98rhkd and
@@ -19,8 +34,9 @@ config BR2_PACKAGE_THINGINO_RHKD
 	  H.264 if no stream is H.264), since HomeKit needs those.
 	  Pairing survives sysupgrade -B (cfg-backup.list).
 
-	  HomeKit ADK, mbedTLS 2.28 and raptor-ipc are fetched as extra
-	  downloads at pinned commits.
+	  HomeKit ADK, raptor-ipc, Opus and faac are fetched as extra
+	  downloads at pinned commits, and mbedTLS 2.28 at its release
+	  tag; all are hash-checked.
 
 	  https://github.com/Small6oy/thingino-homekit
 
