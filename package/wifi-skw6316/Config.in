@@ -1,0 +1,7 @@
+config BR2_PACKAGE_WIFI_SKW6316
+	bool "SeekWave SKW6316"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
+	help
+	  SeekWave SKW6316 USB WiFi driver (prebuilt).
