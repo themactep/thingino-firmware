@@ -5,5 +5,7 @@
     "led_r": 138,
     "mmc_cd": { "pin": 120, "active_low": true },
     "speaker": 113
-  }
+  },
+  "gps": { "uart": "/dev/ttyS1", "baud": 9600 },
+  "gsensor": { "model": "da221", "i2c": 2, "addr": 39 }
 }

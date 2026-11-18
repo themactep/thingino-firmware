@@ -87,6 +87,14 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RMD
 	bool "RMD (motion detection)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RTD
+	bool "RTD (GPS and g-sensor telemetry)"
+	help
+	  Dashcam telemetry: reads the GPS receiver and g-sensor described
+	  in thingino.json ("gps", "gsensor"), embeds the track in RMR
+	  recordings, feeds OSD variables and turns impacts into event
+	  clips. The g-sensor needs /dev/i2c-* (kernel option I2C_DEV).
+
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	bool "RWD (WebRTC/WHIP server)"
 	default y if BR2_THINGINO_DEV_WEBCAM
