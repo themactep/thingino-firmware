@@ -311,11 +311,24 @@ start() {
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
+		echo 1 > /proc/sys/vm/compact_memory 2>/dev/null || true
+		if [ "skw6316" = "$WLAN_MODULE_NAME" ]; then
+			if ! grep -q "^skw_usb_lite\b" /proc/modules; then
+				echo "Power-cycling SeekWave Wi-Fi via GPIO 6..."
+				gpio set 6 0
+				sleep 1
+				gpio set 6 1
+				sleep 1
+				echo "Loading skw_usb_lite module"
+				modprobe skw_usb_lite modem_enable_gpio=6
+				sleep 1
+			fi
+		fi
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
 		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
 
-	m=50 # limit to 5 seconds
+	m=80 # limit to 8 seconds
 	while [ "$m" -gt 0 ]; do
 		grep -q $IFACE /proc/net/wireless && break
 		m=$((m - 1))
