@@ -50,11 +50,13 @@ strip_json_string() {
 	esac
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -126,26 +128,26 @@ handle_post() {
 	new_en_live_view=$(jct "$REQ_FILE" get enable_live_view 2>/dev/null)
 
 	# Normalize
-	enabled=$(normalize_bool "$new_enabled")
-	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl")
-	en_motion=$(normalize_bool "$new_en_motion")
-	en_motion_guard=$(normalize_bool "$new_en_motion_guard")
-	en_ircut=$(normalize_bool "$new_en_ircut")
-	en_daynight=$(normalize_bool "$new_en_daynight")
-	en_privacy=$(normalize_bool "$new_en_privacy")
-	en_color=$(normalize_bool "$new_en_color")
-	en_ir850=$(normalize_bool "$new_en_ir850")
-	en_ir940=$(normalize_bool "$new_en_ir940")
-	en_white=$(normalize_bool "$new_en_white")
-	en_gain=$(normalize_bool "$new_en_gain")
-	en_rssi=$(normalize_bool "$new_en_rssi")
-	en_snapshot=$(normalize_bool "$new_en_snapshot")
-	en_reboot=$(normalize_bool "$new_en_reboot")
-	en_ota=$(normalize_bool "$new_en_ota")
-	en_doorbell=$(normalize_bool "$new_en_doorbell")
-	en_firmware_version=$(normalize_bool "$new_en_firmware_version")
-	en_firmware_timestamp=$(normalize_bool "$new_en_firmware_timestamp")
-	en_live_view=$(normalize_bool "$new_en_live_view")
+	enabled=$(normalize_bool "$new_enabled") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_motion=$(normalize_bool "$new_en_motion") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_motion_guard=$(normalize_bool "$new_en_motion_guard") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_ircut=$(normalize_bool "$new_en_ircut") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_daynight=$(normalize_bool "$new_en_daynight") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_privacy=$(normalize_bool "$new_en_privacy") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_color=$(normalize_bool "$new_en_color") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_ir850=$(normalize_bool "$new_en_ir850") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_ir940=$(normalize_bool "$new_en_ir940") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_white=$(normalize_bool "$new_en_white") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_gain=$(normalize_bool "$new_en_gain") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_rssi=$(normalize_bool "$new_en_rssi") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_snapshot=$(normalize_bool "$new_en_snapshot") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_reboot=$(normalize_bool "$new_en_reboot") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_ota=$(normalize_bool "$new_en_ota") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_doorbell=$(normalize_bool "$new_en_doorbell") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_firmware_version=$(normalize_bool "$new_en_firmware_version") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_firmware_timestamp=$(normalize_bool "$new_en_firmware_timestamp") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	en_live_view=$(normalize_bool "$new_en_live_view") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 
 	device_name=$(strip_json_string "$new_device_name")
 	device_model=$(strip_json_string "$new_device_model")
