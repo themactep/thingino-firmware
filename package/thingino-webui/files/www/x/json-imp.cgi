@@ -140,4 +140,9 @@ case "$cmd" in
 		;;
 esac
 
+# These writes bypass agentctl; drop its cached reads and the heartbeat copy.
+if command -v agentctl >/dev/null 2>&1; then
+	agentctl invalidate >/dev/null 2>&1 || true
+fi
+
 json_ok
