@@ -84,11 +84,13 @@ read_body() {
 	fi
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_theme() {
 	case "$1" in
 		light | dark | auto) printf '%s' "$1" ;;
 		"" | null) printf 'auto' ;;
-		*) json_error 422 "Unsupported theme" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -96,7 +98,7 @@ normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -107,7 +109,7 @@ normalize_int() {
 
 	case "$val" in
 		"" | null) printf '0' ;;
-		*[!0-9]*) json_error 422 "Invalid integer value" "422 Unprocessable Entity" ;;
+		*[!0-9]*) return 1 ;;
 		*)
 			if [ -n "$min" ] && [ "$val" -lt "$min" ]; then
 				printf '%s' "$min"
@@ -143,10 +145,10 @@ handle_post() {
 	new_password=$(jct "$REQ_FILE" get password 2>/dev/null)
 	new_auth_bypass_ips=$(jct "$REQ_FILE" get auth_bypass_ips 2>/dev/null)
 
-	theme=$(normalize_theme "$new_theme")
-	paranoid=$(normalize_bool "$new_paranoid")
-	track_focus=$(normalize_bool "$new_track_focus")
-	focus_timeout=$(normalize_int "$new_focus_timeout" 0 300)
+	theme=$(normalize_theme "$new_theme") || json_error 422 "Unsupported theme" "422 Unprocessable Entity"
+	paranoid=$(normalize_bool "$new_paranoid") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	track_focus=$(normalize_bool "$new_track_focus") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	focus_timeout=$(normalize_int "$new_focus_timeout" 0 300) || json_error 422 "Invalid integer value" "422 Unprocessable Entity"
 	auth_bypass_ips=$(normalize_bypass_ips "$new_auth_bypass_ips")
 
 	write_config

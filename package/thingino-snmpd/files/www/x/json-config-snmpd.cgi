@@ -52,11 +52,13 @@ strip_json_string() {
 	esac
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -155,8 +157,8 @@ handle_post() {
 	read_body
 	ensure_config
 
-	enabled=$(normalize_bool "$(req_value enabled)")
-	auth=$(normalize_bool "$(req_value auth)")
+	enabled=$(normalize_bool "$(req_value enabled)") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	auth=$(normalize_bool "$(req_value auth)") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 
 	community=$(req_text community)
 	port=$(req_text port)
