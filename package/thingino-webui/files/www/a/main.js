@@ -382,10 +382,13 @@ async function refreshThemeFromServer() {
   }
 }
 
+// A browser keeps its own theme until its user changes it. The camera's
+// default is asked for once, by a browser that has none stored.
 (function initThemeBridge() {
   const cachedTheme = safeStorageGet(ThemeState.activeKey);
   if (cachedTheme) {
     applyThemeAttribute(cachedTheme);
+    return;
   }
   refreshThemeFromServer();
 })();
@@ -740,7 +743,8 @@ function toggleTheme() {
   const currentTheme = htmlEl.getAttribute("data-bs-theme");
   const newTheme = currentTheme === "dark" ? "light" : "dark";
 
-  htmlEl.setAttribute("data-bs-theme", newTheme);
+  // This browser's choice: stored here, written nowhere else.
+  rememberThemeState(newTheme);
 
   const themeBtn = $("#theme-toggle");
   if (themeBtn) {
