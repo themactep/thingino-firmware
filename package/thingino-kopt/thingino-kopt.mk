@@ -586,6 +586,29 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC
 endef
 endif
 
+# Novatek NA51055 embedded codec through the vendor ALSA SoC driver,
+# instead of the HDAL audio units (those are only reachable through the one
+# HDAL server process).
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_NVT_AUDIO),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NVT_AUDIO
+	$(call KCONFIG_SET_OPT,CONFIG_SOUND,m)
+	$(call KCONFIG_SET_OPT,CONFIG_SND,m)
+	$(call KCONFIG_SET_OPT,CONFIG_SND_TIMER,m)
+	$(call KCONFIG_SET_OPT,CONFIG_SND_PCM,m)
+	$(call KCONFIG_SET_OPT,CONFIG_SND_SOC,m)
+	$(call KCONFIG_SET_OPT,CONFIG_SND_SOC_NVT,m)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SND_SOC_XMOS)
+endef
+# The vendor driver instantiates its own devices; the machine driver binds
+# the cards, so it loads after the platform and codec parts.
+define THINGINO_KOPT_INSTALL_TARGET_CMDS_NVT_AUDIO
+	mkdir -p $(TARGET_DIR)/etc/modules.d
+	printf '%s\n' snd-soc-nvt-plat-r snd-soc-nvt-plat-p snd-soc-nvt-plat-l \
+		snd-soc-nvt-embd-r snd-soc-nvt-embd-p snd-soc-nvt-embd-l snd-soc-nvt \
+		> $(TARGET_DIR)/etc/modules.d/35-nvt-audio
+endef
+endif
+
 ################### IPV6 ##############################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_IPV6),y)
 # ip6tables is not here - it needs the netfilter core, which no base config
@@ -719,11 +742,13 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_CLK)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NVT_AUDIO)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL)
 endef
 
 define THINGINO_KOPT_INSTALL_TARGET_CMDS
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6)
+	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_NVT_AUDIO)
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_NETFILTER)
 endef
 

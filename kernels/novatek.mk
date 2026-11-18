@@ -12,6 +12,6 @@ endif
 ifeq ($(KERNEL_VERSION),4.19.91)
 ifeq ($(SOC_FAMILY),na51055)
 KERNEL_BRANCH := novatek-na51055-4.19.91
-KERNEL_HASH   := 5aa62d23c6682919fa32f3597aafb4abc79c10e9
+KERNEL_HASH   := 0260740fd885eaa72e6569b848967a9ed4c9ec71
 endif
 endif

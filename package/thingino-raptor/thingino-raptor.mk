@@ -136,9 +136,9 @@ ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RFS),y)
 THINGINO_RAPTOR_TARGETS += rfs
 endif
 
-# The Novatek HAL backend has no audio, IR-cut or IVS yet.
+# The Novatek HAL backend has no IR-cut or IVS yet.
 ifeq ($(BR2_SOC_VENDOR_NOVATEK),y)
-THINGINO_RAPTOR_TARGETS := $(filter-out rad rac ric rmd rwc,$(THINGINO_RAPTOR_TARGETS))
+THINGINO_RAPTOR_TARGETS := $(filter-out ric rmd rwc,$(THINGINO_RAPTOR_TARGETS))
 endif
 
 # Libraries are pre-built by their own packages and installed to staging.

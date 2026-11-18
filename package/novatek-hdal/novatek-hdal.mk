@@ -16,6 +16,23 @@ endif
 
 NOVATEK_HDAL_SENSOR = $(call qstrip,$(BR2_SENSOR_1_NAME))
 NOVATEK_HDAL_MODDIR = $(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)
+NOVATEK_HDAL_DEPENDENCIES += host-thingino-jct
+NOVATEK_HDAL_JCT = $(HOST_DIR)/bin/jct
+NOVATEK_HDAL_CAMERA_JSON = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json
+
+# The speaker-amp enable line, gpio.speaker in thingino.json (a bare int is
+# active high, {"pin": N, "active_low": true} active low), for the raptor
+# HAL, which drives it around playback.
+define NOVATEK_HDAL_BOARD_CONF
+	spk=; spk_al=0; \
+	if [ -r $(NOVATEK_HDAL_CAMERA_JSON) ]; then \
+		spk=$$($(NOVATEK_HDAL_JCT) $(NOVATEK_HDAL_CAMERA_JSON) get gpio.speaker.pin 2>/dev/null); \
+		[ -n "$$spk" ] || spk=$$($(NOVATEK_HDAL_JCT) $(NOVATEK_HDAL_CAMERA_JSON) get gpio.speaker 2>/dev/null); \
+		[ "$$($(NOVATEK_HDAL_JCT) $(NOVATEK_HDAL_CAMERA_JSON) get gpio.speaker.active_low 2>/dev/null)" = true ] && spk_al=1; \
+	fi; \
+	case "$$spk" in "" | *[!0-9]*) spk=-1 ;; esac; \
+	printf 'spk_gpio=%s\nspk_active_low=%s\n' "$$spk" "$$spk_al" > $(TARGET_DIR)/etc/hdal-board.conf
+endef
 
 # The sensor driver itself comes from novatek-sensors, built from source.
 # Stock's load order (S10_SysInit2). The *_id_list masks are what stock
@@ -62,6 +79,7 @@ define NOVATEK_HDAL_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/sensor/; \
 	fi
 	$(NOVATEK_HDAL_MODULES_D)
+	$(NOVATEK_HDAL_BOARD_CONF)
 	$(INSTALL) -D -m 0755 $(NOVATEK_HDAL_PKGDIR)/files/S10debugfs $(TARGET_DIR)/etc/init.d/S10debugfs
 endef
 

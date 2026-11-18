@@ -3,6 +3,7 @@
     "button_reset": 193,
     "led_b": 43,
     "led_r": 138,
-    "mmc_cd": { "pin": 120, "active_low": true }
+    "mmc_cd": { "pin": 120, "active_low": true },
+    "speaker": 113
   }
 }
