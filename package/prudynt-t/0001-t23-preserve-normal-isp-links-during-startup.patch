@@ -1,0 +1,36 @@
+Subject: [PATCH] T23: preserve normal ISP links when bypass is disabled
+
+EnableSensor already creates the normal ISP links on T23. Calling
+IMP_ISP_Tuning_SetISPBypass(DISABLE) later is not a no-op: libimp stops
+streaming, destroys those links and recreates link configuration 1. With
+the SC2336P this leaves sizeimage zero and every frame buffer is rejected.
+
+Keep the sensor-enabled pipeline for normal T23 capture. Preserve the
+existing explicit bypass request and all other platforms' behavior.
+
+Upstream: Pending
+
+diff --git a/src/IMPSystem.cpp b/src/IMPSystem.cpp
+--- a/src/IMPSystem.cpp
++++ b/src/IMPSystem.cpp
+@@ -438,6 +438,16 @@ int IMPSystem::init() {
+-  ret = hal::isp::set_isp_bypass(cfg->image.isp_bypass);
+-  LOG_DEBUG_OR_ERROR(ret, "hal::isp::set_isp_bypass(" << cfg->image.isp_bypass
+-                                                      << ")");
++#if defined(PLATFORM_T23)
++  // EnableSensor has already established the normal ISP pipeline.
++  // Even disabling whole-ISP bypass tears down and recreates its links
++  // in the T23 SDK, leaving the frame-source format uninitialized.
++  if (!cfg->image.isp_bypass) {
++    LOG_DEBUG("T23: retaining normal ISP links (bypass disabled)");
++  } else
++#endif
++  {
++    ret = hal::isp::set_isp_bypass(cfg->image.isp_bypass);
++    LOG_DEBUG_OR_ERROR(ret, "hal::isp::set_isp_bypass(" << cfg->image.isp_bypass
++                                                        << ")");
++  }
+-
++
+   ret = hal::isp::set_anti_flicker(cfg->image.anti_flicker);
+   LOG_DEBUG_OR_ERROR(ret, "hal::isp::set_anti_flicker("
