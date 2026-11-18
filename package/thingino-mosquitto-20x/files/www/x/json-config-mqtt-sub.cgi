@@ -53,11 +53,13 @@ strip_json_string() {
 	esac
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
 }
 
@@ -103,13 +105,13 @@ handle_post() {
 	new_tls_skip_verify=$(jct "$REQ_FILE" get tls_skip_verify 2>/dev/null)
 	new_subscriptions=$(jct "$REQ_FILE" get subscriptions 2>/dev/null)
 
-	enabled=$(normalize_bool "$new_enabled")
+	enabled=$(normalize_bool "$new_enabled") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 	host=$(strip_json_string "$new_host")
 	port=$(strip_json_string "$new_port")
 	username=$(strip_json_string "$new_username")
 	password=$(strip_json_string "$new_password")
-	use_ssl=$(normalize_bool "$new_use_ssl")
-	tls_skip_verify=$(normalize_bool "$new_tls_skip_verify")
+	use_ssl=$(normalize_bool "$new_use_ssl") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	tls_skip_verify=$(normalize_bool "$new_tls_skip_verify") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 
 	[ -n "$port" ] || port="1883"
 
