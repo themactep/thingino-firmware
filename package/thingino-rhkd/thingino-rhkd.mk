@@ -6,8 +6,8 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.7.0
-THINGINO_RHKD_VERSION = 044a14f9a658c065f304cdd2b6085a9c3ff3714c
+# v0.7.1
+THINGINO_RHKD_VERSION = 43fc501b5d833f2d0853e7739d564dd555dabdc3
 THINGINO_RHKD_LICENSE = GPL-3.0-or-later, Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd), BSD-3-Clause (Opus), LGPL-2.1+ (faac)
 THINGINO_RHKD_LICENSE_FILES = LICENSE
 
