@@ -216,6 +216,20 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_WIRED_ETH
 endif
 endif
 
+# T41 boards that reserve nmem run the NNA: give its ORAM the 384 KiB the vendor
+# soc-nna driver and venus runtime expect (L2 128 KiB), as Ingenic's boot loader does.
+ifeq ($(SOC_FAMILY),t41)
+ifneq ($(ISP_NMEM_MB),0)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_T41_L2_128K
+	$(call KCONFIG_ENABLE_OPT,CONFIG_T41_L2_128K,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_T41_L2_128K
+endif
+endif
+endif
+
 # Drop the USB-Ethernet host drivers when the board has no USB OTG data port (no dongle possible).
 ifneq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)

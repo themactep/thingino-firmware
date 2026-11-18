@@ -1,0 +1,138 @@
+From: Small6oy <14087376+Small6oy@users.noreply.github.com>
+Subject: [PATCH] mips: xburst: t41: hand the NNA its 384 KiB of ORAM before Linux
+
+A T41NQ comes out of reset with 256 KiB of its 512 KiB on-chip SRAM
+given to the L2 (CCU MSCR 0x02000830), and this U-Boot leaves it so.
+Ingenic's boot loader sets 128 KiB, and the vendor NNA stack is built
+for that: libdrivers puts the ORAM at 0x12600000 plus the L2's share,
+0x12640000 here, while soc-nna (H20230310) only maps it at 0x12620000;
+it takes 0x12640000 for an nmem mapping, its remap loop underflows and
+runs into BUG_ON(!pte_none) with the mm lock held, and the venus
+program hangs in D state for good.
+
+With CONFIG_T41_L2_128K, write every L1 and L2 line back and set the
+L2's share to 128 KiB in board_quiesce_devices(), the last call before
+the jump to Linux; Linux then sizes its L2 from Config2 (128 KiB).
+
+Tested in gtxaspec's QEMU (T41NQ, Wyze Cam v4 image): MSCR 0x02000430
+at boot, the kernel's L2 128 KiB, a venus YOLOv5n loads and runs with
+nmem=20M, rvd streams.
+
+diff --git a/arch/mips/mach-xburst/t41/Kconfig b/arch/mips/mach-xburst/t41/Kconfig
+index 83af26bf..ae025a64 100644
+--- a/arch/mips/mach-xburst/t41/Kconfig
++++ b/arch/mips/mach-xburst/t41/Kconfig
+@@ -29,4 +29,15 @@ config SPL_T41_SFC_NAND_BOOT
+ 	  (isvp_t41nq_sfc0_nand_defconfig). The driver lives in
+ 	  arch/mips/mach-xburst/t41/sfc_nand.c (ported from T40).
+ 
++config T41_L2_128K
++	bool "T41: 128 KiB of L2 for Linux, 384 KiB of ORAM for the NNA"
++	help
++	  Before the jump to Linux, write every cache line back and set
++	  CCU MSCR to give the L2 128 KiB of the 512 KiB on-chip SRAM, as
++	  Ingenic's boot loader does. A T41NQ comes out of reset with
++	  256 KiB of L2, which leaves the NNA's ORAM at 0x12640000; the
++	  vendor soc-nna driver and venus runtime expect it at 0x12620000
++	  with 384 KiB, and a venus program then wedges in soc-nna's mmap.
++	  Say Y on cameras that run Magik/venus models on the NNA.
++
+ endif
+diff --git a/arch/mips/mach-xburst/t41/Makefile b/arch/mips/mach-xburst/t41/Makefile
+index 49d746ff..4ee99267 100644
+--- a/arch/mips/mach-xburst/t41/Makefile
++++ b/arch/mips/mach-xburst/t41/Makefile
+@@ -3,3 +3,6 @@
+ obj-$(CONFIG_XPL_BUILD)	+= soc.o
+ obj-y	+= pll.o serial.o sfc.o timer.o
+ obj-$(CONFIG_SPL_T41_SFC_NAND_BOOT)	+= sfc_nand.o
++ifndef CONFIG_XPL_BUILD
++obj-$(CONFIG_T41_L2_128K)	+= l2.o
++endif
+diff --git a/arch/mips/mach-xburst/t41/l2.c b/arch/mips/mach-xburst/t41/l2.c
+new file mode 100644
+index 00000000..e8e089d9
+--- /dev/null
++++ b/arch/mips/mach-xburst/t41/l2.c
+@@ -0,0 +1,81 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Ingenic T41: hand the NNA its 384 KiB of ORAM before Linux boots
++ *
++ * The T41's 512 KiB of on-chip SRAM is split between the CPU's L2 cache
++ * and the NNA's ORAM by CCU MSCR bits 12:10 (1 = 128 KiB of L2, 2 =
++ * 256 KiB, ...); the ORAM is what is left, from 0x12600000 plus the L2's
++ * share. A T41NQ comes out of reset with 256 KiB of L2 (MSCR 0x02000830),
++ * Ingenic's own boot loader sets 128 KiB, and the vendor NNA stack is
++ * built for that: soc-nna maps the ORAM at 0x12620000 only, and venus and
++ * the Magik models plan for 384 KiB. Left at 256 KiB, libdrivers puts the
++ * ORAM at 0x12640000, soc-nna takes that for an nmem mapping and its
++ * remap loop runs past the VMA into BUG_ON(!pte_none), with the mm lock
++ * held, so the process can never exit.
++ *
++ * The split is changed here, as the last thing before the jump to Linux:
++ * nothing dirties the caches after it, and Linux sizes its L2 from
++ * Config2, which follows MSCR, on its first instructions. The lines that
++ * the L2 gives up would be lost with what they hold, so every L1 and L2
++ * line is written back first; this function is a leaf that keeps its
++ * state in registers, so nothing is written between that and the switch.
++ */
++
++#include <asm/cacheops.h>
++#include <asm/io.h>
++#include <asm/mipsregs.h>
++#include <linux/bitfield.h>
++#include <linux/bitops.h>
++#include <stdio.h>
++#include <mach/t41.h>
++
++#define CCU_MSCR		(CCU_BASE + 0x60)
++#define MSCR_L2_SHARE		GENMASK(12, 10)
++#define L2_SHARE_128K		1
++
++#define XB2_L1D_SIZE		(32 * 1024)	/* 8 ways x 128 sets x 32 B */
++#define XB2_L1_LINE		32
++
++static inline void xb2_cache(unsigned int op, unsigned long addr)
++{
++	__asm__ __volatile__("cache %0, 0(%1)" : : "i"(op), "r"(addr));
++}
++
++static void t41_l2_share(unsigned int share)
++{
++	u32 mscr = readl((void __iomem *)CCU_MSCR);
++	u32 c2 = read_c0_config2();
++	unsigned int sets = 64 << ((c2 >> 8) & 0xf);	/* SS */
++	unsigned int line = 2 << ((c2 >> 4) & 0xf);	/* SL */
++	unsigned int ways = (c2 & 0xf) + 1;		/* SA */
++	unsigned long a, end;
++
++	if (FIELD_GET(MSCR_L2_SHARE, mscr) == share)
++		return;
++
++	printf("L2:    %u KiB -> %u KiB, NNA ORAM %u KiB\n",
++	       128 << (FIELD_GET(MSCR_L2_SHARE, mscr) - 1), 128 << (share - 1),
++	       512 - (128 << (share - 1)));
++
++	/* every L1 D line back to the L2, then every L2 line back to DRAM */
++	for (a = CKSEG0; a < CKSEG0 + XB2_L1D_SIZE; a += XB2_L1_LINE)
++		xb2_cache(INDEX_WRITEBACK_INV_D, a);
++	__asm__ __volatile__("sync");
++	if ((c2 >> 4) & 0xf) {
++		end = CKSEG0 + (unsigned long)sets * line * ways;
++		for (a = CKSEG0; a < end; a += line)
++			xb2_cache(INDEX_WRITEBACK_INV_SD, a);
++	}
++	__asm__ __volatile__("sync");
++	(void)readl((void __iomem *)CKSEG1);	/* drain the write buffer */
++
++	writel((mscr & ~MSCR_L2_SHARE) | FIELD_PREP(MSCR_L2_SHARE, share),
++	       (void __iomem *)CCU_MSCR);
++	__asm__ __volatile__("sync");
++	(void)readl((void __iomem *)CCU_MSCR);
++}
++
++void board_quiesce_devices(void)
++{
++	t41_l2_share(L2_SHARE_128K);
++}
