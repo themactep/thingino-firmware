@@ -2704,7 +2704,7 @@ agent_set_setting() {
 					;;
 			esac
 			agent_config_set telematics speed_unit "$value" || return 1
-			agent_config_save
+			agent_ctl rtd set-speed-unit "$value" >/dev/null 2>&1 || true
 			agent_print_setting_update "$path" speed_unit "$(agent_json_string "$value")"
 			;;
 		streams/[01]/enabled)
