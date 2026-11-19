@@ -106,6 +106,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 handle_get() {
 	send_json "$(read_domain_json)"
 }
@@ -117,8 +122,8 @@ handle_post() {
 	new_port=$(jct "$REQ_FILE" get port 2>/dev/null)
 	new_file=$(jct "$REQ_FILE" get file 2>/dev/null)
 
-	enabled=$(normalize_bool "$new_enabled") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	file=$(normalize_bool "$new_file") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	enabled=$(normalize_bool "$new_enabled") || bad_bool
+	file=$(normalize_bool "$new_file") || bad_bool
 	host=$(strip_json_string "$new_host")
 	port=$(strip_json_string "$new_port")
 

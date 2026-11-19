@@ -61,6 +61,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 is_number() {
 	case "$1" in
 		'' | *[!0-9]*) return 1 ;;
@@ -156,8 +161,8 @@ handle_post() {
 	read_body
 	ensure_config
 
-	enabled=$(normalize_bool "$(req_value enabled)") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	auth=$(normalize_bool "$(req_value auth)") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	enabled=$(normalize_bool "$(req_value enabled)") || bad_bool
+	auth=$(normalize_bool "$(req_value auth)") || bad_bool
 
 	community=$(req_text community)
 	port=$(req_text port)
