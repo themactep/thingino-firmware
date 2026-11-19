@@ -61,6 +61,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 ensure_config() {
 	if [ ! -f "$CONFIG_FILE" ]; then
 		umask 077
@@ -128,25 +133,25 @@ handle_post() {
 	new_en_ota=$(jct "$REQ_FILE" get enable_ota 2>/dev/null)
 
 	# Normalize
-	enabled=$(normalize_bool "$new_enabled") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	mqtt_tls_skip_verify=$(normalize_bool "$new_mqtt_tls_skip_verify") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_motion=$(normalize_bool "$new_en_motion") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_motion_guard=$(normalize_bool "$new_en_motion_guard") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_ircut=$(normalize_bool "$new_en_ircut") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_daynight=$(normalize_bool "$new_en_daynight") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_privacy=$(normalize_bool "$new_en_privacy") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_color=$(normalize_bool "$new_en_color") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_ir850=$(normalize_bool "$new_en_ir850") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_ir940=$(normalize_bool "$new_en_ir940") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_white=$(normalize_bool "$new_en_white") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_floodlight=$(normalize_bool "$new_en_floodlight") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_lamp_socket=$(normalize_bool "$new_en_lamp_socket") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_gain=$(normalize_bool "$new_en_gain") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_rssi=$(normalize_bool "$new_en_rssi") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_snapshot=$(normalize_bool "$new_en_snapshot") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_reboot=$(normalize_bool "$new_en_reboot") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	en_ota=$(normalize_bool "$new_en_ota") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	enabled=$(normalize_bool "$new_enabled") || bad_bool
+	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl") || bad_bool
+	mqtt_tls_skip_verify=$(normalize_bool "$new_mqtt_tls_skip_verify") || bad_bool
+	en_motion=$(normalize_bool "$new_en_motion") || bad_bool
+	en_motion_guard=$(normalize_bool "$new_en_motion_guard") || bad_bool
+	en_ircut=$(normalize_bool "$new_en_ircut") || bad_bool
+	en_daynight=$(normalize_bool "$new_en_daynight") || bad_bool
+	en_privacy=$(normalize_bool "$new_en_privacy") || bad_bool
+	en_color=$(normalize_bool "$new_en_color") || bad_bool
+	en_ir850=$(normalize_bool "$new_en_ir850") || bad_bool
+	en_ir940=$(normalize_bool "$new_en_ir940") || bad_bool
+	en_white=$(normalize_bool "$new_en_white") || bad_bool
+	en_floodlight=$(normalize_bool "$new_en_floodlight") || bad_bool
+	en_lamp_socket=$(normalize_bool "$new_en_lamp_socket") || bad_bool
+	en_gain=$(normalize_bool "$new_en_gain") || bad_bool
+	en_rssi=$(normalize_bool "$new_en_rssi") || bad_bool
+	en_snapshot=$(normalize_bool "$new_en_snapshot") || bad_bool
+	en_reboot=$(normalize_bool "$new_en_reboot") || bad_bool
+	en_ota=$(normalize_bool "$new_en_ota") || bad_bool
 
 	device_name=$(strip_json_string "$new_device_name")
 	device_model=$(strip_json_string "$new_device_model")
