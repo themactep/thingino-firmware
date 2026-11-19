@@ -72,6 +72,8 @@ copy_photo() {
 }
 
 copy_video() {
+	# motion may mark the capture as impossible (busy channel)
+	[ "$SEND2_SKIP_VIDEO" = "true" ] && return 1
 	# Use existing video from motion if available
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
 		# Create atomically (see copy_photo): the name can't be a planted symlink.
