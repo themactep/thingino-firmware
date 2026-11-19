@@ -11,7 +11,6 @@
     "mmc_power": "61o 59o",
     "speaker": 63,
     "spk_en": 63,
-    "white_light_en": 47,
-    "wlan": 78
+    "white_light_en": 47
   }
 }
