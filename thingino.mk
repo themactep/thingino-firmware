@@ -5,10 +5,11 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # SOC
 #
 
-# The else branch is a fallback, not just the Kconfig default: this file is
-# parsed before .config exists on some paths, and every existing defconfig sets
-# no vendor symbol at all.
-ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
+# The vendor is whichever vendor's model symbol the defconfig set; nothing
+# declares it separately. The else branch is a fallback, not just the Kconfig
+# default: this file is parsed before .config exists on some paths, and on
+# others no model is named at all.
+ifneq ($(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)),)
 SOC_VENDOR := sigmastar
 else
 SOC_VENDOR := ingenic
@@ -24,14 +25,16 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
-# The SoC model, from whichever vendor's symbol carries it. Kconfig keeps them
-# mutually exclusive -- each depends on its vendor and the vendor is a choice --
-# so at most one is ever set and the order below is not a precedence. Testing
-# after qstrip rather than before is what makes an empty BR2_..._SOC_MODEL=""
-# fall through, since "" is two characters to make and not an empty string.
+# The SoC model, from whichever vendor's symbol carries it. Nothing in Kconfig
+# keeps a defconfig from setting two, so that stops here rather than letting one
+# win. Testing after qstrip rather than before is what makes an empty
+# BR2_..._SOC_MODEL="" fall through, since "" is two characters to make and
+# not an empty string.
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifeq ($(SOC_MODEL_INPUT),)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
+else ifneq ($(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)),)
+$(error BR2_INGENIC_SOC_MODEL and BR2_SIGMASTAR_SOC_MODEL are both set in $(CAMERA)'s defconfig: a camera has one SoC)
 endif
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)

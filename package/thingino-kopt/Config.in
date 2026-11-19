@@ -121,6 +121,7 @@ config BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	bool "Ethernet Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_SOC_VENDOR_INGENIC
 	help
 	  Enable native wired Ethernet support on the SoC.
 
@@ -368,6 +369,22 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 endchoice
 
 endif
+
+config BR2_PACKAGE_THINGINO_KOPT_INPUT
+	bool "Input device support (GPIO buttons)"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable evdev, the keyboard input core and the gpio-keys driver.
+	  Boards with a gpio-keys node in their device tree need this to
+	  expose /dev/input/event0 for thingino-button.
+
+config BR2_PACKAGE_THINGINO_KOPT_SFC_ERASE_64K
+	bool "SFC: 64 KiB flash erase blocks"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Use 64 KiB erase blocks for the SFC SPI NOR driver instead of the
+	  default 32 KiB. The image tools take the erase size from the kernel
+	  config when they build data.jffs2, so the two stay in step.
 
 config BR2_PACKAGE_THINGINO_KOPT_I2C
 	bool "I2C Support"

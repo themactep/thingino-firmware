@@ -8,7 +8,8 @@ config BR2_PACKAGE_THINGINO_SYSTEM_INGENIC
 	bool "Ingenic platform utilities"
 	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_VENDOR_INGENIC
 	help
-	  soc, sensor, usb-role and S03mac, from files/ingenic/.
+	  soc, sensor, usb-role and S03mac (with lib-serial-mac, which it
+	  sources), from files/ingenic/.
 
 	  All four are tied to the silicon: soc and usb-role read Ingenic
 	  registers through devmem, S03mac reads the serial-number registers

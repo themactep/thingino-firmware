@@ -1,0 +1,15 @@
+--- a/hal/hal_com.c
++++ b/hal/hal_com.c
+@@ -1610,10 +1610,12 @@
+ 		ret = _SUCCESS;
+ 
+ #if defined(CONFIG_USB_HCI) || defined(CONFIG_PCI_HCI)
++#ifndef CONFIG_RTL8733BU_KEEP_POWER
+ 	if ((hci_type == RTW_USB || hci_type == RTW_PCIE)
+ 		&& !rtw_is_hw_init_completed(adapter))
+ 		rtw_hal_power_off(adapter);
+ #endif
++#endif
+ 
+ 	RTW_INFO("%s %s! (%u, %dms), fwdl:%d, id:0x%02x\n", __func__
+ 		, (ret == _SUCCESS) ? "OK" : "Fail", cnt, rtw_get_passing_time_ms(start), ret_fwdl, id);

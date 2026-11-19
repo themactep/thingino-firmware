@@ -1,0 +1,28 @@
+From e455543f312c7b55abe39a6c0d032dfe725384dd Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Tue, 17 Nov 2026 02:32:16 -0500
+Subject: [PATCH] usb: use drvwrap.driver.shutdown below 6.8
+
+The plain usb_driver::shutdown member only appeared in 6.11. Older
+kernels expose the callback through usb_driver::drvwrap::driver, which
+is what the vendor tree used before the fork flattened the reference.
+Restore the nested path so the driver builds on 3.10.14.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ ZT9101_android_V1.2.1800.20241115/os/linux/hif/usb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ZT9101_android_V1.2.1800.20241115/os/linux/hif/usb.c b/ZT9101_android_V1.2.1800.20241115/os/linux/hif/usb.c
+index ba02936..c8727ff 100644
+--- a/ZT9101_android_V1.2.1800.20241115/os/linux/hif/usb.c
++++ b/ZT9101_android_V1.2.1800.20241115/os/linux/hif/usb.c
+@@ -1115,7 +1115,7 @@ static struct usb_driver zt_usb_driver =
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0))
+     .shutdown       =   zt_usb_shutdown,
+ #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0))
+-    .shutdown    = zt_usb_shutdown,
++    .drvwrap.driver.shutdown    = zt_usb_shutdown,
+ #endif
+     .supports_autosuspend       = 1,
+ };

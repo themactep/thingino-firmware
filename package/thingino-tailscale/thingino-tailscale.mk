@@ -1,3 +1,7 @@
 TAILSCALE_GO_ENV += GOARCH=mipsle CGO_ENABLED=0
 
+define THINGINO_TAILSCALE_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_TUN,m)
+endef
+
 $(eval $(generic-package))

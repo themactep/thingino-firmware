@@ -1,3 +1,5 @@
+# shellcheck shell=busybox
+# Sourced by the send2* scripts, which set config_file and domain first.
 GARBAGE=""
 GARBAGE_FILE="$(mktemp "${TMPDIR:-/tmp}/send2_garbage.XXXXXX")" || {
 	echo "send2: unable to create garbage tracker" >&2
@@ -8,14 +10,14 @@ export GARBAGE_FILE
 add_to_garbage() {
 	[ -n "$1" ] || return
 	GARBAGE="${GARBAGE:+$GARBAGE }$1"
-	[ -n "$GARBAGE_FILE" ] && printf '%s\n' "$1" >> "$GARBAGE_FILE"
+	[ -n "$GARBAGE_FILE" ] && printf '%s\n' "$1" >>"$GARBAGE_FILE"
 }
 
 _cleanup() {
 	if [ -n "$GARBAGE_FILE" ] && [ -f "$GARBAGE_FILE" ]; then
 		while IFS= read -r garbage_path; do
 			[ -n "$garbage_path" ] && rm -f -- "$garbage_path"
-		done < "$GARBAGE_FILE"
+		done <"$GARBAGE_FILE"
 		rm -f -- "$GARBAGE_FILE"
 	fi
 	GARBAGE=""
@@ -118,6 +120,7 @@ copy_video() {
 }
 
 get_value() {
+	# shellcheck disable=SC2154 # assigned by the calling script
 	jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
