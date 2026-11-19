@@ -1,19 +1,34 @@
-FAAC_SITE_METHOD = git
-FAAC_SITE = https://github.com/knik0/faac
-FAAC_SITE_BRANCH = master
-FAAC_VERSION = 8eb8d5ffa7372848f386f92f4d0dd83f056d54fc
+FAAC_VERSION = 3.0
+FAAC_SITE = $(call github,FreewareAdvancedAudio,faac,faac-$(FAAC_VERSION))
 
-FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
+FAAC_LICENSE = LGPL-2.1+
 FAAC_LICENSE_FILES = COPYING
 
 FAAC_INSTALL_STAGING = YES
+FAAC_INSTALL_TARGET = YES
 
-# Upstream builds with meson and generates config.h, faac.pc and the
-# versioned shared lib (libfaac.so.1) itself. The CLI frontend is only
-# built and installed when BR2_PACKAGE_FAAC_INSTALL_BIN is enabled.
 FAAC_CONF_OPTS = \
-	-Dfrontend=$(if $(BR2_PACKAGE_FAAC_INSTALL_BIN),true,false) \
 	-Dmax-channels=2 \
-	-Dsbr-decimation=4
+	-Dsbr-decimation=4 \
+	-Ddecoder=false \
+	-Dmuxer=false \
+	-Dresampler=false
+
+ifeq ($(BR2_PACKAGE_FAAC_INSTALL_BIN),y)
+FAAC_CONF_OPTS += -Dfrontend=true
+else
+FAAC_CONF_OPTS += -Dfrontend=false
+endif
+
+ifeq ($(BR2_PACKAGE_FAAC_INSTALL_BIN),)
+# libfaam and libfaar are always built, but nothing in the firmware uses them
+# when the CLI is not installed.
+define FAAC_REMOVE_UNUSED_LIBS
+	rm -f $(TARGET_DIR)/usr/lib/libfaam.* $(TARGET_DIR)/usr/lib/libfaar.*
+	rm -f $(STAGING_DIR)/usr/lib/libfaam.* $(STAGING_DIR)/usr/lib/libfaar.*
+endef
+FAAC_POST_INSTALL_STAGING_HOOKS += FAAC_REMOVE_UNUSED_LIBS
+FAAC_POST_INSTALL_TARGET_HOOKS += FAAC_REMOVE_UNUSED_LIBS
+endif
 
 $(eval $(meson-package))
