@@ -29,7 +29,7 @@ case "$1" in
 	start)
 		attempt=0
 		while [ "$attempt" -lt 10 ]; do
-			for iface in eth0 usb0; do
+			for iface in eth0; do
 				if has_wired_uplink "$iface"; then
 					echo "Wired uplink on $iface found, stopping WiFi" >&2
 					/etc/init.d/S38wpa_supplicant stop
