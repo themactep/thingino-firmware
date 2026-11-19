@@ -26,7 +26,8 @@ TEMP_FILE=$(mktemp)
 {
 	printf '#ifndef CONFIG_DEVICE_ENV\n'
 	printf '#define CONFIG_DEVICE_ENV \\\n'
-	while IFS= read -r line || [ -n "$line" ]; do
+	while IFS= read -r raw_line || [ -n "$raw_line" ]; do
+		line=$(printf '%s' "$raw_line" | tr -d '\r')
 		if [ "$(tail -n1 "$UENV_FILE")" = "$line" ]; then
 			printf '"%s\\0"\n' "$line"
 		else
