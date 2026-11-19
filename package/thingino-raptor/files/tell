@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 set -eu
 
 PORTAL_MODE_FLAG="/run/portal_mode"
@@ -28,10 +29,9 @@ if no_internet; then
 	if portal_is_up; then
 		play /usr/share/sounds/configurationportalmode.opus
 	else
-		play /usr/share/sounds/configurationportalisdown.opus
-		play /usr/share/sounds/pleasepowercycletorestart.opus
-		exit 1
+		play /usr/share/sounds/voiceannouncementsneedinternetaccess.opus
 	fi
+	exit 1
 fi
 
 case "$1" in
