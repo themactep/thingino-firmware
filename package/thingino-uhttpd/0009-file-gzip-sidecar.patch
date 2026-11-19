@@ -255,8 +255,8 @@ index bf02575..0a0bd23 100644
  #ifdef HAVE_TLS
  		case 'C':
 @@ -536,6 +537,11 @@ int main(int argc, char **argv)
- 			}
  			break;
+ 		}
  
 +		/* serve pre-compressed file.gz siblings */
 +		case 'z':
