@@ -162,15 +162,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	params.sample_rate = sample_rate;
-	params.num_channels = num_channels;
-	params.mpeg_version = FAAC_MPEG4;
-	params.object_type = FAAC_OBJ_LOW;
+	params.channels = (uint32_t)num_channels;
+	params.object_type = FAAC_OBJ_LC;
 	params.input_format = FAAC_INPUT_16BIT;
-	params.output_format = FAAC_STREAM_RAW;
-	params.bit_rate = bitrate_kbps * 1000;
-	params.bandwidth = sample_rate;
-	params.joint_mode = FAAC_JOINT_NONE;
-	params.use_tns = false;
+	params.stream_format = FAAC_STREAM_RAW;
+	params.bit_rate = (uint32_t)bitrate_kbps * 1000 * (uint32_t)num_channels;
+	params.bandwidth = (uint32_t)sample_rate;
+	params.stereo_mode = FAAC_STEREO_LR;
+	params.flags &= ~FAAC_FLAG_TNS;
 
 	faac_encoder *handle = NULL;
 	st = faac_encoder_open(&params, &handle);
