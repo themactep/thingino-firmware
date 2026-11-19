@@ -1,0 +1,288 @@
+file: serve pre-compressed .gz siblings
+
+-z: when the client accepts gzip and file.gz is a readable regular file
+at least as new as file, send it with Content-Encoding: gzip. ETag,
+Last-Modified, Content-Length and conditional requests use the .gz;
+Content-Type comes from the original. A stale .gz is ignored, and any
+file with a fresh .gz sibling gets Vary: Accept-Encoding.
+
+Accept-Encoding is parsed per RFC 9110 12.5.3: codings are matched
+case-insensitively (gzip or x-gzip), whitespace around ";" is allowed,
+q-values are parsed as numbers (q=0, q=0.0, q=0.000 refuse), and a list
+that does not name gzip falls back to "*". A malformed q counts as q=0,
+so a refusal is never misread as acceptance.
+
+uhttpd has no compression of its own. This lets a build ship gzipped
+text assets, at the cost of the .gz copies in flash.
+
+Applies on top of 0008 (Cache-Control).
+
+diff --git a/file.c b/file.c
+index 8a82ff5..56243bd 100644
+--- a/file.c
++++ b/file.c
+@@ -31,6 +31,7 @@
+ #include <strings.h>
+ #include <dirent.h>
+ #include <inttypes.h>
++#include <ctype.h>
+ 
+ #include <libubox/blobmsg.h>
+ 
+@@ -65,6 +66,7 @@ enum file_hdr {
+ 	HDR_IF_MATCH,
+ 	HDR_IF_NONE_MATCH,
+ 	HDR_IF_RANGE,
++	HDR_ACCEPT_ENCODING,
+ 	__HDR_MAX
+ };
+ 
+@@ -383,6 +385,8 @@ static void uh_file_response_ok_hdrs(struct client *cl, struct stat *s)
+ 				       cl->dispatch.file.max_age);
+ 		else if (!cl->dispatch.file.max_age)
+ 			ustream_printf(cl->us, "Cache-Control: no-cache\r\n");
++		if (cl->dispatch.file.vary)
++			ustream_printf(cl->us, "Vary: Accept-Encoding\r\n");
+ 	}
+ 	ustream_printf(cl->us, "Date: %s\r\n",
+ 		       uh_file_unix2date(time(NULL), buf, sizeof(buf)));
+@@ -655,15 +659,16 @@ static void uh_file_free(struct client *cl)
+ 	close(cl->dispatch.file.fd);
+ }
+ 
+-static void uh_file_data(struct client *cl, struct path_info *pi, int fd)
++static void uh_file_data(struct client *cl, struct path_info *pi, int fd,
++			 struct stat *st, bool gz)
+ {
+ 	/* test preconditions */
+ 	if (!cl->dispatch.no_cache &&
+-	    (!uh_file_if_modified_since(cl, &pi->stat) ||
+-	     !uh_file_if_match(cl, &pi->stat) ||
+-	     !uh_file_if_range(cl, &pi->stat) ||
+-	     !uh_file_if_unmodified_since(cl, &pi->stat) ||
+-	     !uh_file_if_none_match(cl, &pi->stat))) {
++	    (!uh_file_if_modified_since(cl, st) ||
++	     !uh_file_if_match(cl, st) ||
++	     !uh_file_if_range(cl, st) ||
++	     !uh_file_if_unmodified_since(cl, st) ||
++	     !uh_file_if_none_match(cl, st))) {
+ 		ustream_printf(cl->us, "\r\n");
+ 		uh_request_done(cl);
+ 		close(fd);
+@@ -671,13 +676,16 @@ static void uh_file_data(struct client *cl, struct path_info *pi, int fd)
+ 	}
+ 
+ 	/* write status */
+-	uh_file_response_200(cl, &pi->stat);
++	uh_file_response_200(cl, st);
+ 
+ 	ustream_printf(cl->us, "Content-Type: %s\r\n",
+ 			   uh_file_mime_lookup(pi->phys));
+ 
++	if (gz)
++		ustream_printf(cl->us, "Content-Encoding: gzip\r\n");
++
+ 	ustream_printf(cl->us, "Content-Length: %" PRIu64 "\r\n\r\n",
+-			   pi->stat.st_size);
++			   st->st_size);
+ 
+ 
+ 	/* send body */
+@@ -696,6 +704,92 @@ static void uh_file_data(struct client *cl, struct path_info *pi, int fd)
+ 
+ static bool __handle_file_request(struct client *cl, char *url, bool is_error_handler);
+ 
++/* Parse a qvalue ("0", "0.5", "1.000") into thousandths; -1 if malformed. */
++static int uh_file_qvalue(const char *s, size_t len)
++{
++	int q, scale = 100;
++	size_t i;
++
++	if (!len || (s[0] != '0' && s[0] != '1'))
++		return -1;
++
++	q = (s[0] - '0') * 1000;
++	if (len == 1)
++		return q;
++
++	if (s[1] != '.' || len > 5)
++		return -1;
++
++	for (i = 2; i < len; i++, scale /= 10) {
++		if (!isdigit((unsigned char)s[i]))
++			return -1;
++		q += (s[i] - '0') * scale;
++	}
++
++	return q > 1000 ? -1 : q;
++}
++
++/* Does an Accept-Encoding value allow gzip? (RFC 9110, 12.5.3)
++ * Codings are case-insensitive, whitespace around ";" is allowed, and a
++ * coding with q=0 is refused. A list that does not name gzip falls back to
++ * "*". A malformed q counts as q=0, so a refusal is never misread. */
++static bool uh_file_accepts_gzip(const char *ae)
++{
++	int gzip_q = -1, star_q = -1;
++
++	while (*ae) {
++		const char *tok, *name;
++		size_t tlen, nlen, vlen;
++		int q = 1000;
++
++		ae += strspn(ae, " \t,");
++		if (!*ae)
++			break;
++
++		tok = ae;
++		tlen = strcspn(tok, " \t;,");
++		ae += tlen;
++
++		/* parameters: *( OWS ";" OWS name "=" value ) */
++		for (;;) {
++			ae += strspn(ae, " \t");
++			if (*ae != ';')
++				break;
++			ae++;
++			ae += strspn(ae, " \t");
++			name = ae;
++			nlen = strcspn(ae, " \t=;,");
++			ae += nlen;
++			ae += strspn(ae, " \t");
++			if (*ae != '=')
++				continue;
++			ae++;
++			ae += strspn(ae, " \t");
++			vlen = strcspn(ae, " \t;,");
++			if (nlen == 1 && tolower((unsigned char)*name) == 'q')
++				q = uh_file_qvalue(ae, vlen);
++			ae += vlen;
++		}
++		ae += strcspn(ae, ",");
++
++		if (q < 0)
++			q = 0;
++
++		if ((tlen == 4 && !strncasecmp(tok, "gzip", 4)) ||
++		    (tlen == 6 && !strncasecmp(tok, "x-gzip", 6))) {
++			if (q > gzip_q)
++				gzip_q = q;
++		} else if (tlen == 1 && *tok == '*') {
++			star_q = q;
++		}
++	}
++
++	if (gzip_q >= 0)
++		return gzip_q > 0;
++
++	return star_q > 0;
++}
++
+ static void uh_file_request(struct client *cl, const char *url,
+ 			    struct path_info *pi, struct blob_attr **tb)
+ {
+@@ -725,10 +819,42 @@ static void uh_file_request(struct client *cl, const char *url,
+ 		if (fd < 0)
+ 			goto error;
+ 
++		struct stat *st = &pi->stat;
++		struct stat gz_stat;
++		bool gz = false;
++
+ 		req->disable_chunked = true;
+ 		cl->dispatch.file.hdr = tb;
+ 		cl->dispatch.file.max_age = uh_file_max_age(pi);
+-		uh_file_data(cl, pi, fd);
++		cl->dispatch.file.vary = false;
++
++		/* Pre-compressed sibling: serve file.gz when the client accepts
++		 * gzip and the .gz is a readable regular file at least as new as
++		 * the original, so a stale copy is never sent. */
++		if (conf.gzip_static) {
++			size_t len = strlen(pi->phys);
++			char *gz_path = alloca(len + 4);
++			char *ae = uh_file_header(cl, HDR_ACCEPT_ENCODING);
++			int gz_fd;
++
++			memcpy(gz_path, pi->phys, len);
++			memcpy(gz_path + len, ".gz", 4);
++
++			if (!stat(gz_path, &gz_stat) && S_ISREG(gz_stat.st_mode) &&
++			    (gz_stat.st_mode & S_IROTH) &&
++			    gz_stat.st_mtime >= pi->stat.st_mtime) {
++				cl->dispatch.file.vary = true;
++				if (ae && uh_file_accepts_gzip(ae) &&
++				    (gz_fd = open(gz_path, O_RDONLY)) >= 0) {
++					close(fd);
++					fd = gz_fd;
++					st = &gz_stat;
++					gz = true;
++				}
++			}
++		}
++
++		uh_file_data(cl, pi, fd, st, gz);
+ 		cl->dispatch.file.hdr = NULL;
+ 		return;
+ 	}
+@@ -939,6 +1065,7 @@ static bool __handle_file_request(struct client *cl, char *url, bool is_error_ha
+ 		[HDR_IF_MATCH] = { "if-match", BLOBMSG_TYPE_STRING },
+ 		[HDR_IF_NONE_MATCH] = { "if-none-match", BLOBMSG_TYPE_STRING },
+ 		[HDR_IF_RANGE] = { "if-range", BLOBMSG_TYPE_STRING },
++		[HDR_ACCEPT_ENCODING] = { "accept-encoding", BLOBMSG_TYPE_STRING },
+ 	};
+ 	struct dispatch_handler *d;
+ 	struct blob_attr *tb[__HDR_MAX];
+diff --git a/main.c b/main.c
+index bf02575..0a0bd23 100644
+--- a/main.c
++++ b/main.c
+@@ -183,6 +183,7 @@ static int usage(const char *name)
+ 		"	-m string       MD5 crypt given string\n"
+ 		"	-M seconds      Send Cache-Control: max-age for static files\n"
+ 		"	-F prefix       Limit -M to files under prefix, send no-cache for the rest\n"
++		"	-z              Serve file.gz for file when the client accepts gzip\n"
+ 		"\n", name
+ 	);
+ 	return 1;
+@@ -344,7 +345,7 @@ int main(int argc, char **argv)
+ 	init_defaults_pre();
+ 	signal(SIGPIPE, SIG_IGN);
+ 
+-	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:F:fh:H:I:i:K:k:L:l:M:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:")) != -1) {
++	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:F:fh:H:I:i:K:k:L:l:M:m:N:n:O:o:P:p:qQ:Rr:Ss:T:t:U:u:Xx:W:y:z")) != -1) {
+ 		switch(ch) {
+ #ifdef HAVE_TLS
+ 		case 'C':
+@@ -536,6 +537,11 @@ int main(int argc, char **argv)
+ 			break;
+ 		}
+ 
++		/* serve pre-compressed file.gz siblings */
++		case 'z':
++			conf.gzip_static = 1;
++			break;
++
+ 		case 'F':
+ 			if (optarg[0] != '/') {
+ 				fprintf(stderr, "uhttpd: -F prefix must start with /\n");
+diff --git a/uhttpd.h b/uhttpd.h
+index 5746771..2dd60d9 100644
+--- a/uhttpd.h
++++ b/uhttpd.h
+@@ -110,6 +110,7 @@ struct config {
+ 	int cgi_prefix_len;
+ 	int events_retry;
+ 	int static_max_age;
++	int gzip_static;
+ 	const char *static_max_age_prefix;
+ 	struct list_head cgi_alias;
+ 	struct list_head cgi_prefixes;
+@@ -292,6 +293,7 @@ struct dispatch {
+ 			struct blob_attr **hdr;
+ 			int fd;
+ 			int max_age;
++			bool vary;
+ 		} file;
+ 		struct dispatch_proc proc;
+ #ifdef HAVE_UBUS
