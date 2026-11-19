@@ -7,6 +7,11 @@ FAAC_LICENSE_FILES = COPYING
 FAAC_INSTALL_STAGING = YES
 FAAC_INSTALL_TARGET = YES
 
+# Inline sqrtf() in the quantizer instead of calling libm for each one; the
+# encoder's output is unchanged. Not -ffast-math: it implies
+# -ffinite-math-only, and faac relies on isfinite() and isnan().
+FAAC_CFLAGS = $(TARGET_CFLAGS) -fno-math-errno
+
 FAAC_CONF_OPTS = \
 	-Dmax-channels=2 \
 	-Ddecoder=false \
