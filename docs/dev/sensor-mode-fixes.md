@@ -4,9 +4,14 @@ Instructions for a developer, or a coding agent working for one, who has a
 camera whose sensor driver is on the
 [sensor mode roadmap](sensor-mode-roadmap.md). The job is to take one row,
 find out on the camera which side of the disagreement is right, fix the driver,
-show the fix on the camera, and send two pull requests: the driver to
-[thingino/ingenic-sdk](https://github.com/thingino/ingenic-sdk), the roadmap row
-to this repository.
+show the fix on the camera, and send one pull request to this repository: the
+fix as a patch under `package/ingenic-sdk/`, and the roadmap row.
+
+The drivers live in
+[thingino/ingenic-sdk](https://github.com/thingino/ingenic-sdk). A fix lands
+here first, as a package patch, because this is the repository every build
+and every reviewer sees; the patches move into the SDK itself once they have
+proved themselves.
 
 ## Background
 
@@ -47,7 +52,7 @@ reading the source. It cannot tell which side is right.
   other rows of the same driver open unless they are the same edit and the text
   says they were not measured.
 - **Both kernel trees.** A driver present under `3.10.14/` and `4.4.94/` gets
-  the same fix in both, in one pull request.
+  the same fix in both, in one patch.
 - **Say what was not measured.** A fix that was built but never run on a sensor
   is marked so, in the pull request and on the roadmap.
 - **Do not paste datasheet text** into a commit, a pull request or these pages.
@@ -78,8 +83,9 @@ If no row matches the mode the camera runs, the camera cannot show that row's
 fault as it is. Stop there and say so, or load the row's mode only if the
 board's wiring allows it (interface, lanes, clock) and the user agrees.
 
-Look through the open pull requests of ingenic-sdk for the sensor first, so
-that two people do not fix the same row.
+Look for the sensor first in `package/ingenic-sdk/*.patch` and in the open pull
+requests of this repository and of ingenic-sdk, so that two people do not fix
+the same row.
 
 ## 2. Get the driver source and run the checker
 
@@ -88,15 +94,29 @@ that two people do not fix the same row.
 ```
 
 This clones the SDK into `overrides/ingenic-sdk/` and registers it in
-`local.mk` (see [local overrides](../build/local-overrides.md)). Start the fix
-branch from the tip of the SDK's `main`, not from the commit the firmware pins:
-the fix goes to `main`.
+`local.mk` (see [local overrides](../build/local-overrides.md)), on a branch at
+the commit the firmware pins (`INGENIC_SDK_VERSION`). Stay on that commit: it
+is what the patch has to apply to.
+
+An override bypasses the patches under `package/ingenic-sdk/` (see
+`AGENTS.md`), so the clone lacks the fixes the firmware already carries. Apply
+them before anything else:
 
 ```sh
 cd overrides/ingenic-sdk
+git am ../../package/ingenic-sdk/*.patch
+```
+
+Then run the script:
+
+```sh
 python3 tools/check_sensor_modes.py --driver t31/gc2053 --modes
 python3 tools/check_sensor_modes.py --list-checks
 ```
+
+If the pinned commit is older than the script, take `tools/check_sensor_modes.py`
+from the SDK's `main` and leave it untracked; it only reads the tree it is run
+in.
 
 The finding names the init table, the frame-length registers and the line. The
 `--modes` table lists every mode of the driver with three numbers, in lines per
@@ -234,23 +254,52 @@ Keep the readings, before and after, as text.
 
 ## 9. Send it
 
-1. **The driver**, to thingino/ingenic-sdk `main`: one commit, signed off,
-   touching only the driver's copies. In the text: the three numbers before and
-   after, the camera profile, the readings of steps 4 and 8, the SDK and
+One pull request to this repository, holding the patch and the roadmap row.
+
+1. **The patch.** Commit the fix in the override: one commit, signed off,
+   touching only the driver's copies, on top of the patches applied in step 2.
+   Write it out beside the patches the package already has, under the next
+   free number:
+
+   ```sh
+   cd overrides/ingenic-sdk
+   git format-patch -1 --stdout > ../../package/ingenic-sdk/0006-<sensor>-<family>-<what>.patch
+   ```
+
+   Buildroot applies `package/ingenic-sdk/*.patch` in name order to the pinned
+   SDK commit, so the name decides the order and the patch must apply after
+   the ones before it. The subject line starts with `ingenic-sdk:`, as the
+   others do. The patch text says: the three numbers before and after, the
+   camera profile, and what was measured.
+2. **Check it the way a clean build applies it.** Disable the override and
+   rebuild the package, which unpacks the pinned SDK and applies every patch:
+
+   ```sh
+   ./scripts/manage-package-overrides.sh -d ingenic-sdk
+   CAMERA=<profile> make rebuild-ingenic-sdk
+   ```
+
+   The build log shows each patch being applied, and a patch that does not
+   apply stops the build.
+3. **The roadmap row.** In the same pull request, move the row to the Done
+   table with the patch file as its Fix and the profile it was measured on. A
+   fix that was built but not run on a sensor stays in its table with the
+   Status `fixed, not measured: <patch file>`.
+4. **The pull request text**: the readings of steps 4 and 8, the SDK and
    firmware commits used, and what was not measured (other modes, other SoC
    folders, night).
-2. **The roadmap row**, to this repository: set the row's Status to
-   `fixed: <pull request>, measured on <profile>`. Once the driver is merged,
-   move the row to the Done table.
 
 Do not bump `INGENIC_SDK_VERSION` in the same pull request unless a maintainer
-asks; the pin moves on its own schedule.
+asks. When the patch is merged into ingenic-sdk and the pin moves past it, the
+patch file is removed in the pull request that moves the pin.
 
 ## Refreshing the roadmap
 
 The roadmap is a snapshot of one SDK commit. After drivers change, run the
-script on the new `main`: a row whose finding is gone belongs in Done with the
-commit that fixed it, and a finding that has no row is a new row. A driver that
+script on the pinned SDK commit with the package patches applied (step 2): a
+row whose finding is gone belongs in Done with the patch or commit that fixed
+it, and a finding that has no row is a new row. Run on the SDK's `main`
+alone, the script still reports what only a package patch fixes. A driver that
 is not on the roadmap is not proven right: the script reads the frame length
 from the init table for about four modes in five, and reports the rest as not
 read.

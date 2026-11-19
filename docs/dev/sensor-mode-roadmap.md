@@ -13,11 +13,11 @@ is right: that takes a measurement on a camera or the sensor's datasheet.
 
 - `tools/check_sensor_modes.py` of ingenic-sdk, run on `main` at
   `1ecb6041`: 1066 driver files, 1065 analysed, 2158 modes.
-- Findings: 200 high in 131 files, 276 medium in 174 files. Low findings (names,
+- Findings: 200 high in 131 files, 275 medium in 173 files. Low findings (names,
   labels, fields whose use by the ISP is not known) are not listed; the script
   prints them with `--min-severity low`.
 - The Profiles column counts the camera profiles under `configs/` that build
-  that file, at thingino-firmware `54cf7679960d` (286 profiles read): by the
+  that file, at thingino-firmware `01bf4833a63a` (286 profiles read): by the
   profile's SoC family, kernel version and `BR2_SENSOR_<n>_NAME`. It counts
   profiles that build the driver, not profiles that run the row's mode.
 - Line numbers are those of the SDK commit above. After a later commit, run the
@@ -25,10 +25,10 @@ is right: that takes a measurement on a camera or the sensor's datasheet.
 
 ## Columns
 
-- **Status**: `open`; `fixed: <ingenic-sdk pull request>, measured on <camera
-  profile>`; `fixed, not measured: <pull request>`; `not a bug: <why>`.
+- **Status**: `open`; `fixed, not measured: <patch file>`; `not a bug: <why>`.
+  A row whose fix was measured on a camera moves to the Done table.
 - **Driver**: the file under `<kernel>/sensor-src/`. A driver present in both
-  kernel trees has a row for each; fix both in one pull request.
+  kernel trees has a row for each; fix both in one patch.
 - **Mode**: the module parameters or the `default_boot` value that select the mode,
   as the driver's own code tests them. `-` when the driver has one mode.
 - **What disagrees**, in lines per frame: `table` is what the mode's register init
@@ -461,7 +461,6 @@ command away: `python3 tools/check_sensor_modes.py --driver <folder>/<sensor> --
 | open | `t30/sc5235.c` | 3.10.14 | fps-range 1 | 0 |
 | open | `t32/sc635hai.c` | 3.10.14 | fps-clock 1 | 0 |
 | open | `t32/sc635hai.c` | 4.4.94 | fps-clock 1 | 0 |
-| open | `t20/sp1409.c` | 3.10.14 | fps-clock 1 | 0 |
 
 ## Not analysed
 
@@ -469,7 +468,8 @@ command away: `python3 tools/check_sensor_modes.py --driver <folder>/<sensor> --
 
 ## Done
 
-Rows leave the tables above when their fix is merged, and are listed here.
+A row moves here in the pull request that carries its measured fix: a patch
+under `package/ingenic-sdk/` in this repository, or a commit in ingenic-sdk.
 
 | Driver | Kernel | Mode | Fix | Measured on |
 |---|---|---|---|---|
