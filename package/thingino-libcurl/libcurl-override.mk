@@ -52,6 +52,8 @@ override LIBCURL_CONFIG_SCRIPTS = curl-config
 override LIBCURL_DEPENDENCIES = host-pkgconf \
 	$(if $(BR2_PACKAGE_ZLIB),zlib) \
 	$(if $(BR2_PACKAGE_THINGINO_LIBCURL_RTMP_SUPPORT),rtmpdump)
+# LIBCURL_AUTORECONF=YES: the override above drops the autotools deps pkg-autotools.mk adds
+override LIBCURL_DEPENDENCIES += host-autoconf host-automake host-libtool
 
 # TLS backends
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_TLS_NONE),y)
