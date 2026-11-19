@@ -49,6 +49,7 @@ define THINGINO_LIBBLE_CONFIGURE_CMDS
 	(cd $(@D) ; ./configure --with-server-support \
 				--with-nimble-support \
 				--without-bluez-support \
+				--host=mipsel-linux \
 				NIMBLE_LIBDIR=$(STAGING_DIR)/usr/lib \
 				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
 				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
@@ -58,6 +59,7 @@ else
 define THINGINO_LIBBLE_CONFIGURE_CMDS
 	(cd $(@D) ; ./configure --with-server-support \
 				--with-bluez-support \
+				--host=mipsel-linux \
 				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
 				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
 				LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)" )
