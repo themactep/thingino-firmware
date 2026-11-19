@@ -12,7 +12,8 @@ config BR2_PACKAGE_THINGINO_RHKD
 
 	  Built on Apple's HomeKit ADK (Apache-2.0), with the camera
 	  code ported from HAP-NodeJS. Live view (H.264 and Opus over
-	  SRTP, straight from raptor's rings), snapshots, HomeKit Secure
+	  SRTP, straight from raptor's rings), two-way audio (the
+	  controller's Opus played through rad), snapshots, HomeKit Secure
 	  Video recording (fragmented MP4 over the HomeKit Data Stream,
 	  AAC-LC audio), the camera settings in Home (on/off, night
 	  vision, status light), and a Services > HomeKit web UI page
