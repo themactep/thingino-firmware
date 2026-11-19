@@ -18,13 +18,17 @@ Subject: [PATCH] sensor: t31/gc2053 AE frame model and set_fps bounds
    Bound them to 30 fps, add a minimum-VTS backstop, and refuse a zero fps
    denominator or zero HTS before dividing.
 
+The sensor_probe() half of item 1 and the table comment are already in
+af4e444e upstream; this rebased patch carries the static attribute and
+defaults, the set_fps bounds, and the minimum-VTS backstop.
+
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 ---
- common/sensor/t31/gc2053.c | 56 ++++++++++++++++++++++++--------------
- 1 file changed, 36 insertions(+), 20 deletions(-)
+ common/sensor/t31/gc2053.c | 36 ++++++++++++++++++++++++++----------
+ 1 file changed, 26 insertions(+), 10 deletions(-)
 
 diff --git a/common/sensor/t31/gc2053.c b/common/sensor/t31/gc2053.c
-index f5f9a47..06ec54b 100644
+index d420e44..3df5d47 100644
 --- a/common/sensor/t31/gc2053.c
 +++ b/common/sensor/t31/gc2053.c
 @@ -28,6 +28,9 @@
@@ -69,18 +73,7 @@ index f5f9a47..06ec54b 100644
  	.integration_time_apply_delay = 2,
  	.again_apply_delay = 2,
  	.dgain_apply_delay = 2,
-@@ -234,8 +238,8 @@ struct tx_isp_sensor_attribute sensor_attr = {
-  * mipi data rate=624mbps/lane
-  * wpclk=156mhz
-  * row_time=28.2us
-- * frame length=1418
-- * 25fps
-+ * frame length=1181
-+ * 30fps
-  */
- static struct regval_list sensor_init_regs_1920_1080_30fps_mipi[] = {
- 	/* SYS */
-@@ -1469,13 +1473,13 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+@@ -1470,13 +1474,13 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
  	int ret = 0;
  
  	if ((data_interface == TX_SENSOR_DATA_INTERFACE_DVP) && (sensor_max_fps == TX_SENSOR_MAX_FPS_30)) {
@@ -96,7 +89,7 @@ index f5f9a47..06ec54b 100644
  		wpclk = SENSOR_SUPPORT_30FPS_MIPI_SCLK;
  	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_MIPI) && (sensor_max_fps == TX_SENSOR_MAX_FPS_25)) {
  		max_fps = TX_SENSOR_MAX_FPS_25;
-@@ -1491,6 +1495,10 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+@@ -1492,6 +1496,10 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
  	}
  
  	/* the format of fps is 16/16. for example 25 << 16 | 2, the value is 25/2 fps. */
@@ -107,7 +100,7 @@ index f5f9a47..06ec54b 100644
  	newformat = (((fps >> 16) / (fps & 0xffff)) << 8) + ((((fps >> 16) % (fps & 0xffff)) << 8) / (fps & 0xffff));
  	if (newformat > (max_fps << 8) || newformat < (SENSOR_OUTPUT_MIN_FPS << 8)) {
  		ISP_ERROR("warn: fps(%x) not in range\n", fps);
-@@ -1505,7 +1513,15 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+@@ -1506,7 +1514,15 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
  		return -1;
  
  	hts = ((hts << 8) + tmp) << 1;
@@ -123,31 +116,3 @@ index f5f9a47..06ec54b 100644
  	// vtsn0 = (unsigned char)((vts & 0x3f00) >> 8);
  	// vtsn1 = (unsigned char)(vts & 0xff);
  	ret += sensor_write(sd, 0x41, (unsigned char)((vts & 0x3f00) >> 8));
-@@ -1820,16 +1836,16 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *i
- 		wsize = &sensor_win_sizes[2];
- 		sensor_info.max_fps = 30;
- 		memcpy((void *)(&(sensor_attr.mipi)), (void *)(&sensor_mipi), sizeof(sensor_mipi));
--		sensor_attr.max_integration_time_native = 0x58a - 8;
--		sensor_attr.integration_time_limit = 0x58a - 8;
-+		sensor_attr.max_integration_time_native = 0x49d - 8;
-+		sensor_attr.integration_time_limit = 0x49d - 8;
- 		sensor_attr.total_width = 0x44c * 2;
--		sensor_attr.total_height = 0x58a;
--		sensor_attr.max_integration_time = 0x58a - 8;
-+		sensor_attr.total_height = 0x49d;
-+		sensor_attr.max_integration_time = 0x49d - 8;
- 		sensor_attr.one_line_expr_in_us = 28;
--		vts0 = 0x05;
--		vts1 = 0x8a;
--		vtsn0 = 0x05;
--		vtsn1 = 0x8a;
-+		vts0 = 0x04;
-+		vts1 = 0x9d;
-+		vtsn0 = 0x04;
-+		vtsn1 = 0x9d;
- 	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_MIPI) && (sensor_max_fps == TX_SENSOR_MAX_FPS_25)) {
- 		wsize = &sensor_win_sizes[3];
- 		sensor_info.max_fps = 25;
--- 
-2.53.0
-
