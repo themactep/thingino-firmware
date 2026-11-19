@@ -63,6 +63,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 ensure_config() {
 	if [ ! -f "$CONFIG_FILE" ]; then
 		umask 077
@@ -105,13 +110,13 @@ handle_post() {
 	new_tls_skip_verify=$(jct "$REQ_FILE" get tls_skip_verify 2>/dev/null)
 	new_subscriptions=$(jct "$REQ_FILE" get subscriptions 2>/dev/null)
 
-	enabled=$(normalize_bool "$new_enabled") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	enabled=$(normalize_bool "$new_enabled") || bad_bool
 	host=$(strip_json_string "$new_host")
 	port=$(strip_json_string "$new_port")
 	username=$(strip_json_string "$new_username")
 	password=$(strip_json_string "$new_password")
-	use_ssl=$(normalize_bool "$new_use_ssl") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	tls_skip_verify=$(normalize_bool "$new_tls_skip_verify") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	use_ssl=$(normalize_bool "$new_use_ssl") || bad_bool
+	tls_skip_verify=$(normalize_bool "$new_tls_skip_verify") || bad_bool
 
 	[ -n "$port" ] || port="1883"
 
