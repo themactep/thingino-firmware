@@ -2,6 +2,7 @@
 # shellcheck disable=SC3043
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
+WIRED_IFACE="eth0"
 
 start_web_server() {
 	for init in /etc/init.d/S60uhttpd /etc/init.d/S90httpd; do
@@ -41,10 +42,7 @@ has_wired_uplink() {
 }
 
 any_wired_iface_exists() {
-	for iface in eth0; do
-		ip link show "$iface" >/dev/null 2>&1 && return 0
-	done
-	return 1
+	ip link show "$WIRED_IFACE" >/dev/null 2>&1
 }
 
 stop_wireless() {
@@ -78,13 +76,11 @@ watch_wired_uplink() {
 	if any_wired_iface_exists; then
 		attempt=0
 		while [ "$attempt" -lt 10 ]; do
-			for iface in eth0; do
-				if has_wired_uplink "$iface"; then
-					echo "Wired uplink on $iface found, stopping WiFi" >&2
-					stop_wireless
-					exit 0
-				fi
-			done
+			if has_wired_uplink "$WIRED_IFACE"; then
+				echo "Wired uplink on $WIRED_IFACE found, stopping WiFi" >&2
+				stop_wireless
+				exit 0
+			fi
 			attempt=$((attempt + 1))
 			sleep 1
 		done
@@ -105,12 +101,10 @@ recheck() {
 			# deciding that this really is the uplink.
 			attempt=0
 			while [ "$attempt" -lt 10 ]; do
-				for iface in eth0; do
-					if has_wired_uplink "$iface"; then
-						stop_wireless
-						return 0
-					fi
-				done
+				if has_wired_uplink "$WIRED_IFACE"; then
+					stop_wireless
+					return 0
+				fi
 				attempt=$((attempt + 1))
 				sleep 1
 			done
@@ -120,9 +114,7 @@ recheck() {
 			;;
 		down)
 			# Another wired interface may still be the uplink.
-			for iface in eth0; do
-				has_wired_uplink "$iface" && return 0
-			done
+			has_wired_uplink "$WIRED_IFACE" && return 0
 			start_wireless
 			;;
 	esac
