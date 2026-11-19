@@ -5,7 +5,12 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/timps.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_TIMPS_TOKEN_FILE="${AGENT_TIMPS_TOKEN_FILE:-/run/timps.token}"
 AGENT_TMPDIR="${AGENT_TMPDIR:-/tmp}"
-trap 'rm -f "$AGENT_TMPDIR/agent-timps-control.$$"' EXIT
+# The adapter owns the EXIT trap of the agentctl shell that sources it;
+# agentctl chains agent_adapter_exit when it sets its own.
+agent_adapter_exit() {
+	rm -f "$AGENT_TMPDIR/agent-timps-control.$$"
+}
+trap agent_adapter_exit EXIT
 
 agent_name() {
 	printf 'timps'
