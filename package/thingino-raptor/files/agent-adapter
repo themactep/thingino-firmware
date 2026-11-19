@@ -1892,6 +1892,15 @@ agent_get_runtime_live() {
 				"$stream1_enabled" \
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
+		exposure)
+			# The two exposure figures the web UI heartbeat needs, from one
+			# raptorctl call, without building the whole heartbeat for them.
+			exposure_status=$(agent_exposure_status)
+			daynight_brightness=$(agent_exposure_brightness "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
+			printf '{"daynight_brightness":%s,"total_gain":%s}\n' \
+				"${daynight_brightness:-null}" "${total_gain:-null}"
+			;;
 		heartbeat)
 			exposure_status=$(agent_exposure_status)
 			daynight_mode=$(agent_daynight_running_mode)
