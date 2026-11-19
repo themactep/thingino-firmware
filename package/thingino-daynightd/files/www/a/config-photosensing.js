@@ -8,7 +8,7 @@
   let platformParams = ["night_threshold", "day_threshold"];
 
   const dayNightParams = ["enabled", "initial_mode", "force_mode", ...platformParams];
-  const dayNightScheduleParams = ["enabled", "start_at", "stop_at"];
+  const dayNightScheduleParams = ["enabled", "start_at", "stop_at", "outside"];
   const dayNightControls = ["color", "ircut", "ir850", "ir940", "white"];
 
   const alertArea = $("#photosensing-alerts");
@@ -112,13 +112,18 @@
       if (daynight.schedule) {
         dayNightScheduleParams.forEach((param) => {
           const el = $("#daynight_schedule_" + param);
+          // an older config has no "outside" key: it means "keep"
           if (
             !el ||
-            !Object.prototype.hasOwnProperty.call(daynight.schedule, param)
+            (param !== "outside" &&
+              !Object.prototype.hasOwnProperty.call(daynight.schedule, param))
           )
             return;
           if (el.type === "checkbox") {
             el.checked = !!daynight.schedule[param];
+          } else if (param === "outside") {
+            const held = daynight.schedule[param];
+            el.value = held === "day" || held === "night" ? held : "keep";
           } else {
             el.value = daynight.schedule[param] || "";
           }
