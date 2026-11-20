@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 20 Nov 2026 16:45:00 -0500
+Subject: [PATCH] include/linux: define 128-bit types for newer arm64 UAPI
+
+Linux 7.3 changed the arm64 UAPI to declare the fpsimd registers in
+struct fpsimd_context as __u128 (from <linux/types.h>) instead of
+__uint128_t. glibc's <signal.h> includes <asm/sigcontext.h>, which
+includes <linux/types.h> for that type.
+
+U-Boot's host tools are built with -include include/libfdt_env.h. That
+header includes this bundled <linux/types.h>, which defines
+_LINUX_TYPES_H and thereby hides the system header that carries
+__u128. proftool.c includes <sys/param.h>, and glibc's version pulls
+in <signal.h>, so the host tool fails to build on arm64:
+
+  asm/sigcontext.h:81:9: error: unknown type name '__u128'
+
+Define __s128/__u128 the same way the kernel UAPI does when the
+compiler supports 128-bit integers.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ include/linux/types.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/include/linux/types.h b/include/linux/types.h
+--- a/include/linux/types.h
++++ b/include/linux/types.h
+@@ -9,6 +9,17 @@
+ #include <asm/types.h>
+ #include <stdbool.h>
+ 
++/*
++ * Linux 7.3+ arm64 UAPI headers declare the fpsimd registers with
++ * __u128. glibc's <signal.h> includes <asm/sigcontext.h>, which
++ * expects that type from <linux/types.h>; this bundled header hides
++ * the system one, so provide the same definitions here.
++ */
++#ifdef __SIZEOF_INT128__
++__extension__ typedef __signed__ __int128 __s128 __attribute__((aligned(16)));
++__extension__ typedef unsigned __int128 __u128 __attribute__((aligned(16)));
++#endif
++
+ #ifndef __KERNEL_STRICT_NAMES
+ 
+ typedef __kernel_fd_set		fd_set;
