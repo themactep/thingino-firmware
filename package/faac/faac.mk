@@ -10,6 +10,8 @@ FAAC_INSTALL_TARGET = YES
 # Inline sqrtf() in the quantizer instead of calling libm for each one; the
 # encoder's output is unchanged. Not -ffast-math: it implies
 # -ffinite-math-only, and faac relies on isfinite() and isnan().
+# TODO: remove FAAC_CFLAGS once FAAC_VERSION includes the upstream fix
+# (FreewareAdvancedAudio/faac#151, merged 2026-11-20); faac-3.0 predates it.
 FAAC_CFLAGS = $(TARGET_CFLAGS) -fno-math-errno
 
 FAAC_CONF_OPTS = \
