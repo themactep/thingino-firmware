@@ -6,10 +6,6 @@
     "mmc_cd": 48,
     "mmc_power": [
       {
-        "pin": 47,
-        "active_low": true
-      },
-      {
         "pin": 54,
         "active_low": true
       }
