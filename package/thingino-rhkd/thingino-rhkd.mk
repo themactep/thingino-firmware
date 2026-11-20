@@ -6,14 +6,14 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.9.9; builds against faac 2.x and 3.x
-THINGINO_RHKD_VERSION = d283b3f4566551e2314d6985b9a57de921a1cbe3
+# v0.9.10; builds against faac >= 3.0
+THINGINO_RHKD_VERSION = 21930ef42fce37814821c16a429ce70f5e2f9ba3
 THINGINO_RHKD_LICENSE = GPL-3.0-or-later (rhkd, raptor-ipc), Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd)
 # The extra downloads are unpacked into src/ at extract time (below), so their licenses reach legal-info.
 THINGINO_RHKD_LICENSE_FILES = LICENSE src/HomeKitADK/LICENSE.md src/mbedtls/LICENSE src/raptor-ipc/LICENSE
 
 # Secure Video audio: AAC-LC straight from a rad AAC output when there is one; otherwise rad's Opus is
-# converted with the system libopus and libfaac (faac 2.x or 3.x API).
+# converted with the system libopus and libfaac (faac >= 3.0).
 THINGINO_RHKD_DEPENDENCIES = faac opus
 
 # Third-party sources, at the commits (mbedTLS: the release tag) that rhkd's deps.sh pins. They are
