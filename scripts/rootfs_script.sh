@@ -21,12 +21,21 @@ sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 # must target that volume instead of a raw MTD offset (the NOR default).
 if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
-elif ! grep -q "^BR2_THINGINO_UBOOT_VERSION_2013_07=y" "$BR2_CONFIG" \
-	&& grep -q '^/dev/mtd1 0x0 0x8000$' "${TARGET_DIR}/etc/fw_env.config" 2>/dev/null; then
-	# The overlay default (0x8000) matches only the 2013.07 U-Boot. Kconfig-era
-	# U-Boot (T41, ...) has CONFIG_ENV_SIZE=0x10000 (configs/uboot/layout/sfcnor.config);
-	# fw_setenv with a 0x8000 size writes an env with the wrong CRC.
-	printf '/dev/mtd1 0x0 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+elif grep -q '^/dev/mtd1 0x0 0x[0-9a-fA-F]*$' "${TARGET_DIR}/etc/fw_env.config" 2>/dev/null; then
+	# NOR: the env size in fw_env.config must equal the U-Boot CONFIG_ENV_SIZE or
+	# fw_setenv writes an env whose CRC the bootloader rejects. 2013.07 uses 0x8000;
+	# Kconfig-era U-Boot (T41, ...) has 0x10000 (configs/uboot/layout/sfcnor*.config).
+	# Derive it from the U-Boot version so a stale fw_env.config (overlay or
+	# thingino-user, e.g. a 64K file left on a 2013.07 camera) cannot corrupt the env.
+	if grep -q "^BR2_THINGINO_UBOOT_VERSION_2013_07=y" "$BR2_CONFIG"; then
+		FW_ENV_SIZE=0x8000
+	else
+		FW_ENV_SIZE=0x10000
+	fi
+	if ! grep -q "^/dev/mtd1 0x0 $FW_ENV_SIZE\$" "${TARGET_DIR}/etc/fw_env.config"; then
+		echo "rootfs_script: fw_env.config env size set to $FW_ENV_SIZE (U-Boot env size)" >&2
+		printf '/dev/mtd1 0x0 %s\n' "$FW_ENV_SIZE" > "${TARGET_DIR}/etc/fw_env.config"
+	fi
 fi
 
 cd $BR2_EXTERNAL
