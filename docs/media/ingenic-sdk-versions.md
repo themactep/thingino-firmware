@@ -108,6 +108,7 @@ files). The other SoCs (t21/t23/t31/t40/t41/c100) ship a thin wrapper
   a directory exists (it defaults to `2.20` for t23); the current tree ships
   no versioned sets, so the flat per-soc file is used.
 - Per-camera overrides: `BR2_SENSOR_1_IQ_FILE` / `BR2_SENSOR_2_IQ_FILE`.
+- T30 NCU denoise: `BR2_SENSOR_1_NCU_FILE` installs `/etc/sensor/ncu_<sensor>.bin` (SDK `sensor-iq/<soc>/` name, BR2_EXTERNAL-relative or absolute path). The SDK `ncu_*.bin` for T30 are one generic file in the vendor 1.0.5 layout (0xec8 bytes); OpenIMP runs the NCU with the vendor 1.0.4 layout (0x1548 bytes, e.g. a stock camera firmware's tuned file) and otherwise keeps Temper.
 - Multi-sensor builds flip `CONFIG_MULTI_SENSOR=1` and strip the `s0`/`s1`
   suffix from the model name.
 

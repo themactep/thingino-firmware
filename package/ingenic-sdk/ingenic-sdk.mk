@@ -91,6 +91,7 @@ endif
 ifneq ($(call qstrip,$(BR2_SENSOR_2_IQ_FILE)),)
 	SENSOR_2_IQ_OVERRIDE = $(call qstrip,$(BR2_SENSOR_2_IQ_FILE))
 endif
+SENSOR_1_NCU_FILE = $(call qstrip,$(BR2_SENSOR_1_NCU_FILE))
 
 # Old SDK's don't set the SOC in the IQ file name
 ifneq ($(SENSOR_1_MODEL),)
@@ -177,6 +178,26 @@ define INSTALL_SENSOR_BIN
 			ln -sf $(3) $(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
 		fi; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
+	fi
+endef
+
+# $(call INSTALL_SENSOR_NCU_BIN, model, ncu_file)
+# Installs /usr/share/sensor/ncu_<model>.bin (read by libimp as /etc/sensor/ncu_<model>.bin,
+# the T30 NCU denoise parameters). ncu_file: bare name under the SDK's sensor-iq/<SOC_FAMILY>/,
+# a path relative to BR2_EXTERNAL, or an absolute path.
+define INSTALL_SENSOR_NCU_BIN
+	if [ -n "$(2)" ] && [ "$(1)" != "" ] && [ "$(1)" != "none" ]; then \
+		ncufile="$(2)"; \
+		case "$$ncufile" in \
+			/*) ;; \
+			*/*) ncufile="$(BR2_EXTERNAL_THINGINO_PATH)/$$ncufile" ;; \
+			*)   ncufile="$(@D)/sensor-iq/$(SOC_FAMILY)/$$ncufile" ;; \
+		esac; \
+		if [ ! -f "$$ncufile" ]; then \
+			echo "ERROR: sensor NCU file '$(2)' for $(1) not found"; \
+			exit 1; \
+		fi; \
+		$(INSTALL) -D -m 0644 $$ncufile $(TARGET_DIR)/usr/share/sensor/ncu_$(1).bin; \
 	fi
 endef
 
@@ -290,6 +311,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 
 	if [ -n "$(SENSOR_1_MODEL)" ]; then \
 		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME),$(SENSOR_1_IQ_OVERRIDE)); \
+		$(call INSTALL_SENSOR_NCU_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_NCU_FILE)); \
 		$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_2_BIN_NAME),$(SENSOR_2_CONFIG_NAME),$(SENSOR_2_IQ_OVERRIDE)); \
 	fi
 
