@@ -3,3 +3,4 @@ sha256  c8fa305d48005518a1cfa14875e2f16b9d97faefe8adf58823906a0ce5d11c46  libfla
 
 # License files
 sha256  fa27cb11f13f97b0c5f3ff363b1e2610c6efe87ed175779cb2a78e44eb19d34c  src/libflac/COPYING.Xiph
+sha256  06f8f89c70a666d6ea980e58e9213d81fed15a4dd8fbaa793ae858cb3a93a0b4  libflac-2.4.3.tar.gz
