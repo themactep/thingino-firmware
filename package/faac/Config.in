@@ -3,11 +3,19 @@ config BR2_PACKAGE_FAAC
 	help
 	  FAAC is an open-source MPEG-2 and MPEG-4 AAC audio format encoder.
 
-	  This package builds only the encoder library (libfaac). The
-	  decoder, muxer and resampler in the same source tree are disabled
-	  because the firmware uses a separate AAC decoder.
+	  This package builds the encoder library (libfaac). The decoder
+	  (libfaad3) is optional, below; the muxer and resampler in the same
+	  source tree are disabled.
 
 	  https://github.com/FreewareAdvancedAudio/faac
+
+config BR2_PACKAGE_FAAC_DECODER
+	bool "Install the FAAD3 decoder (libfaad3)"
+	depends on BR2_PACKAGE_FAAC
+	help
+	  Build and install libfaad3, the AAC-LC/HE-AAC decoder that
+	  ships with FAAC 3.0 (faad3.h). Not the same library as the
+	  faad2 package: it has its own header and SONAME.
 
 config BR2_PACKAGE_FAAC_INSTALL_BIN
 	bool "Install faac CLI"
