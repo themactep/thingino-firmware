@@ -173,6 +173,14 @@
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
     }
+    const invertXEl = $("#invert_x");
+    if (invertXEl) {
+      invertXEl.checked = config.invert_x === true || config.invert_x === "true";
+    }
+    const invertYEl = $("#invert_y");
+    if (invertYEl) {
+      invertYEl.checked = config.invert_y === true || config.invert_y === "true";
+    }
     const firstPreset =
       Array.isArray(config.presets) && config.presets.length
         ? config.presets[0]
@@ -330,11 +338,15 @@
     showBusy("Saving motor settings...");
     try {
       const homingEl = $("#homing");
+      const invertXEl = $("#invert_x");
+      const invertYEl = $("#invert_y");
       const params = new URLSearchParams();
       params.append("form", "motors");
       params.append("homing", homingEl && homingEl.checked ? "true" : "false");
+      params.append("invert_x", invertXEl && invertXEl.checked ? "true" : "false");
+      params.append("invert_y", invertYEl && invertYEl.checked ? "true" : "false");
       formData.forEach((value, key) => {
-        if (key !== "form" && key !== "homing") {
+        if (key !== "form" && key !== "homing" && key !== "invert_x" && key !== "invert_y") {
           params.append(key, value == null ? "" : value);
         }
       });

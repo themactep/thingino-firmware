@@ -144,6 +144,14 @@
                   <input type="checkbox" class="form-check-input" id="homing" name="homing" value="true" data-help="Disable only when a fixed pose is required">
                   <label for="homing">Perform homing on boot</label>
                 </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="invert_x" name="invert_x" value="true" data-help="Reverse pan direction when left/right controls move the wrong way. Applies after reboot or /etc/init.d/S59motor reload">
+                  <label for="invert_x">Invert pan (X) direction</label>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="invert_y" name="invert_y" value="true" data-help="Reverse tilt direction when up/down controls move the wrong way. Applies after reboot or /etc/init.d/S59motor reload">
+                  <label for="invert_y">Invert tilt (Y) direction</label>
+                </p>
                 <div class="d-flex gap-2">
                   <p>
                     <label for="pos_0_x">Initial position X</label>
