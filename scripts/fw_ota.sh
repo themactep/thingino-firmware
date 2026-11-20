@@ -410,7 +410,14 @@ upload_sysupgrade() {
 	if [ "$_s2_local" = "$_s2_remote" ]; then
 		echo "sysupgrade-stage2 on device is up to date, not copying."
 	elif ! remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:$_s2"; then
-		if [ -n "$_s2_remote" ]; then
+		# Kernel 7 overlay (jffs2 upper without RENAME_WHITEOUT/tmpfile) cannot
+		# replace a lower-layer file: stage the new script in /tmp and
+		# bind-mount it over the old one (gone after reboot).
+		echo "Replacing $_s2 failed, bind-mounting a /tmp copy instead."
+		if remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/tmp/sysupgrade-stage2.new" && \
+			remote_run "chmod +x /tmp/sysupgrade-stage2.new && mount --bind /tmp/sysupgrade-stage2.new $_s2"; then
+			:
+		elif [ -n "$_s2_remote" ]; then
 			echo "Warning: could not update $_s2 (overlay), using the device's copy" >&2
 		else
 			die "Failed to transfer sysupgrade-stage2 utility"
