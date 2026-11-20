@@ -40,8 +40,8 @@ define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 		$(THINGINO_SOUNDS_PKGDIR)/files/videorecordingstarted.$(THINGINO_SOUNDS_FORMAT) \
 		$(THINGINO_SOUNDS_PKGDIR)/files/videorecordingstopped.$(THINGINO_SOUNDS_FORMAT);
 
-	# tell's offline prompt, for the streamers that ship tell
-	if [ -n "$(BR2_PACKAGE_THINGINO_STREAMER_RAPTOR)$(BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT)" ]; then \
+	# tell's offline prompt, for the images that ship tell
+	if [ -n "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)$(BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT)" ]; then \
 		$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/sounds \
 			$(THINGINO_SOUNDS_PKGDIR)/files/voiceannouncementsneedinternetaccess.$(THINGINO_SOUNDS_FORMAT); \
 	fi
