@@ -80,6 +80,33 @@ for case in "double" "single" "double&delay=1"; do
 	fi
 done
 
+# Configured upload component: discovery is skipped and the upload request
+# takes the next id. #2124 was reported in this configuration, where the
+# image message reused the upload request's id and was dropped.
+curl -sf "$SERVER/reset" >/dev/null
+XMPP_BOSH_URL="$BOSH_URL?style=double"
+export XMPP_BOSH_URL
+XMPP_UPLOAD_COMPONENT="upload.test"
+export XMPP_UPLOAD_COMPONENT
+if sh "$SCRIPT" -i /tmp/test.jpg -m "image configured component"; then
+	pass "configured component image delivery"
+else
+	bad "configured component image delivery"
+fi
+body=$(curl -sf "$SERVER/messages")
+uploads=$(curl -sf "$SERVER/uploads")
+if json_has "$body" "upload/get"; then
+	pass "configured component message carries upload URL"
+else
+	bad "configured component message carries upload URL ($body)"
+fi
+if json_has "$uploads" '"size":'; then
+	pass "configured component bytes uploaded"
+else
+	bad "configured component bytes uploaded ($uploads)"
+fi
+unset XMPP_UPLOAD_COMPONENT
+
 # XML escaping on a message body, independent of the attribute style.
 curl -sf "$SERVER/reset" >/dev/null
 XMPP_BOSH_URL="$BOSH_URL?style=double"
