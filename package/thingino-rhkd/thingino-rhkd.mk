@@ -6,8 +6,8 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.9.8; builds against faac 2.x and 3.x
-THINGINO_RHKD_VERSION = 63be501065d574fb422dd7f8321c324b62ec35da
+# v0.9.9; builds against faac 2.x and 3.x
+THINGINO_RHKD_VERSION = d283b3f4566551e2314d6985b9a57de921a1cbe3
 THINGINO_RHKD_LICENSE = GPL-3.0-or-later (rhkd, raptor-ipc), Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd)
 # The extra downloads are unpacked into src/ at extract time (below), so their licenses reach legal-info.
 THINGINO_RHKD_LICENSE_FILES = LICENSE src/HomeKitADK/LICENSE.md src/mbedtls/LICENSE src/raptor-ipc/LICENSE
