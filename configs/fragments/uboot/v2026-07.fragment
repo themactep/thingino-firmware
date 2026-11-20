@@ -1,0 +1,7 @@
+# aperto: 2026.07 U-Boot kept for xburst2 (T40/T41) only; the 2013.07 tree has
+# no isvp_t4x boards. buildroot's "latest" moved to 2026.10, so pin 2026.07
+# explicitly (patches live in package/all-patches/uboot/2026.07).
+BR2_TARGET_UBOOT_CUSTOM_VERSION=y
+BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="2026.07"
+BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
+# BR2_TARGET_UBOOT_BUILD_SYSTEM_LEGACY is not set

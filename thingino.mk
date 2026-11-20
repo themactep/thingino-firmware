@@ -670,6 +670,9 @@ endif
 # would wrongly point the env at a raw offset.
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else ifeq ($(THINGINO_UBOOT_VERSION_TAG),2026-07)
+# aperto: 2026.07 (xburst2 only) keeps the 320K boot partition, env at 0x50000
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor-320k.config
 else
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
 endif
