@@ -35,6 +35,7 @@ LOCK = threading.Lock()
 MESSAGES = []
 UPLOADS = []
 PENDING = []
+RESPONSES = {}
 
 
 def localname(tag):
@@ -62,6 +63,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, json.dumps(payload), "application/json")
 
     def _xml(self, body):
+        rid = getattr(self, "_rid", "")
+        if rid:
+            with LOCK:
+                RESPONSES[rid] = body
         self._send(200, body, "text/xml; charset=utf-8")
 
     def log_message(self, fmt, *args):
@@ -83,6 +88,7 @@ class Handler(BaseHTTPRequestHandler):
                 MESSAGES.clear()
                 UPLOADS.clear()
                 PENDING.clear()
+                RESPONSES.clear()
             return self._send(200, "ok", "text/plain")
         if path == "/upload/get":
             return self._send(200, "uploaded", "text/plain")
@@ -113,6 +119,15 @@ class Handler(BaseHTTPRequestHandler):
             root = ET.fromstring(raw)
         except ET.ParseError as exc:
             return self._send(400, "bad request: %s" % exc, "text/plain")
+
+        # A connection manager answers a request id it has already seen with
+        # the response it gave the first time and does not process the body
+        # again (XEP-0124). A client that reuses an id loses that request.
+        self._rid = root.attrib.get("rid", "")
+        with LOCK:
+            cached = RESPONSES.get(self._rid)
+        if cached is not None:
+            return self._send(200, cached, "text/xml; charset=utf-8")
 
         children = list(root)
         auth = next((c for c in children if localname(c.tag) == "auth"), None)
