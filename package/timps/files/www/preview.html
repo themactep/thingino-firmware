@@ -2036,6 +2036,10 @@
     setConnectedUi(false);
 
     (async () => {
+      if (!params.get("stream") && !sessionStorage.getItem("ms.stream")) {
+        const ti = await window.timpsTokenInfo;
+        if (ti && ti.preview_chn === 1) streamSelect.value = "1";
+      }
       if (hadNoSavedLatencyPref && HAVE_WEBRTC) {
         if (await refreshWhepOption() === "ok") mode = "whep";
       } else {
