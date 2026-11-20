@@ -161,7 +161,12 @@
       dnsPrimaryInput.value = (data.dns && data.dns.primary) || "";
       dnsSecondaryInput.value = (data.dns && data.dns.secondary) || "";
       wifiSsidInput.value = (data.wifi && data.wifi.ssid) || "";
-      wifiPassInput.value = (data.wifi && data.wifi.password) || "";
+      wifiPassInput.value = "";
+      wifiPassInput.dataset.savedSsid = (data.wifi && data.wifi.ssid) || "";
+      wifiPassInput.placeholder =
+        data.wifi && data.wifi.password_set
+          ? "Leave blank to keep the saved password"
+          : "Enter Wi-Fi password";
       wifiBssidInput.value = (data.wifi && data.wifi.bssid) || "";
       wifiApToggle.checked =
         data.wifi_ap &&
@@ -226,6 +231,17 @@
     toggleBusy(true, "Saving network settings...");
     try {
       const payload = buildPayload();
+      if (
+        payload.wifi.ssid &&
+        !payload.wifi.password &&
+        payload.wifi.ssid !== (wifiPassInput.dataset.savedSsid || "")
+      ) {
+        throw new Error(
+          "Enter the Wi-Fi password for " +
+            payload.wifi.ssid +
+            ": the saved password belongs to a different network.",
+        );
+      }
       const response = await fetch("/x/json-config-network.cgi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

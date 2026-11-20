@@ -97,12 +97,19 @@ read_body() {
 	fi
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
+}
+
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 }
 
 handle_get() {
@@ -116,8 +123,8 @@ handle_post() {
 	new_port=$(jct "$REQ_FILE" get port 2>/dev/null)
 	new_file=$(jct "$REQ_FILE" get file 2>/dev/null)
 
-	enabled=$(normalize_bool "$new_enabled")
-	file=$(normalize_bool "$new_file")
+	enabled=$(normalize_bool "$new_enabled") || bad_bool
+	file=$(normalize_bool "$new_file") || bad_bool
 	host=$(strip_json_string "$new_host")
 	port=$(strip_json_string "$new_port")
 

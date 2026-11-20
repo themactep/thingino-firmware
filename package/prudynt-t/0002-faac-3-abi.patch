@@ -1,0 +1,71 @@
+FAAC 3.0 renames the encoder configuration fields and changes bit_rate
+from a per-channel rate to a whole-stream rate. The old names are gone
+with no compatibility shim.
+
+Map the fields to the ABI 3 names, disable TNS through the flag word,
+and scale the configured bitrate by the channel count so the encoder
+keeps producing the same total stream rate as before.
+
+--- a/src/audio/codec/AACEncoder.cpp
++++ b/src/audio/codec/AACEncoder.cpp
+@@ -27,17 +27,17 @@ int AACEncoder::open() {
+   }
+ 
+   params.sample_rate = sampleRate;
+-  params.num_channels = numChn;
+-  params.mpeg_version = FAAC_MPEG4;
+-  params.object_type = FAAC_OBJ_LOW;
++  params.channels = numChn;
++  params.object_type = FAAC_OBJ_LC;
+   params.input_format = FAAC_INPUT_16BIT;
+-  params.output_format = FAAC_STREAM_RAW;
++  params.stream_format = FAAC_STREAM_RAW;
+   // Raw AUs, no ADTS (RFC 3640 mode=AAC-hbr); ASC goes out of band: RTSP
+   // config=, MP4 esds, WS header.  Backchannel playback still parses ADTS.
+-  params.bit_rate = cfg->audio.mic_bitrate_kbps() * 1000;
++  // FAAC 3 bit_rate is the whole-stream rate; the config value was per channel.
++  params.bit_rate = cfg->audio.mic_bitrate_kbps() * 1000 * numChn;
+   params.bandwidth = 0;
+-  params.use_tns = false;
+-  params.joint_mode = FAAC_JOINT_NONE;
++  params.flags &= ~FAAC_FLAG_TNS;
++  params.stereo_mode = FAAC_STEREO_LR;
+ 
+   st = faac_encoder_open(&params, &handle);
+   if (st != FAAC_OK) {
+diff --git a/src/network/WS.cpp b/src/network/WS.cpp
+index b4d9d90..a5543b3 100644
+--- a/src/network/WS.cpp
++++ b/src/network/WS.cpp
+@@ -1774,10 +1774,11 @@ static void send_mp4_init(lws_sorted_usec_list_t *sul) {
+       // Try to retrieve FAAC config by creating a temporary faac encoder
+       faac_params fparams;
+       if (faac_params_init_compat(&fparams) == FAAC_OK) {
+-        fparams.sample_rate  = cfg->audio.mic_sample_rate();
+-        fparams.num_channels = cfg->audio.force_stereo ? 2 : 1;
+-        fparams.bit_rate     = cfg->audio.mic_bitrate_kbps() * 1000;
+-        fparams.object_type  = FAAC_OBJ_LOW;
++        int channels = cfg->audio.force_stereo ? 2 : 1;
++        fparams.sample_rate = cfg->audio.mic_sample_rate();
++        fparams.channels = channels;
++        fparams.bit_rate = cfg->audio.mic_bitrate_kbps() * 1000 * channels;
++        fparams.object_type = FAAC_OBJ_LC;
+         faac_encoder *fh = nullptr;
+         if (faac_encoder_open(&fparams, &fh) == FAAC_OK) {
+           const uint8_t *asc_buf = nullptr;
+@@ -1817,10 +1818,11 @@ static void send_mp4_init(lws_sorted_usec_list_t *sul) {
+       // Try to retrieve FAAC config by creating a temporary faac encoder
+       faac_params fparams;
+       if (faac_params_init_compat(&fparams) == FAAC_OK) {
+-        fparams.sample_rate  = cfg->audio.mic_sample_rate();
+-        fparams.num_channels = cfg->audio.force_stereo ? 2 : 1;
+-        fparams.bit_rate     = cfg->audio.mic_bitrate_kbps() * 1000;
+-        fparams.object_type  = FAAC_OBJ_LOW;
++        int channels = cfg->audio.force_stereo ? 2 : 1;
++        fparams.sample_rate = cfg->audio.mic_sample_rate();
++        fparams.channels = channels;
++        fparams.bit_rate = cfg->audio.mic_bitrate_kbps() * 1000 * channels;
++        fparams.object_type = FAAC_OBJ_LC;
+         faac_encoder *fh = nullptr;
+         if (faac_encoder_open(&fparams, &fh) == FAAC_OK) {
+           const uint8_t *asc_buf = nullptr;

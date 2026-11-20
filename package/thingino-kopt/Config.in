@@ -121,6 +121,7 @@ config BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	bool "Ethernet Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_SOC_VENDOR_INGENIC
 	help
 	  Enable native wired Ethernet support on the SoC.
 

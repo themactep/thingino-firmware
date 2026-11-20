@@ -5,8 +5,16 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/raptor.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 
-# The adapter owns the EXIT trap of the agentctl shell that sources it.
-trap 'rm -f /tmp/agent-raptor-isp.$$ /tmp/agent-raptor-wb.$$ /tmp/agent-raptor-rvdconfig.$$' EXIT
+# Per-invocation temp files are keyed by AGENT_TMP_ID (see agent_cache_refresh).
+AGENT_TMP_ID=$$
+
+# The adapter owns the EXIT trap of the agentctl shell that sources it;
+# agentctl chains agent_adapter_exit when it sets its own.
+agent_adapter_exit() {
+	rm -f "/tmp/agent-raptor-isp.$AGENT_TMP_ID" "/tmp/agent-raptor-wb.$AGENT_TMP_ID" \
+		"/tmp/agent-raptor-rvdconfig.$AGENT_TMP_ID"
+}
+trap agent_adapter_exit EXIT
 
 agent_name() {
 	printf 'raptor'
@@ -138,12 +146,144 @@ agent_config_save() {
 	raptorctl config save >/dev/null 2>&1 || true
 }
 
+# Building agent JSON is slow in busybox sh on a loaded SoC (GET /config
+# 1.5-3 s, /runtime/all about 2 s), and the web UI waits on it. Cached
+# answers live in AGENT_CACHE_DIR (tmpfs). One is served at once while it is
+# newer than raptor.conf and younger than its max age, which bounds how
+# stale a client can see it. Once older than its fresh age it is rebuilt in
+# the background. agentctl drops the caches around every write and moves
+# AGENT_CHANGE_STAMP, and a build that saw the stamp move is not published.
+AGENT_CACHE_DIR=${AGENT_CACHE_DIR:-/tmp/agent-cache}
+AGENT_CHANGE_STAMP=${AGENT_CHANGE_STAMP:-/run/agent/changed}
+
+agent_cache_gen() {
+	cat "$AGENT_CHANGE_STAMP" 2>/dev/null
+}
+
+agent_cache_drop() {
+	rm -f "$AGENT_CACHE_DIR"/*.json
+}
+
+# mkdir is atomic; a lock left by a killed builder expires after 60 s.
+agent_cache_lock() {
+	_acl_dir="$AGENT_CACHE_DIR/$1.lock"
+	mkdir -p "$AGENT_CACHE_DIR" 2>/dev/null
+	mkdir "$_acl_dir" 2>/dev/null && return 0
+	_acl_age=$(($(date +%s) - $(stat -c %Y "$_acl_dir" 2>/dev/null || date +%s)))
+	[ "$_acl_age" -gt 60 ] || return 1
+	rmdir "$_acl_dir" 2>/dev/null
+	mkdir "$_acl_dir" 2>/dev/null
+}
+
+# Wait up to 10 s for another builder to release <name>'s lock.
+agent_cache_wait() {
+	_acw_end=$(($(date +%s) + 10))
+	while [ -d "$AGENT_CACHE_DIR/$1.lock" ]; do
+		[ "$(date +%s)" -lt "$_acw_end" ] || return 1
+		sleep 0.2
+	done
+}
+
+# agent_cache_valid <name> <max-seconds>; sets _acv_age.
+agent_cache_valid() {
+	_acv_f="$AGENT_CACHE_DIR/$1.json"
+	[ -s "$_acv_f" ] && [ "$_acv_f" -nt "$AGENT_CONFIG" ] || return 1
+	_acv_age=$(($(date +%s) - $(stat -c %Y "$_acv_f" 2>/dev/null || echo 0)))
+	[ "$_acv_age" -ge 0 ] && [ "$_acv_age" -lt "$2" ]
+}
+
+# agent_cache_build print|quiet <name> <command...>: build while holding
+# <name>'s lock, publish unless the stamp moved, then release the lock. The
+# command runs in a subshell, so it can't clobber the caller's variables.
+# Returns 1 when the build printed nothing.
+agent_cache_build() {
+	_acb_f="$AGENT_CACHE_DIR/$2.json"
+	_acb_tmp="$_acb_f.$AGENT_TMP_ID"
+	_acb_gen=$(agent_cache_gen)
+	(
+		shift 2
+		"$@"
+	) >"$_acb_tmp" 2>/dev/null
+	_acb_rc=1
+	if [ -s "$_acb_tmp" ]; then
+		_acb_rc=0
+		[ "$1" != print ] || cat "$_acb_tmp"
+	fi
+	if [ "$_acb_rc" = 0 ] && [ "$_acb_gen" = "$(agent_cache_gen)" ]; then
+		mv -f "$_acb_tmp" "$_acb_f"
+	else
+		rm -f "$_acb_tmp"
+	fi
+	rmdir "$AGENT_CACHE_DIR/$2.lock" 2>/dev/null
+	return "$_acb_rc"
+}
+
+# Background refresh, run in a subshell. $$ is still the parent's PID there,
+# and the parent's EXIT trap may already have run, so the refresher builds
+# under its own temp-file ID and removes those files itself.
+agent_cache_refresh() {
+	AGENT_TMP_ID="$$.bg"
+	agent_cache_build quiet "$@"
+	agent_adapter_exit
+}
+
+# agent_cached <name> <fresh-seconds> <max-seconds> <command...>
+agent_cached() {
+	_ac_name=$1
+	_ac_fresh=$2
+	_ac_max=$3
+	shift 3
+	# cat fails if a write dropped the file after the check; rebuild then.
+	if agent_cache_valid "$_ac_name" "$_ac_max" &&
+		cat "$AGENT_CACHE_DIR/$_ac_name.json" 2>/dev/null; then
+		if [ "$_acv_age" -ge "$_ac_fresh" ] && agent_cache_lock "$_ac_name"; then
+			# Detached: the refresher must not hold the listener's output pipe.
+			(agent_cache_refresh "$_ac_name" "$@") </dev/null >/dev/null 2>&1 &
+		fi
+		return 0
+	fi
+	if agent_cache_lock "$_ac_name"; then
+		agent_cache_build print "$_ac_name" "$@" && return 0
+	elif agent_cache_wait "$_ac_name" && agent_cache_valid "$_ac_name" "$_ac_max" &&
+		cat "$AGENT_CACHE_DIR/$_ac_name.json" 2>/dev/null; then
+		# Another request was building it; share its answer.
+		return 0
+	fi
+	"$@"
+}
+
 agent_ctl() {
 	command -v raptorctl >/dev/null 2>&1 || {
 		echo "raptorctl is not available" >&2
 		return 1
 	}
-	raptorctl "$@"
+	# raptorctl exits 0 whenever the daemon replies, so an error reply has
+	# to be caught here.
+	_ctl_reply=$(raptorctl "$@") || return 1
+	printf '%s\n' "$_ctl_reply"
+	case "$_ctl_reply" in
+		*'"status":"error"'*)
+			echo "raptorctl $1 $2: $_ctl_reply" >&2
+			return 1
+			;;
+	esac
+}
+
+# Sinter/temper strength exist only on T20-T31; the HAL reports them as not
+# supported on later SoCs.
+agent_has_nr() {
+	[ -n "$AGENT_SOC_FAMILY" ] || AGENT_SOC_FAMILY=$(soc -f 2>/dev/null)
+	case "$AGENT_SOC_FAMILY" in
+		t20 | t21 | t23 | t30 | t31) return 0 ;;
+	esac
+	return 1
+}
+
+# rvd applies 128 when raptor.conf leaves sinter/temper unset.
+agent_image_nr() {
+	agent_has_nr || return 0
+	_nr=$(agent_config_get image "$1")
+	printf '%s' "${_nr:-128}"
 }
 
 agent_daemon_status() {
@@ -391,7 +531,7 @@ agent_json_bool_to_01() {
 agent_isp_json() {
 	# Cache one get-isp call per adapter invocation when possible via a temp file
 	# keyed by PID; callers that need multiple fields reuse it.
-	_isp_cache="/tmp/agent-raptor-isp.$$"
+	_isp_cache="/tmp/agent-raptor-isp.$AGENT_TMP_ID"
 	if [ ! -s "$_isp_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 0
 		raptorctl rvd get-isp >"$_isp_cache" 2>/dev/null || {
@@ -458,7 +598,7 @@ agent_wb_mode_from_int() {
 }
 
 agent_wb_json() {
-	_wb_cache="/tmp/agent-raptor-wb.$$"
+	_wb_cache="/tmp/agent-raptor-wb.$AGENT_TMP_ID"
 	if [ ! -s "$_wb_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 0
 		raptorctl rvd get-wb >"$_wb_cache" 2>/dev/null || {
@@ -736,7 +876,7 @@ agent_privacy_enabled() {
 }
 
 agent_runtime_stream_json() {
-	_rvd_cache="/tmp/agent-raptor-rvdconfig.$$"
+	_rvd_cache="/tmp/agent-raptor-rvdconfig.$AGENT_TMP_ID"
 	if [ ! -e "$_rvd_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 1
 		raptorctl rvd config 2>/dev/null |
@@ -1510,6 +1650,13 @@ agent_get_capabilities() {
 }
 
 agent_get_runtime() {
+	case "${1:-all}" in
+		all) agent_cached runtime-all 5 30 agent_get_runtime_live all ;;
+		*) agent_get_runtime_live "$@" ;;
+	esac
+}
+
+agent_get_runtime_live() {
 	resource=${1:-all}
 	case "$resource" in
 		all)
@@ -1639,6 +1786,10 @@ agent_get_runtime() {
 }
 
 agent_get_config() {
+	agent_cached config 10 60 agent_get_config_live
+}
+
+agent_get_config_live() {
 	command -v raptorctl >/dev/null 2>&1 &&
 		agent_config_preload sensor motion ircut recording audio rtsp \
 			stream0 stream1 osd osd.logo osd.timestamp osd.uptime osd.camera
@@ -1652,8 +1803,8 @@ agent_print_config() {
 	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_image_raw contrast)" null)"
 	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_image_raw saturation)" null)"
 	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
-	printf '"noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
-	printf '"temporal_noise_reduction":%s,' "$(agent_json_value_or "$(agent_config_get image temper)" null)"
+	printf '"noise_reduction":%s,' "$(agent_json_value_or "$(agent_image_nr sinter)" null)"
+	printf '"temporal_noise_reduction":%s,' "$(agent_json_value_or "$(agent_image_nr temper)" null)"
 	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
 	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_image_raw ae_comp)" null)"
 	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null)"
@@ -2293,10 +2444,10 @@ agent_get_setting() {
 			agent_print_setting_leaf sharpness "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
 			;;
 		image/noise-reduction)
-			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_config_get image sinter)" null)"
+			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_image_nr sinter)" null)"
 			;;
 		image/temporal-nr)
-			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_config_get image temper)" null)"
+			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_image_nr temper)" null)"
 			;;
 		image/anti-flicker)
 			agent_print_setting_leaf anti_flicker "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
