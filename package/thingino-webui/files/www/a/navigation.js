@@ -337,6 +337,7 @@
     brand.appendChild(brandLogo);
 
     const brandText = document.createElement("span");
+    brandText.dataset.navBrandLabel = "";
     brandText.textContent = deriveBrandLabel(document.title || "");
     brand.appendChild(brandText);
 
@@ -406,6 +407,14 @@
     container.appendChild(offcanvas);
     nav.appendChild(container);
     return nav;
+  }
+
+  function followLink(href) {
+    if (window.thinginoRouter && window.thinginoRouter.go) {
+      window.thinginoRouter.go(href);
+    } else {
+      window.location.href = href;
+    }
   }
 
   function createOffcanvasList(menuItems) {
@@ -478,13 +487,13 @@
                   offcanvasEl.addEventListener(
                     "hidden.bs.offcanvas",
                     function () {
-                      window.location.href = href;
+                      followLink(href);
                     },
                     { once: true },
                   );
                   offcanvasInstance.hide();
                 } else {
-                  window.location.href = href;
+                  followLink(href);
                 }
               }
             });
@@ -517,13 +526,13 @@
               offcanvasEl.addEventListener(
                 "hidden.bs.offcanvas",
                 function () {
-                  window.location.href = href;
+                  followLink(href);
                 },
                 { once: true },
               );
               offcanvasInstance.hide();
             } else {
-              window.location.href = href;
+              followLink(href);
             }
           }
         });
@@ -609,12 +618,75 @@
     }
     highlightActive(nav, globalConfig.activePath);
     ensureControlBarScript();
+    ensureRouterScript();
+  }
+
+  function refreshNavigation() {
+    const nav = $('nav[data-generated-nav="true"]');
+    if (!nav) return;
+    const label = nav.querySelector("[data-nav-brand-label]");
+    if (label) label.textContent = deriveBrandLabel(document.title || "");
+    nav.querySelectorAll(".active").forEach((el) => {
+      el.classList.remove("active");
+    });
+    highlightActive(nav);
+  }
+
+  // In-place navigation is the camera's webui.router setting, off by default.
+  // A browser keeps what it last learned, as it keeps its theme: it asks the
+  // camera once, when it has nothing stored, and the Web Interface form
+  // updates the stored value when it saves. No polling.
+  const ROUTER_KEY = "thingino-router";
+
+  function rememberRouter(enabled) {
+    try {
+      localStorage.setItem(ROUTER_KEY, enabled ? "on" : "off");
+    } catch (err) {
+      // No storage: the next page asks again.
+    }
+  }
+
+  function loadRouterScript() {
+    if ($("script[data-router-autoload]")) return;
+    const script = document.createElement("script");
+    script.src = withAssetTag("/a/router.js");
+    script.dataset.routerAutoload = "true";
+    (document.head || document.body || document.documentElement).appendChild(
+      script,
+    );
+  }
+
+  function ensureRouterScript() {
+    let stored = null;
+    try {
+      stored = localStorage.getItem(ROUTER_KEY);
+    } catch (err) {
+      stored = null;
+    }
+    if (stored === "on") {
+      loadRouterScript();
+      return;
+    }
+    if (stored === "off" || typeof fetch !== "function") return;
+    fetch("/x/json-config-webui.cgi", {
+      headers: { Accept: "application/json" },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const enabled = data.router === true;
+        rememberRouter(enabled);
+        if (enabled) loadRouterScript();
+      })
+      .catch(() => {});
   }
 
   ready(mountNavigation);
 
   window.thinginoNav = {
     rebuild: mountNavigation,
+    refresh: refreshNavigation,
+    rememberRouter,
     menu: menuData,
   };
 })();

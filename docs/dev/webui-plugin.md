@@ -76,6 +76,7 @@ Validate with `scripts/check-plugins.sh` before building.
 | `featureFlags` | no | Key-value pairs merged into `thinginoUIConfig.device` |
 | `pages` | no | HTML page paths (for conflict detection) |
 | `cgi` | no | CGI endpoint paths (for conflict detection) |
+| `router.pages` | no | Pages that may be swapped in place (see [In-place navigation](#in-place-navigation)) |
 
 ### Nav sections
 
@@ -141,6 +142,37 @@ Scripts and HTML injected into the preview page only:
 
 The HTML snippet replaces `<!-- THINGINO_PLUGIN_PREVIEW_BODY -->` in
 `preview.html` and `preview-raptor.html`.
+
+## In-place navigation
+
+With the "In-place navigation" setting on (Settings > Web Interface, off by
+default), `/a/router.js` switches between pages by replacing the content of
+`<main>` instead of loading the whole page. It does that only for pages that
+are listed, and a page is listed by the package that owns it:
+
+```json
+{ "router": { "pages": ["config-myplugin"] } }
+```
+
+The names are page names without `.html`. The webui package's own pages are
+listed in `package/thingino-webui/files/router-pages.json`.
+
+A listed page has to keep to one rule, because its script runs again on
+every visit:
+
+- it loads exactly one script of its own, `/a/<page>.js`, from the body
+  (scripts under `/a/vendor/` and the shell's own scripts do not count);
+- it has no inline `<script>` and no head script besides the shared ones;
+- `/a/<page>.js` is wrapped in an IIFE, with nothing declared at its top
+  level, binds to the page's own content, and leaves no `window` or
+  `document` listener or timer behind. Stop anything that outlives the page
+  on the `thingino:page-leave` event.
+
+`assemble_plugins.py` checks the first three points for every listed page
+that is in the image, at build time and in `scripts/check-plugins.sh`, and
+fails on a page that breaks them. What the page script binds and leaves
+behind cannot be checked: read it before listing the page. A page that is
+not listed is loaded in full, as before.
 
 ## Migrating an existing integration
 

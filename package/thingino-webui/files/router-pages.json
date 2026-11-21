@@ -1,0 +1,28 @@
+{
+  "pages": [
+    "config-admin",
+    "config-network",
+    "config-syslog",
+    "config-time",
+    "config-webui",
+    "info",
+    "info-diagnostic",
+    "info-overlay",
+    "info-usage",
+    "tool-cameras",
+    "tool-ping-trace",
+    "tool-sdcard",
+    "tool-send2",
+    "tool-send2-email",
+    "tool-send2-ftp",
+    "tool-send2-gotify",
+    "tool-send2-gphotos",
+    "tool-send2-mqtt",
+    "tool-send2-ntfy",
+    "tool-send2-pushover",
+    "tool-send2-storage",
+    "tool-send2-telegram",
+    "tool-send2-webhook",
+    "tool-send2-xmpp"
+  ]
+}
