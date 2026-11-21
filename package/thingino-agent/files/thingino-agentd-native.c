@@ -458,6 +458,33 @@ static int require_token(const struct http_request *request)
     return strcmp(request->authorization + 7, token) == 0 ? 0 : -1;
 }
 
+/* The last line thingino-agentctl printed, reduced to what fits a JSON string. */
+static void agentctl_message(const char *output, size_t output_len, char *message, size_t message_size)
+{
+    size_t end = output_len;
+    size_t start;
+    size_t used = 0;
+
+    while (end > 0 && (output[end - 1] == '\n' || output[end - 1] == '\r')) {
+        end--;
+    }
+    start = end;
+    while (start > 0 && output[start - 1] != '\n') {
+        start--;
+    }
+    while (start < end && used + 1 < message_size) {
+        unsigned char c = (unsigned char)output[start++];
+
+        if (c == '"' || c == '\\') {
+            c = '\'';
+        } else if (c < 0x20) {
+            c = ' ';
+        }
+        message[used++] = (char)c;
+    }
+    message[used] = '\0';
+}
+
 static int execute_agentctl_json(int client_fd, char *const argv[], const char *stdin_path)
 {
     char *output = NULL;
@@ -465,9 +492,16 @@ static int execute_agentctl_json(int client_fd, char *const argv[], const char *
     int command_status = capture_command(argv, stdin_path, &output, &output_len);
     int response_status;
 
-    if (command_status != 0) {
+    if (command_status < 0 || command_status >= 126) {
         free(output);
         return send_json_error(client_fd, 500, "Internal Server Error", "thingino-agentctl failed");
+    }
+    if (command_status != 0) {
+        char message[256];
+
+        agentctl_message(output, output_len, message, sizeof(message));
+        free(output);
+        return send_json_error(client_fd, 400, "Bad Request", message[0] != '\0' ? message : "thingino-agentctl failed");
     }
     response_status = send_response(client_fd, 200, "OK", "application/json", output, output_len);
     free(output);
@@ -925,6 +959,8 @@ int main(int argc, char **argv)
             break;
         }
         if (fork() == 0) {
+            /* SIGCHLD is ignored so that these handlers are reaped; a handler has to wait for thingino-agentctl */
+            signal(SIGCHLD, SIG_DFL);
             close(listen_fd);
             serve_client(client_fd);
             close(client_fd);
