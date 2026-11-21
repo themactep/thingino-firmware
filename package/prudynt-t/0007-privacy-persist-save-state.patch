@@ -1,0 +1,146 @@
+handle_privacy() assigned cfg->privacy.save_state directly, so the value was
+never tracked and never reached the user layer: enabling "remember runtime
+state" from the web UI lasted only until the next restart.
+
+The privacy section is reachable from the plain socket, from the runtime
+transport and from the HTTP API, and its keys must persist from all three.
+Add CFG::persist_paths() to write an explicit set of paths regardless of dirty
+staging, and use it for save_state. Persisting the whole dirty set here would
+also commit unrelated page edits that were still waiting for their own save.
+
+diff --git a/src/config/Config.cpp b/src/config/Config.cpp
+index 3f75f06..7028231 100644
+--- a/src/config/Config.cpp
++++ b/src/config/Config.cpp
+@@ -876,15 +876,17 @@ static bool set_nested_json(JsonValue *root, const std::string &path,
+   return add_to_object(current, segments.back().c_str(), clone) != 0;
+ }
+ 
+-bool CFG::persist_locked() {
++// Fold the given paths from the in-memory view into the user layer and
++// republish the consolidated view. Caller holds configMutex.
++bool CFG::persist_paths_locked(const std::vector<std::string> &paths) {
+   if (!jsonConfig) {
+-    LOG_ERROR("CFG::persist_locked() - jsonConfig is null");
++    LOG_ERROR("CFG::persist_paths_locked() - jsonConfig is null");
+     return false;
+   }
+ 
+-  // Start from what is already on disk and fold in only the paths changed
+-  // since the last persist.  Re-applying every config item would otherwise
+-  // pin sensor geometry and other derived defaults in the user layer.
++  // Start from what is already on disk and fold in only the given paths.
++  // Re-applying every config item would otherwise pin sensor geometry and
++  // other derived defaults in the user layer.
+   JsonValue *layer = nullptr;
+   if (fs::exists(userFilePath)) {
+     JsonValue *existing = load_config(userFilePath.c_str());
+@@ -896,17 +898,17 @@ bool CFG::persist_locked() {
+   if (!layer)
+     layer = create_json_value(JSON_OBJECT);
+ 
+-  for (const auto &path : dirty_paths_) {
++  for (const auto &path : paths) {
+     JsonValue *value = get_nested_item(jsonConfig, path.c_str());
+     if (value)
+       set_nested_json(layer, path, value);
+   }
+ 
+   bool ok = true;
+-  if (!dirty_paths_.empty()) {
++  if (!paths.empty()) {
+     ok = save_config(userFilePath.c_str(), layer) != 0;
+     if (!ok)
+-      LOG_ERROR("CFG::persist_locked() - failed to save user layer "
++      LOG_ERROR("CFG::persist_paths_locked() - failed to save user layer "
+                 << userFilePath);
+   }
+ 
+@@ -915,21 +917,36 @@ bool CFG::persist_locked() {
+   if (core) {
+     merge_json_into(&core, layer);
+     if (save_config(runtimePath.c_str(), core) == 0)
+-      LOG_WARN("CFG::persist_locked() - failed to refresh " << runtimePath);
++      LOG_WARN("CFG::persist_paths_locked() - failed to refresh "
++               << runtimePath);
+     free_json_value(core);
+   } else if (save_config(runtimePath.c_str(), jsonConfig) == 0) {
+-    LOG_WARN("CFG::persist_locked() - failed to refresh " << runtimePath);
++    LOG_WARN("CFG::persist_paths_locked() - failed to refresh " << runtimePath);
+   }
+ 
+   free_json_value(layer);
+-  LOG_DEBUG("CFG::persist_locked() - saved " << dirty_paths_.size()
+-                                             << " path(s) to " << userFilePath);
++  LOG_DEBUG("CFG::persist_paths_locked() - saved "
++            << paths.size() << " path(s) to " << userFilePath);
++  return ok;
++}
++
++bool CFG::persist_locked() {
++  std::vector<std::string> paths(dirty_paths_.begin(), dirty_paths_.end());
++  const bool ok = persist_paths_locked(paths);
+   // Already under configMutex.
+   dirty_ = false;
+   dirty_paths_.clear();
+   return ok;
+ }
+ 
++// Persist exactly these paths, whether or not they were staged as dirty. Used
++// by config sections reachable from a runtime-only transport, where a plain
++// set must still reach the user layer.
++bool CFG::persist_paths(const std::vector<std::string> &paths) {
++  std::lock_guard<std::mutex> lock(configMutex);
++  return persist_paths_locked(paths);
++}
++
+ bool CFG::persist() {
+   std::lock_guard<std::mutex> lock(configMutex);
+   return persist_locked();
+diff --git a/src/config/Config.hpp b/src/config/Config.hpp
+index 960cd36..d938b46 100644
+--- a/src/config/Config.hpp
++++ b/src/config/Config.hpp
+@@ -376,6 +376,8 @@ public:
+   }
+   // Record a config path as changed so it is written to the user layer.
+   void mark_dirty_path(const std::string &path);
++  // Write exactly these paths to the user layer, ignoring dirty staging.
++  bool persist_paths(const std::vector<std::string> &paths);
+   // Returns the compact serialization of jsonConfig, cached until the
+   // config is mutated, so repeated dump_config/subtree reads don't re-walk
+   // the tree.
+@@ -515,6 +517,7 @@ public:
+ private:
+   // Like persist(), but the caller already holds configMutex.
+   bool persist_locked();
++  bool persist_paths_locked(const std::vector<std::string> &paths);
+ 
+   std::vector<ConfigItem<bool>> boolItems{};
+   std::vector<ConfigItem<const char *>> charItems{};
+diff --git a/src/config/JsonAPI.cpp b/src/config/JsonAPI.cpp
+index e2ad46f..491d4d2 100644
+--- a/src/config/JsonAPI.cpp
++++ b/src/config/JsonAPI.cpp
+@@ -1,6 +1,8 @@
+ #include "config/JsonAPI.hpp"
+ #include "audio/AudioOutputWorker.hpp"
+ #include "config/Config.hpp"
++
++#include <vector>
+ #include "recording/MP4Recorder.hpp"
+ #include "stream/globals.hpp"
+ #include "isp/imp_hal.hpp"
+@@ -858,7 +860,11 @@ void handle_privacy(JsonValue *obj, std::string &out, bool &sep) {
+   // save_state: persist runtime toggles to config
+   if (JsonValue *v = obj_get(obj, "save_state")) {
+     if (v->type == JSON_BOOL) {
+-      cfg->privacy.save_state = v->value.boolean != 0;
++      // Through the item table, then written explicitly: this section is
++      // reachable from the runtime-only transport, where a plain set is not
++      // staged for the next persist.
++      cfg->set<bool>("privacy.save_state", v->value.boolean != 0);
++      cfg->persist_paths({"privacy.save_state"});
+       add_key(out, s2, "save_state");
+       add_bool(out, cfg->privacy.save_state);
+       wrote = true;
