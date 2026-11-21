@@ -6,8 +6,16 @@
 
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/Lu-Fi/openimp
-# Release tag of the Lu-Fi open-stack fork.
-OPENIMP_VERSION = v2026.11.07-rc3
+# Lu-Fi open-stack fork: aperto follows the newest Lu-Fi state, so this is the
+# HEAD of Lu-Fi/openimp next (2026-11-21), not a release tag.
+#
+# Building from a local checkout instead of the pinned commit: put
+#   OPENIMP_OVERRIDE_SRCDIR = /path/to/openimp
+# into local.mk (repo root, or common/camera/device local.mk under
+# THINGINO_USER_DIR) and
+# run `make rebuild-openimp`. Buildroot then rsyncs that tree, skips the
+# download/hash check, and the .hash entry below is not used.
+OPENIMP_VERSION = a7879f27673b615bb17c6a8688b755ba68665193
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
@@ -38,6 +46,17 @@ endif
 ifeq ($(SOC_FAMILY),t41)
 OPENIMP_T41_HEADERS = $(THINGINO_RAPTOR_HAL_DIR)/ingenic-headers/T41/1.2.0/zh
 endif
+# T32/T33 (in development, no aperto camera profile yet): build-t32.sh and
+# build-t33.sh need the vendor 2.x headers from raptor-hal.
+ifneq ($(filter t32 t33,$(SOC_FAMILY)),)
+OPENIMP_DEPENDENCIES += thingino-raptor-hal
+endif
+ifeq ($(SOC_FAMILY),t32)
+OPENIMP_T32_HEADERS = $(THINGINO_RAPTOR_HAL_DIR)/ingenic-headers/T32/2.2.0/en
+endif
+ifeq ($(SOC_FAMILY),t33)
+OPENIMP_T33_HEADERS = $(THINGINO_RAPTOR_HAL_DIR)/ingenic-headers/T33/2.0.2.1/en
+endif
 
 define OPENIMP_BUILD_CMDS
 	$(TARGET_MAKE_ENV) \
@@ -53,6 +72,10 @@ define OPENIMP_BUILD_CMDS
 		T30_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
 		T30_TARGET_DIR=$(BASE_DIR) \
 		T31_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T32_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T32_HEADERS=$(OPENIMP_T32_HEADERS) \
+		T33_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T33_HEADERS=$(OPENIMP_T33_HEADERS) \
 		T40_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
 		T40_HEADERS=$(OPENIMP_T40_HEADERS) \
 		T41_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
