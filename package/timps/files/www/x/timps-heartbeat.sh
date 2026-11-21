@@ -17,6 +17,7 @@ esac
 TIMPS_CONTROL_URL="$_timps_scheme://127.0.0.1:$_timps_port/control"
 TIMPS_DAYNIGHT_MODE_FILE="${TIMPS_DAYNIGHT_MODE_FILE:-/run/thingino/daynight_mode}"
 TIMPS_IRCUT_MODE_FILE="${TIMPS_IRCUT_MODE_FILE:-/tmp/ircutmode.txt}"
+THINGINO_BATTERY_FILE="${THINGINO_BATTERY_FILE:-/run/xr871d.battery}"
 
 timps_hb_light_state() {
 	command -v light >/dev/null 2>&1 || {
@@ -36,6 +37,22 @@ timps_hb_ircut_state() {
 		0 | 1) printf '%s' "$v" ;;
 		*) printf 'null' ;;
 	esac
+}
+
+# same fields as thingino-webui's thingino_heartbeat_battery_fields
+timps_hb_battery_fields() {
+	[ -r "$THINGINO_BATTERY_FILE" ] || return 0
+	awk -F= '
+		$1 == "vbat_mv" || $1 == "soc" || $1 == "temp_c" || $1 == "updated" {
+			if ($2 ~ /^-?[0-9]+$/) v[$1] = $2
+		}
+		END {
+			if (!("vbat_mv" in v)) exit
+			printf ",\"bat_mv\":%d", v["vbat_mv"]
+			if ("soc" in v) printf ",\"bat_soc\":%d", v["soc"]
+			if ("temp_c" in v) printf ",\"bat_temp_c\":%d", v["temp_c"]
+			if ("updated" in v) printf ",\"bat_updated\":%d", v["updated"]
+		}' "$THINGINO_BATTERY_FILE"
 }
 
 timps_hb_wg_status() {
@@ -58,6 +75,7 @@ timps_heartbeat_payload() {
 	case "$TG" in '' | -*) TG=null ;; esac
 	MUTE=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"mute":\([01]\).*/\1/p')
 	AEN=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"enabled":\([01]\).*/\1/p')
+	case "$CUR" in *'"backchannel":{"available":1'*) SPK=true ;; *) SPK=false ;; esac
 	PRIV=$(printf '%s' "$CUR" | sed -n 's/.*"privacy":{\(.*\)},"daynight".*/\1/p')
 	case "$PRIV" in *'"enabled":1'*) PRIV=true ;; *) PRIV=false ;; esac
 	REC=$(printf '%s' "$CUR" | sed -n 's/.*"record":{\([^}]*\)}.*/\1/p')
@@ -93,7 +111,7 @@ timps_heartbeat_payload() {
 	MOTION=$(sed -n 's/^[[:space:]]*motion\.enabled[[:space:]]*=[[:space:]]*\([01]\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n 1)
 	if [ "$MOTION" = "1" ]; then MOTION=true; else MOTION=false; fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":false,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s%s}\n' \
 		"$(date +%s)" \
 		"$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')" \
 		"$BRI" \
@@ -105,10 +123,12 @@ timps_heartbeat_payload() {
 		"$PRIV" \
 		"$COLOR" \
 		"$MIC" \
+		"$SPK" \
 		"$DN_JSON" \
 		"$(timps_hb_ircut_state)" \
 		"$(timps_hb_light_state ir850)" \
 		"$(timps_hb_light_state ir940)" \
 		"$(timps_hb_light_state white)" \
-		"$(timps_hb_wg_status)"
+		"$(timps_hb_wg_status)" \
+		"$(timps_hb_battery_fields)"
 }
