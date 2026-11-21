@@ -380,7 +380,6 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SPI)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI1)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI1_PB_2)
 endef
 endif
@@ -403,7 +402,8 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SPI),y)
 # 3.10 trees name the controller JZ_SPI and register one platform device per
 # enabled SSI; 4.4 trees take both from the device tree, so only the driver
-# is needed there. INGENIC_SPI0 exists on the T32 tree alone.
+# is needed there. INGENIC_SPI0 exists on the T32 tree alone. SSI1 stays off on
+# 3.10: its pins collide with DMIC and I2C1 and the SDK samples use SSI0.
 ifeq ($(KERNEL_VERSION_4),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SPI)
@@ -417,7 +417,6 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SPI_SPIDEV)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI0)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI1)
 endef
 endif
 endif
