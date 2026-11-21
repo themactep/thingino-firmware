@@ -34,10 +34,18 @@ pir_light_on() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
 # set_mode day|night: live, not persisted
 set_mode() {
 	case $1 in
-	night) fps=$(cfg xr871.night.fps); fps=${fps:-15}
-	       sh=$(cfg xr871.night.sharpness); sh=${sh:-64} ;;
-	*)     fps=$(cfg xr871.day.fps); fps=${fps:-25}
-	       sh=$(cfg xr871.day.sharpness); sh=${sh:-128} ;;
+		night)
+			fps=$(cfg xr871.night.fps)
+			fps=${fps:-15}
+			sh=$(cfg xr871.night.sharpness)
+			sh=${sh:-64}
+			;;
+		*)
+			fps=$(cfg xr871.day.fps)
+			fps=${fps:-25}
+			sh=$(cfg xr871.day.sharpness)
+			sh=${sh:-128}
+			;;
 	esac
 	body="{\"persist\":false,\"image\":{\"sharpness\":$sh}"
 	[ "$fps" -gt 0 ] 2>/dev/null && body="{\"persist\":false,\"sensor\":{\"fps\":$fps},\"image\":{\"sharpness\":$sh}"
@@ -53,7 +61,13 @@ if [ "$1" = "day" ] && pir_light_on; then
 fi
 
 case $1 in
-day)	set_mode day; exec /sbin/daynight "$@" ;;
-night)	set_mode night; exec /sbin/daynight "$@" ;;
-*)	exec /sbin/daynight "$@" ;;
+	day)
+		set_mode day
+		exec /sbin/daynight "$@"
+		;;
+	night)
+		set_mode night
+		exec /sbin/daynight "$@"
+		;;
+	*) exec /sbin/daynight "$@" ;;
 esac

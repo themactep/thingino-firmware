@@ -37,7 +37,7 @@ busy() {
 	[ -f /run/pir-light.pid ] && kill -0 "$(cat /run/pir-light.pid)" 2>/dev/null && return 0
 	# USB power
 	if [ "$(cfg xr871.standby.on_usb)" != "true" ] &&
-	   grep -q '^usb=1' /run/xr871d.battery 2>/dev/null; then
+		grep -q '^usb=1' /run/xr871d.battery 2>/dev/null; then
 		return 0
 	fi
 	# firmware upgrade in progress
