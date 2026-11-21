@@ -517,6 +517,21 @@ ifeq ($(FLASH_SIZE_MB),)
 endif
 export FLASH_SIZE_MB
 
+# Effective layout size. FLASH_SIZE_MB stays the physical chip size; the cap
+# makes the partition table and the image end at 8 MB so the OTA payload fits
+# in RAM on 64 MB devices. The flag may come from the camera defconfig, a
+# config fragment, or a user fragment, so resolve it like the U-Boot version.
+FLASH_CAP_8M := $(or $(filter y,$(BR2_THINGINO_FLASH_CAP_8M)),$(shell \
+	for f in $(foreach f,$(EARLY_TOOLCHAIN_INPUT_FILES),'$(f)'); do \
+		[ -f "$$f" ] && sed -n 's/^BR2_THINGINO_FLASH_CAP_8M=y$$/y/p' "$$f"; \
+	done | tail -n1))
+ifeq ($(FLASH_CAP_8M),y)
+	FLASH_LAYOUT_MB := $(shell echo $$(( $(FLASH_SIZE_MB) > 8 ? 8 : $(FLASH_SIZE_MB) )))
+else
+	FLASH_LAYOUT_MB := $(FLASH_SIZE_MB)
+endif
+export FLASH_LAYOUT_MB
+
 #
 # U-BOOT
 #

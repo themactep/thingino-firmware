@@ -71,6 +71,26 @@ The build system automatically calculates partition sizes based on:
 1. Flash chip size (configured per camera model)
 2. Actual size of compiled kernel and rootfs
 
+### Building an 8 MB Layout on a Larger Chip
+
+A camera with a 16 MB or 32 MB flash chip can deliberately be built with an
+8 MB layout by enabling `BR2_THINGINO_FLASH_CAP_8M` ("Cap flash layout at
+8 MB" under *Flash Chip Config*):
+
+```
+BR2_THINGINO_FLASH_CAP_8M=y
+```
+
+`FLASH_SIZE_MB` still records the physical chip size, but the effective layout
+(`FLASH_LAYOUT_MB`) becomes 8, so `mtdparts`, the data partition, and the full
+image end at 8 MB. The rest of the chip stays unused. This trades overlay
+space for an image small enough to stage in RAM during an OTA update on a
+device with 64 MB.
+
+The layout boundaries are carried in the U-Boot environment, so switching
+between layouts requires a full-image upgrade (`make ota` or `sysupgrade -f`),
+not a rootfs-only update.
+
 ### Partition Size Calculation
 
 - **Fixed partitions**: U-Boot (256K), Env (64K) always use the same sizes
