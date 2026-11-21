@@ -128,14 +128,22 @@
     if (reason) button.title = reason;
   }
 
+  var spkSupported = false;
+
+  function speakerReason() {
+    return spkSupported
+      ? "Speaker on/off applies after a timps restart (audio.spk_enabled); talk from the preview"
+      : "No speaker output in this timps build";
+  }
+
   function toggleAudio(device, state) {
     var button = $("#" + device);
     if (button) button.classList.add("pending");
 
     if (device !== "microphone") {
-      disableAudioButton(device, "No speaker output on timps");
+      disableAudioButton(device, speakerReason());
       if (typeof window.showOverlayMessage === "function")
-        window.showOverlayMessage("The timps streamer has no speaker output.", "info");
+        window.showOverlayMessage(speakerReason() + ".", "info");
       return;
     }
 
@@ -241,8 +249,9 @@
     if (typeof coreUpdateHeartbeatUi === "function") {
       window.updateHeartbeatUi = function (json) {
         coreUpdateHeartbeatUi(json);
-        if (json && json.spk_supported === false) {
-          disableAudioButton("speaker", "No speaker output on timps");
+        if (json && typeof json.spk_supported === "boolean") {
+          spkSupported = json.spk_supported;
+          disableAudioButton("speaker", speakerReason());
         }
       };
     }
