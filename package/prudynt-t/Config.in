@@ -59,7 +59,7 @@ choice
 	  Select how /usr/sbin/privacy enforces privacy mode.
 
 config BR2_PACKAGE_PRUDYNT_T_PRIVACY_BACKEND_OSD
-	bool "OSD cover only (default)"
+	bool "OSD cover only"
 	help
 	  Uses prudynt's built-in PRIVACY FIFO command only.
 
