@@ -14,6 +14,7 @@ BR2_PACKAGE_THINGINO_STREAMER_TIMPS=y
 BR2_PACKAGE_XR871_BRIDGE=y
 BR2_SENSOR_1_NAME="imx307"
 BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
 # timps H.264 (helix bitstream 4 MB + refs) at 1080p needs ~27 MB rmem;
 # stock layout is mem=36M rmem=28M
 # BR2_THINGINO_RMEM_MB_AUTO is not set
