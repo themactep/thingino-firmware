@@ -18,10 +18,16 @@ terminate. The attribute quote style is selected per request:
 | `http://bosh:5280/http-bind?style=double` | Openfire 5.x style (`sid="..."`) |
 | `http://bosh:5280/http-bind?style=single` | Prosody/legacy style (`sid='...'`) |
 
-The test runner sends text and image messages in both styles, checks that
-the server received them, checks that the uploaded bytes arrived, and sends
-a message containing XML-special characters. It runs the script with the
-Alpine BusyBox shell, matching the camera's `ash`.
+The mock also answers a request id it has already seen with the response it
+gave the first time and does not process the body again, as a BOSH connection
+manager does (XEP-0124). A client that reuses an id loses that request; the
+bench fails the image cases if `send2xmpp` does (#2124).
+
+The test runner sends text and image messages in both styles, repeats the
+image with the upload component configured (`XMPP_UPLOAD_COMPONENT`), checks
+that the server received them, checks that the uploaded bytes arrived, and
+sends a message containing XML-special characters. It runs the script with
+the Alpine BusyBox shell, matching the camera's `ash`.
 
 ## Run
 
