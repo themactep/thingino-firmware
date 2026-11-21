@@ -1,0 +1,44 @@
+#!/bin/sh
+# wlight PCT : white light (1-99 %) on GPIO89/PC25 via TCU4 PWM (30 us period, EXT 24 MHz). PCT 0 = off (pin back to GPIO out low).
+T=0x10002000
+GC=0x10012000
+B4=0x10
+P25=0x2000000
+pct=${1:-0}
+w() { devmem $(($1)) 32 $(($2)); }
+if [ "$pct" = status ]; then # 1 when TCU4 runs and PC25 is in PWM function
+	ter=$(devmem $((T + 0x10)) 32)
+	msk=$(devmem $((GC + 0x20)) 32)
+	[ $((ter & B4)) -ne 0 ] && [ $((msk & P25)) -eq 0 ] && echo 1 || echo 0
+	exit 0
+fi
+case "$pct" in *[!0-9]* | '')
+	echo "usage: wlight 0-99|status" >&2
+	exit 1
+	;;
+esac
+if [ "$pct" -le 0 ]; then
+	w $T+0x18 $B4 # TECR: stop ch4
+	w $GC+0x18 $P25
+	w $GC+0x24 $P25
+	w $GC+0x38 $P25
+	w $GC+0x48 $P25 # GPIO out low
+	echo off
+	exit 0
+fi
+[ "$pct" -gt 99 ] && pct=99
+per=720
+lo=$((per * pct / 100))        # the light is on while the pin is low
+w $T+0x18 $B4                  # TECR: disable ch4
+w $T+0x34 $((B4 | (B4 << 16))) # TMSR: mask full/half irq of ch4
+w $T+0x8c 0x4                  # TCSR4: EXT clock, prescale 1, pwm off
+w $T+0x80 $per                 # TDFR4
+w $T+0x84 $lo                  # TDHR4: output INITL(0) until TDHR, high until TDFR
+w $T+0x88 0                    # TCNT4
+w $T+0x8c 0x84                 # TCSR4: + PWM_EN
+w $T+0x14 $B4                  # TESR: enable ch4
+w $GC+0x18 $P25
+w $GC+0x28 $P25
+w $GC+0x38 $P25
+w $GC+0x48 $P25 # PC25 -> function 0 (PWM4)
+echo "on $pct% (TDFR $per TDHR $lo)"

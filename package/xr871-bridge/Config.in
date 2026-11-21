@@ -1,0 +1,10 @@
+config BR2_PACKAGE_XR871_BRIDGE
+	bool "XR871 co-processor keep-alive daemon"
+	help
+	  xr871d speaks the UART control protocol of the XR871 WiFi
+	  co-processor used on some Ingenic battery cameras (e.g. ABUS
+	  PPIC90520). It sends the heartbeat the XR871 expects, answers
+	  its requests and takes the wall clock from it. Without it the
+	  XR871 power-cycles the main SoC a few seconds after boot.
+
+	  It is started from rcF (F00xr871d) right after the sysinit mounts.

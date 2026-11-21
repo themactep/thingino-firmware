@@ -1,0 +1,14 @@
+#!/bin/sh
+# /usr/libexec/light/white: white light of the ABUS PPIC90520 (PWM-only LED
+# stage on GPIO89/PC25), called by `light white <mode>`. Brightness in percent
+# from thingino.json gpio.white.brightness (default 80, like the stock app).
+b=$(jct /etc/thingino.json get gpio.white.brightness 2>/dev/null | tr -dc 0-9)
+[ -n "$b" ] && [ "$b" -ge 1 ] && [ "$b" -le 99 ] || b=80
+case "$1" in
+	0 | off) wlight 0 >/dev/null ;;
+	1 | on) wlight "$b" >/dev/null ;;
+	~ | toggle)
+		if [ "$(wlight status)" = 1 ]; then wlight 0; else wlight "$b"; fi >/dev/null
+		;;
+	*) printf '%s' "$(wlight status)" ;;
+esac

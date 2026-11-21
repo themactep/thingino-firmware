@@ -1,0 +1,61 @@
+#!/bin/sh
+# /usr/libexec/xr871/standby: run by xr871d once a minute. Puts the T30 to
+# sleep ("xr871d -c sleep") when the camera has been idle for a while; the
+# XR871 keeps the WiFi link and wakes the T30 again on PIR, the key, a
+# Wake-on-LAN packet or a TCP connection to ports 22/80/443/554/8880.
+#
+# thingino.json:
+#   xr871.standby.enabled       true to allow standby (default false)
+#   xr871.standby.idle_minutes  idle time before sleeping (default 10)
+#   xr871.standby.on_usb        true = also sleep on USB power (default false)
+#
+# Busy (stays awake): stream/WebRTC/RTSP clients other than localhost, an
+# SSH session, the PIR light, a recent PIR motion, USB power (unless
+# on_usb), a firmware upgrade.
+
+CONF=/etc/thingino.json
+LAST=/run/xr871-standby.last
+MOTION=/run/xr871d.last_motion
+
+cfg() { jct "$CONF" get "$1" 2>/dev/null; }
+up() { cut -d. -f1 /proc/uptime; }
+
+[ "$(cfg xr871.standby.enabled)" = "true" ] || exit 0
+idle=$(cfg xr871.standby.idle_minutes | tr -dc 0-9)
+[ -n "$idle" ] && [ "$idle" -gt 0 ] || idle=10
+now=$(up)
+
+busy() {
+	# remote viewers (timps client list; local helpers use 127.0.0.1)
+	tok=$(cat /run/timps.token 2>/dev/null)
+	c=$(curl -s -m3 -H "Authorization: Bearer $tok" \
+		"http://127.0.0.1:8880/control?clients=1" 2>/dev/null)
+	echo "$c" | grep -o '"ip":"[^"]*"' | grep -vq '"ip":"127\.0\.0\.1"' && return 0
+	# an SSH session
+	netstat -tn 2>/dev/null | grep -q ':22 .*ESTABLISHED' && return 0
+	# PIR light on (motion itself is counted below, from its own time)
+	[ -f /run/pir-light.pid ] && kill -0 "$(cat /run/pir-light.pid)" 2>/dev/null && return 0
+	# USB power
+	if [ "$(cfg xr871.standby.on_usb)" != "true" ] &&
+		grep -q '^usb=1' /run/xr871d.battery 2>/dev/null; then
+		return 0
+	fi
+	# firmware upgrade in progress
+	[ -e /tmp/sysupgrade ] || [ -e /tmp/fw.bin ] && return 0
+	return 1
+}
+
+if busy || [ ! -f "$LAST" ]; then
+	echo "$now" >"$LAST"
+	exit 0
+fi
+# idle since the later of: last busy tick, last PIR motion
+last=$(cat "$LAST")
+m=$(cat "$MOTION" 2>/dev/null | tr -dc 0-9)
+[ -n "$m" ] && [ "$m" -gt "$last" ] && last=$m
+if [ $((now - last)) -ge $((idle * 60)) ]; then
+	logger -t xr871-standby "idle for ${idle} min, T30 goes to standby"
+	rm -f "$LAST"
+	xr871d -c sleep
+fi
+exit 0

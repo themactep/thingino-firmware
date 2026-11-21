@@ -1,0 +1,19 @@
+#!/bin/sh
+# Start the XR871 keep-alive as early as possible (rcF runs right after the
+# sysinit mounts, before rcS). The XR871 power-cycles the SoC when no
+# heartbeat arrives within ~6 s of power-on.
+
+case "$1" in
+	start)
+		pidof xr871d >/dev/null || /usr/sbin/xr871d -b
+		# wlan0 over SPI; ifup (S40network) configures it
+		pidof xr871net >/dev/null || /usr/sbin/xr871net -b
+		;;
+	stop)
+		killall xr871net xr871d 2>/dev/null
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac

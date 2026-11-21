@@ -1,0 +1,64 @@
+#!/bin/sh
+# /usr/libexec/xr871/pir: run by xr871d on PIR motion ("motion") or after a
+# power-on woken by the PIR ("wake"). Board policy for the ABUS PPIC90520:
+# switch the white light on for a while when it is dark, like the stock
+# firmware's motion light. Every new motion extends the time.
+#
+# thingino.json:
+#   gpio.white.pir          false disables the PIR light (default true)
+#   gpio.white.pir_seconds  on time after the last motion (default 60)
+# "Dark" = the day/night state is night, or the ISP runs at a high gain
+# (the state can flip to day while the light itself lights the scene).
+
+CONF=/etc/thingino.json
+UNTIL=/run/pir-light.until
+PIDF=/run/pir-light.pid
+DARK_GAIN=20000
+
+cfg() { jct "$CONF" get "$1" 2>/dev/null; }
+# seconds since boot: immune to the NTP clock jump after a power-on
+up() { cut -d. -f1 /proc/uptime; }
+
+# a power-on by the PIR comes before the overlay and the ISP are up
+if [ "$1" = "wake" ]; then
+	i=0
+	while [ $i -lt 30 ] && ! { [ -r /proc/jz/isp/isp-m0 ] && [ -x /usr/sbin/wlight ]; }; do
+		sleep 1
+		i=$((i + 1))
+	done
+	sleep 5
+fi
+
+[ "$(cfg gpio.white.pir)" = "false" ] && exit 0
+secs=$(cfg gpio.white.pir_seconds | tr -dc 0-9)
+[ -n "$secs" ] && [ "$secs" -gt 0 ] || secs=60
+
+running() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
+
+dark() {
+	[ "$(cat /run/thingino/daynight_mode 2>/dev/null)" = "night" ] && return 0
+	g=$(timeout 2 cat /proc/jz/isp/isp-m0 2>/dev/null | sed -n 's/^ISP total gain : *\([0-9]*\).*/\1/p')
+	[ -n "$g" ] && [ "$g" -ge "$DARK_GAIN" ]
+}
+
+now=$(up)
+if running; then
+	# light already on from an earlier motion: just extend
+	echo $((now + secs)) >"$UNTIL"
+	exit 0
+fi
+dark || exit 0
+
+echo $((now + secs)) >"$UNTIL"
+logger -t pir-light "motion in the dark: white light on for ${secs}s"
+light white on
+(
+	while [ "$(up)" -lt "$(cat "$UNTIL" 2>/dev/null || echo 0)" ]; do
+		sleep 2
+	done
+	light white off
+	logger -t pir-light "white light off"
+	rm -f "$PIDF" "$UNTIL"
+) &
+echo $! >"$PIDF"
+exit 0
