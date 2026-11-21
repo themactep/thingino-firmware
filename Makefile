@@ -370,7 +370,7 @@ U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
 
 ifeq ($(SKIP_CAMERA_SELECTION),)
-FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
+FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_LAYOUT_MB) * 1024)))
 FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
