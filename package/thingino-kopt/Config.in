@@ -306,6 +306,12 @@ config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
 	help
 	  Enable SPI1 on PB_2
 
+config BR2_PACKAGE_THINGINO_KOPT_SPI0_PC
+	bool "SPI0 PC (spidev)"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable SPI0 (SSI0) on port C with the spidev userspace interface
+
 config BR2_PACKAGE_THINGINO_KOPT_UART
 	bool "UART Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
