@@ -96,13 +96,15 @@ backup_runtime_state() {
 	BITRATE_1="$("$PRUDYNT_CONFIG" get stream1.bitrate)"
 	FPS_0="$("$PRUDYNT_CONFIG" get stream0.fps)"
 	FPS_1="$("$PRUDYNT_CONFIG" get stream1.fps)"
+	GOP_0="$("$PRUDYNT_CONFIG" get stream0.gop)"
+	GOP_1="$("$PRUDYNT_CONFIG" get stream1.gop)"
 	# Whether the mic was live, as prudynt publishes it; the saved config key
 	# says nothing about the current state.
 	MIC_WAS_ON=false
 	[ -f "$MIC_ACTIVE" ] && MIC_WAS_ON=true
 
 	# Without a sound backup there is no way back from the throttle.
-	for value in "$BITRATE_0" "$BITRATE_1" "$FPS_0" "$FPS_1"; do
+	for value in "$BITRATE_0" "$BITRATE_1" "$FPS_0" "$FPS_1" "$GOP_0" "$GOP_1"; do
 		case "$value" in
 			"" | *[!0-9]*)
 				echo "error: cannot read stream settings to restore" >&2
@@ -116,6 +118,8 @@ BITRATE_0=$BITRATE_0
 BITRATE_1=$BITRATE_1
 FPS_0=$FPS_0
 FPS_1=$FPS_1
+GOP_0=$GOP_0
+GOP_1=$GOP_1
 MIC_WAS_ON=$MIC_WAS_ON
 EOF
 }
@@ -132,6 +136,7 @@ restore_channel() {
 	local channel="$1"
 	local bitrate=""
 	local fps=""
+	local gop=""
 
 	if [ ! -f "$STATE_FILE" ]; then
 		echo "error: runtime state file missing: $STATE_FILE" >&2
@@ -145,10 +150,12 @@ restore_channel() {
 		0)
 			bitrate="$BITRATE_0"
 			fps="$FPS_0"
+			gop="$GOP_0"
 			;;
 		1)
 			bitrate="$BITRATE_1"
 			fps="$FPS_1"
+			gop="$GOP_1"
 			;;
 		*)
 			echo "error: invalid channel '$channel'" >&2
@@ -158,6 +165,7 @@ restore_channel() {
 
 	"$IMP_CONTROL" bitrate "$channel" "$bitrate" || return 1
 	"$IMP_CONTROL" fps "$channel" "$fps" 1 || return 1
+	"$IMP_CONTROL" gop "$channel" "$gop" || return 1
 	return 0
 }
 
