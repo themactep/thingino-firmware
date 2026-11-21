@@ -6,6 +6,8 @@ ACTIVE_FILE="/run/prudynt/privacy-lite.active"
 FIFO="/run/prudynt/video_ctrl"
 JCT="/usr/bin/jct"
 IMP_CONTROL="/usr/sbin/imp-control"
+MICROPHONE="/usr/sbin/microphone"
+MIC_ACTIVE="/run/prudynt/mic.active"
 
 LITE_BITRATE="${PRIVACY_LITE_BITRATE:-96}"
 LITE_FPS="${PRIVACY_LITE_FPS:-2}"
@@ -92,14 +94,17 @@ backup_runtime_state() {
 	BITRATE_1="$("$JCT" /etc/prudynt.json get stream1.bitrate)"
 	FPS_0="$("$JCT" /etc/prudynt.json get stream0.fps)"
 	FPS_1="$("$JCT" /etc/prudynt.json get stream1.fps)"
-	MIC_ENABLED="$("$JCT" /etc/prudynt.json get audio.mic_enabled)"
+	# Whether the mic was live, as prudynt publishes it; the saved config key
+	# says nothing about the current state.
+	MIC_WAS_ON=false
+	[ -f "$MIC_ACTIVE" ] && MIC_WAS_ON=true
 
 	cat >"$STATE_FILE" <<EOF
 BITRATE_0=$BITRATE_0
 BITRATE_1=$BITRATE_1
 FPS_0=$FPS_0
 FPS_1=$FPS_1
-MIC_ENABLED=$MIC_ENABLED
+MIC_WAS_ON=$MIC_WAS_ON
 EOF
 }
 
@@ -146,7 +151,11 @@ restore_channel() {
 
 set_mic_enabled() {
 	local enabled="$1"
-	"$JCT" /etc/prudynt.json set audio.mic_enabled "$enabled"
+	if [ "$enabled" = "true" ]; then
+		"$MICROPHONE" on
+	else
+		"$MICROPHONE" off
+	fi
 }
 
 restore_mic_state() {
@@ -158,7 +167,10 @@ restore_mic_state() {
 	# shellcheck disable=SC1090
 	. "$STATE_FILE"
 
-	set_mic_enabled "$MIC_ENABLED"
+	# A mic that was already off stays off.
+	if [ "$MIC_WAS_ON" = "true" ]; then
+		set_mic_enabled true
+	fi
 }
 
 apply_on() {
@@ -167,7 +179,9 @@ apply_on() {
 
 	backup_runtime_state
 	load_active_state
-	set_mic_enabled false
+	if [ -f "$MIC_ACTIVE" ]; then
+		set_mic_enabled false
+	fi
 
 	for ch in $channels; do
 		throttle_channel "$ch" || exit 1
@@ -209,6 +223,7 @@ CHANNEL_ARG="$2"
 
 require_tool "$JCT"
 require_tool "$IMP_CONTROL"
+require_tool "$MICROPHONE"
 
 CHANNELS="$(parse_channel "$CHANNEL_ARG")"
 
