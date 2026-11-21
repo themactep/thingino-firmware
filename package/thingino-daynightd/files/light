@@ -16,6 +16,16 @@ Where:
 [ -z "$type" ] && type="$1"
 [ -z "$mode" ] && mode="${2:-read}"
 
+# Board hook: lights that are not a plain GPIO (e.g. PWM-only LED stages)
+# provide /usr/libexec/light/<type>, which takes the same modes.
+if [ -x "/usr/libexec/light/$type" ]; then
+	case "$mode" in
+		0 | off | 1 | on | \~ | toggle | \? | read | status)
+			exec "/usr/libexec/light/$type" "$mode"
+			;;
+	esac
+fi
+
 get_config_pin() {
 	local type="$1"
 	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null ||
