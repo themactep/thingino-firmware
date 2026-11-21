@@ -55,3 +55,15 @@ define THINGINO_KOPT_USB_DT
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_USB_DT
 endif
+
+# SPI0 on port C with a spidev node (ABUS PPIC90520 XR871 link). The vendor
+# tree has no board_info for SSI0 and a missing declaration in the
+# JZ_SPI_BOARD_INFO_REGISTER path of jz_spi.c; patch both, idempotently.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SPI0_PC),y)
+define THINGINO_KOPT_SPI0_SPIDEV_PATCH
+	if ! grep -q jz_spi0_spidev_info $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/misc.c; then \
+		patch -p1 -d $(LINUX_DIR) < $(BR2_EXTERNAL_THINGINO_PATH)/linux/patches/t30-spi0-spidev.patch; \
+	fi
+endef
+LINUX_POST_PATCH_HOOKS += THINGINO_KOPT_SPI0_SPIDEV_PATCH
+endif

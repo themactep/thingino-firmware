@@ -1,0 +1,52 @@
+diff -ruN a/arch/mips/xburst/soc-t30/chip-t30/isvp/common/misc.c b/arch/mips/xburst/soc-t30/chip-t30/isvp/common/misc.c
+--- a/arch/mips/xburst/soc-t30/chip-t30/isvp/common/misc.c	2026-11-11 14:48:54.927891987 +0100
++++ b/arch/mips/xburst/soc-t30/chip-t30/isvp/common/misc.c	2026-11-11 14:48:54.945892177 +0100
+@@ -114,12 +114,25 @@
+ #endif
+ 
+ #ifdef CONFIG_JZ_SPI0
++#include <linux/spi/spi.h>
++/* spidev on SSI0 CS0: userspace link to a SPI peripheral (e.g. WiFi co-processor) */
++static struct spi_board_info jz_spi0_spidev_info[] = {
++	{
++		.modalias = "spidev",
++		.bus_num = 0,
++		.chip_select = 0,
++		.max_speed_hz = 50000000,
++		.mode = SPI_MODE_1,
++	},
++};
+ struct jz_spi_info spi0_info_cfg = {
+ 	.chnl = 0,
+ 	.bus_num = 0,
+ 	.max_clk = 50000000,
+ 	.num_chipselect = 2,
+ 	.allow_cs_same = 1,
++	.board_info = jz_spi0_spidev_info,
++	.board_size = ARRAY_SIZE(jz_spi0_spidev_info),
+ };
+ #endif
+ 
+diff -ruN a/drivers/spi/jz_spi.c b/drivers/spi/jz_spi.c
+--- a/drivers/spi/jz_spi.c	2026-11-11 14:48:54.926891977 +0100
++++ b/drivers/spi/jz_spi.c	2026-11-11 14:48:54.945892177 +0100
+@@ -1078,6 +1078,7 @@
+ 
+ #ifdef CONFIG_JZ_SPI_BOARD_INFO_REGISTER
+ 	struct spi_board_info *bi;
++	int i;
+ #endif
+ 
+ 	master = spi_alloc_master(&pdev->dev, sizeof(struct jz_spi));
+diff -ruN a/arch/mips/xburst/soc-t30/include/mach/platform.h b/arch/mips/xburst/soc-t30/include/mach/platform.h
+--- a/arch/mips/xburst/soc-t30/include/mach/platform.h	2026-11-11 19:18:38.660721380 +0100
++++ b/arch/mips/xburst/soc-t30/include/mach/platform.h	2026-11-11 19:18:38.676721528 +0100
+@@ -29,7 +29,7 @@
+ /*****************************************************************************************************************/
+ 
+ #define SSI0_PORTC							\
+-	{ .name = "ssi0-pc",	       .port = GPIO_PORT_C, .func = GPIO_FUNC_0, .pins = 0x1F800, }
++	{ .name = "ssi0-pc",	       .port = GPIO_PORT_C, .func = GPIO_FUNC_0, .pins = 0x19800, } /* PC11/12/15/16 as in the vendor kernel: PC13/PC14 stay GPIOs (XR871 ready line) */
+ #define SSI1_PORTC							\
+ 	{ .name = "ssi1-pc",	       .port = GPIO_PORT_C, .func = GPIO_FUNC_1, .pins = 0X01f80000, }
+ #define SSI1_PORTD							\
