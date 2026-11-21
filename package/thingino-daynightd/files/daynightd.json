@@ -24,7 +24,8 @@
     "schedule": {
       "enabled": false,
       "start_at": "06:00",
-      "stop_at": "22:00"
+      "stop_at": "22:00",
+      "outside": "keep"
     },
 
     "force_mode": "",
