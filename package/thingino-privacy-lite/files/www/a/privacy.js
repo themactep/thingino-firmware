@@ -2,6 +2,7 @@
   "use strict";
 
   const fallbackEndpoint = "/x/json-prudynt.cgi";
+  const startupPath = "/api/v1/settings/privacy/enabled";
 
   const reloadButton = $("#privacy-reload");
   const saveButton = $("#privacy-save");
@@ -13,19 +14,15 @@
   }
 
   function preferAgent() {
-    const h = helper();
+    const h = window.thinginoStreamer || null;
     if (h && typeof h.preferAgent === "function") {
       return h.preferAgent();
     }
     return agentEnabled();
   }
 
-  async function agentRequest(path, options) {
+  function agentRequest(path, options) {
     return window.agentJsonRequest(path, options);
-  }
-
-  function helper() {
-    return window.thinginoStreamer || null;
   }
 
   function setReloadBusy(state) {
@@ -34,7 +31,7 @@
     reloadButton.classList.toggle("disabled", !!state);
   }
 
-  async function requestFallback(payload) {
+  async function requestPrudynt(payload) {
     const response = await fetch(fallbackEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,44 +47,36 @@
     }
   }
 
-  async function saveConfigToFlash() {
-    if (!saveButton) return;
-    saveButton.disabled = true;
-    try {
-      const h = helper();
-      if (h && h.saveConfig) {
-        const confirmed = await confirm(
-          (h.saveConfirmMessage && h.saveConfirmMessage()) ||
-            "Save the current configuration?\n\nThis will overwrite the saved configuration file on the camera.",
-        );
-        if (!confirmed) return;
-        await h.saveConfig();
-        showAlert(
-          "success",
-          (h.saveSuccessMessage && h.saveSuccessMessage()) ||
-            "Configuration saved.",
-        );
-        return;
-      }
-      if (preferAgent()) {
-        const res = await fetch("/x/json-config-save.cgi", { method: "POST" });
-        if (res.ok) {
-          showAlert("success", "Configuration saved.");
-          return;
-        }
-      }
-      const resp = await requestFallback({ action: { save_config: null } });
-      if (!resp?.action || resp.action.save_config !== "ok") {
-        throw new Error("save_config returned unexpected response");
-      }
-      showAlert("success", "Configuration saved.");
-    } catch (err) {
-      showAlert(
-        "danger",
-        `Failed to save configuration: ${err.message || err}`,
-      );
-    } finally {
-      saveButton.disabled = false;
+  // Both switches are saved config, not the live cover: changing them must
+  // not engage or lift privacy.
+  async function readStartup() {
+    if (preferAgent()) {
+      const data = await agentRequest(startupPath, { cache: "no-store" });
+      return data && data.enabled !== undefined ? !!data.enabled : undefined;
+    }
+    const data = await requestPrudynt({ privacy: { startup: null } });
+    return data?.privacy?.startup;
+  }
+
+  async function writeStartup(checked) {
+    if (preferAgent()) {
+      await agentRequest(startupPath, {
+        method: "PATCH",
+        body: { enabled: checked },
+        cache: "no-store",
+      });
+      return;
+    }
+    const data = await requestPrudynt({ privacy: { startup: checked } });
+    if (data?.privacy?.startup !== checked) {
+      throw new Error("streamer kept a different startup value");
+    }
+  }
+
+  async function writeSaveState(checked) {
+    const data = await requestPrudynt({ privacy: { save_state: checked } });
+    if (data?.privacy?.save_state !== checked) {
+      throw new Error("streamer kept a different runtime-state value");
     }
   }
 
@@ -95,58 +84,15 @@
     setReloadBusy(true);
     try {
       const enabledEl = $("#privacy-enabled");
-      const saveStateEl = $("#privacy-save-state");
-
-      if (preferAgent()) {
-        const cfg = await agentRequest("/api/v1/config", { cache: "no-store" });
-        if (enabledEl) {
-          if (cfg?.privacy?.enabled !== undefined) {
-            enabledEl.checked = !!cfg.privacy.enabled;
-          }
-          enabledEl.disabled = false;
-        }
-        // save_state is not an agent leaf. Read it from the streamer when
-        // the endpoint is available (prudynt); hide it otherwise (raptor).
-        if (saveStateEl) {
-          const wrap =
-            saveStateEl.closest("p, .mb-3, .form-switch") ||
-            saveStateEl.parentElement;
-          let saveState;
-          try {
-            const data = await requestFallback({
-              privacy: { save_state: null },
-            });
-            saveState = data?.privacy?.save_state;
-          } catch (err) {
-            saveState = undefined;
-          }
-          if (saveState !== undefined) {
-            saveStateEl.checked = !!saveState;
-            saveStateEl.disabled = false;
-            if (wrap) wrap.classList.remove("d-none");
-          } else {
-            if (wrap) wrap.classList.add("d-none");
-            saveStateEl.disabled = true;
-          }
-        }
-        return;
-      }
-
-      const data = await requestFallback({
-        privacy: {
-          enabled: null,
-          save_state: null,
-        },
-      });
-
       if (enabledEl) {
-        if (data?.privacy?.enabled !== undefined) {
-          enabledEl.checked = !!data.privacy.enabled;
-        }
+        const startup = await readStartup();
+        if (startup !== undefined) enabledEl.checked = !!startup;
         enabledEl.disabled = false;
       }
 
+      const saveStateEl = $("#privacy-save-state");
       if (saveStateEl) {
+        const data = await requestPrudynt({ privacy: { save_state: null } });
         if (data?.privacy?.save_state !== undefined) {
           saveStateEl.checked = !!data.privacy.save_state;
         }
@@ -162,50 +108,30 @@
     }
   }
 
-  async function sendUpdate(field, checked) {
+  async function saveConfig() {
+    const enabledEl = $("#privacy-enabled");
+    const saveStateEl = $("#privacy-save-state");
+    if (!saveButton || !enabledEl || !saveStateEl) return;
+    saveButton.disabled = true;
     try {
-      if (preferAgent() && field === "enabled") {
-        await agentRequest("/api/v1/actions/privacy", {
-          method: "POST",
-          body: { enabled: checked },
-          cache: "no-store",
-        });
-        return;
-      }
-      await requestFallback({
-        privacy: {
-          [field]: checked,
-        },
-      });
+      await writeStartup(enabledEl.checked);
+      await writeSaveState(saveStateEl.checked);
+      showAlert("success", "Privacy settings saved.");
     } catch (err) {
       showAlert(
         "danger",
-        `Failed to update privacy.${field}: ${err.message || err}`,
+        `Failed to save privacy settings: ${err.message || err}`,
       );
-      const el = $(`#privacy-${field.replace(/_/g, "-")}`);
-      if (el) el.checked = !checked;
+    } finally {
+      saveButton.disabled = false;
     }
   }
 
   function bindControls() {
-    const enabledEl = $("#privacy-enabled");
-    if (enabledEl) {
-      enabledEl.addEventListener("change", () =>
-        sendUpdate("enabled", enabledEl.checked),
-      );
-    }
-
-    const saveStateEl = $("#privacy-save-state");
-    if (saveStateEl) {
-      saveStateEl.addEventListener("change", () =>
-        sendUpdate("save_state", saveStateEl.checked),
-      );
-    }
-
     if (form) {
       form.addEventListener("submit", (e) => {
         e.preventDefault();
-        saveConfigToFlash();
+        saveConfig();
       });
     }
 
