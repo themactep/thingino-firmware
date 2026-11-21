@@ -75,6 +75,7 @@ timps_heartbeat_payload() {
 	case "$TG" in '' | -*) TG=null ;; esac
 	MUTE=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"mute":\([01]\).*/\1/p')
 	AEN=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"enabled":\([01]\).*/\1/p')
+	case "$CUR" in *'"backchannel":{"available":1'*) SPK=true ;; *) SPK=false ;; esac
 	PRIV=$(printf '%s' "$CUR" | sed -n 's/.*"privacy":{\(.*\)},"daynight".*/\1/p')
 	case "$PRIV" in *'"enabled":1'*) PRIV=true ;; *) PRIV=false ;; esac
 	REC=$(printf '%s' "$CUR" | sed -n 's/.*"record":{\([^}]*\)}.*/\1/p')
@@ -110,7 +111,7 @@ timps_heartbeat_payload() {
 	MOTION=$(sed -n 's/^[[:space:]]*motion\.enabled[[:space:]]*=[[:space:]]*\([01]\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n 1)
 	if [ "$MOTION" = "1" ]; then MOTION=true; else MOTION=false; fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":false,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s%s}\n' \
 		"$(date +%s)" \
 		"$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')" \
 		"$BRI" \
@@ -122,6 +123,7 @@ timps_heartbeat_payload() {
 		"$PRIV" \
 		"$COLOR" \
 		"$MIC" \
+		"$SPK" \
 		"$DN_JSON" \
 		"$(timps_hb_ircut_state)" \
 		"$(timps_hb_light_state ir850)" \
