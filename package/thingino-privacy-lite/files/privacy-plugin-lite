@@ -4,7 +4,7 @@
 STATE_FILE="/run/prudynt/privacy-lite.state"
 ACTIVE_FILE="/run/prudynt/privacy-lite.active"
 FIFO="/run/prudynt/video_ctrl"
-JCT="/usr/bin/jct"
+PRUDYNT_CONFIG="/usr/bin/prudynt-config"
 IMP_CONTROL="/usr/sbin/imp-control"
 MICROPHONE="/usr/sbin/microphone"
 MIC_ACTIVE="/run/prudynt/mic.active"
@@ -90,14 +90,26 @@ backup_runtime_state() {
 		return 0
 	fi
 
-	BITRATE_0="$("$JCT" /etc/prudynt.json get stream0.bitrate)"
-	BITRATE_1="$("$JCT" /etc/prudynt.json get stream1.bitrate)"
-	FPS_0="$("$JCT" /etc/prudynt.json get stream0.fps)"
-	FPS_1="$("$JCT" /etc/prudynt.json get stream1.fps)"
+	# Effective config (core plus user layer). Reading the core file alone
+	# replaces a user override with the shipped default.
+	BITRATE_0="$("$PRUDYNT_CONFIG" get stream0.bitrate)"
+	BITRATE_1="$("$PRUDYNT_CONFIG" get stream1.bitrate)"
+	FPS_0="$("$PRUDYNT_CONFIG" get stream0.fps)"
+	FPS_1="$("$PRUDYNT_CONFIG" get stream1.fps)"
 	# Whether the mic was live, as prudynt publishes it; the saved config key
 	# says nothing about the current state.
 	MIC_WAS_ON=false
 	[ -f "$MIC_ACTIVE" ] && MIC_WAS_ON=true
+
+	# Without a sound backup there is no way back from the throttle.
+	for value in "$BITRATE_0" "$BITRATE_1" "$FPS_0" "$FPS_1"; do
+		case "$value" in
+			"" | *[!0-9]*)
+				echo "error: cannot read stream settings to restore" >&2
+				exit 1
+				;;
+		esac
+	done
 
 	cat >"$STATE_FILE" <<EOF
 BITRATE_0=$BITRATE_0
@@ -221,7 +233,7 @@ CHANNEL_ARG="$2"
 
 [ -z "$COMMAND" ] && usage
 
-require_tool "$JCT"
+require_tool "$PRUDYNT_CONFIG"
 require_tool "$IMP_CONTROL"
 require_tool "$MICROPHONE"
 
