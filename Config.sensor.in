@@ -87,4 +87,17 @@ config BR2_SENSOR_2_IQ_FILE
 	help
 	  Same as BR2_SENSOR_1_IQ_FILE but for the second sensor.
 
+config BR2_SENSOR_1_NCU_FILE
+	string "NCU denoise binary for Sensor 1"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 1
+	help
+	  Optional NCU (3D denoise) tuning binary, installed as
+	  /etc/sensor/ncu_<sensor>.bin. The T30 libimp (vendor, and OpenIMP
+	  with the vendor 1.0.4 layout of 0x1548 bytes) runs the NCU engine
+	  with it instead of Temper; without it Temper is used.
+	  A bare file name is taken from the ingenic-sdk sensor-iq/<soc>/
+	  directory (e.g. ncu_imx307.bin), a relative path from the
+	  BR2_EXTERNAL tree root, an absolute path as is (e.g. a camera's
+	  own tuned file kept outside the tree).
+
 endmenu
