@@ -882,6 +882,16 @@ function updateHeartbeatUi(json) {
   if (uptimeEl && typeof json.uptime !== "undefined" && json.uptime !== "")
     uptimeEl.textContent = "Uptime:️ " + json.uptime;
 
+  const batteryEl = $("#battery");
+  if (batteryEl && typeof json.bat_mv === "number") {
+    const parts = [(json.bat_mv / 1000).toFixed(2) + " V"];
+    if (typeof json.bat_soc === "number") parts.push(json.bat_soc + " %");
+    if (typeof json.bat_temp_c === "number")
+      parts.push("fuel gauge " + json.bat_temp_c + " \u00b0C");
+    batteryEl.textContent = "Battery: " + parts.join(", ");
+    batteryEl.hidden = false;
+  }
+
   updateRecordingState({
     ch0: json.rec_ch0 === true || json.rec_ch0 === 1,
     ch1: json.rec_ch1 === true || json.rec_ch1 === 1,

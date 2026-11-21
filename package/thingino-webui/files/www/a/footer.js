@@ -196,6 +196,10 @@
     const uptime = createElement("div");
     uptime.id = "uptime";
 
+    const battery = createElement("div");
+    battery.id = "battery";
+    battery.hidden = true;
+
     const themeWrap = document.createElement("div");
     const themeToggle = document.createElement("a");
     themeToggle.href = "#";
@@ -210,6 +214,7 @@
 
     leftCol.appendChild(host);
     leftCol.appendChild(uptime);
+    leftCol.appendChild(battery);
     leftCol.appendChild(themeWrap);
 
     const rightCol = createElement("div", "col col-sm-7 mb-2 text-sm-end");
