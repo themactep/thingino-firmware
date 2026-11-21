@@ -1,0 +1,22 @@
+# NAME: ABUS PPIC90520 (T30N, IMX307, XR871 co-processor)
+# FRAG: soc-xburst1 core
+BR2_INGENIC_SOC_MODEL="t30n"
+BR2_PACKAGE_THINGINO_KOPT_SPI0_PC=y
+BR2_PACKAGE_THINGINO_KOPT_UART=y
+BR2_PACKAGE_THINGINO_KOPT_UART_UART0=y
+BR2_SENSOR_1_NAME="imx307"
+BR2_THINGINO_AUDIO=y
+FLASH_SIZE_MB=16
+KERNEL_VERSION_3=y
+BR2_PACKAGE_XR871_BRIDGE=y
+# Streamer: timps (OpenIMP) instead of prudynt
+BR2_PACKAGE_THINGINO_STREAMER_TIMPS=y
+# The IMX307 line is 1948x1109; the T30 NCU/mscaler only run when the ISP core
+# crops to 1920x1080 at 12/20 - the compiled-in defaults of the stock ABUS
+# kernel (openimp#695, verified with the vendor pair on hardware)
+BR2_ISP_PARAMS="ispw=1920 isph=1080 ispleft=12 isptop=20"
+BR2_ISP_CLK_150MHZ=y
+# timps H.264 (helix bitstream 4 MB + refs) at 1080p needs ~27 MB rmem;
+# stock layout is mem=36M rmem=28M
+# BR2_THINGINO_RMEM_MB_AUTO is not set
+BR2_THINGINO_RMEM_MB=28

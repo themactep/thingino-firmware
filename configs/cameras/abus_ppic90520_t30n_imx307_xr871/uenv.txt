@@ -1,0 +1,2 @@
+gpio_default=72O 73O 89O
+bootdelay=0
