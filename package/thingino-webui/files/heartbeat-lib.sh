@@ -482,10 +482,48 @@ thingino_heartbeat_native_payload() {
 		"$(thingino_heartbeat_network_restart_pending)"
 }
 
-thingino_heartbeat_payload() {
+thingino_heartbeat_payload_base() {
 	if thingino_heartbeat_raptor_available; then
 		thingino_heartbeat_raptor_payload
 	else
 		thingino_heartbeat_native_payload
 	fi
+}
+
+# Battery from a co-processor daemon (e.g. xr871d on battery cameras):
+# key=value lines vbat_mv, soc, temp_c (fuel gauge temperature), updated.
+THINGINO_BATTERY_FILE="${THINGINO_BATTERY_FILE:-/run/xr871d.battery}"
+
+thingino_heartbeat_battery_fields() {
+	[ -r "$THINGINO_BATTERY_FILE" ] || return 0
+	awk -F= '
+		$1 == "vbat_mv" || $1 == "soc" || $1 == "temp_c" || $1 == "updated" {
+			if ($2 ~ /^-?[0-9]+$/) v[$1] = $2
+		}
+		END {
+			if (!("vbat_mv" in v)) exit
+			printf ",\"bat_mv\":%d", v["vbat_mv"]
+			if ("soc" in v) printf ",\"bat_soc\":%d", v["soc"]
+			if ("temp_c" in v) printf ",\"bat_temp_c\":%d", v["temp_c"]
+			if ("updated" in v) printf ",\"bat_updated\":%d", v["updated"]
+		}' "$THINGINO_BATTERY_FILE"
+}
+
+thingino_heartbeat_payload() {
+	# No battery file: exactly the unmodified payload, no extra work.
+	if [ ! -r "$THINGINO_BATTERY_FILE" ]; then
+		thingino_heartbeat_payload_base
+		return
+	fi
+	payload=$(thingino_heartbeat_payload_base) || return 1
+	extra=$(thingino_heartbeat_battery_fields)
+	if [ -n "$extra" ]; then
+		case "$payload" in
+			*'}')
+				printf '%s%s}\n' "${payload%\}}" "$extra"
+				return 0
+				;;
+		esac
+	fi
+	printf '%s\n' "$payload"
 }
