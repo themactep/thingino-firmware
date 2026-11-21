@@ -61,7 +61,8 @@ EOF
 
 send_config() {
 	local json="$1"
-	"$PRUDYNTCTL" json "$json" >/dev/null
+	# Runtime transport: these changes are for the running process only.
+	"$PRUDYNTCTL" runtime "$json" >/dev/null
 	return $?
 }
 

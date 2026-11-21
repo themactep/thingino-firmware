@@ -2,7 +2,7 @@
 
 set_mic_enabled() {
 	value="$1"
-	printf '{"audio":{"mic_enabled":%s},"action":{"restart_thread":4}}\n' "$value" | prudyntctl json - >/dev/null 2>&1
+	printf '{"audio":{"mic_enabled":%s},"action":{"restart_thread":4}}\n' "$value" | prudyntctl runtime - >/dev/null 2>&1
 }
 
 get_mic_enabled() {
