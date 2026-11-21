@@ -1,0 +1,35 @@
+privacy.enabled had only a live meaning: writing it engaged or lifted the
+cover. The settings page needs the boot value, which it cannot set without
+changing what the camera is doing right now.
+
+Add a startup key to the privacy JSON section that reads and writes the saved
+config key only, persisted through the same explicit path mechanism as
+save_state.
+
+diff --git a/src/config/JsonAPI.cpp b/src/config/JsonAPI.cpp
+index 491d4d2..2739268 100644
+--- a/src/config/JsonAPI.cpp
++++ b/src/config/JsonAPI.cpp
+@@ -857,6 +857,22 @@ void handle_privacy(JsonValue *obj, std::string &out, bool &sep) {
+     }
+   }
+ 
++  // startup: the value the cover is built from at boot. This is the saved
++  // config key, not the live cover, so setting it must not touch the streams.
++  if (JsonValue *v = obj_get(obj, "startup")) {
++    if (v->type == JSON_BOOL) {
++      cfg->set<bool>("privacy.enabled", v->value.boolean != 0);
++      cfg->persist_paths({"privacy.enabled"});
++      add_key(out, s2, "startup");
++      add_bool(out, cfg->privacy.enabled);
++      wrote = true;
++    } else if (v->type == JSON_NULL) {
++      add_key(out, s2, "startup");
++      add_bool(out, cfg->privacy.enabled);
++      wrote = true;
++    }
++  }
++
+   // save_state: persist runtime toggles to config
+   if (JsonValue *v = obj_get(obj, "save_state")) {
+     if (v->type == JSON_BOOL) {
