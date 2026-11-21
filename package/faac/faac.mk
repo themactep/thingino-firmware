@@ -16,9 +16,18 @@ FAAC_CFLAGS = $(TARGET_CFLAGS) -fno-math-errno
 
 FAAC_CONF_OPTS = \
 	-Dmax-channels=2 \
-	-Ddecoder=false \
 	-Dmuxer=false \
 	-Dresampler=false
+
+ifeq ($(BR2_PACKAGE_FAAC_DECODER),y)
+FAAC_CONF_OPTS += \
+	-Ddecoder=true \
+	-Ddecoder-ps=false \
+	-Ddecoder-dab=false \
+	-Ddecoder-drc=false
+else
+FAAC_CONF_OPTS += -Ddecoder=false
+endif
 
 ifeq ($(BR2_PACKAGE_FAAC_INSTALL_BIN),y)
 FAAC_CONF_OPTS += -Dfrontend=true
