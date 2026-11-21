@@ -2,3 +2,14 @@ config BR2_PACKAGE_WIFI_ATBM6031
 	select BR2_LINUX_KERNEL
 	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	bool "AltoBeam ATBM6031"
+
+config BR2_PACKAGE_WIFI_ATBM6031_SW_RATE_CTRL
+	bool "Use mac80211 software rate control"
+	depends on BR2_PACKAGE_WIFI_ATBM6031
+	help
+	  Run rate adaptation in the driver (minstrel_ht) instead of the
+	  ATBM firmware. Some atbm6031 firmware revisions stay at MCS1 even
+	  on a strong link; software rate control can recover the higher
+	  rates at the cost of CPU time. This disables the firmware's
+	  no-TX-confirm fast path so the driver receives the per-frame
+	  status that minstrel needs.

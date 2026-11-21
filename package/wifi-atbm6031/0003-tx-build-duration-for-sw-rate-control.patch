@@ -1,0 +1,42 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Tue, 10 Nov 2026 18:40:00 -0500
+Subject: [PATCH] mac80211: build ieee80211_duration for software rate control
+
+ieee80211_tx_h_calculate_duration() calls ieee80211_duration() when
+CONFIG_RATE_HW_CONTROL is not defined, but the function is only compiled
+under CONFIG_ATBM_MAC80211_NO_USE. Building with
+CONFIG_ATBM_SW_RATE_CTRL=y therefore fails with an implicit declaration
+of ieee80211_duration.
+
+Compile only the duration helper for the software rate-control path and
+keep the rest of the NO_USE block (dynamic PS and friends) as it was.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ hal_apollo/mac80211/tx.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/hal_apollo/mac80211/tx.c b/hal_apollo/mac80211/tx.c
+--- a/hal_apollo/mac80211/tx.c
++++ b/hal_apollo/mac80211/tx.c
+@@ -41,7 +41,7 @@
+ /* misc utils */
+ extern int Atbm_Test_Success;
+ extern struct etf_test_config etf_config;
+-#ifdef CONFIG_ATBM_MAC80211_NO_USE
++#if defined(CONFIG_ATBM_MAC80211_NO_USE) || !defined(CONFIG_RATE_HW_CONTROL)
+ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
+ 				 int next_frag_len)
+ {
+@@ -176,6 +176,9 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
+ 
+ 	return cpu_to_le16(dur);
+ }
++#endif
++
++#ifdef CONFIG_ATBM_MAC80211_NO_USE
+ static inline int is_ieee80211_device(struct ieee80211_local *local,
+ 				      struct net_device *dev)
+ {
+-- 
+2.43.0
