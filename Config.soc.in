@@ -897,6 +897,21 @@ config FLASH_SIZE_MB
 	default 8
 	depends on BR2_THINGINO_FLASH_NOR || BR2_THINGINO_FLASH_NAND
 
+config BR2_THINGINO_FLASH_CAP_8M
+	bool "Cap flash layout at 8 MB"
+	depends on BR2_THINGINO_FLASH_NOR
+	depends on FLASH_SIZE_MB > 8
+	help
+	  Build the partition table and image for an 8 MB flash even when
+	  the chip is larger. The remaining space stays unused and the data
+	  partition shrinks with it. Keeps the full image small enough to
+	  stage in RAM for an OTA update on devices with 64 MB.
+
+config FLASH_LAYOUT_MB
+	int
+	default 8 if BR2_THINGINO_FLASH_CAP_8M
+	default FLASH_SIZE_MB
+
 config BR2_THINGINO_ALIGN_SIZE_KB
 	int "Flash Alignment Size, KB"
 	default 32
