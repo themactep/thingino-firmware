@@ -22,7 +22,7 @@ up() { cut -d. -f1 /proc/uptime; }
 # a power-on by the PIR comes before the overlay and the ISP are up
 if [ "$1" = "wake" ]; then
 	i=0
-	while [ $i -lt 30 ] && ! [ -r /proc/jz/isp/isp-m0 -a -x /usr/sbin/wlight ]; do
+	while [ $i -lt 30 ] && ! { [ -r /proc/jz/isp/isp-m0 ] && [ -x /usr/sbin/wlight ]; }; do
 		sleep 1
 		i=$((i + 1))
 	done

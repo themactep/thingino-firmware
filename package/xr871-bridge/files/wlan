@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # wlan helper for cameras whose WiFi lives on an XR871 co-processor
 # (ABUS PPIC90520): same interface as Thingino's wlan tool for the WebUI.
 # The XR871 runs its own supplicant; xr871d hands it the credentials from
