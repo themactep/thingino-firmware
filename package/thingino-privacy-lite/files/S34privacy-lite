@@ -1,0 +1,107 @@
+#!/bin/sh
+# shellcheck disable=SC3043
+
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
+PID_FILE="/run/privacy-lite.pid"
+PLUGIN="/usr/libexec/thingino/privacy-plugin-lite"
+STATE_FILE="/run/prudynt/privacy-lite.state"
+COVER_FILE="/run/prudynt/privacy.active"
+FIFO="/run/prudynt/video_ctrl"
+INTERVAL=1
+RETRY_INTERVAL=5
+
+# The published cover state is the one place every origin converges on: the
+# privacy command, the JSON API and the boot state all end up in it. Drive the
+# plugin from it instead of hooking each caller.
+watch() {
+	while :; do
+		if [ ! -p "$FIFO" ]; then
+			# prudynt is not running, so its streams are gone and the saved
+			# restore values are void. Forget them before it comes back.
+			[ -f "$STATE_FILE" ] && rm -f "$STATE_FILE"
+			sleep "$INTERVAL"
+			continue
+		fi
+
+		if [ -f "$COVER_FILE" ]; then
+			want=on
+		else
+			want=off
+		fi
+		if [ -f "$STATE_FILE" ]; then
+			applied=on
+		else
+			applied=off
+		fi
+
+		if [ "$want" != "$applied" ]; then
+			if ! "$PLUGIN" "$want"; then
+				log -c 160 "privacy-lite: $want failed, retrying"
+				sleep "$RETRY_INTERVAL"
+				continue
+			fi
+		fi
+		sleep "$INTERVAL"
+	done
+}
+
+start() {
+	if [ ! -x "$PLUGIN" ]; then
+		echo "privacy plugin missing: $PLUGIN" >&2
+		return 1
+	fi
+
+	# Adopt a loop that is already running instead of stacking a second one:
+	# the pidfile write happens after the fork, so a restart can race the
+	# previous instance.
+	if [ -f "$PID_FILE" ]; then
+		pid=$(cat "$PID_FILE" 2>/dev/null)
+		if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+			log -c 240 -e "privacy-lite already running (pid $pid)"
+			return 0
+		fi
+	fi
+
+	watch &
+	echo "$!" >"$PID_FILE"
+}
+
+stop() {
+	if [ ! -f "$PID_FILE" ]; then
+		return 0
+	fi
+
+	pid=$(cat "$PID_FILE" 2>/dev/null)
+	if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+		kill "$pid"
+		i=0
+		while [ "$i" -lt 20 ] && kill -0 "$pid" 2>/dev/null; do
+			usleep 100000
+			i=$((i + 1))
+		done
+		kill -9 "$pid" 2>/dev/null
+	fi
+
+	rm -f "$PID_FILE"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

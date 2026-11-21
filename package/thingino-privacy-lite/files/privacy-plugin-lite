@@ -3,7 +3,6 @@
 
 STATE_FILE="/run/prudynt/privacy-lite.state"
 ACTIVE_FILE="/run/prudynt/privacy-lite.active"
-FIFO="/run/prudynt/video_ctrl"
 PRUDYNT_CONFIG="/usr/bin/prudynt-config"
 IMP_CONTROL="/usr/sbin/imp-control"
 MICROPHONE="/usr/sbin/microphone"
@@ -43,32 +42,6 @@ parse_channel() {
 	esac
 }
 
-send_privacy_fifo() {
-	local state="$1"
-	local channel="$2"
-
-	if [ ! -p "$FIFO" ]; then
-		echo "error: prudynt control FIFO is missing: $FIFO" >&2
-		exit 1
-	fi
-
-	case "$channel" in
-		"" | all)
-			printf "PRIVACY value=%s\n" "$state" >"$FIFO"
-			;;
-		0 | 1)
-			printf "PRIVACY ch=%s value=%s\n" "$channel" "$state" >"$FIFO"
-			;;
-		ch=0 | ch=1)
-			printf "PRIVACY %s value=%s\n" "$channel" "$state" >"$FIFO"
-			;;
-		*)
-			echo "error: invalid channel for FIFO: $channel" >&2
-			exit 1
-			;;
-	esac
-}
-
 write_active_state() {
 	cat >"$ACTIVE_FILE" <<EOF
 CH0_ACTIVE=$CH0_ACTIVE
@@ -85,13 +58,11 @@ load_active_state() {
 	fi
 }
 
+# Effective config (core plus user layer). Reading the core file alone replaces
+# a user override with the shipped default. The values are written to a staging
+# file and only published once the throttle succeeded, so a half-applied run
+# never leaves a backup of throttled values behind.
 backup_runtime_state() {
-	if [ -f "$STATE_FILE" ]; then
-		return 0
-	fi
-
-	# Effective config (core plus user layer). Reading the core file alone
-	# replaces a user override with the shipped default.
 	BITRATE_0="$("$PRUDYNT_CONFIG" get stream0.bitrate)"
 	BITRATE_1="$("$PRUDYNT_CONFIG" get stream1.bitrate)"
 	FPS_0="$("$PRUDYNT_CONFIG" get stream0.fps)"
@@ -113,7 +84,7 @@ backup_runtime_state() {
 		esac
 	done
 
-	cat >"$STATE_FILE" <<EOF
+	cat >"$STATE_FILE.tmp" <<EOF
 BITRATE_0=$BITRATE_0
 BITRATE_1=$BITRATE_1
 FPS_0=$FPS_0
@@ -134,17 +105,15 @@ throttle_channel() {
 
 restore_channel() {
 	local channel="$1"
+	local source="$2"
 	local bitrate=""
 	local fps=""
 	local gop=""
 
-	if [ ! -f "$STATE_FILE" ]; then
-		echo "error: runtime state file missing: $STATE_FILE" >&2
-		exit 1
-	fi
+	[ -f "$source" ] || return 0
 
 	# shellcheck disable=SC1090
-	. "$STATE_FILE"
+	. "$source"
 
 	case "$channel" in
 		0)
@@ -159,7 +128,7 @@ restore_channel() {
 			;;
 		*)
 			echo "error: invalid channel '$channel'" >&2
-			exit 1
+			return 1
 			;;
 	esac
 
@@ -179,13 +148,12 @@ set_mic_enabled() {
 }
 
 restore_mic_state() {
-	if [ ! -f "$STATE_FILE" ]; then
-		echo "error: runtime state file missing: $STATE_FILE" >&2
-		exit 1
-	fi
+	local source="$1"
+
+	[ -f "$source" ] || return 0
 
 	# shellcheck disable=SC1090
-	. "$STATE_FILE"
+	. "$source"
 
 	# A mic that was already off stays off.
 	if [ "$MIC_WAS_ON" = "true" ]; then
@@ -196,21 +164,43 @@ restore_mic_state() {
 apply_on() {
 	local channels="$1"
 	local ch=""
+	local failed=0
+
+	# Already throttled; a repeat must not overwrite the backup with the
+	# throttled values it just applied.
+	[ -f "$STATE_FILE" ] && return 0
 
 	backup_runtime_state
 	load_active_state
+
 	if [ -f "$MIC_ACTIVE" ]; then
 		set_mic_enabled false
 	fi
 
 	for ch in $channels; do
-		throttle_channel "$ch" || exit 1
+		if ! throttle_channel "$ch"; then
+			failed=1
+			break
+		fi
 		if [ "$ch" = "0" ]; then
 			CH0_ACTIVE=1
 		else
 			CH1_ACTIVE=1
 		fi
 	done
+
+	if [ "$failed" = "1" ]; then
+		# Put back what this run changed; the cover stays as it is. Restoring
+		# a channel that was not reached yet is harmless.
+		restore_mic_state "$STATE_FILE.tmp"
+		for ch in $channels; do
+			restore_channel "$ch" "$STATE_FILE.tmp" || true
+		done
+		rm -f "$STATE_FILE.tmp"
+		exit 1
+	fi
+
+	mv -f "$STATE_FILE.tmp" "$STATE_FILE"
 	write_active_state
 }
 
@@ -218,10 +208,14 @@ apply_off() {
 	local channels="$1"
 	local ch=""
 
+	# Nothing was throttled: the cover did not go through us, or a previous
+	# run already restored.
+	[ -f "$STATE_FILE" ] || return 0
+
 	load_active_state
 
 	for ch in $channels; do
-		restore_channel "$ch" || exit 1
+		restore_channel "$ch" "$STATE_FILE" || exit 1
 		if [ "$ch" = "0" ]; then
 			CH0_ACTIVE=0
 		else
@@ -231,7 +225,7 @@ apply_off() {
 	write_active_state
 
 	if [ "$CH0_ACTIVE" = "0" ] && [ "$CH1_ACTIVE" = "0" ]; then
-		restore_mic_state
+		restore_mic_state "$STATE_FILE"
 		rm -f "$STATE_FILE" "$ACTIVE_FILE"
 	fi
 }
@@ -249,11 +243,9 @@ CHANNELS="$(parse_channel "$CHANNEL_ARG")"
 
 case "$COMMAND" in
 	on)
-		send_privacy_fifo on "$CHANNEL_ARG"
 		apply_on "$CHANNELS"
 		;;
 	off)
-		send_privacy_fifo off "$CHANNEL_ARG"
 		apply_off "$CHANNELS"
 		;;
 	*)

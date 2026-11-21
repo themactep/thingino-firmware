@@ -19,6 +19,8 @@ endif
 define THINGINO_PRIVACY_LITE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_PRIVACY_LITE_PKGDIR)/files/privacy-plugin-lite \
 		$(TARGET_DIR)/usr/libexec/thingino/privacy-plugin-lite
+	$(INSTALL) -D -m 0755 $(THINGINO_PRIVACY_LITE_PKGDIR)/files/S34privacy-lite \
+		$(TARGET_DIR)/etc/init.d/S34privacy-lite
 	$(THINGINO_PRIVACY_LITE_INSTALL_WWW_CMDS)
 endef
 
