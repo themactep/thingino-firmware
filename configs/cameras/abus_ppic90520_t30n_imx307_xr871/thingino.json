@@ -1,0 +1,24 @@
+{
+  "gpio": {
+    "white": {
+      "pin": 89,
+      "brightness": 80,
+      "pir": true,
+      "pir_seconds": 60
+    },
+    "ircut": "72 73"
+  },
+  "daynight": {
+    "controls": {
+      "ir850": false,
+      "ir940": false,
+      "white": false
+    }
+  },
+  "xr871": {
+    "standby": {
+      "enabled": true,
+      "idle_minutes": 10
+    }
+  }
+}
