@@ -1,0 +1,53 @@
+#!/bin/sh
+# Minimal wpa_cli for cameras whose WiFi is an XR871 co-processor: there
+# is no wpa_supplicant on the T30 (wlan0 is a TAP device fed over SPI).
+# Answers the calls Thingino's portal (api.cgi) and scripts make:
+#   status        wpa_state=COMPLETED when the XR871 link is up (STA or AP)
+#   scan          XR871 scan (station mode; in AP mode the prescan is kept)
+#   scan_results  the last scan in wpa_cli format
+# Everything else answers OK and does nothing.
+
+SCAN=/run/xr871d.scan
+MODE=$(cat /run/xr871d.wifimode 2>/dev/null)
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-i | -p | -g | -P | -G) shift 2 ;;
+	-i* | -p*) shift ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+
+case "$1" in
+status)
+	if [ "$(cat /sys/class/net/wlan0/carrier 2>/dev/null)" = 1 ] || [ "$MODE" = ap ]; then
+		echo "wpa_state=COMPLETED"
+	else
+		echo "wpa_state=DISCONNECTED"
+	fi
+	[ "$MODE" = ap ] && echo "mode=AP" || echo "mode=station"
+	;;
+scan)
+	if [ "$MODE" != ap ]; then
+		rm -f /run/xr871d.wifiop
+		xr871d -c scan >/dev/null 2>&1
+	fi
+	echo OK
+	;;
+scan_results)
+	if [ "$MODE" != ap ] && [ -f $SCAN ]; then
+		cat $SCAN
+	elif [ -f /tmp/wifi_prescan ]; then
+		cat /tmp/wifi_prescan
+	else
+		echo "bssid / frequency / signal level / flags / ssid"
+	fi
+	;;
+"")
+	echo "wpa_cli shim for the XR871 bridge" >&2
+	;;
+*)
+	echo OK
+	;;
+esac

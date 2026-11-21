@@ -1,0 +1,59 @@
+#!/bin/sh
+# /usr/libexec/xr871/daynight: day/night hook for the ABUS PPIC90520, set as
+# timps "daynight.switch_cmd". It wraps the standard /sbin/daynight (IR-cut,
+# lights, colour) and adds two board rules:
+#
+# 1. While the PIR white light is on (/usr/libexec/xr871/pir), the light
+#    itself brightens the scene and timps may decide "day". Switching the
+#    hardware to day then would click the IR-cut filter and, once the light
+#    goes off, switch straight back: day/night flapping on every motion.
+#    So a "day" request while the PIR light runs is ignored here; the light
+#    goes off when its time is up and timps re-evaluates with the real scene.
+#
+# 2. Night fps and sharpness, like the stock firmware (15 fps at night):
+#    set live and not persisted through timps /control ("persist":false).
+#    timps.conf keeps the day values. timps runs this hook synchronously
+#    (10 s budget) and takes its exposure reference after the switch, so the
+#    fps change must only happen here. The fps is set before /sbin/daynight
+#    runs, so timps' day check already reads at day fps.
+#    /sbin/daynight must be exec'd: it exits when another process named
+#    "daynight" runs (singleton check), and this hook has the same name.
+#
+# thingino.json (defaults in brackets):
+#   xr871.night.fps        [15]   0 = leave the fps alone
+#   xr871.night.sharpness  [64]
+#   xr871.day.fps          [25]
+#   xr871.day.sharpness    [128]
+
+CONF=/etc/thingino.json
+PIDF=/run/pir-light.pid
+
+cfg() { jct "$CONF" get "$1" 2>/dev/null | tr -dc 0-9; }
+pir_light_on() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
+
+# set_mode day|night: live, not persisted
+set_mode() {
+	case $1 in
+	night) fps=$(cfg xr871.night.fps); fps=${fps:-15}
+	       sh=$(cfg xr871.night.sharpness); sh=${sh:-64} ;;
+	*)     fps=$(cfg xr871.day.fps); fps=${fps:-25}
+	       sh=$(cfg xr871.day.sharpness); sh=${sh:-128} ;;
+	esac
+	body="{\"persist\":false,\"image\":{\"sharpness\":$sh}"
+	[ "$fps" -gt 0 ] 2>/dev/null && body="{\"persist\":false,\"sensor\":{\"fps\":$fps},\"image\":{\"sharpness\":$sh}"
+	body="$body}"
+	resp=$(curl -s -m 3 -H "X-Timps-Token: $(cat /run/timps.token 2>/dev/null)" \
+		-X POST http://127.0.0.1:8880/control -d "$body" 2>&1)
+	logger -t daynight-hook "$1: fps $fps sharpness $sh -> $(echo "$resp" | head -c 120)"
+}
+
+if [ "$1" = "day" ] && pir_light_on; then
+	logger -t daynight-hook "day request ignored while the PIR light is on"
+	exit 0
+fi
+
+case $1 in
+day)	set_mode day; exec /sbin/daynight "$@" ;;
+night)	set_mode night; exec /sbin/daynight "$@" ;;
+*)	exec /sbin/daynight "$@" ;;
+esac

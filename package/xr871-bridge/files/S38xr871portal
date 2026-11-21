@@ -1,0 +1,117 @@
+#!/bin/sh
+# Captive portal for cameras whose WiFi radio is an XR871 co-processor
+# (ABUS PPIC90520). Same behaviour as Thingino's S38wpa_supplicant portal:
+# without usable credentials the camera opens an open access point
+# THINGINO-xxxx, gives itself 172.16.0.1 on wlan0 and serves the Thingino
+# portal (S60uhttpd sees /run/portal_mode). wpa_supplicant cannot run here
+# because wlan0 is a TAP device fed over SPI, so the XR871 runs the AP
+# (xr871d -c 'ap ...') and the scan for the network list comes from the
+# XR871 as well (xr871d -c scan, read by the wpa_cli shim).
+#
+# Force the portal with credentials present: touch /etc/xr871-portal.force
+# (removed again once the portal saves new credentials).
+
+PORTAL_CNET=172.16.0
+PORTAL_IP=$PORTAL_CNET.1
+IFACE=wlan0
+FLAG=/run/portal_mode
+FORCE=/etc/xr871-portal.force
+OPFILE=/run/xr871d.wifiop
+
+log() {
+	logger -t xr871portal "$*"
+	echo "xr871portal: $*"
+}
+
+have_creds() {
+	grep -q '^[[:space:]]*ssid=' /etc/wpa_supplicant.conf 2>/dev/null &&
+		grep -q '^[[:space:]]*psk=' /etc/wpa_supplicant.conf 2>/dev/null
+}
+
+# wait_op <op> <seconds>: 0 when the XR871 reported "<op> ok"
+wait_op() {
+	i=0
+	while [ $i -lt "$2" ]; do
+		if grep -q "^$1 " $OPFILE 2>/dev/null; then
+			grep -q "^$1 ok" $OPFILE
+			return
+		fi
+		sleep 1
+		i=$((i + 1))
+	done
+	return 1
+}
+
+# xr_op <op> <seconds> [args]: ask the XR871, retry while its WLAN boots
+xr_op() {
+	op=$1 t=$2
+	shift 2
+	n=0
+	while [ $n -lt 10 ]; do
+		rm -f $OPFILE
+		xr871d -c "$op${1:+ $*}" || return 1
+		wait_op "$op" "$t" && return 0
+		n=$((n + 1))
+		sleep 2
+	done
+	return 1
+}
+
+start() {
+	if [ ! -f $FORCE ] && have_creds; then
+		exit 0
+	fi
+	if ! pidof xr871d >/dev/null; then
+		log "xr871d not running, no portal"
+		exit 1
+	fi
+	log "No WiFi credentials: starting the setup portal"
+
+	# Survey first: the XR871 cannot scan once it is an AP
+	if xr_op scan 10; then
+		cp /run/xr871d.scan /tmp/wifi_prescan
+		log "Scan: $(($(wc -l </tmp/wifi_prescan) - 1)) networks"
+	else
+		log "Scan failed, the portal will show no network list"
+	fi
+
+	mac=$(cat /sys/class/net/$IFACE/address 2>/dev/null)
+	last_two=$(echo "$mac" | awk -F: '{print $(NF-1) $NF}')
+	ssid="THINGINO-${last_two:-0000}"
+	if ! xr_op ap 25 "$ssid"; then
+		log "ERROR: the XR871 did not start the access point"
+		exit 1
+	fi
+	log "Access point $ssid is up"
+	touch $FLAG
+
+	sed "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf >/run/udhcpd-portal.conf
+	touch /run/udhcpd.leases
+	ip address add $PORTAL_IP/24 dev $IFACE 2>/dev/null
+	ip link set $IFACE up
+	ip route replace $PORTAL_CNET.0/24 dev $IFACE
+	start-stop-daemon -S -b -x /sbin/udhcpd -- -f -S -I $PORTAL_IP /run/udhcpd-portal.conf
+	start-stop-daemon -S -b -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf
+	log "Portal on http://$PORTAL_IP/"
+}
+
+stop() {
+	[ -f $FLAG ] || return 0
+	log "Stopping the setup portal"
+	start-stop-daemon -K -q -x /sbin/udhcpd
+	start-stop-daemon -K -q -x /sbin/dnsd
+	ip route delete $PORTAL_CNET.0/24 dev $IFACE 2>/dev/null
+	ip address delete $PORTAL_IP/24 dev $IFACE 2>/dev/null
+	rm -f $FLAG
+	xr871d -c sta
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart) stop; start ;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

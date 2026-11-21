@@ -1,0 +1,66 @@
+#!/bin/sh
+# wlan helper for cameras whose WiFi lives on an XR871 co-processor
+# (ABUS PPIC90520): same interface as Thingino's wlan tool for the WebUI.
+# The XR871 runs its own supplicant; xr871d hands it the credentials from
+# /etc/wpa_supplicant.conf whenever that file changes.
+
+entry_command=$(basename "$0")
+STATUS=/run/xr871net.status
+
+configure() {
+	local ssid="$1" password="$2"
+
+	if [ -z "$ssid" ] || [ -z "$password" ]; then
+		echo "Usage: $entry_command configure <ssid> <password> [bssid]" >&2
+		exit 1
+	fi
+	if [ "$3" = "ap" ] || [ "$4" = "ap" ]; then
+		echo "AP mode is not supported by the XR871 bridge firmware yet" >&2
+		exit 1
+	fi
+	password=$(printf '%s' "$password" | tr -d '\r\n\t')
+	umask 077
+	{
+		echo "# created on $(date +%c)"
+		echo "ctrl_interface=/run/wpa_supplicant"
+		echo ""
+		echo "network={"
+		echo "        ssid=\"$ssid\""
+		echo "        psk=\"$password\""
+		echo "}"
+	} >/etc/wpa_supplicant.conf
+	rm -f /etc/xr871-portal.force
+	# xr871d notices the change within a second; nudge it anyway (in portal
+	# mode this also switches the XR871 from AP back to station)
+	xr871d -c wifi 2>/dev/null || true
+}
+
+status_value() {
+	[ -f "$STATUS" ] && sed -n "s/^$1=//p" "$STATUS"
+}
+
+show_info() {
+	if [ ! -f "$STATUS" ]; then
+		echo "xr871net not running"
+		return 1
+	fi
+	cat "$STATUS"
+}
+
+case "$1" in
+	configure)
+		shift
+		configure "$@"
+		;;
+	info) show_info ;;
+	rssi) status_value rssi ;;
+	reset)
+		rm -f /etc/wpa_supplicant.conf
+		;;
+	setup | temp) ;;
+	*)
+		echo "Usage: $entry_command {configure <ssid> <password>|info|rssi|reset}" >&2
+		;;
+esac
+
+exit 0
