@@ -160,7 +160,7 @@
 };
 
 &spi0 {
-	status = "disable";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pa>;
 
