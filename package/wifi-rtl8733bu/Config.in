@@ -5,3 +5,13 @@ config BR2_PACKAGE_WIFI_RTL8733BU
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	help
 	  RTL8733BY wireless driver
+
+config BR2_PACKAGE_WIFI_RTL8733BU_KEEP_POWER
+	bool "Keep the MAC powered after probe"
+	depends on BR2_PACKAGE_WIFI_RTL8733BU
+	help
+	  The driver powers the MAC off after the firmware download when the
+	  interface has not been opened yet. On some boards (DML16-Z533) the
+	  chip keeps its USB attachment but stops answering vendor requests,
+	  so the later netdev_open() fails with -EPROTO until a power cycle.
+	  Select this to compile that power-off out.

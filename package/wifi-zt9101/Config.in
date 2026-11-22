@@ -1,0 +1,8 @@
+config BR2_PACKAGE_WIFI_ZT9101
+	bool "ZTop ZT9101"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
+	help
+	  ZTop ZT9101 USB wireless driver, used by the ZT9101UV20
+	  and ZT9101UV30 parts.

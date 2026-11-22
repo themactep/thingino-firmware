@@ -124,6 +124,9 @@ agent_get_runtime() {
 		media)
 			printf '{"streams":{"ch0":{"available":false,"enabled":false,"snapshot_url":null},"ch1":{"available":false,"enabled":false,"snapshot_url":null}}}\n'
 			;;
+		exposure)
+			printf '{"daynight_brightness":null,"total_gain":null}\n'
+			;;
 		heartbeat)
 			printf '{"time_now":%s,"uptime":%s,"daynight_brightness":null,"total_gain":null,"daynight_mode":"unknown","rec_ch0":false,"rec_ch1":false,"motion_enabled":false,"privacy_enabled":false,"color_mode":null,"mic_enabled":false,"spk_enabled":false,"daynight_enabled":false,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":0}\n' \
 				"$(date +%s)" "$(agent_uptime_seconds)"
