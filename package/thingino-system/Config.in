@@ -47,7 +47,7 @@ config BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR
 config BR2_PACKAGE_THINGINO_SYSTEM_AUTOMOUNT
 	bool "block device automount"
 	depends on BR2_PACKAGE_THINGINO_SYSTEM
-	default y if BR2_THINGINO_SDCARD
+	default y if BR2_THINGINO_SDCARD || BR2_THINGINO_DEV_DASHCAM
 	help
 	  Install the mdev handler and boot-time scan that mount partitions below
 	  /mnt. SD-card boards select this by default; SATA and USB-storage
