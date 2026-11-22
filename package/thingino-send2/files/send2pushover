@@ -95,7 +95,7 @@ else
 	curl_verbosity="--silent"
 fi
 
-curl_common="--show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+curl_common="--show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2"
 
 # Only one attachment per request: photo or video, not both.
 attachment=""

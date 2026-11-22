@@ -126,7 +126,7 @@ http_fetch() {
 	ERR_FILE=$(mktemp /tmp/${DOMAIN}-fetch-error.XXXXXX)
 
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsS "$url" >"$RESP_FILE" 2>"$ERR_FILE"
+		curl -fsS --tls-max 1.2 "$url" >"$RESP_FILE" 2>"$ERR_FILE"
 		return $?
 	fi
 
@@ -249,12 +249,19 @@ read_body() {
 	fi
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
+}
+
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 }
 
 handle_get() {
@@ -335,7 +342,7 @@ handle_post() {
 			;;
 	esac
 
-	enabled=$(normalize_bool "$(jct "$REQ_FILE" get enabled 2>/dev/null)")
+	enabled=$(normalize_bool "$(jct "$REQ_FILE" get enabled 2>/dev/null)") || bad_bool
 	address=$(jct "$REQ_FILE" get address 2>/dev/null)
 	allowed=$(jct "$REQ_FILE" get allowed 2>/dev/null)
 	dns=$(jct "$REQ_FILE" get dns 2>/dev/null)

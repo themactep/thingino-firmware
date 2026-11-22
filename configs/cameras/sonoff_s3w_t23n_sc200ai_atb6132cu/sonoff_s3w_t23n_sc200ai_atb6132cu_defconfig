@@ -9,6 +9,9 @@ BR2_PACKAGE_WIFI_ATBM6132CU=y
 BR2_PACKAGE_WIFI_ATBM6132CU_6162=y
 BR2_SENSOR_1_IQ_FILE="sc200ai-sonoff_s3w.bin"
 BR2_SENSOR_1_NAME="sc200ai"
+# SC200AI powers up in its 1080p60 mode; the T23 frame channel starves at that
+# rate, so pin the native 25 fps mode the streams are sized for.
+BR2_SENSOR_1_PARAMS="sensor_max_fps=25"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=7
 BR2_THINGINO_BUTTON=y

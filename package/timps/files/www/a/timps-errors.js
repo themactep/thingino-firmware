@@ -12,8 +12,7 @@
 
   function rotAlign(f) {
     if (f === "t31") return "width and height must be multiples of 64, e.g. 1280×704 or 640×384";
-    if (f === "t23") return "the height must be a multiple of 16";
-    if (/^t(10|20|21)$/.test(f)) return "width and height must be multiples of 16, e.g. 640×368";
+    if (/^t(10|20|21|23|30)$/.test(f)) return "width and height must be multiples of 16, e.g. 640×368";
     return "width and height are not aligned for rotation";
   }
 
@@ -25,9 +24,12 @@
     201: "this rotation is not available on this camera",
     202: "only the substream can be rotated on this SoC",
     203: rotAlign,
-    204: function (f) { return "picture too large for rotation (at most " + (f === "t31" ? "1280×704" : "704×576") + ")"; },
+    204: function (f) {
+      return "picture too large for rotation (at most " +
+        (f === "t31" ? "1280×704" : f === "t30" || f === "t23" ? "1280×720" : "704×576") + ")";
+    },
     205: "frame rate too high for rotation (at most 15 fps)",
-    206: "the installed libimp cannot rotate (needs OpenIMP with T1x rotation)",
+    206: "the installed libimp cannot rotate (needs an OpenIMP that rotates on this SoC)",
     207: "the streamer's libimp refused the rotation at start (see the log)",
     208: "the height must be at least 256 for rotation",
   };
@@ -44,7 +46,7 @@
 
   function rotFit(code, v) {
     var f = fam(), w = +v.width, h = +v.height, fps = +v.fps;
-    var L = f === "t31" ? [1280, 704, 64, 64, 15, 0] : f === "t23" ? [704, 576, 16, 32, 15, 256] :
+    var L = f === "t31" ? [1280, 704, 64, 64, 15, 0] : /^t(23|30)$/.test(f) ? [1280, 720, 16, 16, 0, 0] :
       /^t(10|20|21)$/.test(f) ? [704, 576, 16, 16, 0, 0] : null;
     if (!L || !w || !h || [203, 204, 205, 208].indexOf(code) < 0) return null;
     var s = Math.min(1, L[0] / w, L[1] / h);

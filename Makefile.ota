@@ -1,6 +1,6 @@
 clean-config:
 	@$(TEAL) "$@"
-	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original $(DL_MIRROR_STAMP)
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
@@ -15,6 +15,10 @@ nconfig: check-config $(OUTPUT_DIR)/.config
 saveconfig:
 	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+	@if [ -n "$(DL_MIRROR_DIR)" ]; then \
+		sed -i '\|^BR2_PRIMARY_SITE="file://$(DL_MIRROR_DIR)"$$|d' \
+			"$(CAMERA_CONFIG_REAL)"; \
+	fi
 
 ### Files
 
@@ -181,9 +185,21 @@ remove_bins:
 repack: remove_bins pack
 	@$(TEAL) "$@"
 
+# Guard: only the Buildroot internal toolchain can be packaged as an SDK; the
+# external/local one already is an SDK and has no BR2_TOOLCHAIN_BUILDROOT_VENDOR,
+# so it would be renamed with the wrong "buildroot" tuple.
+define check_sdk_toolchain
+if [ "$(TOOLCHAIN_TYPE_RAW)" != "BUILDROOT" ]; then \
+	echo "ERROR: the SDK can only be built with the Buildroot internal toolchain."; \
+	echo "       Set BR2_THINGINO_TOOLCHAIN_TYPE_BUILDROOT=y (current type: $(TOOLCHAIN_TYPE_RAW))."; \
+	exit 1; \
+fi
+endef
+
 # build toolchain fast
 sdk: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) -j$(NPROC) sdk
 
 source: defconfig
@@ -193,6 +209,7 @@ source: defconfig
 # build toolchain
 toolchain: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) sdk
 
 .PHONY: check-image-fits
@@ -241,7 +258,7 @@ ota-full: check-image-fits
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
 	if [ -n "$(FLASH_SIZE)" ] && [ "$$(stat -c%s "$$fw_path")" -gt "$(FLASH_SIZE)" ]; then \
-		echo "ERROR: $$fw_path is larger than the $(FLASH_SIZE_MB)MB flash; refusing to flash."; exit 1; \
+		echo "ERROR: $$fw_path is larger than the $(FLASH_LAYOUT_MB)MB flash layout; refusing to flash."; exit 1; \
 	fi; \
 	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
 
@@ -258,7 +275,7 @@ ota-uboot: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(U_BOOT_BIN)" || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -m boot
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -s "$(U_BOOT_PARTITION_SIZE)" -m boot
 	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
 
 # Rootfs+data upgrade with config backup (safe upgrade)

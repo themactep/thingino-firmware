@@ -44,7 +44,7 @@ scan_files() {
 		case "$magic" in
 			06050403)
 				[ -n "$u_boot" ] && continue
-				[ "$(stat -c%s $i)" -gt "327680" ] && continue
+				[ "$(stat -c%s $i)" -gt "196608" ] && continue
 				u_boot=$i
 				;;
 			27051956)

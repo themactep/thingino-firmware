@@ -58,9 +58,9 @@ should be done on a real disk. See `docs/build/makefile.md`.
   As with the output dir, read these from the environment
   (`echo $BR2_DL_DIR $THINGINO_USER_DIR`) before assuming they live in the
   checkout.
-- No CI-integrated test suite for builds; validation is CI-only. A dev-side
-  QEMU test suite exists for the sysupgrade partition-fitting logic:
-  `scripts/ota-tests/` (see its README).
+- No CI-integrated test suite for builds; validation is CI-only. Dev-side
+  QEMU suites cover partition fitting (`scripts/ota-tests/`) and sysupgrade
+  layout changes (`scripts/sysupgrade-tests/`).
 
 ## Repo layout
 
@@ -131,7 +131,7 @@ in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 
 Three flash types are supported:
 
-- **SFC (SPI NOR)**: `boot(320K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
+- **SFC (SPI NOR)**: `boot(192K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
   The `backup` partition holds a copy of the U-Boot environment for fail-safe updates.
 - **SFC-NAND (SPI NAND)**: UBI image at 1 MiB offset with volumes:
   `uboot-env + kernel + rootfs(squashfs via ubiblock) + overlay(ubifs, autoresize)`
@@ -141,8 +141,8 @@ Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
-and `custom-fork` are also available via config fragments).
+Buildroot provides the base U-Boot version (`2013.07` by default;
+`custom-fork` is also available via a config fragment).
 Thingino applies a single large per-version patch (e.g.
 `package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need

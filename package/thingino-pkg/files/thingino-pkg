@@ -78,7 +78,7 @@ cmd_install() {
 	case "$url" in
 		http://* | https://*)
 			echo "Downloading $url..."
-			curl -sS -L -o "$tmpbundle" "$url" || {
+			curl -sS -L --tls-max 1.2 -o "$tmpbundle" "$url" || {
 				echo "Download failed"
 				return 1
 			}

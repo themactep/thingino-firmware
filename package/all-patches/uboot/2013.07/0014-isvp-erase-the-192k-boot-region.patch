@@ -1,0 +1,21 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 8 Nov 2026 00:00:00 -0500
+Subject: [PATCH] isvp: erase only the 192K boot region on SD update
+
+The SD-card U-Boot update path erases a fixed 256K before writing the new
+bootloader. With the boot partition back at 192K, that erase runs into the
+env partition at 0x30000 and wipes the saved environment.
+
+Match the erase length to the boot partition.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ common/cmd_sdupdate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/cmd_sdupdate.c b/common/cmd_sdupdate.c
+--- a/common/cmd_sdupdate.c
++++ b/common/cmd_sdupdate.c
+@@ -8 +8 @@
+-#define UBOOT_SIZE          0x40000   /* 256KB - this one we keep fixed */
++#define UBOOT_SIZE          0x30000   /* 192KB - matches the boot partition */

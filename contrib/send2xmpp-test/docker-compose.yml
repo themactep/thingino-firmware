@@ -1,0 +1,22 @@
+services:
+  bosh:
+    build: .
+    ports:
+      - "127.0.0.1:5280:5280"
+
+  tests:
+    image: alpine:3.20
+    depends_on:
+      - bosh
+    volumes:
+      - ../../package/send2xmpp/files:/scripts:ro
+      - ./run-tests.sh:/run-tests.sh:ro
+    environment:
+      BOSH_URL: http://bosh:5280/http-bind
+      XMPP_JID: camera@test
+      XMPP_PASSWORD: secret
+      XMPP_RECIPIENT: user@test
+    entrypoint:
+      - /bin/sh
+      - -c
+      - apk add --no-cache curl >/dev/null && exec /bin/sh /run-tests.sh

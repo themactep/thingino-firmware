@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.11.1
+TIMPS_VERSION = v1.13.0
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -228,8 +228,6 @@ define TIMPS_BUILD_CMDS
 		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
-		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
-		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
@@ -856,7 +854,7 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_PREVIEW_PLUGINS
 
 # thingino-webui tags its pages before timps installs, so timps pages and
 # changed timps scripts kept stale ?ts= cache keys
-TIMPS_ASSET_TAG := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a $(TIMPS_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
+TIMPS_ASSET_TAG = $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a $(TIMPS_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
 define TIMPS_APPLY_ASSET_TAG
 	python3 $(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py \
 		"$(if $(TIMPS_ASSET_TAG),$(TIMPS_ASSET_TAG),$(shell date +%s))" $(TARGET_DIR)/var/www

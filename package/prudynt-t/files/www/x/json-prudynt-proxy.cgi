@@ -80,7 +80,7 @@ if ! curl "$@" "$TARGET_URL"; then
 	send_error '502 Bad Gateway' 'Prudynt request failed.'
 fi
 
-STATUS_LINE=$(awk 'toupper($1) ~ /^HTTP\// { code=$2; text=$3; for (i = 4; i <= NF; i++) text = text " " $i } END { if (code == "") code=502; if (text == "") text="Bad Gateway"; printf "%s %s", code, text }' "$HEADERS_FILE")
+STATUS_LINE=$(tr -d '\r' <"$HEADERS_FILE" | awk 'toupper($1) ~ /^HTTP\// { code=$2; text=$3; for (i = 4; i <= NF; i++) text = text " " $i } END { if (code == "") code=502; if (text == "") text="Bad Gateway"; printf "%s %s", code, text }')
 CONTENT_TYPE=$(awk 'BEGIN { IGNORECASE=1 } /^Content-Type:/ { sub(/^Content-Type:[[:space:]]*/, "", $0); sub(/\r$/, "", $0); print; exit }' "$HEADERS_FILE")
 [ -n "$CONTENT_TYPE" ] || CONTENT_TYPE='application/json'
 

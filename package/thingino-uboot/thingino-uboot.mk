@@ -27,9 +27,9 @@ endif
 # NetConsole (U-Boot console over UDP), opt-in per camera via
 # BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE. That symbol is default n and gated
 # in Kconfig to 2013.07, because patch 0006 provides the plumbing only for
-# that tree; 2026.07 enables netconsole through Kconfig on its own. Keying
-# off the symbol (not BR2_ETHERNET) keeps it off for the ethernet cameras
-# that never asked for it, and the Kconfig gate keeps both effects below --
+# that tree; Kconfig-era trees enable netconsole through Kconfig on their
+# own. Keying off the symbol (not BR2_ETHERNET) keeps it off for the ethernet
+# cameras that never asked for it, and the Kconfig gate keeps both effects below --
 # the make option and the injected environment -- out of non-2013.07 builds.
 # Must be =y, not =1: U-Boot's drivers/net/Makefile selects the object with
 # COBJS-$(CONFIG_NETCONSOLE), and a command-line value overrides autoconf.mk.
@@ -88,8 +88,6 @@ endif
 # https://github.com/themactep/thingino-firmware/issues/1299
 ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 THINGINO_UBOOT_BINARIES_VERSION := 2013.07
-else ifeq ($(BR2_THINGINO_UBOOT_VERSION_2026_07),y)
-THINGINO_UBOOT_BINARIES_VERSION := 2026.07
 else ifeq ($(BR2_THINGINO_UBOOT_VERSION_CUSTOM_FORK),y)
 THINGINO_UBOOT_BINARIES_VERSION := custom-fork
 endif
@@ -160,7 +158,7 @@ define THINGINO_PATCH_DEV_ENV
 		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
 		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $(KERNEL_PARTITION_SIZE) )); \
 		ROOTFS_OFFSET_KB=$$(( $$ROOTFS_OFFSET / 1024 )); \
-		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
+		FLASH_SIZE_KB=$$(( $(or $(FLASH_LAYOUT_MB),$(FLASH_SIZE_MB)) * 1024 )); \
 		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
 		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
 		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \

@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # Targets that don't require board selection
-NOCAMERA_TARGETS := help bootstrap setup-hooks update update-buildroot reset-buildroot download-cache agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs backup-overlay shellcheck lint sort-defconfigs ram-setup
+NOCAMERA_TARGETS := help bootstrap setup-hooks update update-certs update-buildroot reset-buildroot download-cache dl-pull dl-push dl-sync agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs backup-overlay shellcheck lint sort-defconfigs ram-setup
 
 # Check if current target is exempted from board selection
 # MAKECMDGOALS contains the targets specified on command line
@@ -23,6 +23,12 @@ endif
 
 # Only proceed with board selection if not exempted
 ifeq ($(SKIP_CAMERA_SELECTION),)
+
+# The secureboot group depends on the 2026.07 U-Boot and secureboop, both
+# removed from ciao. Refuse to build it here and point at master.
+ifeq ($(CAMERA_SUBDIR),configs/cameras-secureboot)
+$(error The secureboot camera group is not supported on the ciao branch; build these cameras from the master branch instead)
+endif
 
 # --- build session memo ---------------------------------------------
 #

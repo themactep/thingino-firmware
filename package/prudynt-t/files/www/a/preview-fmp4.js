@@ -558,13 +558,13 @@
       if (mySession !== sessionId) return;
     }
     if (sb.buffered.length === 0) return;
-    const start = sb.buffered.start(0);
+    const bufStart = sb.buffered.start(0);
     const end = sb.buffered.end(sb.buffered.length - 1);
 
     // Pin playback near the live edge first, so the trim bound below does not
     // depend on a playhead that a suspended tab or a stalled decoder froze.
-    if (end - video.currentTime > MAX_AHEAD_S || video.currentTime < start) {
-      video.currentTime = Math.max(start, end - 0.5);
+    if (end - video.currentTime > MAX_AHEAD_S || video.currentTime < bufStart) {
+      video.currentTime = Math.max(bufStart, end - 0.5);
       if (video.paused) video.play().catch(() => {});
     }
 
@@ -588,9 +588,9 @@
       video.currentTime - KEEP_BEHIND_S,
       end - MAX_BUFFERED_S,
     );
-    if (keep > start) {
+    if (keep > bufStart) {
       try {
-        sb.remove(start, keep);
+        sb.remove(bufStart, keep);
         await waitIdle(sb);
       } catch (e) {
         /* keep going; a failed trim must not kill the stream */
@@ -762,7 +762,10 @@
           enqueue(buf.subarray(0, moovEnd).slice());
           buf = buf.slice(moovEnd);
           initDone = true;
-          pumpRun = pump().catch(() => {});
+          pumpRun = pump().catch((err) => {
+            console.error("fMP4 preview pump failed:", err);
+            setTimeout(() => start(ch), 1000);
+          });
           setStatus("Live: /ch" + ch + ".mp4");
         }
       }

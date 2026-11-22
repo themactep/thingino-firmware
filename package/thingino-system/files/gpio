@@ -1,7 +1,8 @@
 #!/bin/sh
-# shellcheck disable=SC2046,SC2086,SC2329,SC3026
+# shellcheck disable=SC2046,SC2086,SC2329,SC3026,SC3037
 
 gpiodir=/sys/class/gpio
+GPIO_MAX=95
 
 unexport=0
 
@@ -18,6 +19,7 @@ Commands:
 	claim <pin>		Claim <pin> to the kernel
 	info <pin>		Get information about the <pin>
 	list			Show claimed pins via debugfs
+	scan [pin...]		Set pins to input and report state changes
 	sweep <pin1> <pin2>	Toggle a range of pins from pin1 to pin2
 Legacy:
 	high <pin>		Set <pin1> output state to HIGH
@@ -107,16 +109,47 @@ sweep_pins() {
 	done
 }
 
-if [ -n "$2" ]; then
-	# sanitize converting to integer
-	pin=$(echo $2 | sed s/[^0-9]//g)
-	if [ -z "$pin" ]; then
-		echo "PIN $pin IS NOT SET" >&2
-		exit 1
+scan_pins() {
+	config_file=/etc/web.conf
+	exclude="55 56"
+	if [ -f "$config_file" ]; then
+		exclude="$exclude $(awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' "$config_file" | tr -d '"' | sort -g | uniq | xargs)"
 	fi
-else
-	[ "list" != "$1" ] && show_help
-fi
+	[ "$#" -gt 0 ] && exclude="$exclude $*"
+
+	echo "Excluded pins: $exclude"
+	echo -n "Set pins to input:"
+	for i in $(seq 0 $GPIO_MAX); do
+		case " $exclude " in
+			*" $i "*) continue ;;
+		esac
+		echo -n " $i"
+		pin=$i
+		set_direction "in"
+	done
+	echo
+	list_pins >/tmp/gpio.old
+
+	echo "Waiting for actions..."
+	while :; do
+		clear
+		list_pins >/tmp/gpio.new
+		diff /tmp/gpio.old /tmp/gpio.new
+		sleep 1
+	done
+}
+
+case "$1" in
+	list | scan)
+		;;
+	*)
+		pin=$(echo "$2" | sed s/[^0-9]//g)
+		if [ -z "$pin" ]; then
+			echo "PIN $pin IS NOT SET" >&2
+			show_help
+		fi
+		;;
+esac
 
 case "$1" in
 	export | catch)
@@ -148,6 +181,10 @@ case "$1" in
 		;;
 	list)
 		list_pins
+		;;
+	scan)
+		shift
+		scan_pins "$@"
 		;;
 	clear)
 		set_value 0

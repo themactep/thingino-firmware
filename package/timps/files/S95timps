@@ -48,32 +48,6 @@ ensure_tls_certs() {
 		logger -t timps "TLS cert generation failed: $out"
 }
 
-# tr: busybox grep stops at NUL bytes
-preflight() {
-	tr -d '\000' 2>/dev/null <"$DAEMON" | grep -q -- --check-libs || return 0
-	out=$("$DAEMON" --check-libs 2>&1)
-	rc=$?
-	case $rc in
-		0) return 0 ;;
-		78 | 79)
-			echo "$out" | while IFS= read -r l; do
-				[ -n "$l" ] || continue
-				logger -t timps -p daemon.err "$l"
-				echo "$l"
-			done
-			msg="timpsd not started (exit $rc): libimp does not fit this timpsd build"
-			logger -t timps -p daemon.err "$msg"
-			echo "$msg"
-			return 1
-			;;
-		*)
-			[ -z "$out" ] ||
-				logger -t timps -p daemon.warn "timpsd --check-libs exited $rc, starting anyway: $(echo "$out" | head -n 1)"
-			return 0
-			;;
-	esac
-}
-
 # starting a new instance before the old one has exited makes ISP init fail
 wait_stop() {
 	# busybox usleep is optional; without it the loop runs in 1 s steps
@@ -92,7 +66,6 @@ wait_stop() {
 case "$1" in
 	start)
 		echo "Starting timpsd..."
-		preflight || exit 1
 		ensure_tls_certs
 		start-stop-daemon -S -b -m -p "$PIDFILE" \
 			-x "$DAEMON" -- -c "$CONF"

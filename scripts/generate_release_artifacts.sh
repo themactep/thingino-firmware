@@ -110,7 +110,7 @@ write_sha256sum "$full_firmware_path" "$full_firmware_name"
 
 # update_firmware_name="thingino-${image_id}-update.bin"
 # update_firmware_path="${images_dir}/${update_firmware_name}"
-## Boot, env, and backup partitions are fixed at 320K + 64K + 64K.
-# kernel_offset_bytes=$(((320 + 64 + 64) * 1024))
+## Boot, env, and backup partitions are fixed at 192K + 64K + 64K.
+# kernel_offset_bytes=$(((192 + 64 + 64) * 1024))
 # dd if="$full_firmware_path" of="$update_firmware_path" skip="${kernel_offset_bytes}B" status=none
 # write_sha256sum "$update_firmware_path" "$update_firmware_name"

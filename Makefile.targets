@@ -20,22 +20,50 @@ else
 	@:
 endif
 
+# --- Download cache -----------------------------------------------------
+# Push sources downloaded during the build back to the shared mirror. A broken
+# or unreachable mirror only warns; it never fails an otherwise good build.
+define dl_autopush
+	@if [ "$(DL_SYNC)" = "1" ] && [ -n "$(DL_MIRROR_DIR)" ]; then \
+		BR2_DL_DIR="$(BR2_DL_DIR)" DL_MIRROR_DIR="$(DL_MIRROR_DIR)" \
+			$(SCRIPTS_DIR)/dl-sync.sh push || \
+			echo "warning: dl-push failed; sources remain in $(BR2_DL_DIR)" >&2; \
+	fi
+endef
+
+# Bulk pre-warm: copy the whole mirror into the local cache.
+dl-pull:
+	@BR2_DL_DIR="$(BR2_DL_DIR)" DL_MIRROR_DIR="$(DL_MIRROR_DIR)" \
+		$(SCRIPTS_DIR)/dl-sync.sh pull
+
+dl-push:
+	@BR2_DL_DIR="$(BR2_DL_DIR)" DL_MIRROR_DIR="$(DL_MIRROR_DIR)" \
+		$(SCRIPTS_DIR)/dl-sync.sh push
+
+dl-sync:
+	@$(MAKE) dl-pull
+	@$(MAKE) dl-push
+
 # Default: fast parallel incremental build
 all: user-dirs defconfig build_fast pack
 	@$(TEAL) "$@"
+	$(call dl_autopush)
 
 # legacy target used by GitHub CI
 fast: user-dirs defconfig build_fast pack
 	@$(TEAL) "$@"
+	$(call dl_autopush)
 
 # Development build: slow serial for debugging compilation issues
 dev: user-dirs defconfig build pack
 	@$(TEAL) "$@"
+	$(call dl_autopush)
 
 # Clean build from scratch with parallel compilation
 cleanbuild: user-dirs distclean defconfig build_fast pack
 	@$(TEAL) "$@"
 	@date +%T
+	$(call dl_autopush)
 
 # --- RAM build ----------------------------------------------------------
 # Build the entire output tree on a tmpfs so compile/install writes never
@@ -172,6 +200,11 @@ update_manual:
 	@curl -s -z docs/buildroot/manual.pdf -o docs/buildroot/manual.pdf https://buildroot.org/manual.pdf
 	@curl -s -z docs/buildroot/manual.txt -o docs/buildroot/manual.txt https://buildroot.org/manual.text
 
+# Refresh the static CA bundle shipped in the rootfs overlay
+update-certs:
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/update-certs.sh
+
 # install what's needed
 bootstrap:
 	@$(TEAL) "$@"
@@ -195,6 +228,10 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
+# Records "<DL_MIRROR_DIR>|<0|1>" as last injected. The availability bit is
+# probed inside the force-config recipe, never at make-parse time: checking
+# wildcard/NAS from make can trigger an autofs mount and stall every build.
+DL_MIRROR_STAMP = $(OUTPUT_DIR)/.dl-mirror
 CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 CONFIG_INPUT_FILES += $(THINGINO_USER_FRAGMENT_FILES)
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
@@ -206,6 +243,8 @@ CONFIG_INPUT_FILES += $(THINGINO_USER_MK_FILES)
 define config_needs_regen
 $(shell \
 	if [ ! -f $(OUTPUT_DIR)/.config ] || [ ! -f $(CONFIG_DEPS_FILE) ]; then \
+		echo "yes"; \
+	elif [ "$$(cut -d'|' -f1 $(DL_MIRROR_STAMP) 2>/dev/null)" != "$(DL_MIRROR_DIR)" ]; then \
 		echo "yes"; \
 	else \
 		for file in $(CONFIG_INPUT_FILES); do \
@@ -219,7 +258,7 @@ $(shell \
 endef
 
 # Smart configuration check - only regenerate if needed
-check-config: buildroot/Makefile
+check-config: $(BUILDROOT_DIR)/Makefile
 	@$(TEAL) "$@"
 	@if [ "$(call config_needs_regen)" = "yes" ]; then \
 		echo "Configuration files have changed, regenerating .config"; \
@@ -229,7 +268,7 @@ check-config: buildroot/Makefile
 	fi
 
 # Force configuration regeneration
-force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep
+force-config: $(BUILDROOT_DIR)/Makefile $(OUTPUT_DIR)/.keep
 	@$(TEAL) "$@"
 	# delete older config
 	$(info * remove existing .config file)
@@ -286,6 +325,21 @@ else
 		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
 	fi
 endif
+	# Download mirror: a network-hosted cache only. A local directory is used
+	# directly, so only network filesystems become BR2_PRIMARY_SITE. Injected
+	# before the user fragments so local.fragment can still override it.
+	@mirror_ok=0; \
+	if [ -n "$(DL_MIRROR_DIR)" ]; then \
+		if fs=$$(BR2_DL_DIR="$(BR2_DL_DIR)" DL_MIRROR_DIR="$(DL_MIRROR_DIR)" \
+			$(SCRIPTS_DIR)/dl-sync.sh check); then \
+			mirror_ok=1; \
+			echo "** download mirror: file://$(DL_MIRROR_DIR) ($$fs)"; \
+			echo 'BR2_PRIMARY_SITE="file://$(DL_MIRROR_DIR)"' >>$(OUTPUT_DIR)/.config; \
+		else \
+			echo "** download mirror: $(DL_MIRROR_DIR) is $$fs, not a network filesystem (ignored)"; \
+		fi; \
+	fi; \
+	echo "$(DL_MIRROR_DIR)|$$mirror_ok" >$(DL_MIRROR_STAMP)
 	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
 		if [ -f "$$file" ]; then \
 			cat "$$file" >>$(OUTPUT_DIR)/.config; \

@@ -59,7 +59,7 @@ choice
 	  Select how /usr/sbin/privacy enforces privacy mode.
 
 config BR2_PACKAGE_PRUDYNT_T_PRIVACY_BACKEND_OSD
-	bool "OSD cover only (default)"
+	bool "OSD cover only"
 	help
 	  Uses prudynt's built-in PRIVACY FIFO command only.
 
@@ -95,7 +95,7 @@ config BR2_PACKAGE_PRUDYNT_T_OPUS
 config BR2_PACKAGE_PRUDYNT_T_MP3
 	bool "Enable MP3 audio support"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	default y if FLASH_SIZE_MB > 8
+	default y if FLASH_LAYOUT_MB > 8
 	select BR2_PACKAGE_LIBHELIX_MP3
 	help
 	  Enable MP3 audio codec support. Disable to drop the libhelix-mp3
@@ -104,7 +104,7 @@ config BR2_PACKAGE_PRUDYNT_T_MP3
 config BR2_PACKAGE_PRUDYNT_T_FLAC
 	bool "Enable FLAC audio support"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	default y if FLASH_SIZE_MB > 8
+	default y if FLASH_LAYOUT_MB > 8
 	select BR2_PACKAGE_LIBFLAC
 	help
 	  Enable FLAC audio codec support. Disable to drop the libflac

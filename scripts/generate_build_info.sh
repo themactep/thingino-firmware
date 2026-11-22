@@ -11,7 +11,7 @@ fi
 output_dir=$1
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "${script_dir}/.." && pwd)
-buildroot_dir="${repo_dir}/buildroot"
+buildroot_dir="${THINGINO_BUILDROOT_DIR:-${repo_dir}/buildroot}"
 graphs_dir="${output_dir}/graphs"
 show_info_json="${graphs_dir}/show-info.json"
 host_graph_dot="${graphs_dir}/host-package-depends.dot"

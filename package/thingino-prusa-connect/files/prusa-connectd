@@ -153,6 +153,7 @@ curl_put() {
 		-H "Token: $TOKEN" \
 		--data-binary "@$payload" \
 		--compressed \
+		--tls-max 1.2 \
 		--silent \
 		--show-error \
 		--output "$resp_file" \
