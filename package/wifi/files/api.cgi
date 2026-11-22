@@ -350,8 +350,6 @@ save_config() {
 	wlan_pass=$(echo "$wlan_pass" | sed 's/[[:space:]]*$//')
 	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
 
-	# FIXME: Sanitize ssid and password
-
 	# A client that can hash locally sends these instead, so neither secret
 	# crosses the portal in the clear. The portal AP is open, so anything sent
 	# as plaintext is readable by anyone in range.
@@ -388,20 +386,30 @@ save_config() {
 		return
 	fi
 
-	# Update hostname
-	hostname "$hostname"
-	echo "$hostname" >/etc/hostname
-
-	# Update wlan settings. `wlan configure` already accepts a 64-hex PSK in
-	# place of a passphrase, so a pre-derived one just passes straight through.
+	# Wi-Fi first: its failure is user-input-driven and must be reported
+	# before anything else is committed. `wlan configure` already accepts
+	# a 64-hex PSK in place of a passphrase, so a pre-derived one passes
+	# straight through.
+	wlan_error=""
 	wlan_secret="$wlan_pass"
 	[ -n "$wlan_psk" ] && wlan_secret="$wlan_psk"
 
-	if [ "true" = "$wlan_ap" ]; then
-		wlan configure "$wlan_ssid" "$wlan_secret" ap
-	else
-		wlan configure "$wlan_ssid" "$wlan_secret"
+	set -- "$wlan_ssid" "$wlan_secret"
+	[ "true" = "$wlan_ap" ] && set -- "$@" ap
+	if ! wlan_error=$(wlan configure "$@" 2>&1); then
+		logger -t portal "wlan configure failed: $wlan_error"
+		cat <<-EOF
+			{
+				"success": false,
+				"error": "Failed to save Wi-Fi settings: $(json_encode "$wlan_error")"
+			}
+		EOF
+		return
 	fi
+
+	# Update hostname
+	hostname "$hostname"
+	echo "$hostname" >/etc/hostname
 
 	# Update timezone
 	if [ -n "$timezone" ]; then

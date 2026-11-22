@@ -42,7 +42,7 @@ config BR2_PACKAGE_THINGINO_VPN_TAILSCALE
 	bool "Tailscale"
 	select BR2_PACKAGE_THINGINO_TAILSCALE
 	select BR2_PACKAGE_THINGINO_VPN
-	depends on FLASH_SIZE_MB >= 16
+	depends on FLASH_LAYOUT_MB >= 16
 	help
 	  Include Tailscale VPN. WireGuard-based mesh VPN with
 	  centralized coordination. Easy to set up and manage.
@@ -55,7 +55,7 @@ comment "ZeroTier-One requires a toolchain w/ C++, threads"
 	depends on BR2_PACKAGE_THINGINO_VPN_ZEROTIER && (!BR2_INSTALL_LIBSTDCPP || !BR2_TOOLCHAIN_HAS_THREADS)
 
 comment "Tailscale requires flash size > 8MB"
-	depends on BR2_PACKAGE_THINGINO_VPN_TAILSCALE && FLASH_SIZE_MB < 16
+	depends on BR2_PACKAGE_THINGINO_VPN_TAILSCALE && FLASH_LAYOUT_MB < 16
 
 # Include VPN package definitions (not directly selectable, controlled by choice above)
 if BR2_PACKAGE_THINGINO_VPN
