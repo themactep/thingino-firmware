@@ -6,7 +6,7 @@
 #
 # thingino.json:
 #   xr871.standby.enabled       true to allow standby (default false)
-#   xr871.standby.idle_minutes  idle time before sleeping (default 10)
+#   xr871.standby.idle_minutes  idle time before sleeping (default 3)
 #   xr871.standby.on_usb        true = also sleep on USB power (default false)
 #
 # Busy (stays awake): stream/WebRTC/RTSP clients other than localhost, an
@@ -22,7 +22,7 @@ up() { cut -d. -f1 /proc/uptime; }
 
 [ "$(cfg xr871.standby.enabled)" = "true" ] || exit 0
 idle=$(cfg xr871.standby.idle_minutes | tr -dc 0-9)
-[ -n "$idle" ] && [ "$idle" -gt 0 ] || idle=10
+[ -n "$idle" ] && [ "$idle" -gt 0 ] || idle=3
 now=$(up)
 
 busy() {
@@ -40,6 +40,8 @@ busy() {
 		grep -q '^usb=1' /run/xr871d.battery 2>/dev/null; then
 		return 0
 	fi
+	# WiFi setup portal running (S38xr871portal)
+	[ -f /run/portal_mode ] && return 0
 	# firmware upgrade in progress
 	[ -e /tmp/sysupgrade ] || [ -e /tmp/fw.bin ] && return 0
 	return 1

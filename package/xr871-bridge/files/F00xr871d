@@ -8,6 +8,9 @@ case "$1" in
 		pidof xr871d >/dev/null || /usr/sbin/xr871d -b
 		# wlan0 over SPI; ifup (S40network) configures it
 		pidof xr871net >/dev/null || /usr/sbin/xr871net -b
+		# White LED off: after reset PC25 is not driven and the LED stage
+		# glows dimly until the first `wlight 0` (e.g. after a PIR light)
+		/usr/sbin/wlight 0 >/dev/null 2>&1
 		;;
 	stop)
 		killall xr871net xr871d 2>/dev/null
