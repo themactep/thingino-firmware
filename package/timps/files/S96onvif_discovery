@@ -219,7 +219,12 @@ configure_timps_onvif_profiles() {
 	http_port=$(timps_http_port)
 
 	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
-	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
+	# onvif_simple_server skips a profile whose url is not rtsp://
+	if [ "$(timps_bool_default video1.enabled true)" = "true" ]; then
+		jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
+	else
+		jct "$tmpfile" set profiles.stream1.url "off"
+	fi
 	snap0_on=$(timps_stream_jpeg_enabled 0)
 	snap1_on=$(timps_stream_jpeg_enabled 1)
 	if [ -x /var/www/x/ch1.jpg ] && [ -e /var/www/onvif/image1.cgi ]; then

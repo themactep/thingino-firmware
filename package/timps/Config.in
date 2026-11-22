@@ -168,6 +168,21 @@ config BR2_PACKAGE_TIMPS_SRT
 	  acts as an SRT listener, serving live video+audio.
 	  Playback: ffplay srt://<ip>:9000
 
+config BR2_PACKAGE_TIMPS_SINGLE_STREAM
+	bool "Only one video stream (no substream)"
+	default n
+	help
+	  Ship /etc/timps.conf with video1.enabled = 0,
+	  http.preview_chn = 0 and motion.monitor_stream = 0, for cameras without the memory or encoder
+	  capacity for a second stream. timps then creates only the main
+	  stream; the WebUI greys out the substream controls, and ONVIF
+	  announces one profile.
+
+	  Clients that ask for the substream do not fail: rtsp://.../ch1
+	  plays the main stream at full size, and /snapshot.jpg?chn=1
+	  answers 404. The setting stays editable: video1.enabled = 1 in
+	  /etc/timps.conf and a timps restart bring the substream back.
+
 config BR2_PACKAGE_TIMPS_OSD_HINTING
 	bool "OSD text autohinting (geometric stem snapping)"
 	default n
