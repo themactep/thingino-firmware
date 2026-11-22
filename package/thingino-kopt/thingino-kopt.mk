@@ -83,7 +83,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 #
 # KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
 # be compared rather than concatenated.
-ifeq ($(SOC_FAMILY),t32)
+ifneq ($(filter t32 t33,$(SOC_FAMILY)),)
 ifeq ($(KERNEL_VERSION_4),y)
 KOPT_MMC_DRIVER = sdhci-ingenic
 else

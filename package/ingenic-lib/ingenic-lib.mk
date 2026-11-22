@@ -50,6 +50,8 @@ else ifeq ($(SOC_FAMILY),t31)
 	endif
 else ifeq ($(SOC_FAMILY),t32)
 	SDK_VERSION := 2.2.0
+else ifeq ($(SOC_FAMILY),t33)
+	SDK_VERSION := 2.0.2.1
 else ifeq ($(SOC_FAMILY),t40)
 	SDK_VERSION := 1.3.1
 else ifeq ($(SOC_FAMILY),t41)
@@ -57,6 +59,10 @@ else ifeq ($(SOC_FAMILY),t41)
 endif
 
 SDK_LIB_DIR = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)
+# T33 libs sit directly under <libc>/, with no gcc version directory
+ifeq ($(SOC_FAMILY),t33)
+SDK_LIB_DIR = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)
+endif
 
 ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
 	LIBALOG_FILE = $(SDK_LIB_DIR)/libalog.so

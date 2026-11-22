@@ -90,6 +90,8 @@ CAMERA_DTS_DEST = goat
 else
 CAMERA_DTS_NO_TREE = the t32 3.10.14 kernel is board-file based and has no dts tree
 endif
+else ifeq ($(SOC_FAMILY),t33)
+CAMERA_DTS_DEST = goat_prj008
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif

@@ -161,9 +161,9 @@ endchoice
 
 choice
 	prompt "ISP Clock Source"
-	default BR2_ISP_CLK_MPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLK_MPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLK_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP. (clk_name)
 
@@ -182,7 +182,7 @@ endchoice
 
 choice
 	prompt "ISP Clock Speed"
-	default BR2_ISP_CLK_225MHZ if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLK_225MHZ if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	default BR2_ISP_CLK_90MHZ
@@ -197,35 +197,35 @@ config BR2_ISP_CLK_125MHZ
 	bool "125 MHz"
 config BR2_ISP_CLK_150MHZ
 	bool "150 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100"
 config BR2_ISP_CLK_175MHZ
 	bool "175 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_200MHZ
 	bool "200 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_220MHZ
 	bool "220 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_225MHZ
 	bool "225 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_250MHZ
 	bool "250 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_300MHZ
 	bool "300 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_350MHZ
 	bool "350 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 endchoice
 
 choice
 	prompt "ISP Scaler Clock Source"
-	default BR2_ISP_CLKS_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKS_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKS_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP scaler. (clks_name)
 
@@ -245,7 +245,7 @@ endchoice
 choice
 	prompt "ISP Scaler Clock Speed"
 	default BR2_ISP_CLKS_400MHZ
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's scaler clock speed from the predefined options.
 
@@ -269,9 +269,9 @@ endchoice
 
 choice
 	prompt "ISP AXI Bus Clock Source"
-	default BR2_ISP_CLKA_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKA_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKA_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the clock source for the ISP's AXI bus. (clka_name)
 
@@ -288,7 +288,7 @@ endchoice
 choice
 	prompt "ISP AXI Bus Clock Speed"
 	default BR2_ISP_CLKA_400MHZ
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's AXI bus clock speed from the predefined options.
 
@@ -312,9 +312,9 @@ endchoice
 
 choice
 	prompt "ISP Video (IVDC) Clock Source"
-	default BR2_ISP_CLKV_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKV_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKV_INTERNAL
-	depends on BR2_SOC_FAMILY = "t32"
+	depends on BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	help
 	  Select the parent clock for the ISP video/IVDC path. (clkv_name)
 
@@ -334,7 +334,7 @@ endchoice
 choice
 	prompt "ISP Video (IVDC) Clock Speed"
 	default BR2_ISP_CLKV_400MHZ
-	depends on BR2_SOC_FAMILY = "t32"
+	depends on BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	help
 	  Choose the ISP's video/IVDC clock speed from the predefined options.
 
