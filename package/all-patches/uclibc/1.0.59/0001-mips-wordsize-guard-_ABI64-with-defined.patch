@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sat, 12 Jul 2026 00:00:00 +0000
+Subject: [PATCH] mips: guard _ABI64 with defined() in bits/wordsize.h
+
+_ABI64 is defined in <sgidefs.h> which is not guaranteed to be included
+before <bits/wordsize.h>.  Using _ABI64 without a defined() guard triggers
+-Wundef warnings:
+
+  warning: '_ABI64' is not defined, evaluates to '0'
+
+The comparison is functionally correct (it evaluates to false on mips32),
+but the warning is noisy.  Wrap it in defined() to silence the warning
+regardless of include order.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ libc/sysdeps/linux/mips/bits/wordsize.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libc/sysdeps/linux/mips/bits/wordsize.h b/libc/sysdeps/linux/mips/bits/wordsize.h
+--- a/libc/sysdeps/linux/mips/bits/wordsize.h
++++ b/libc/sysdeps/linux/mips/bits/wordsize.h
+@@ -16,6 +16,6 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #define __WORDSIZE	_MIPS_SZPTR
+-#if _MIPS_SIM == _ABI64
++#if defined(_ABI64) && _MIPS_SIM == _ABI64
+ # define __WORDSIZE_TIME64_COMPAT32 1
+ #endif

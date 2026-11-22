@@ -13,7 +13,11 @@
       "pin": 50,
       "active_low": true
     },
-    "wlan": 51
+    "wlan": {
+      "pin": 51,
+      "state": 1,
+      "boot_state": 0
+    }
   },
   "motors": {
     "gpio_invert": false,
