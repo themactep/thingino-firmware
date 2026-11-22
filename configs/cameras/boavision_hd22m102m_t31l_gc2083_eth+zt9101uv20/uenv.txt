@@ -1,0 +1,1 @@
+gpio_default=6o 7o 8o 9o 10o 14o 16o 17o 49o 50o 57o 58o 61O 63o

@@ -1,0 +1,98 @@
+****************** ISP( 0 ) INFO **********************
+Software Version : H20250310a
+SENSOR NAME : gc4023
+SENSOR OUTPUT WIDTH : 2560
+SENSOR OUTPUT HEIGHT : 1440
+ISP OUTPUT FPS : 30 / 1
+SENSOR OUTPUT  : RGGB
+SENSOR DFBOOT  : 0
+ISP Runing Mode : day
+Saturation : 128
+Sharpness : 128
+Contrast : 128
+Brightness : 128
+Hue : 128
+expo fs : 1
+Wdr En : 0
+Bypass : 0
+FlipMode: 0
+Antiflicker : disable freq: 0
+Antiflicker nodes: 1: step : 0.
+*********** Bin Attr ***********
+Version : V1.00
+DefaultPath : /etc/sensor/gc4023-t41.bin
+RunningPath : /etc/sensor/gc4023-t41.bin
+********* Ae Expr Info *********
+AeIntegrationTimeUnit : 0
+AeMode : 0
+AeIntegrationTimeMode : 0
+AeAGainManualMode : 0
+AeDGainManualMode : 0
+AeIspDGainManualMode : 0
+AeIntegrationTime : 1065
+AeAGain : 1024
+AeDGain : 0
+AeIspDGain : 1024
+AeMinIntegrationTimeMode : 0
+AeMinAGainMode : 0
+AeMinDgainMode : 0
+AeMinIspDGainMode : 0
+AeMinIntegrationTime : 2
+AeMinAGain : 1024
+AeMinDgain : 1024
+AeMinIspDGain : 1024
+AeMaxIntegrationTimeMode : 0
+AeMaxAGainMode : 0
+AeMaxDgainMode : 0
+AeMaxIspDGainMode : 1
+AeMaxIntegrationTime : 1492
+AeMaxAGain : 65536
+AeMaxDgain : 4096
+AeMaxIspDGain : 3072
+AeShortMode : 0
+AeShortIntegrationTimeMode : 0
+AeShortAGainManualMode : 0
+AeShortDGainManualMode : 0
+AeShortIspDGainManualMode : 0
+AeShortIntegrationTime : 0
+AeShortAGain : 0
+AeShortDGain : 0
+AeShortIspDGain : 0
+AeShortMinIntegrationTimeMode : 0
+AeShortMinAGainMode : 0
+AeShortMinDgainMode : 0
+AeShortMinIspDGainMode : 0
+AeShortMaxIntegrationTimeMode : 0
+AeShortMaxAGainMode : 0
+AeShortMaxDgainMode : 0
+AeShortMaxIspDGainMode : 1
+AeShortMinIntegrationTime : 5
+AeShortMinAGain : 1024
+AeShortMinDgain : 1024
+AeShortMinIspDGain : 1024
+AeShortMaxIntegrationTime : 94
+AeShortMaxAGain : 4096
+AeShortMaxDgain : 4096
+AeShortMaxIspDGain : 4096
+AWBGlobal R/G: 170
+AWBGlobal B/G: 159
+AWBWeighted R/G: 164
+AWBWeighted B/G: 155
+AWBWeightedRgain: 399
+AWBWeightedBgain: 422
+AWBStartRgain: 241
+AWBStartBgain: 248
+AWBColorTemperature: 4910
+TotalGainDb : 0
+TotalGainDbShort : 0
+ExposureValue : 1065
+EVLog2 : 659070
+LSC ERROR: 0x00
+BLC R:254, GR:252, GB:252, B:254, IR:0
+debug : 36821,73783,0 ,0,0,0,0,0,0,0
+raw debug : 0, 0,0, 0,0,0,0, 0x00000000
+event debug : 0,0, memopt is 1
+static debug :AWB: 73785, AE_S: 73785, AE_H: 73785, AF: 73785, GSM: 0
+static debug :LCE: 73785, ADR: 73785, DEFOG: 73785, WDR: 0, RMO: 73785
+****************** LIB ISP INFO **********************
+isp version  : isp_20250915a

@@ -1,19 +1,8 @@
 (function () {
   "use strict";
 
-  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(function (d) {
-      return d.exists && d.api_key ? d.api_key : "";
-    })
-    .catch(function () {
-      return "";
-    });
-
   async function apiFetch(url, options) {
-    var key = await API_KEY_PROMISE;
+    var key = await thinginoApiKey();
     options = options || {};
     options.headers = options.headers || {};
     if (key) options.headers["X-API-Key"] = key;

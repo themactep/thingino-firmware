@@ -5,7 +5,12 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/timps.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_TIMPS_TOKEN_FILE="${AGENT_TIMPS_TOKEN_FILE:-/run/timps.token}"
 AGENT_TMPDIR="${AGENT_TMPDIR:-/tmp}"
-trap 'rm -f "$AGENT_TMPDIR/agent-timps-control.$$"' EXIT
+# The adapter owns the EXIT trap of the agentctl shell that sources it;
+# agentctl chains agent_adapter_exit when it sets its own.
+agent_adapter_exit() {
+	rm -f "$AGENT_TMPDIR/agent-timps-control.$$"
+}
+trap agent_adapter_exit EXIT
 
 agent_name() {
 	printf 'timps'
@@ -1187,6 +1192,19 @@ agent_get_runtime() {
 				"$(agent_json_bool "$has_snapshot")" \
 				"$stream1_enabled" \
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
+			;;
+		exposure)
+			_brightness=$(agent_ctrl daynight.brightness 2>/dev/null)
+			_gain=$(agent_ctrl daynight.total_gain 2>/dev/null)
+			case "$_brightness" in
+				'' | *[!0-9]*) _brightness='' ;;
+			esac
+			case "$_gain" in
+				'' | *[!0-9]*) _gain='' ;;
+			esac
+			printf '{"daynight_brightness":%s,"total_gain":%s}\n' \
+				"$(agent_json_value_or "$_brightness" null)" \
+				"$(agent_json_value_or "$_gain" null)"
 			;;
 		heartbeat)
 			daynight_mode=$(agent_daynight_running_mode)

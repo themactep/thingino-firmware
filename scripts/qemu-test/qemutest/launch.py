@@ -139,6 +139,21 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
     return proc, ptys["serial1"], qmp_path, ptys.get("serial0")
 
 
+def unpace_slip_uart(qmp):
+    """The fork paces its UARTs at the line rate the guest sets, as silicon
+    does; at 115200 baud a web UI page over the serial link outlasts the
+    browser's timeouts. The link is test plumbing, so UART0 runs unpaced.
+    An older QEMU has no switch and never paced."""
+    try:
+        for c in qmp.cmd("qom-list", path="/machine"):
+            if (c.get("type") == "child<ingenic-uart>"
+                    and c["name"].endswith("-uart0")):
+                qmp.cmd("qom-set", path="/machine/" + c["name"],
+                        property="line-rate", value=False)
+    except RuntimeError:
+        pass
+
+
 def warm_reset_timer_wedge(report_dir):
     """QEMU fork bug: after a system reset the TCU/OST model can fire
     pathological timer interrupts (hrtimer latencies in the tens of ms,

@@ -524,6 +524,9 @@ def free_port(prefer=None):
             return s.getsockname()[1]
 
 
+CONSOLE_KICK_S = 3.0
+
+
 class Console(QemuSerial):
     """QemuSerial's guest state machine on a session's console, through
     its relay. QEMU writes the transcript itself, attached or not."""
@@ -536,11 +539,39 @@ class Console(QemuSerial):
         self._utf8 = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self.state = "boot"
         self.timeout_ok = None
+        self.kick = False
+        self._kicked = self._fast = False
+        self._kick_at = time.time() + CONSOLE_KICK_S
 
     def _take(self, timeout):
         """What has arrived within timeout, at most one read of it."""
-        if not select.select([self.fd], [], [], timeout)[0]:
-            return ""
+        end = time.time() + timeout
+        while True:
+            now = time.time()
+            # The vendor 4.4 ingenic_uart driver can lose its TX interrupt
+            # (stop_tx/start_tx race on two cores) and the console then goes
+            # silent until a byte arrives. XON frees one FIFO and the tty
+            # swallows it (IXON), so a silent wait sends one. Only while a
+            # command is in flight (see kicking): in U-Boot any byte aborts
+            # the autoboot countdown.
+            wait = min(max(end - now, 0), max(self._kick_at - now, 0))
+            if select.select([self.fd], [], [], wait)[0]:
+                break
+            now = time.time()
+            if self.kick and timeout and now >= self._kick_at:
+                self._kick_at = now + CONSOLE_KICK_S
+                # A kick that brought nothing back ends the short interval
+                self._fast = self._fast and not self._kicked
+                self._kicked = True
+                os.write(self.fd, b"\x11")
+            if now >= end:
+                return ""
+        # A kick frees one FIFO (32 bytes) and stalls again: while kicks
+        # keep producing output, ask again after a short silence
+        if self._kicked:
+            self._fast = True
+        self._kicked = False
+        self._kick_at = time.time() + (0.3 if self._fast else CONSOLE_KICK_S)
         try:
             chunk = os.read(self.fd, 65536)
         except OSError:
@@ -553,6 +584,16 @@ class Console(QemuSerial):
             self.write("\x1b[40;120R")
         self._dsr_tail = scan[-3:]
         return self._utf8.decode(chunk)
+
+    @contextlib.contextmanager
+    def kicking(self):
+        was, self.kick = self.kick, True
+        self._fast = False
+        self._kick_at = time.time() + CONSOLE_KICK_S
+        try:
+            yield
+        finally:
+            self.kick = was
 
     def drain(self):
         """Take whatever has already arrived, without waiting for more."""
@@ -933,7 +974,9 @@ def serial_run(con, cmd, timeout):
     con.drain()
     t0 = time.time()
     con.write(line + "\n")
-    m, buf = con.wait_for_re(rf"QD{tag}E (\d+)\r?\n|{RESET}", timeout + 15)
+    with con.kicking():
+        m, buf = con.wait_for_re(rf"QD{tag}E (\d+)\r?\n|{RESET}",
+                                 timeout + 15)
     start = re.search(rf"QD{tag}B\r?\n", buf)
     out = clean(buf[start.end():m.start() if m else len(buf)]) if start else ""
     if m and not m.group(1):
@@ -977,6 +1020,11 @@ def console_unpaced(s):
 
 
 def serial_upload(con, data, remote, timeout):
+    with con.kicking():
+        return _serial_upload(con, data, remote, timeout)
+
+
+def _serial_upload(con, data, remote, timeout):
     """Write data to a file on the camera, one line of base64 per shell
     command; returns the exit status. The console has no flow control:
     a stream outruns the camera's tty buffer, so each line waits for the
