@@ -1,0 +1,19 @@
+#!/bin/sh
+# Blue status LED while a video stream runs (see /usr/libexec/xr871/streamled)
+
+case "$1" in
+	start)
+		start-stop-daemon -S -b -x /bin/sh -m -p /run/streamled.pid \
+			-- /usr/libexec/xr871/streamled
+		;;
+	stop)
+		start-stop-daemon -K -q -p /run/streamled.pid
+		rm -f /run/streamled.pid
+		xr871d -c "led blue 0" >/dev/null 2>&1
+		;;
+	restart)
+		$0 stop
+		$0 start
+		;;
+esac
+exit 0

@@ -26,6 +26,8 @@ define XR871_BRIDGE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(XR871_BRIDGE_PKGDIR)/files/pir-light $(TARGET_DIR)/usr/libexec/xr871/pir
 	$(INSTALL) -D -m 0755 $(XR871_BRIDGE_PKGDIR)/files/daynight-hook $(TARGET_DIR)/usr/libexec/xr871/daynight
 	$(INSTALL) -D -m 0755 $(XR871_BRIDGE_PKGDIR)/files/standby $(TARGET_DIR)/usr/libexec/xr871/standby
+	$(INSTALL) -D -m 0755 $(XR871_BRIDGE_PKGDIR)/files/streamled $(TARGET_DIR)/usr/libexec/xr871/streamled
+	$(INSTALL) -D -m 0755 $(XR871_BRIDGE_PKGDIR)/files/S96xr871led $(TARGET_DIR)/etc/init.d/S96xr871led
 	# Thingino's captive portal (package/wifi), served by S60uhttpd in
 	# portal mode; S38xr871portal replaces S38wpa_supplicant's AP part
 	$(INSTALL) -D -m 0644 $(XR871_BRIDGE_WIFI_FILES)/dnsd-portal.conf $(TARGET_DIR)/etc/dnsd-portal.conf

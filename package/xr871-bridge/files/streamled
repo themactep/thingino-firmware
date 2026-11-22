@@ -1,0 +1,26 @@
+#!/bin/sh
+# /usr/libexec/xr871/streamled: blue status LED of the ABUS PPIC90520 on
+# while a video stream runs, i.e. while timps has a client that is not a
+# local helper (127.0.0.1, like the standby check). The XR871 drives the
+# LED (bridge firmware ap24+, xr871d 'led blue 0|1'); it clears the request
+# itself when the T30 powers off or restarts.
+#
+# thingino.json: xr871.stream_led  false disables it (default true)
+
+[ "$(jct /etc/thingino.json get xr871.stream_led 2>/dev/null)" = "false" ] && exit 0
+
+state=
+while :; do
+	tok=$(cat /run/timps.token 2>/dev/null)
+	c=$(curl -s -m3 -H "Authorization: Bearer $tok" \
+		"http://127.0.0.1:8880/control?clients=1" 2>/dev/null)
+	if echo "$c" | grep -o '"ip":"[^"]*"' | grep -vq '"ip":"127\.0\.0\.1"'; then
+		on=1
+	else
+		on=0
+	fi
+	if [ "$on" != "$state" ]; then
+		xr871d -c "led blue $on" >/dev/null 2>&1 && state=$on
+	fi
+	sleep 2
+done

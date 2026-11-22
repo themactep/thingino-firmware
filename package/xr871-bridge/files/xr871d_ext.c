@@ -355,7 +355,7 @@ static int cmd_gpio_scan(char *args)
 		/* no default list: PA6/11/13 have unknown roles on this board
 		 * (T30 power/reset?), the caller has to name what to drive */
 		out("usage: gpio scan [seconds] PAn [PAn ...]   (stock outputs: PA6 PA10 PA11"
-		    " PA13 PA14 PA15; PA10 = charge LED, PA15 = SPI ready, both refused)");
+		    " PA13 PA14 PA15; PA10 = blue LED, PA11 = red LED, PA15 = SPI ready, refused)");
 		return 2;
 	}
 	out("gpio scan: %d pins, %d s each - watch the LEDs", np, secs);
