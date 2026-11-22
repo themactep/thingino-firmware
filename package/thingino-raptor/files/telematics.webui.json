@@ -1,8 +1,18 @@
 {
   "name": "telematics",
-  "label": "GPS and g-sensor",
+  "label": "Dashcam: GPS, g-sensor, ignition",
   "apiVersion": 1,
   "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "Ignition & Parking",
+          "href": "/config-ignition.html"
+        }
+      ]
+    },
     {
       "section": "ddInfo",
       "position": "append",
@@ -25,6 +35,7 @@
   },
   "cgi": [],
   "pages": [
-    "/info-gps.html"
+    "/info-gps.html",
+    "/config-ignition.html"
   ]
 }

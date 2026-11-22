@@ -268,8 +268,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
-	# GPS & g-sensor page: its own web UI plugin, so cameras without rtd
-	# never list it.
+	# Dashcam pages (GPS & g-sensor, ignition & parking): their own web UI
+	# plugin, so cameras without rtd never list them.
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RTD)" = "y" ]; then \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/telematics.webui.json \
 			$(TARGET_DIR)/var/www/a/plugins/telematics.webui.json; \
@@ -277,6 +277,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/var/www/info-gps.html; \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/info-gps.js \
 			$(TARGET_DIR)/var/www/a/info-gps.js; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-ignition.html \
+			$(TARGET_DIR)/var/www/config-ignition.html; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/config-ignition.js \
+			$(TARGET_DIR)/var/www/a/config-ignition.js; \
 	fi
 	# Photosensing page for ric; daynightd ships its own under the same name.
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
