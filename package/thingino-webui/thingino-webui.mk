@@ -63,7 +63,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/libexec/thingino-webui/heartbeat-lib.sh
 
 	# camera-only services
-	if [ "$(BR2_THINGINO_DEV_IPCAM)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_DEV_IPCAM)$(BR2_THINGINO_DEV_DASHCAM)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/telegram-cam-register \
 			$(TARGET_DIR)/usr/sbin/telegram-cam-register; \
 		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/telegram-cam-agent \

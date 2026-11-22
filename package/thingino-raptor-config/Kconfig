@@ -16,6 +16,10 @@ config RAPTOR_ENV_DEV_WEBCAM
 	string
 	option env="RAPTOR_DEV_WEBCAM"
 
+config RAPTOR_ENV_DEV_DASHCAM
+	string
+	option env="RAPTOR_DEV_DASHCAM"
+
 config RAPTOR_ENV_IVS_DETECT
 	string
 	option env="RAPTOR_IVS_DETECT"
@@ -1321,6 +1325,7 @@ config RAPTOR_OSD_STROKE_COLOR
 
 config RAPTOR_OSD_TIME_FORMAT
 	string "time_format (default %Y-%m-%d %H:%M:%S)"
+	default "%Y/%m/%d %H:%M:%S" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_OSD_PRIVACY_COLOR
@@ -1348,14 +1353,17 @@ endchoice
 
 config RAPTOR_OSD_TIMESTAMP_TEMPLATE
 	string "template (default %time%)"
+	default "%time%   %lat%  %lon%  %speed%%unit%" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_OSD_TIMESTAMP_POSITION
 	string "position (default top_left)"
+	default "bottom_left" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_OSD_TIMESTAMP_MAX_CHARS
 	string "max_chars (default 22)"
+	default "52" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 endmenu
@@ -1364,6 +1372,7 @@ menu "OSD uptime [osd.uptime]"
 
 choice
 	prompt "visible (default true)"
+	default RAPTOR_OSD_UPTIME_VISIBLE_FALSE if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default RAPTOR_OSD_UPTIME_VISIBLE_TRUE
 
 config RAPTOR_OSD_UPTIME_VISIBLE_DEFAULT
@@ -1395,6 +1404,7 @@ menu "OSD camera name [osd.camera]"
 
 choice
 	prompt "visible (default true)"
+	default RAPTOR_OSD_CAMERA_VISIBLE_FALSE if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default RAPTOR_OSD_CAMERA_VISIBLE_TRUE
 
 config RAPTOR_OSD_CAMERA_VISIBLE_DEFAULT
@@ -1632,6 +1642,7 @@ menu "Recording [recording]"
 
 choice
 	prompt "enabled (default false)"
+	default RAPTOR_RECORDING_ENABLED_TRUE if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default RAPTOR_RECORDING_ENABLED_DEFAULT
 
 config RAPTOR_RECORDING_ENABLED_DEFAULT
@@ -1647,6 +1658,7 @@ endchoice
 
 config RAPTOR_RECORDING_MODE
 	string "mode (continuous/motion/both, default continuous)"
+	default "both" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_STREAM
@@ -1670,6 +1682,7 @@ endchoice
 
 config RAPTOR_RECORDING_SEGMENT_MINUTES
 	string "segment_minutes (default 5)"
+	default "1" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_STORAGE_PATH
@@ -1694,6 +1707,7 @@ config RAPTOR_RECORDING_CLIP_MAX_MB
 
 choice
 	prompt "sei_timecode - per-frame UTC timecode SEI (default false)"
+	default RAPTOR_RECORDING_SEI_TIMECODE_TRUE if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default RAPTOR_RECORDING_SEI_TIMECODE_DEFAULT
 	help
 	  Embed a MISB ST 0604 Precision Time Stamp SEI (absolute UTC
@@ -1714,6 +1728,7 @@ endchoice
 
 choice
 	prompt "sign - provenance signing (default false)"
+	default RAPTOR_RECORDING_SIGN_TRUE if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default RAPTOR_RECORDING_SIGN_DEFAULT
 	help
 	  Sign recordings with an Ed25519 hash chain (uuid boxes per

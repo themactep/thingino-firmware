@@ -82,6 +82,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RIC
 config BR2_PACKAGE_THINGINO_RAPTOR_RMR
 	bool "RMR (fMP4 recording)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+	default y if BR2_THINGINO_DEV_DASHCAM
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RMD
 	bool "RMD (motion detection)"
@@ -89,6 +90,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RMD
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RTD
 	bool "RTD (telematics: GPS and g-sensor)"
+	default y if BR2_THINGINO_DEV_DASHCAM
 	help
 	  Raptor Telematics Daemon: reads the GPS receiver and g-sensor described
 	  in thingino.json ("gps", "gsensor"), embeds the track in RMR

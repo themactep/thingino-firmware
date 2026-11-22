@@ -970,6 +970,13 @@ menu "Device Type"
 		  Specifies the device type as a Web Camera and installs configurations
 		  specific to this type.
 
+	config BR2_THINGINO_DEV_DASHCAM
+		bool "Dashcam"
+		help
+		  Specifies the device type as a vehicle Dashcam: loop recording
+		  with event clips, GPS and g-sensor telemetry in the recordings,
+		  and the dashcam overlay.
+
 	config BR2_THINGINO_DEV_NVR
 		bool "NVR"
 		help
@@ -990,7 +997,7 @@ menu "Device Type"
 
 	config BR2_THINGINO_DEV_CAMERA
 		bool
-		default y if BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_WEBCAM
+		default y if BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_WEBCAM || BR2_THINGINO_DEV_DASHCAM
 		help
 		  Hidden helper: set for device types with an image sensor.
 		  Camera stack packages (streamer, ONVIF, IMP libraries, ISP
