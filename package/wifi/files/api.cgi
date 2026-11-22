@@ -386,34 +386,30 @@ save_config() {
 		return
 	fi
 
-	# Update hostname
-	hostname "$hostname"
-	echo "$hostname" >/etc/hostname
-
-	# Update wlan settings. `wlan configure` already accepts a 64-hex PSK in
-	# place of a passphrase, so a pre-derived one just passes straight through.
+	# Wi-Fi first: its failure is user-input-driven and must be reported
+	# before anything else is committed. `wlan configure` already accepts
+	# a 64-hex PSK in place of a passphrase, so a pre-derived one passes
+	# straight through.
+	wlan_error=""
 	wlan_secret="$wlan_pass"
 	[ -n "$wlan_psk" ] && wlan_secret="$wlan_psk"
 
-	if [ "true" = "$wlan_ap" ]; then
-		if ! wlan configure "$wlan_ssid" "$wlan_secret" ap; then
-			wlan_configure_failed=true
-		fi
-	else
-		if ! wlan configure "$wlan_ssid" "$wlan_secret"; then
-			wlan_configure_failed=true
-		fi
-	fi
-	if [ "$wlan_configure_failed" = "true" ]; then
-		logger -t portal "wlan configure failed; wifi settings were not saved"
+	set -- "$wlan_ssid" "$wlan_secret"
+	[ "true" = "$wlan_ap" ] && set -- "$@" ap
+	if ! wlan_error=$(wlan configure "$@" 2>&1); then
+		logger -t portal "wlan configure failed: $wlan_error"
 		cat <<-EOF
 			{
 				"success": false,
-				"error": "Failed to save Wi-Fi settings. Check SSID and password and try again."
+				"error": "Failed to save Wi-Fi settings: $(json_encode "$wlan_error")"
 			}
 		EOF
 		return
 	fi
+
+	# Update hostname
+	hostname "$hostname"
+	echo "$hostname" >/etc/hostname
 
 	# Update timezone
 	if [ -n "$timezone" ]; then
