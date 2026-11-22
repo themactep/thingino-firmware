@@ -98,9 +98,10 @@ endif
 # Must be a ROOTFS_PRE_CMD_HOOK, not a TARGET_FINALIZE_HOOK: cfg-backup.list comes from BR2_ROOTFS_OVERLAY,
 # which target-finalize copies in after its hooks run (see package/thingino-sounds).
 # Each path is checked on its own, so a list that already has one of them still gets the other.
+# The header goes in only when a path is actually added.
 define THINGINO_RHKD_CFG_BACKUP
 	f=$(TARGET_DIR)/etc/cfg-backup.list; \
-	if [ -f $$f ]; then \
+	if [ -f $$f ] && { ! grep -qx '/etc/homekit' $$f || ! grep -qx '/etc/default/rhkd' $$f; }; then \
 		grep -q '^# HomeKit (rhkd)' $$f || printf '\n# HomeKit (rhkd): pairing store, setup code, settings\n' >>$$f; \
 		grep -qx '/etc/homekit' $$f || echo '/etc/homekit' >>$$f; \
 		grep -qx '/etc/default/rhkd' $$f || echo '/etc/default/rhkd' >>$$f; \
