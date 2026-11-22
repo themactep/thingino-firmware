@@ -76,8 +76,11 @@ def webui_url(ctx):
 
 def slip_up(guest):
     """Guest end of the serial IP link; safe to call again after a reboot."""
+    # Three wires only: UART0 has no carrier and its CTS reads deasserted,
+    # so slattach's default RTS/CTS flow control would never send.
     guest.run("pgrep -f 'slattach.*ttyS0' >/dev/null || "
-              "(slattach -p slip -s 115200 /dev/ttyS0 &); sleep 1", timeout=10)
+              "(slattach -p slip -s 115200 -L -F /dev/ttyS0 &); sleep 1",
+              timeout=10)
     guest.run(f"ip addr add {SLIP_GUEST_IP} peer {SLIP_HOST_IP} dev sl0 2>/dev/null; "
               "ip link set sl0 up mtu 1500; true", timeout=10)
     rc, out = guest.run("ip -4 addr show sl0 2>&1")
