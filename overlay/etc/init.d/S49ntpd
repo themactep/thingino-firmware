@@ -56,7 +56,7 @@ start() {
 		echo -c 240 -e "- Portal mode. Skip sync time"
 	else
 		echo -c 240 -e "- Sync time"
-		ntpd -q -N &
+		ntpd -q -N -S /etc/ntpd_callback &
 	fi
 }
 
