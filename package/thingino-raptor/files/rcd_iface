@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# rcd addresses this interface and serves DHCP on it; a DHCP client here
+# would flush that on every link change (camera power cycles flap it).
+
+conf() {
+	awk -v k="$1" '
+		/^\[/ { s = ($0 ~ /^\[cameras\]/) ; next }
+		s && $1 == k && $2 == "=" { v = $3 }
+		END { print v }
+	' /etc/raptor.conf 2>/dev/null
+}
+
+[ "$(conf enabled)" = true ] || exit 0
+iface=$(conf iface)
+[ -n "$iface" ] && [ "$iface" = "$IFACE" ] || exit 0
+echo "$IFACE belongs to rcd (raptor.conf [cameras])" >&2
+exit 1

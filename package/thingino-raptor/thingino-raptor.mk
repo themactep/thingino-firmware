@@ -268,6 +268,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RCD)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/rcd_iface \
+			$(TARGET_DIR)/etc/network/if-pre-up.d/rcd_iface; \
+	fi
 	# Dashcam pages (GPS & g-sensor, ignition & parking): their own web UI
 	# plugin, so cameras without rtd never list them.
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RTD)" = "y" ]; then \

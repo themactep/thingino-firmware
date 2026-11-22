@@ -251,10 +251,12 @@ bool ircut ir940 RAPTOR_IRCUT_IR940
 bool recording enabled RAPTOR_RECORDING_ENABLED
 str recording mode RAPTOR_RECORDING_MODE
 str recording stream RAPTOR_RECORDING_STREAM
+str recording streams RAPTOR_RECORDING_STREAMS
 bool recording audio RAPTOR_RECORDING_AUDIO
 str recording segment_minutes RAPTOR_RECORDING_SEGMENT_MINUTES
 str recording storage_path RAPTOR_RECORDING_STORAGE_PATH
 str recording max_storage_mb RAPTOR_RECORDING_MAX_STORAGE_MB
+str recording min_free_mb RAPTOR_RECORDING_MIN_FREE_MB
 str recording prebuffer_sec RAPTOR_RECORDING_PREBUFFER_SEC
 str recording clip_length_sec RAPTOR_RECORDING_CLIP_LENGTH_SEC
 str recording clip_max_mb RAPTOR_RECORDING_CLIP_MAX_MB
@@ -335,3 +337,18 @@ bool filesource loop RAPTOR_FILESOURCE_LOOP
 str filesource audio_codec RAPTOR_FILESOURCE_AUDIO_CODEC
 str filesource audio_sample_rate RAPTOR_FILESOURCE_AUDIO_SAMPLE_RATE
 enum webrtc audio_mode RAPTOR_WEBRTC_AUDIO_MODE OPUS AUTO PCMU
+bool cameras enabled RAPTOR_CAMERAS_ENABLED
+str cameras iface RAPTOR_CAMERAS_IFACE
+str cameras local_ip RAPTOR_CAMERAS_LOCAL_IP
+bool cameras dhcp RAPTOR_CAMERAS_DHCP
+str cameras power_gpio RAPTOR_CAMERAS_POWER_GPIO
+bool cameras power_cycle RAPTOR_CAMERAS_POWER_CYCLE
+bool camera1 enabled RAPTOR_CAMERA1_ENABLED
+str camera1 type RAPTOR_CAMERA1_TYPE
+str camera1 ip RAPTOR_CAMERA1_IP
+str camera1 mac RAPTOR_CAMERA1_MAC
+str camera1 slot RAPTOR_CAMERA1_SLOT
+str camera1 codec RAPTOR_CAMERA1_CODEC
+str camera1 enc_buf_sec RAPTOR_CAMERA1_ENC_BUF_SEC
+bool camera1 keyframe_requests RAPTOR_CAMERA1_KEYFRAME_REQUESTS
+bool camera1 sub RAPTOR_CAMERA1_SUB
