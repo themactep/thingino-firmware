@@ -295,6 +295,15 @@ config BR2_PACKAGE_THINGINO_KOPT_NVT_AUDIO
 	  The NA51055 embedded codec through the vendor ALSA SoC driver:
 	  capture, playback and loopback cards.
 
+config BR2_PACKAGE_THINGINO_KOPT_NVT_THERMAL
+	bool "Novatek SoC temperature"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_SOC_VENDOR_NOVATEK
+	help
+	  Loads the SoC ADC driver, which exposes the die temperature as
+	  thermal_zone0 (millidegrees) with a critical trip that powers
+	  the camera off in order, and the ADC inputs under IIO.
+
 config BR2_PACKAGE_THINGINO_KOPT_PWM
 	bool "PWM"
 	depends on BR2_PACKAGE_THINGINO_KOPT
