@@ -9,7 +9,7 @@ config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	bool "libimp.so (core SDK)"
 	depends on !BR2_PACKAGE_OPENIMP
 	default y
-	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t32"
+	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	help
 	  Proprietary Ingenic IMP core library. Required by streamers when
 	  OpenIMP is not selected.

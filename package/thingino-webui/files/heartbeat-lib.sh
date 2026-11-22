@@ -332,7 +332,9 @@ thingino_heartbeat_raptor_payload() {
 		fi
 		total_gain=$(thingino_heartbeat_json_number_field total_gain "$(raptorctl rvd get-exposure 2>/dev/null || true)")
 	else
-		_hb=$(agentctl runtime heartbeat 2>/dev/null || true)
+		# Only the exposure figures are needed: the full heartbeat resource
+		# builds every field this payload already has (about 0.6 s on a T41).
+		_hb=$(agentctl runtime exposure 2>/dev/null || true)
 		daynight_brightness=$(thingino_heartbeat_json_number_field daynight_brightness "$_hb")
 		[ -n "$daynight_brightness" ] || daynight_brightness=null
 		total_gain=$(thingino_heartbeat_json_number_field total_gain "$_hb")

@@ -1,0 +1,7 @@
+{
+  "soc": "t33l",
+  "caps": [
+    "wifi"
+  ],
+  "net": "slip"
+}

@@ -12,7 +12,7 @@ KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
 # What a board gets when its defconfig names no version.
 ifeq ($(KERNEL_VERSION),)
-ifeq ($(SOC_ARCH),xburst2)
+ifneq ($(filter xburst2,$(SOC_ARCH))$(filter t33,$(SOC_FAMILY)),)
 KERNEL_VERSION := 4.4.94
 else
 KERNEL_VERSION := 3.10.14
@@ -25,6 +25,9 @@ ifeq ($(SOC_FAMILY),t32)
 KERNEL_BRANCH := ingenic-t32
 else ifeq ($(SOC_FAMILY),t41)
 KERNEL_BRANCH := ingenic-t41-3.10.14
+# The T33 has no 3.10 branch; leaving it unset rejects the combination
+# instead of letting the xburst1 line below give it the T31's kernel.
+else ifeq ($(SOC_FAMILY),t33)
 # ingenic-t31 covers all of xburst1; it is not a t31 branch. The architecture is
 # tested rather than closing with a bare else so that an xburst2 family arriving
 # without a 3.10 branch is rejected instead of taking this one.
@@ -41,6 +44,8 @@ KERNEL_BRANCH := ingenic-t23-4.4.94
 KERNEL_HASH   := f97f65461547f1543ee3da22e72612f29a797cb3
 else ifeq ($(SOC_FAMILY),t32)
 KERNEL_BRANCH := ingenic-t32-4.4.94
+else ifeq ($(SOC_FAMILY),t33)
+KERNEL_BRANCH := ingenic-t33-4.4.94
 else ifeq ($(SOC_FAMILY),t40)
 KERNEL_BRANCH := ingenic-t40
 else ifeq ($(SOC_FAMILY),t41)
