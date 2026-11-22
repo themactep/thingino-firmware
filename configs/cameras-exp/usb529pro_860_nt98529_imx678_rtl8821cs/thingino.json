@@ -7,5 +7,6 @@
     "speaker": 113
   },
   "gps": { "uart": "/dev/ttyS1", "baud": 9600 },
-  "gsensor": { "model": "da221", "i2c": 2, "addr": 39 }
+  "gsensor": { "model": "da221", "i2c": 2, "addr": 39 },
+  "ignition": { "park": true, "park_impact_g": 0.5, "off_delay": 1800 }
 }

@@ -77,6 +77,18 @@ define IGNITION_BUTTON_CONF
 endef
 endif
 
+# A dashcam's short press protects the moment (an event clip) instead of
+# speaking the IP; holding the power button shuts down cleanly before the
+# RTC's own hold timer cuts the power mid-write.
+ifeq ($(BR2_THINGINO_DEV_DASHCAM),y)
+define DASHCAM_BUTTON_CONF
+	sed -i 's|^KEY_ENTER TIMED 0.1 tell %ip$$|KEY_ENTER TIMED 0.1 raptorctl rtd event|' \
+		$(TARGET_DIR)/etc/thingino-button.conf
+	printf 'KEY_POWER TIMED_FIRE 2 play /usr/share/sounds/chime_1.opus\nKEY_POWER TIMED 2 touch /run/poweroff; poweroff\n' \
+		>> $(TARGET_DIR)/etc/thingino-button.conf
+endef
+endif
+
 define THINGINO_BUTTON_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/thingino-button $(TARGET_DIR)/usr/bin/thingino-button
 
@@ -89,6 +101,7 @@ define THINGINO_BUTTON_INSTALL_TARGET_CMDS
 	$(DOORBELL_BUTTON_CONF)
 	$(CHECK_MULTIPLE_GPIO_BUTTONS)
 	$(IGNITION_BUTTON_CONF)
+	$(DASHCAM_BUTTON_CONF)
 endef
 
 $(eval $(generic-package))

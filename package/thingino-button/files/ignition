@@ -1,10 +1,16 @@
 #!/bin/sh
 # Ignition (ACC) events from thingino-button: KEY_PROG1 released = off, pressed = on.
-# ignition.off_delay in thingino.json powers the camera off that many seconds after the
-# ignition goes off; 0 or unset keeps it running.
+# thingino.json ignition.park pauses continuous recording while parked; events (impacts
+# past ignition.park_impact_g, the protect button) still record. ignition.off_delay
+# powers the camera off that many seconds after the ignition goes off; 0 or unset
+# keeps it running.
 
 CONFIG_JSON="/etc/thingino.json"
 PIDFILE="/run/ignition-off.pid"
+
+cfg() {
+	jct "$CONFIG_JSON" get "ignition.$1" 2>/dev/null
+}
 
 cancel() {
 	[ -f "$PIDFILE" ] || return 0
@@ -15,7 +21,13 @@ cancel() {
 case "$1" in
 	off)
 		logger -t ignition "off"
-		delay=$(jct "$CONFIG_JSON" get ignition.off_delay 2>/dev/null)
+		if [ "$(cfg park)" = "true" ]; then
+			raptorctl rmr pause >/dev/null 2>&1
+			g=$(cfg park_impact_g)
+			[ -n "$g" ] && raptorctl rtd set-impact-g "$g" >/dev/null 2>&1
+			logger -t ignition "parked: continuous recording paused, impact threshold ${g:-unchanged} g"
+		fi
+		delay=$(cfg off_delay)
 		case "$delay" in
 			'' | 0 | *[!0-9]*) exit 0 ;;
 		esac
@@ -27,6 +39,12 @@ case "$1" in
 	on)
 		logger -t ignition "on"
 		cancel
+		if [ "$(cfg park)" = "true" ]; then
+			g=$(raptorctl config get telematics impact_g 2>/dev/null | tr -d '"\r\n')
+			raptorctl rtd set-impact-g "${g:-1.5}" >/dev/null 2>&1
+			raptorctl rmr resume >/dev/null 2>&1
+			logger -t ignition "driving: continuous recording resumed"
+		fi
 		;;
 	*)
 		echo "Usage: $0 {on|off}" >&2
