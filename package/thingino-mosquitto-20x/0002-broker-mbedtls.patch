@@ -1,40 +1,7 @@
-diff --git c/src/Makefile i/src/Makefile
-index dbe9819..79dbaf0 100644
---- c/src/Makefile
-+++ i/src/Makefile
-@@ -81,9 +81,17 @@ OBJS=	mosquitto.o \
- 		will_mosq.o \
- 		xtreport.o
- 
-+ifeq ($(TLS_IMPL),mbedtls)
-+OBJS += net_mbedtls_broker.o
-+OBJS += tls_mbedtls.o
-+endif
-+
- mosquitto : ${OBJS}
- 	${CROSS_COMPILE}${CC} ${BROKER_LDFLAGS} $^ -o $@ $(BROKER_LDADD)
- 
-+net_mbedtls_broker.o : net_mbedtls_broker.c net_mbedtls_broker.h mosquitto_broker_internal.h
-+	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
-+
- mosquitto.o : mosquitto.c mosquitto_broker_internal.h
- 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
- 
-@@ -288,6 +296,9 @@ time_mosq.o : ../lib/time_mosq.c ../lib/time_mosq.h
- tls_mosq.o : ../lib/tls_mosq.c
- 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
- 
-+tls_mbedtls.o : ../lib/tls_mbedtls.c ../lib/tls_mbedtls.h
-+	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
-+
- topic_tok.o : topic_tok.c mosquitto_broker_internal.h
- 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
- 
-diff --git c/src/bridge.c i/src/bridge.c
-index a347f8c..f3d827d 100644
---- c/src/bridge.c
-+++ i/src/bridge.c
-@@ -105,7 +105,11 @@ int bridge__new(struct mosquitto__bridge *bridge)
+diff -ruN c0/mosquitto-2.0.23/src/bridge.c a/mosquitto-2.0.23/src/bridge.c
+--- a/src/bridge.c	2026-11-21 17:10:36.487285394 +0100
++++ b/src/bridge.c	2026-11-21 17:10:36.535285880 +0100
+@@ -105,7 +105,11 @@
  	new_context->tls_capath = new_context->bridge->tls_capath;
  	new_context->tls_certfile = new_context->bridge->tls_certfile;
  	new_context->tls_keyfile = new_context->bridge->tls_keyfile;
@@ -46,7 +13,7 @@ index a347f8c..f3d827d 100644
  	new_context->tls_ocsp_required = new_context->bridge->tls_ocsp_required;
  	new_context->tls_version = new_context->bridge->tls_version;
  	new_context->tls_insecure = new_context->bridge->tls_insecure;
-@@ -628,7 +632,7 @@ void bridge__cleanup(struct mosquitto *context)
+@@ -628,7 +632,7 @@
  		mosquitto__free(context->bridge->remote_password);
  	}
  	context->bridge->remote_password = NULL;
@@ -55,11 +22,10 @@ index a347f8c..f3d827d 100644
  	if(context->ssl_ctx){
  		SSL_CTX_free(context->ssl_ctx);
  		context->ssl_ctx = NULL;
-diff --git c/src/conf.c i/src/conf.c
-index a3eaef9..a537e90 100644
---- c/src/conf.c
-+++ i/src/conf.c
-@@ -43,6 +43,7 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/conf.c a/mosquitto-2.0.23/src/conf.c
+--- a/src/conf.c	2026-11-21 17:10:36.486285384 +0100
++++ b/src/conf.c	2026-11-21 17:10:36.536285890 +0100
+@@ -43,6 +43,7 @@
  #endif
  
  #include "mosquitto_broker_internal.h"
@@ -67,7 +33,7 @@ index a3eaef9..a537e90 100644
  #include "memory_mosq.h"
  #include "misc_mosq.h"
  #include "tls_mosq.h"
-@@ -288,12 +289,16 @@ void config__cleanup(struct mosquitto__config *config)
+@@ -288,12 +289,16 @@
  			mosquitto__free(config->listeners[i].tls_version);
  			mosquitto__free(config->listeners[i].tls_engine);
  			mosquitto__free(config->listeners[i].tls_engine_kpass_sha1);
@@ -86,7 +52,7 @@ index a3eaef9..a537e90 100644
  #endif
  #ifdef WITH_WEBSOCKETS
  			mosquitto__free(config->listeners[i].http_dir);
-@@ -510,7 +515,11 @@ int config__parse_args(struct mosquitto__config *config, int argc, char *argv[])
+@@ -511,7 +516,11 @@
  		config->listeners[config->listener_count-1].dhparamfile = config->default_listener.dhparamfile;
  		config->listeners[config->listener_count-1].psk_hint = config->default_listener.psk_hint;
  		config->listeners[config->listener_count-1].require_certificate = config->default_listener.require_certificate;
@@ -98,11 +64,10 @@ index a3eaef9..a537e90 100644
  		config->listeners[config->listener_count-1].crlfile = config->default_listener.crlfile;
  		config->listeners[config->listener_count-1].use_identity_as_username = config->default_listener.use_identity_as_username;
  		config->listeners[config->listener_count-1].use_subject_as_username = config->default_listener.use_subject_as_username;
-diff --git c/src/context.c i/src/context.c
-index b2ea740..b6c1183 100644
---- c/src/context.c
-+++ i/src/context.c
-@@ -87,7 +87,7 @@ struct mosquitto *context__init(mosq_sock_t sock)
+diff -ruN c0/mosquitto-2.0.23/src/context.c a/mosquitto-2.0.23/src/context.c
+--- a/src/context.c	2026-11-21 17:10:36.489285414 +0100
++++ b/src/context.c	2026-11-21 17:10:36.536285890 +0100
+@@ -87,7 +87,7 @@
  	context->msgs_out.inflight_maximum = db.config->max_inflight_messages;
  	context->msgs_out.inflight_quota = db.config->max_inflight_messages;
  	context->max_qos = 2;
@@ -111,11 +76,10 @@ index b2ea740..b6c1183 100644
  	context->ssl = NULL;
  #endif
  
-diff --git c/src/handle_connect.c i/src/handle_connect.c
-index a441ba8..42d67d3 100644
---- c/src/handle_connect.c
-+++ i/src/handle_connect.c
-@@ -23,6 +23,13 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/handle_connect.c a/mosquitto-2.0.23/src/handle_connect.c
+--- a/src/handle_connect.c	2026-11-21 17:10:36.487285394 +0100
++++ b/src/handle_connect.c	2026-11-21 17:10:36.536285890 +0100
+@@ -23,6 +23,13 @@
  #include <utlist.h>
  
  #include "mosquitto_broker_internal.h"
@@ -129,7 +93,7 @@ index a441ba8..42d67d3 100644
  #include "mqtt_protocol.h"
  #include "memory_mosq.h"
  #include "packet_mosq.h"
-@@ -443,7 +450,7 @@ int handle__connect(struct mosquitto *context)
+@@ -446,7 +453,7 @@
  	void *auth_data_out = NULL;
  	uint16_t auth_data_out_len = 0;
  	bool allow_zero_length_clientid;
@@ -138,7 +102,7 @@ index a441ba8..42d67d3 100644
  	int i;
  	X509 *client_cert = NULL;
  	X509_NAME *name;
-@@ -726,14 +733,14 @@ int handle__connect(struct mosquitto *context)
+@@ -761,14 +768,14 @@
  	client_id = NULL;
  
  #ifdef WITH_TLS
@@ -155,7 +119,7 @@ index a441ba8..42d67d3 100644
  			if(context->protocol == mosq_p_mqtt5){
  				send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
  			}else{
-@@ -756,29 +763,15 @@ int handle__connect(struct mosquitto *context)
+@@ -791,29 +798,25 @@
  			}
  		}else{
  #endif /* FINAL_WITH_TLS_PSK */
@@ -175,13 +139,6 @@ index a441ba8..42d67d3 100644
 -					send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
 -				}else{
 -					send__connack(context, 0, CONNACK_REFUSED_BAD_USERNAME_PASSWORD, NULL);
--				}
--				rc = MOSQ_ERR_AUTH;
--				goto handle_connect_error;
--			}
--			if (context->listener->use_identity_as_username) { /* use_identity_as_username */
--				i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
--				if(i == -1){
 +#ifdef WITH_TLS_OPENSSL
 +			{
 +				X509 *client_cert;
@@ -191,19 +148,6 @@ index a441ba8..42d67d3 100644
 +				int i;
 +				client_cert = SSL_get_peer_certificate(context->ssl);
 +				if(!client_cert){
- 					if(context->protocol == mosq_p_mqtt5){
- 						send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
- 					}else{
-@@ -787,10 +780,19 @@ int handle__connect(struct mosquitto *context)
- 					rc = MOSQ_ERR_AUTH;
- 					goto handle_connect_error;
- 				}
--				name_entry = X509_NAME_get_entry(name, i);
--				if(name_entry){
--					name_asn1 = X509_NAME_ENTRY_get_data(name_entry);
--					if (name_asn1 == NULL) {
-+				name = X509_get_subject_name(client_cert);
-+				if(!name){
 +					if(context->protocol == mosq_p_mqtt5){
 +						send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
 +					}else{
@@ -211,14 +155,33 @@ index a441ba8..42d67d3 100644
 +					}
 +					rc = MOSQ_ERR_AUTH;
 +					goto handle_connect_error;
-+				}
+ 				}
+-				rc = MOSQ_ERR_AUTH;
+-				goto handle_connect_error;
+-			}
+-			if (context->listener->use_identity_as_username) { /* use_identity_as_username */
+-				i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+-				if(i == -1){
++				name = X509_get_subject_name(client_cert);
++				if(!name){
+ 					if(context->protocol == mosq_p_mqtt5){
+ 						send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
+ 					}else{
+@@ -822,10 +825,9 @@
+ 					rc = MOSQ_ERR_AUTH;
+ 					goto handle_connect_error;
+ 				}
+-				name_entry = X509_NAME_get_entry(name, i);
+-				if(name_entry){
+-					name_asn1 = X509_NAME_ENTRY_get_data(name_entry);
+-					if (name_asn1 == NULL) {
 +				if (context->listener->use_identity_as_username) { /* use_identity_as_username */
 +					i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
 +					if(i == -1){
  						if(context->protocol == mosq_p_mqtt5){
  							send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
  						}else{
-@@ -799,33 +801,134 @@ int handle__connect(struct mosquitto *context)
+@@ -834,33 +836,134 @@
  						rc = MOSQ_ERR_AUTH;
  						goto handle_connect_error;
  					}
@@ -256,7 +219,16 @@ index a441ba8..42d67d3 100644
 +							}
 +							X509_free(client_cert);
 +							return MOSQ_ERR_AUTH;
-+						}
+ 						}
+-						X509_free(client_cert);
+-						return MOSQ_ERR_AUTH;
+-					}
+-					context->username = mosquitto__strdup(new_username);
+-					if(!context->username){
+-						if(context->protocol == mosq_p_mqtt5){
+-							send__connack(context, 0, MQTT_RC_SERVER_UNAVAILABLE, NULL);
+-						}else{
+-							send__connack(context, 0, CONNACK_REFUSED_SERVER_UNAVAILABLE, NULL);
 +						context->username = mosquitto__strdup(new_username);
 +						if(!context->username){
 +							if(context->protocol == mosq_p_mqtt5){
@@ -266,7 +238,7 @@ index a441ba8..42d67d3 100644
 +							}
 +							rc = MOSQ_ERR_NOMEM;
 +							goto handle_connect_error;
-+						}
+ 						}
 +						/* Make sure there isn't an embedded NUL character in the CN */
 +						if ((size_t)ASN1_STRING_length(name_asn1) != strlen(context->username)) {
 +							if(context->protocol == mosq_p_mqtt5){
@@ -276,17 +248,8 @@ index a441ba8..42d67d3 100644
 +							}
 +							rc = MOSQ_ERR_AUTH;
 +							goto handle_connect_error;
- 						}
--						X509_free(client_cert);
--						return MOSQ_ERR_AUTH;
- 					}
--					context->username = mosquitto__strdup(new_username);
--					if(!context->username){
--						if(context->protocol == mosq_p_mqtt5){
--							send__connack(context, 0, MQTT_RC_SERVER_UNAVAILABLE, NULL);
--						}else{
--							send__connack(context, 0, CONNACK_REFUSED_SERVER_UNAVAILABLE, NULL);
--						}
++						}
++					}
 +				} else { /* use_subject_as_username */
 +					BIO *subject_bio;
 +					char *data_start;
@@ -372,7 +335,7 @@ index a441ba8..42d67d3 100644
  						if(context->protocol == mosq_p_mqtt5){
  							send__connack(context, 0, MQTT_RC_BAD_USERNAME_OR_PASSWORD, NULL);
  						}else{
-@@ -834,29 +937,17 @@ int handle__connect(struct mosquitto *context)
+@@ -869,29 +972,17 @@
  						rc = MOSQ_ERR_AUTH;
  						goto handle_connect_error;
  					}
@@ -411,7 +374,7 @@ index a441ba8..42d67d3 100644
  #ifdef FINAL_WITH_TLS_PSK
  		}
  #endif /* FINAL_WITH_TLS_PSK */
-@@ -927,7 +1018,7 @@ int handle__connect(struct mosquitto *context)
+@@ -962,7 +1053,7 @@
  		}
  	}else{
  #ifdef WITH_TLS
@@ -420,7 +383,7 @@ index a441ba8..42d67d3 100644
  			/* Authentication assumed to be cleared */
  		}else
  #endif
-@@ -974,8 +1065,8 @@ handle_connect_error:
+@@ -1009,8 +1100,8 @@
  		mosquitto__free(context->will);
  		context->will = NULL;
  	}
@@ -431,32 +394,41 @@ index a441ba8..42d67d3 100644
  #endif
  	/* We return an error here which means the client is freed later on. */
  	context->clean_start = true;
-diff --git c/src/mosquitto.c i/src/mosquitto.c
-index 50d50d2..e23da05 100644
---- c/src/mosquitto.c
-+++ i/src/mosquitto.c
-@@ -51,6 +51,7 @@ Contributors:
- #endif
+diff -ruN c0/mosquitto-2.0.23/src/Makefile a/mosquitto-2.0.23/src/Makefile
+--- a/src/Makefile	2026-11-21 17:10:36.488285404 +0100
++++ b/src/Makefile	2026-11-21 17:10:36.535285880 +0100
+@@ -81,9 +81,17 @@
+ 		will_mosq.o \
+ 		xtreport.o
  
- #include "mosquitto_broker_internal.h"
-+#include "net_mbedtls_broker.h"
- #include "memory_mosq.h"
- #include "misc_mosq.h"
- #include "util_mosq.h"
-@@ -197,7 +198,7 @@ void listeners__reload_all_certificates(void)
++ifeq ($(TLS_IMPL),mbedtls)
++OBJS += net_mbedtls_broker.o
++OBJS += tls_mbedtls.o
++endif
++
+ mosquitto : ${OBJS}
+ 	${CROSS_COMPILE}${CC} ${BROKER_LDFLAGS} $^ -o $@ $(BROKER_LDADD)
  
- 	for(i=0; i<db.config->listener_count; i++){
- 		listener = &db.config->listeners[i];
--		if(listener->ssl_ctx && listener->certfile && listener->keyfile){
-+		if(LISTENER_HAS_TLS(listener) && listener->certfile && listener->keyfile){
- 			rc = net__load_certificates(listener);
- 			if(rc){
- 				log__printf(NULL, MOSQ_LOG_ERR, "Error when reloading certificate '%s' or key '%s'.",
-diff --git c/src/mosquitto_broker_internal.h i/src/mosquitto_broker_internal.h
-index 7516f31..876e1bb 100644
---- c/src/mosquitto_broker_internal.h
-+++ i/src/mosquitto_broker_internal.h
-@@ -37,6 +37,7 @@ Contributors:
++net_mbedtls_broker.o : net_mbedtls_broker.c net_mbedtls_broker.h mosquitto_broker_internal.h
++	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
++
+ mosquitto.o : mosquitto.c mosquitto_broker_internal.h
+ 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
+ 
+@@ -288,6 +296,9 @@
+ tls_mosq.o : ../lib/tls_mosq.c
+ 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
+ 
++tls_mbedtls.o : ../lib/tls_mbedtls.c ../lib/tls_mbedtls.h
++	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
++
+ topic_tok.o : topic_tok.c mosquitto_broker_internal.h
+ 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
+ 
+diff -ruN c0/mosquitto-2.0.23/src/mosquitto_broker_internal.h a/mosquitto-2.0.23/src/mosquitto_broker_internal.h
+--- a/src/mosquitto_broker_internal.h	2026-11-21 17:10:36.488285404 +0100
++++ b/src/mosquitto_broker_internal.h	2026-11-21 17:10:36.537285900 +0100
+@@ -37,6 +37,7 @@
  #include "logging_mosq.h"
  #include "password_mosq.h"
  #include "tls_mosq.h"
@@ -464,7 +436,7 @@ index 7516f31..876e1bb 100644
  #include "uthash.h"
  
  #ifndef __GNUC__
-@@ -218,7 +219,11 @@ struct mosquitto__listener {
+@@ -218,7 +219,11 @@
  	char *ciphers;
  	char *ciphers_tls13;
  	char *psk_hint;
@@ -476,11 +448,30 @@ index 7516f31..876e1bb 100644
  	char *crlfile;
  	char *tls_version;
  	char *dhparamfile;
-diff --git c/src/mux_epoll.c i/src/mux_epoll.c
-index e80bcc8..26f7133 100644
---- c/src/mux_epoll.c
-+++ i/src/mux_epoll.c
-@@ -255,9 +255,12 @@ static void loop_handle_reads_writes(struct mosquitto *context, uint32_t events)
+diff -ruN c0/mosquitto-2.0.23/src/mosquitto.c a/mosquitto-2.0.23/src/mosquitto.c
+--- a/src/mosquitto.c	2026-11-21 17:10:36.484285364 +0100
++++ b/src/mosquitto.c	2026-11-21 17:10:36.537285900 +0100
+@@ -51,6 +51,7 @@
+ #endif
+ 
+ #include "mosquitto_broker_internal.h"
++#include "net_mbedtls_broker.h"
+ #include "memory_mosq.h"
+ #include "misc_mosq.h"
+ #include "util_mosq.h"
+@@ -197,7 +198,7 @@
+ 
+ 	for(i=0; i<db.config->listener_count; i++){
+ 		listener = &db.config->listeners[i];
+-		if(listener->ssl_ctx && listener->certfile && listener->keyfile){
++		if(LISTENER_HAS_TLS(listener) && listener->certfile && listener->keyfile){
+ 			rc = net__load_certificates(listener);
+ 			if(rc){
+ 				log__printf(NULL, MOSQ_LOG_ERR, "Error when reloading certificate '%s' or key '%s'.",
+diff -ruN c0/mosquitto-2.0.23/src/mux_epoll.c a/mosquitto-2.0.23/src/mux_epoll.c
+--- a/src/mux_epoll.c	2026-11-21 17:10:36.486285384 +0100
++++ b/src/mux_epoll.c	2026-11-21 17:10:36.537285900 +0100
+@@ -255,9 +255,12 @@
  #endif
  
  	if(events & EPOLLOUT
@@ -494,7 +485,7 @@ index e80bcc8..26f7133 100644
  #endif
  			){
  
-@@ -285,8 +288,10 @@ static void loop_handle_reads_writes(struct mosquitto *context, uint32_t events)
+@@ -285,8 +288,10 @@
  	}
  
  	if(events & EPOLLIN
@@ -506,11 +497,10 @@ index e80bcc8..26f7133 100644
  #endif
  			){
  
-diff --git c/src/mux_poll.c i/src/mux_poll.c
-index 496fcf8..501bd5e 100644
---- c/src/mux_poll.c
-+++ i/src/mux_poll.c
-@@ -282,10 +282,14 @@ static void loop_handle_reads_writes(void)
+diff -ruN c0/mosquitto-2.0.23/src/mux_poll.c a/mosquitto-2.0.23/src/mux_poll.c
+--- a/src/mux_poll.c	2026-11-21 17:10:36.485285374 +0100
++++ b/src/mux_poll.c	2026-11-21 17:10:36.537285900 +0100
+@@ -282,10 +282,14 @@
  		}
  #endif
  
@@ -526,7 +516,7 @@ index 496fcf8..501bd5e 100644
  #else
  		if(pollfds[context->pollfd_index].revents & POLLOUT){
  #endif
-@@ -325,9 +329,12 @@ static void loop_handle_reads_writes(void)
+@@ -325,9 +329,12 @@
  		}
  #endif
  
@@ -540,11 +530,10 @@ index 496fcf8..501bd5e 100644
  #else
  		if(pollfds[context->pollfd_index].revents & POLLIN){
  #endif
-diff --git c/src/net.c i/src/net.c
-index c6f32dd..4e5e6f0 100644
---- c/src/net.c
-+++ i/src/net.c
-@@ -59,12 +59,13 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/net.c a/mosquitto-2.0.23/src/net.c
+--- a/src/net.c	2026-11-21 17:10:36.484285364 +0100
++++ b/src/net.c	2026-11-21 17:10:36.537285900 +0100
+@@ -59,12 +59,13 @@
  #include "net_mosq.h"
  #include "util_mosq.h"
  
@@ -559,7 +548,7 @@ index c6f32dd..4e5e6f0 100644
  
  #include "sys_tree.h"
  
-@@ -75,7 +76,7 @@ void net__broker_init(void)
+@@ -75,7 +76,7 @@
  {
  	spare_sock = socket(AF_INET, SOCK_STREAM, 0);
  	net__init();
@@ -568,7 +557,7 @@ index c6f32dd..4e5e6f0 100644
  	net__init_tls();
  #endif
  }
-@@ -112,7 +113,7 @@ struct mosquitto *net__socket_accept(struct mosquitto__listener_sock *listensock
+@@ -112,7 +113,7 @@
  {
  	mosq_sock_t new_sock = INVALID_SOCKET;
  	struct mosquitto *new_context;
@@ -577,7 +566,7 @@ index c6f32dd..4e5e6f0 100644
  	BIO *bio;
  	int rc;
  	char ebuf[256];
-@@ -203,7 +204,7 @@ struct mosquitto *net__socket_accept(struct mosquitto__listener_sock *listensock
+@@ -203,7 +204,7 @@
  		return NULL;
  	}
  
@@ -586,7 +575,7 @@ index c6f32dd..4e5e6f0 100644
  	/* TLS init */
  	if(new_context->listener->ssl_ctx){
  		new_context->ssl = SSL_new(new_context->listener->ssl_ctx);
-@@ -239,6 +240,13 @@ struct mosquitto *net__socket_accept(struct mosquitto__listener_sock *listensock
+@@ -242,6 +243,13 @@
  			}
  		}
  	}
@@ -600,7 +589,7 @@ index c6f32dd..4e5e6f0 100644
  #endif
  
  	if(db.config->connection_messages == true){
-@@ -251,7 +259,7 @@ struct mosquitto *net__socket_accept(struct mosquitto__listener_sock *listensock
+@@ -254,7 +262,7 @@
  	return new_context;
  }
  
@@ -609,7 +598,7 @@ index c6f32dd..4e5e6f0 100644
  static int client_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx)
  {
  	UNUSED(ctx);
-@@ -313,7 +321,7 @@ static unsigned int psk_server_callback(SSL *ssl, const char *identity, unsigned
+@@ -316,7 +324,7 @@
  }
  #endif
  
@@ -618,7 +607,7 @@ index c6f32dd..4e5e6f0 100644
  int net__tls_server_ctx(struct mosquitto__listener *listener)
  {
  	char buf[256];
-@@ -441,7 +449,7 @@ int net__tls_server_ctx(struct mosquitto__listener *listener)
+@@ -451,7 +459,7 @@
  #endif
  
  
@@ -627,7 +616,7 @@ index c6f32dd..4e5e6f0 100644
  static int net__load_crl_file(struct mosquitto__listener *listener)
  {
  	X509_STORE *store;
-@@ -471,7 +479,7 @@ static int net__load_crl_file(struct mosquitto__listener *listener)
+@@ -481,7 +489,7 @@
  
  int net__load_certificates(struct mosquitto__listener *listener)
  {
@@ -636,7 +625,7 @@ index c6f32dd..4e5e6f0 100644
  	int rc;
  
  	if(listener->require_certificate){
-@@ -513,7 +521,7 @@ int net__load_certificates(struct mosquitto__listener *listener)
+@@ -523,7 +531,7 @@
  }
  
  
@@ -645,7 +634,7 @@ index c6f32dd..4e5e6f0 100644
  static int net__load_engine(struct mosquitto__listener *listener)
  {
  	ENGINE *engine = NULL;
-@@ -573,7 +581,7 @@ static int net__load_engine(struct mosquitto__listener *listener)
+@@ -583,7 +591,7 @@
  
  int net__tls_load_verify(struct mosquitto__listener *listener)
  {
@@ -654,7 +643,7 @@ index c6f32dd..4e5e6f0 100644
  	int rc;
  
  #  if OPENSSL_VERSION_NUMBER < 0x30000000L
-@@ -906,7 +914,16 @@ int net__socket_listen(struct mosquitto__listener *listener)
+@@ -916,7 +924,16 @@
  
  	/* We need to have at least one working socket. */
  	if(listener->sock_count > 0){
@@ -672,11 +661,9 @@ index c6f32dd..4e5e6f0 100644
  		if(listener->certfile && listener->keyfile){
  			if(net__tls_server_ctx(listener)){
  				return 1;
-diff --git c/src/net_mbedtls_broker.c i/src/net_mbedtls_broker.c
-new file mode 100644
-index 0000000..be948bb
---- /dev/null
-+++ i/src/net_mbedtls_broker.c
+diff -ruN c0/mosquitto-2.0.23/src/net_mbedtls_broker.c a/mosquitto-2.0.23/src/net_mbedtls_broker.c
+--- a/src/net_mbedtls_broker.c	1970-01-01 01:00:00.000000000 +0100
++++ b/src/net_mbedtls_broker.c	2026-11-21 17:10:36.537285900 +0100
 @@ -0,0 +1,285 @@
 +/*
 + * Mosquitto broker - mbedTLS TLS support
@@ -963,11 +950,9 @@ index 0000000..be948bb
 +}
 +
 +#endif /* WITH_TLS_MBEDTLS */
-diff --git c/src/net_mbedtls_broker.h i/src/net_mbedtls_broker.h
-new file mode 100644
-index 0000000..a901118
---- /dev/null
-+++ i/src/net_mbedtls_broker.h
+diff -ruN c0/mosquitto-2.0.23/src/net_mbedtls_broker.h a/mosquitto-2.0.23/src/net_mbedtls_broker.h
+--- a/src/net_mbedtls_broker.h	1970-01-01 01:00:00.000000000 +0100
++++ b/src/net_mbedtls_broker.h	2026-11-21 17:10:36.538285910 +0100
 @@ -0,0 +1,49 @@
 +#ifndef NET_MBEDTLS_BROKER_H
 +#define NET_MBEDTLS_BROKER_H
@@ -1018,11 +1003,10 @@ index 0000000..a901118
 +#endif /* WITH_TLS_MBEDTLS */
 +
 +#endif /* NET_MBEDTLS_BROKER_H */
-diff --git c/src/password_mosq.c i/src/password_mosq.c
-index b11ef09..10f3d90 100644
---- c/src/password_mosq.c
-+++ i/src/password_mosq.c
-@@ -19,7 +19,13 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/password_mosq.c a/mosquitto-2.0.23/src/password_mosq.c
+--- a/src/password_mosq.c	2026-11-21 17:10:36.486285384 +0100
++++ b/src/password_mosq.c	2026-11-21 17:10:36.538285910 +0100
+@@ -19,7 +19,13 @@
  #include "config.h"
  
  #include <errno.h>
@@ -1037,7 +1021,7 @@ index b11ef09..10f3d90 100644
  #  include <openssl/opensslv.h>
  #  include <openssl/evp.h>
  #  include <openssl/rand.h>
-@@ -59,7 +65,100 @@ Contributors:
+@@ -59,7 +65,100 @@
  #define MAX_BUFFER_LEN 65536
  #define SALT_LEN 12
  
@@ -1139,11 +1123,10 @@ index b11ef09..10f3d90 100644
  int base64__encode(unsigned char *in, unsigned int in_len, char **encoded)
  {
  	BIO *bmem, *b64;
-diff --git c/src/plugin_public.c i/src/plugin_public.c
-index 808c1a1..a3d66c1 100644
---- c/src/plugin_public.c
-+++ i/src/plugin_public.c
-@@ -27,8 +27,12 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/plugin_public.c a/mosquitto-2.0.23/src/plugin_public.c
+--- a/src/plugin_public.c	2026-11-21 17:10:36.484285364 +0100
++++ b/src/plugin_public.c	2026-11-21 17:10:36.538285910 +0100
+@@ -27,8 +27,12 @@
  #include "util_mosq.h"
  #include "utlist.h"
  
@@ -1157,7 +1140,7 @@ index 808c1a1..a3d66c1 100644
  #endif
  
  const char *mosquitto_client_address(const struct mosquitto *client)
-@@ -73,15 +77,20 @@ int mosquitto_client_keepalive(const struct mosquitto *client)
+@@ -73,15 +77,20 @@
  
  void *mosquitto_client_certificate(const struct mosquitto *client)
  {
@@ -1180,11 +1163,10 @@ index 808c1a1..a3d66c1 100644
  	return NULL;
  #endif
  }
-diff --git c/src/security_default.c i/src/security_default.c
-index f659ce4..928da3a 100644
---- c/src/security_default.c
-+++ i/src/security_default.c
-@@ -23,6 +23,7 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/security_default.c a/mosquitto-2.0.23/src/security_default.c
+--- a/src/security_default.c	2026-11-21 17:10:36.489285414 +0100
++++ b/src/security_default.c	2026-11-21 17:10:36.538285910 +0100
+@@ -23,6 +23,7 @@
  #include <string.h>
  
  #include "mosquitto_broker_internal.h"
@@ -1192,7 +1174,7 @@ index f659ce4..928da3a 100644
  #include "memory_mosq.h"
  #include "mqtt_protocol.h"
  #include "send_mosq.h"
-@@ -34,7 +35,7 @@ static int unpwd__file_parse(struct mosquitto__unpwd **unpwd, const char *passwo
+@@ -34,7 +35,7 @@
  static int acl__cleanup(bool reload);
  static int unpwd__cleanup(struct mosquitto__unpwd **unpwd, bool reload);
  static int psk__file_parse(struct mosquitto__unpwd **psk_id, const char *psk_file);
@@ -1201,7 +1183,7 @@ index f659ce4..928da3a 100644
  static int pw__digest(const char *password, const unsigned char *salt, unsigned int salt_len, unsigned char *hash, unsigned int *hash_len, enum mosquitto_pwhash_type hashtype, int iterations);
  #endif
  static int mosquitto_unpwd_check_default(int event, void *event_data, void *userdata);
-@@ -992,7 +993,11 @@ static int mosquitto_unpwd_check_default(int event, void *event_data, void *user
+@@ -992,7 +993,11 @@
  	struct mosquitto_evt_basic_auth *ed = event_data;
  	struct mosquitto__unpwd *u;
  	struct mosquitto__unpwd *unpwd_ref;
@@ -1214,7 +1196,7 @@ index f659ce4..928da3a 100644
  	unsigned char hash[EVP_MAX_MD_SIZE];
  	unsigned int hash_len;
  	int rc;
-@@ -1017,7 +1022,7 @@ static int mosquitto_unpwd_check_default(int event, void *event_data, void *user
+@@ -1017,7 +1022,7 @@
  	if(u){
  		if(u->password){
  			if(ed->client->password){
@@ -1223,7 +1205,7 @@ index f659ce4..928da3a 100644
  				rc = pw__digest(ed->client->password, u->salt, u->salt_len, hash, &hash_len, u->hashtype, u->iterations);
  				if(rc == MOSQ_ERR_SUCCESS){
  					if(hash_len == u->password_len && !mosquitto__memcmp_const(u->password, hash, hash_len)){
-@@ -1091,7 +1096,7 @@ int mosquitto_security_apply_default(void)
+@@ -1091,7 +1096,7 @@
  	struct mosquitto__acl_user *acl_user_tail;
  	bool allow_anonymous;
  	struct mosquitto__security_options *security_opts = NULL;
@@ -1232,7 +1214,7 @@ index f659ce4..928da3a 100644
  	int i;
  	X509 *client_cert = NULL;
  	X509_NAME *name;
-@@ -1102,9 +1107,12 @@ int mosquitto_security_apply_default(void)
+@@ -1102,9 +1107,12 @@
  	char *data_start;
  	size_t name_length;
  	char *subject;
@@ -1246,7 +1228,7 @@ index f659ce4..928da3a 100644
  	for(i=0; i<db.config->listener_count; i++){
  		listener = &db.config->listeners[i];
  		if(listener && listener->ssl_ctx && listener->certfile && listener->keyfile && listener->crlfile && listener->require_certificate){
-@@ -1117,6 +1125,18 @@ int mosquitto_security_apply_default(void)
+@@ -1117,6 +1125,18 @@
  			}
  		}
  	}
@@ -1265,7 +1247,7 @@ index f659ce4..928da3a 100644
  #endif
  
  	HASH_ITER(hh_id, db.contexts_by_id, context, ctxt_tmp){
-@@ -1144,9 +1164,9 @@ int mosquitto_security_apply_default(void)
+@@ -1144,9 +1164,9 @@
  
  		/* Check for connected clients that are no longer authorised */
  #ifdef WITH_TLS
@@ -1277,7 +1259,7 @@ index f659ce4..928da3a 100644
  				if(context->protocol == mosq_p_mqtt5){
  					send__disconnect(context, MQTT_RC_ADMINISTRATIVE_ACTION, NULL);
  				}
-@@ -1163,6 +1183,7 @@ int mosquitto_security_apply_default(void)
+@@ -1163,6 +1183,7 @@
  				}
  			}else
  #endif /* FINAL_WITH_TLS_PSK */
@@ -1285,7 +1267,7 @@ index f659ce4..928da3a 100644
  			{
  				/* Free existing credentials and then recover them. */
  				mosquitto__free(context->username);
-@@ -1245,8 +1266,43 @@ int mosquitto_security_apply_default(void)
+@@ -1252,8 +1273,43 @@
  				X509_free(client_cert);
  				client_cert = NULL;
  			}
@@ -1330,7 +1312,7 @@ index f659ce4..928da3a 100644
  		{
  			/* Username/password check only if the identity/subject check not used */
  			if(mosquitto_unpwd_check(context) != MOSQ_ERR_SUCCESS){
-@@ -1320,7 +1376,47 @@ int mosquitto_psk_key_get_default(struct mosquitto *context, const char *hint, c
+@@ -1327,7 +1383,47 @@
  	return MOSQ_ERR_AUTH;
  }
  
@@ -1379,17 +1361,16 @@ index f659ce4..928da3a 100644
  int pw__digest(const char *password, const unsigned char *salt, unsigned int salt_len, unsigned char *hash, unsigned int *hash_len, enum mosquitto_pwhash_type hashtype, int iterations)
  {
  	const EVP_MD *digest;
-@@ -1363,5 +1459,4 @@ int pw__digest(const char *password, const unsigned char *salt, unsigned int sal
- 
- 	return MOSQ_ERR_SUCCESS;
+@@ -1378,5 +1474,4 @@
+ 		return MOSQ_ERR_UNKNOWN;
+ 	}
  }
 -
  #endif
-diff --git c/src/websockets.c i/src/websockets.c
-index 688d3b8..f04f5e8 100644
---- c/src/websockets.c
-+++ i/src/websockets.c
-@@ -23,6 +23,7 @@ Contributors:
+diff -ruN c0/mosquitto-2.0.23/src/websockets.c a/mosquitto-2.0.23/src/websockets.c
+--- a/src/websockets.c	2026-11-21 17:10:36.486285384 +0100
++++ b/src/websockets.c	2026-11-21 17:10:36.538285910 +0100
+@@ -23,6 +23,7 @@
  #include <libwebsockets.h>
  #include "mosquitto_internal.h"
  #include "mosquitto_broker_internal.h"
@@ -1397,7 +1378,7 @@ index 688d3b8..f04f5e8 100644
  #include "mqtt_protocol.h"
  #include "memory_mosq.h"
  #include "packet_mosq.h"
-@@ -146,7 +147,7 @@ static int callback_mqtt(
+@@ -146,7 +147,7 @@
  					return -1;
  				}
  				mosq->wsi = wsi;
@@ -1406,8 +1387,8 @@ index 688d3b8..f04f5e8 100644
  				if(in){
  					mosq->ssl = (SSL *)in;
  					if(!mosq->listener->ssl_ctx){
-@@ -196,7 +197,7 @@ static int callback_mqtt(
- 					mux__delete(mosq);
+@@ -199,7 +200,7 @@
+ 					mosq->listener->client_count--;
  				}
  				mosq->wsi = NULL;
 -#ifdef WITH_TLS
@@ -1415,7 +1396,7 @@ index 688d3b8..f04f5e8 100644
  				mosq->ssl = NULL;
  #endif
  				do_disconnect(mosq, MOSQ_ERR_CONN_LOST);
-@@ -648,7 +649,7 @@ static int callback_http(
+@@ -651,7 +652,7 @@
  			}
  			break;
  
@@ -1424,7 +1405,7 @@ index 688d3b8..f04f5e8 100644
  		case LWS_CALLBACK_OPENSSL_PERFORM_CLIENT_CERT_VERIFICATION:
  			if(!len || (SSL_get_verify_result((SSL*)in) != X509_V_OK)){
  				return 1;
-@@ -701,7 +702,7 @@ void mosq_websockets_init(struct mosquitto__listener *listener, const struct mos
+@@ -704,7 +705,7 @@
  	info.protocols = p;
  	info.gid = -1;
  	info.uid = -1;
