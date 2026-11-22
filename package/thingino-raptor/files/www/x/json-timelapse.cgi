@@ -88,6 +88,8 @@ defaults() {
 
 storage_path() {
 	path=$(raptorctl config get recording storage_path 2>/dev/null | tr -d '\r\n"')
+	[ -n "$path" ] || path=$(raptorctl rmr status 2>/dev/null |
+		sed -n 's/.*"storage_path":"\([^"]*\)".*/\1/p')
 	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
 	printf '%s/timelapse' "${path%/}"
 }

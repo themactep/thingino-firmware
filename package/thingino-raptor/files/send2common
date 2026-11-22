@@ -52,6 +52,9 @@ thingino_send2_wait_stable_file() {
 
 thingino_send2_raptor_storage_path() {
 	path=$(raptorctl config get recording storage_path 2>/dev/null | tr -d '\r\n"')
+	# unset: rmr records to the largest card partition and reports it
+	[ -n "$path" ] || path=$(raptorctl rmr status 2>/dev/null |
+		sed -n 's/.*"storage_path":"\([^"]*\)".*/\1/p')
 	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
 	printf '%s' "$path"
 }
