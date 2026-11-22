@@ -105,12 +105,28 @@ else
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
 	@echo ""
-	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
-	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
-	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
-	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
-	@if [ $(DATA_OFFSET) -gt $$(( 8 * 1024 * 1024 - $(JFFS2_MIN_SIZE) )) ]; then $(YELLOW) "WARNING: ROOTFS ENDS BEYOND 8MB MINUS MINIMAL JFFS2 PARTITION - IMAGE MAY NOT FIT AN 8MB FLASH"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@bad=0; \
+	if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
+		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		$(RED) "ROOTFS TOO LARGE FOR THE LAYOUT: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_MAX) bytes"; \
+		$(RED) "  JFFS2 data needs $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_ERASE_BLOCK)): shrink the rootfs by $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
+		bad=1; \
+	fi; \
+	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
+		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2: $(DATA_PARTITION_SIZE) < $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_ERASE_BLOCK))"; bad=1; \
+	fi; \
+	if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \
+		$(RED) "DATA PARTITION OVERFLOW: $(DATA_BIN_SIZE) > $(DATA_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then \
+		$(RED) "OVERSIZE: image $(FIRMWARE_BIN_FULL_SIZE) > flash $(FLASH_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ $$bad -ne 0 ]; then \
+		$(RED) "Refusing to emit an image whose data partition cannot hold a JFFS2 overlay."; \
+		exit 1; \
+	fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
 # Per-build size and composition report, written to
@@ -198,10 +214,9 @@ toolchain: defconfig
 .PHONY: check-image-fits
 
 # Refuse to OTA a build whose partitions do not fit the flash layout.
-# pack prints these as warnings and still assembles the image; flashing it
-# truncates the data partition and can leave the camera without a usable
-# overlay. The checks mirror the SFC branch of pack (plus the bootloader
-# slot), but are fatal here.
+# The data image recipe and pack now fail the build first; this also covers a
+# tree that was built before them, where an image may already exist. The
+# checks mirror the SFC branch of pack, plus the bootloader slot.
 check-image-fits:
 ifeq ($(SKIP_CAMERA_SELECTION),)
 ifneq ($(BR2_THINGINO_FLASH_NAND),y)
@@ -213,8 +228,11 @@ ifneq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	if [ -f "$(KERNEL_BIN)" ] && [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
 		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
 	fi; \
+	if [ -f "$(ROOTFS_BIN)" ] && [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		$(RED) "ROOTFS TOO LARGE FOR THE LAYOUT: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_MAX) bytes"; bad=1; \
+	fi; \
 	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
-		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; \
+		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2: $(DATA_PARTITION_SIZE) < $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_ERASE_BLOCK))"; bad=1; \
 	fi; \
 	if [ -f "$(DATA_BIN)" ] && [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \
 		$(RED) "DATA PARTITION OVERFLOW: $(DATA_BIN_SIZE) > $(DATA_PARTITION_SIZE) bytes"; bad=1; \
@@ -241,7 +259,7 @@ ota-full: check-image-fits
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
 	if [ -n "$(FLASH_SIZE)" ] && [ "$$(stat -c%s "$$fw_path")" -gt "$(FLASH_SIZE)" ]; then \
-		echo "ERROR: $$fw_path is larger than the $(FLASH_SIZE_MB)MB flash; refusing to flash."; exit 1; \
+		echo "ERROR: $$fw_path is larger than the $(FLASH_LAYOUT_MB)MB flash layout; refusing to flash."; exit 1; \
 	fi; \
 	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
 

@@ -87,7 +87,7 @@ add_to_garbage "$payload_file"
 		printf ',\n  "extras": %s' "$extras"
 	fi
 	printf '\n}\n'
-} > "$payload_file"
+} >"$payload_file"
 
 if [ "true" = "$verbose" ]; then
 	debug_command="curl --request POST --url \"$endpoint\" --header 'Content-Type: application/json' --data-binary @$payload_file"
@@ -95,10 +95,10 @@ if [ "true" = "$verbose" ]; then
 fi
 
 if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2 \
-		$curl_verbosity \
-		--url "$endpoint" \
-		--header 'Content-Type: application/json' \
-		--data-binary "@$payload_file" >/dev/null; then
+	$curl_verbosity \
+	--url "$endpoint" \
+	--header 'Content-Type: application/json' \
+	--data-binary "@$payload_file" >/dev/null; then
 	echo_error "Failed to send Gotify message"
 	exit 1
 fi

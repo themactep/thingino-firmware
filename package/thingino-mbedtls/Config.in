@@ -11,6 +11,7 @@ config BR2_PACKAGE_THINGINO_MBEDTLS
 config BR2_PACKAGE_THINGINO_MBEDTLS_JZ_CRYPTO_ALT
 	bool "Ingenic hardware AES acceleration"
 	depends on BR2_PACKAGE_THINGINO_MBEDTLS
+	depends on BR2_SOC_VENDOR_INGENIC
 	select BR2_INGENIC_SDK_JZ_AES
 	help
 	  Replace the software AES, CCM and GCM implementations with

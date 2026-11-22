@@ -110,14 +110,7 @@
   }
 
   async function loadApiKey() {
-    try {
-      var res = await fetch("/x/api-key.cgi", { cache: "no-store" });
-      if (!res.ok) return;
-      var data = await res.json();
-      if (data.exists && data.api_key) apiKey = data.api_key;
-    } catch (err) {
-      console.warn("Could not load API key for preview endpoints:", err);
-    }
+    apiKey = await thinginoApiKey();
   }
 
   async function loadRtspUrls() {

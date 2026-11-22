@@ -44,12 +44,26 @@ REPLACEMENTS = [
 
     # Chart.js UMD CDN → local
     (re.compile(
-        r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/chart\.js@[^"]*?/dist/chart\.umd(?:\.min)?\.js"[^>]*></script>',
+        r'<script\b[^>]*src=["\']https://cdn\.jsdelivr\.net/npm/chart\.js(?:@[^"\']*?)?/dist/chart\.umd(?:\.min)?\.js(?:\?[^"\']*)?["\'][^>]*></script>',
         re.IGNORECASE,
     ), '<script src="/a/vendor/chart.umd.min.js"></script>'),
+    # Chart.js injected with document.write (tool-sensor-data.html) -> local.
+    # Swap only the URL, so the page's JS quoting, attributes and the escaped
+    # closing tag stay as they are.
+    (re.compile(
+        r'(document\.write(?:ln)?\s*\(\s*["\'`]\s*<script\b[^>]*?\bsrc=["\'])'
+        r'(https://cdn\.jsdelivr\.net/npm/chart\.js(?:@[^"\']*?)?/dist/chart\.umd(?:\.min)?\.js(?:\?[^"\']*)?)'
+        r'(["\'](?:[^>]*>\s*<\\?/script>\s*["\'`]\s*\)))',
+        re.IGNORECASE,
+    ), r'\1/a/vendor/chart.umd.min.js\3'),
 ]
 
 HTML_EXTENSIONS = {'.html', '.htm'}
+
+EXTERNAL_ASSET = re.compile(
+    r'https://(?:cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)\b',
+    re.IGNORECASE,
+)
 
 
 def rewrite_file(path: pathlib.Path) -> bool:
@@ -72,6 +86,20 @@ def rewrite_file(path: pathlib.Path) -> bool:
     return False
 
 
+def find_leftovers(root: pathlib.Path) -> list:
+    """Return HTML lines that still reference an external asset host."""
+    leftovers = []
+    for path in sorted(root.rglob('*.html')):
+        try:
+            lines = path.read_text(encoding='utf-8').splitlines()
+        except OSError:
+            continue
+        for number, line in enumerate(lines, 1):
+            if EXTERNAL_ASSET.search(line):
+                leftovers.append(f'{path}:{number}: {line.strip()}')
+    return leftovers
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <target-var-www-dir>", file=sys.stderr)
@@ -88,6 +116,16 @@ def main() -> int:
             count += 1
 
     print(f"thingino-webui: paranoid mode — {count} HTML file(s) rewritten to local assets")
+
+    leftovers = find_leftovers(root)
+    if leftovers:
+        print(
+            "ERROR: external assets remain after the paranoid rewrite:",
+            file=sys.stderr,
+        )
+        for item in leftovers:
+            print(f"  {item}", file=sys.stderr)
+        return 1
     return 0
 
 
