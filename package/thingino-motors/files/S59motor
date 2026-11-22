@@ -119,9 +119,38 @@ set_motor_phases() {
 	done
 }
 
+# `motors -r` only queues the reset and returns 0; poll the JSON status
+# (identical shape in both pinned daemon flavors) until RUNNING is seen
+# and then idle (status 0), or the 30s budget runs out. Requiring RUNNING
+# first avoids passing on the pre-homing idle state.
+wait_for_idle() {
+	local i=0
+	local running=0
+	local status
+	while [ "$i" -lt 150 ]; do
+		status=$(motors -j 2>/dev/null | sed -n 's/.*"status":"\([0-9]\)".*/\1/p')
+		if [ "$running" = "0" ] && [ "$status" = "1" ]; then
+			running=1
+		elif [ "$running" = "1" ] && [ "$status" = "0" ]; then
+			return 0
+		fi
+		i=$((i + 1))
+		sleep 0.2
+	done
+	return 1
+}
+
 home_motors() {
 	echo "Home motors"
-	run_motors motors -r
+	run_motors motors -r || return 1
+	# Give the daemon time to pick up the request and enter RUNNING before
+	# polling; homing always slams to a stop first, so this settle does not
+	# outrun a real homing cycle.
+	sleep 0.5
+	wait_for_idle || {
+		echo "Homing did not reach idle within 30s" >&2
+		return 1
+	}
 }
 
 set_motors_speed() {
