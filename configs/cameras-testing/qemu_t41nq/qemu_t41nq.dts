@@ -191,11 +191,6 @@
 	ingenic,allow_cs_same = <1>;
 	ingenic,bus_num = <1>;
 	ingenic,has_dma_support = <1>;
-	spidev: spidev@0 {
-		compatible = "ingenic,spidev";
-		reg = <0>;
-		spi-max-frequency = <50000000>;
-	};
 };
 
 &dtrng {
