@@ -11,8 +11,7 @@
     "mmc_power": {
       "pin": 46,
       "active_low": true
-    },
-    "wlan": 47
+    }
   },
   "motors": {
     "gpio_pan": "62 60 59 48",

@@ -103,6 +103,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 normalize_int() {
 	val="$1"
 	min="$2"
@@ -148,8 +153,8 @@ handle_post() {
 	new_router=$(jct "$REQ_FILE" get router 2>/dev/null)
 
 	theme=$(normalize_theme "$new_theme") || json_error 422 "Unsupported theme" "422 Unprocessable Entity"
-	paranoid=$(normalize_bool "$new_paranoid") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
-	track_focus=$(normalize_bool "$new_track_focus") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	paranoid=$(normalize_bool "$new_paranoid") || bad_bool
+	track_focus=$(normalize_bool "$new_track_focus") || bad_bool
 	focus_timeout=$(normalize_int "$new_focus_timeout" 0 300) || json_error 422 "Invalid integer value" "422 Unprocessable Entity"
 	auth_bypass_ips=$(normalize_bypass_ips "$new_auth_bypass_ips")
 	router=$(normalize_bool "$new_router") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"

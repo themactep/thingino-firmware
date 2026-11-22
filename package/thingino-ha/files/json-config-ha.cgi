@@ -51,12 +51,19 @@ strip_json_string() {
 	esac
 }
 
+# The normalize_* functions run inside $( ), where an exit ends only the
+# subshell: they return 1 for an invalid value, and the caller answers.
 normalize_bool() {
 	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off | "" | null) printf 'false' ;;
-		*) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+		*) return 1 ;;
 	esac
+}
+
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
 }
 
 ensure_config() {
@@ -130,29 +137,29 @@ handle_post() {
 	new_en_live_view=$(jct "$REQ_FILE" get enable_live_view 2>/dev/null)
 
 	# Normalize
-	enabled=$(normalize_bool "$new_enabled")
-	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl")
-	mqtt_tls_skip_verify=$(normalize_bool "$new_mqtt_tls_skip_verify")
-	en_motion=$(normalize_bool "$new_en_motion")
-	en_motion_guard=$(normalize_bool "$new_en_motion_guard")
-	en_ircut=$(normalize_bool "$new_en_ircut")
-	en_daynight=$(normalize_bool "$new_en_daynight")
-	en_privacy=$(normalize_bool "$new_en_privacy")
-	en_color=$(normalize_bool "$new_en_color")
-	en_ir850=$(normalize_bool "$new_en_ir850")
-	en_ir940=$(normalize_bool "$new_en_ir940")
-	en_white=$(normalize_bool "$new_en_white")
-	en_floodlight=$(normalize_bool "$new_en_floodlight")
-	en_lamp_socket=$(normalize_bool "$new_en_lamp_socket")
-	en_gain=$(normalize_bool "$new_en_gain")
-	en_rssi=$(normalize_bool "$new_en_rssi")
-	en_snapshot=$(normalize_bool "$new_en_snapshot")
-	en_reboot=$(normalize_bool "$new_en_reboot")
-	en_ota=$(normalize_bool "$new_en_ota")
-	en_doorbell=$(normalize_bool "$new_en_doorbell")
-	en_firmware_version=$(normalize_bool "$new_en_firmware_version")
-	en_firmware_timestamp=$(normalize_bool "$new_en_firmware_timestamp")
-	en_live_view=$(normalize_bool "$new_en_live_view")
+	enabled=$(normalize_bool "$new_enabled") || bad_bool
+	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl") || bad_bool
+	mqtt_tls_skip_verify=$(normalize_bool "$new_mqtt_tls_skip_verify") || bad_bool
+	en_motion=$(normalize_bool "$new_en_motion") || bad_bool
+	en_motion_guard=$(normalize_bool "$new_en_motion_guard") || bad_bool
+	en_ircut=$(normalize_bool "$new_en_ircut") || bad_bool
+	en_daynight=$(normalize_bool "$new_en_daynight") || bad_bool
+	en_privacy=$(normalize_bool "$new_en_privacy") || bad_bool
+	en_color=$(normalize_bool "$new_en_color") || bad_bool
+	en_ir850=$(normalize_bool "$new_en_ir850") || bad_bool
+	en_ir940=$(normalize_bool "$new_en_ir940") || bad_bool
+	en_white=$(normalize_bool "$new_en_white") || bad_bool
+	en_floodlight=$(normalize_bool "$new_en_floodlight") || bad_bool
+	en_lamp_socket=$(normalize_bool "$new_en_lamp_socket") || bad_bool
+	en_gain=$(normalize_bool "$new_en_gain") || bad_bool
+	en_rssi=$(normalize_bool "$new_en_rssi") || bad_bool
+	en_snapshot=$(normalize_bool "$new_en_snapshot") || bad_bool
+	en_reboot=$(normalize_bool "$new_en_reboot") || bad_bool
+	en_ota=$(normalize_bool "$new_en_ota") || bad_bool
+	en_doorbell=$(normalize_bool "$new_en_doorbell") || bad_bool
+	en_firmware_version=$(normalize_bool "$new_en_firmware_version") || bad_bool
+	en_firmware_timestamp=$(normalize_bool "$new_en_firmware_timestamp") || bad_bool
+	en_live_view=$(normalize_bool "$new_en_live_view") || bad_bool
 
 	device_name=$(strip_json_string "$new_device_name")
 	device_model=$(strip_json_string "$new_device_model")
