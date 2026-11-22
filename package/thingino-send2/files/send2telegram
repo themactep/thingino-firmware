@@ -99,18 +99,28 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	[ -n "$message" ] && caption="$caption $message"
 	media="{\"type\":\"photo\",\"media\":\"attach://photo\",\"caption\":\"$(json_escape "$caption")\"},"
 
-	video=$(copy_video)
-	media="${media}{\"type\":\"video\",\"media\":\"attach://video\"}"
-
-	set -- "$@" -F "photo=@$photo" -F "video=@$video" -F "media=[$media]" "$url"
+	if video=$(copy_video) && [ -n "$video" ]; then
+		media="${media}{\"type\":\"video\",\"media\":\"attach://video\"}"
+		set -- "$@" -F "photo=@$photo" -F "video=@$video" -F "media=[$media]" "$url"
+	else
+		media="${media%,}"
+		set -- "$@" -F "photo=@$photo" -F "media=[$media]" "$url"
+	fi
 
 elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
 	url="${url}sendVideo"
-	video=$(copy_video)
-	caption="$(parse_caption "$video")"
-	[ -n "$message" ] && caption="$caption $message"
-	set -- "$@" -F "video=@$video" -F "caption=$caption" "$url"
+	if video=$(copy_video) && [ -n "$video" ]; then
+		caption="$(parse_caption "$video")"
+		[ -n "$message" ] && caption="$caption $message"
+		set -- "$@" -F "video=@$video" -F "caption=$caption" "$url"
+	elif [ -n "$message" ]; then
+		url="${url%sendVideo}sendMessage"
+		set -- "$@" -F "text=$message" "$url"
+	else
+		echo_error "Nothing to send"
+		exit 1
+	fi
 
 elif [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto

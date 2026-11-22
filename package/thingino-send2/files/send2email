@@ -64,8 +64,8 @@ done
 
 # use config settings only if not set from command line
 if [ -z "$send_photo$send_video" ]; then
-        send_photo=$(get_value send_photo)
-        send_video=$(get_value send_video)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 fi
 
 if [ -z "$host" ]; then
@@ -132,8 +132,7 @@ if [ "true" = "$send_photo" ]; then
 	set -- "$@" -F "snapshot=@$photo;type=image/jpeg;encoder=base64"
 fi
 
-if [ "true" = "$send_video" ]; then
-	video="$(copy_video)"
+if [ "true" = "$send_video" ] && video=$(copy_video) && [ -n "$video" ]; then
 	case "${video##*.}" in
 		mkv) mime="video/matroska" ;;
 		mov) mime="video/quicktime" ;;
@@ -141,6 +140,9 @@ if [ "true" = "$send_video" ]; then
 		*) mime="application/octet-stream" ;;
 	esac
 	set -- "$@" -F "video=@$video;type=$mime;encoder=base64"
+elif [ "true" = "$send_video" ]; then
+	# Video unavailable (busy channel); the text body still goes out.
+	echo_error "Video not available; sending text only"
 fi
 
 set -- "$@" -F '=)'

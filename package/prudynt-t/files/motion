@@ -134,13 +134,23 @@ start() {
 	fi
 
 	# A busy channel rejects a second START; gate the whole capture on
-	# the channel's .active flag before any START is attempted.
+	# the channel's .active flag before any START is attempted. The
+	# mp4ctl FIFO is recreated at every prudynt start, so an .active
+	# file older than it is a leftover from a crashed prudynt; clear it
+	# or it would suppress every motion clip until reboot.
 	active_flag="/run/prudynt/mp4ctl-ch${MOTION_VIDEO_CHANNEL}.active"
 	if [ "$need_video" = "true" ] && [ -f "$active_flag" ]; then
-		echo_info "Channel ${MOTION_VIDEO_CHANNEL} is busy; skipping motion video"
-		need_video=false
-		unset MOTION_VIDEO_FILE
-		SEND2_SKIP_VIDEO=true
+		if [ -e /run/prudynt/mp4ctl ] &&
+			[ -n "$(find /run/prudynt -maxdepth 1 -name "mp4ctl-ch${MOTION_VIDEO_CHANNEL}.active" \! -newer /run/prudynt/mp4ctl 2>/dev/null)" ]; then
+			echo_info "Stale .active flag from a previous prudynt run; removing $active_flag"
+			rm -f "$active_flag"
+		fi
+		if [ -f "$active_flag" ]; then
+			echo_info "Channel ${MOTION_VIDEO_CHANNEL} is busy; skipping motion video"
+			need_video=false
+			unset MOTION_VIDEO_FILE
+			SEND2_SKIP_VIDEO=true
+		fi
 	fi
 
 	# When storage is the only video consumer, record onto the mount
@@ -154,8 +164,11 @@ start() {
 			[ "$(id -u)" = "0" ] &&
 			touch "$sd_mount/.motion_write_test" 2>/dev/null; then
 			rm -f "$sd_mount/.motion_write_test"
-			# Busy was checked above; a race in between means keep /tmp
-			# rather than steal the channel.
+			# A rejected START means the channel went busy between the
+			# check above and now; degrade to /tmp only if no recorder is
+			# running. A busy channel is terminal: recording into /tmp
+			# while prudynt validates would kill its continuous recorder
+			# (stop_loop_for_channel runs before path validation).
 			if [ ! -f "$active_flag" ]; then
 				MOTION_VIDEO_FILE="$sd_mount/.motion_${MOTION_TIMESTAMP}.mp4"
 				use_sd=true
@@ -182,9 +195,10 @@ start() {
 			# recorder wins a check→START race and must be left alone.
 			if grep -qx "path=$MOTION_VIDEO_FILE" "$active_flag" 2>/dev/null; then
 				printf 'STOP ch=%s\n' "$MOTION_VIDEO_CHANNEL" >/run/prudynt/mp4ctl
-			fi
-			if [ "$use_sd" = "true" ]; then
-				# Mount refused the recording; degrade to the /tmp path.
+			elif [ "$use_sd" = "true" ] && [ ! -f "$active_flag" ]; then
+				# Mount refused the recording and the channel stayed free;
+				# degrade to the /tmp path. A busy channel is terminal:
+				# a second START into /tmp would kill the busy recorder.
 				rm -f "$MOTION_VIDEO_FILE"
 				MOTION_VIDEO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.mp4"
 				echo_info "Storage mount refused the recording, falling back to /tmp: $MOTION_VIDEO_FILE"
@@ -194,6 +208,11 @@ start() {
 					sleep 1
 					start_timeout=$((start_timeout - 1))
 				done
+			else
+				echo_info "Channel went busy; skipping motion video"
+				need_video=false
+				unset MOTION_VIDEO_FILE
+				SEND2_SKIP_VIDEO=true
 			fi
 		fi
 
