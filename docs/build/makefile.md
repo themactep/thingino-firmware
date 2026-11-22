@@ -952,10 +952,11 @@ Firmware is assembled from multiple partitions:
 
 Sizes are 64KB-aligned for JFFS2 compatibility.
 
-`FLASH_SIZE_MB` is the physical chip size. To build an 8 MB layout on a camera
-with a larger chip, set `BR2_THINGINO_FLASH_CAP_8M=y` in its defconfig. The
-effective layout size is `FLASH_LAYOUT_MB` and drives the partition table, the
-data partition, and the final image size.
+`FLASH_SIZE_MB` is the physical chip size. To build an 8 MB or 16 MB layout on
+a camera with a larger chip, set `BR2_THINGINO_FLASH_CAP_8M=y` or
+`BR2_THINGINO_FLASH_CAP_16M=y` in its defconfig. The effective layout size is
+`FLASH_LAYOUT_MB` and drives the partition table, the data partition, and the
+final image size. The 8 MB cap wins when both are enabled.
 
 ---
 
