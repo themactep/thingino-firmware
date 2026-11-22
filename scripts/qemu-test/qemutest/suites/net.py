@@ -227,6 +227,42 @@ def test_mdns(ctx):
     else:
         res.fail("mdns_http_srv", "no _http._tcp instance answered")
 
+    test_mdns_txt_mac(ctx, mq)
+
+
+def test_mdns_txt_mac(ctx, mq):
+    """_thingino._tcp carries mac= of the default-route interface, and
+    the udhcpc hook puts it back after a lease is lost and bound again
+    (the Wi-Fi boot case: S50mdnsd runs before the first lease)."""
+    guest, res, lab = ctx.guest, ctx.res, ctx.lab
+    rc, out = guest.run("cat /sys/class/net/eth0/address")
+    mac = out.strip().split("\n")[-1].strip()
+    want = f"mac={mac}"
+
+    instances = mq("_thingino._tcp.local", "PTR", tries=2)
+    if not instances:
+        res.fail("mdns_txt_mac", "no _thingino._tcp instance answered")
+        return
+    inst = instances[0]
+
+    def txt():
+        return lab.mdns_query(inst, "TXT", timeout=3)
+
+    got = until(txt, 9, 3, lambda t: want in t)
+    res.check("mdns_txt_mac", want in got, f"{inst} TXT -> {got}")
+
+    # the state S50mdnsd leaves at boot before the first lease
+    guest.run("sed -i '/^txt mac=/d' /etc/mdns.d/thingino.service; "
+              "killall -HUP mdnsd", via="serial")
+    stale = until(txt, 15, 3, lambda t: t and want not in t)
+    guest.run("killall -USR2 udhcpc; sleep 2; killall -USR1 udhcpc",
+              via="serial", timeout=15)
+    back = until(txt, 45, 3, lambda t: want in t)
+    res.check("mdns_txt_mac_refresh",
+              bool(stale) and want not in stale and want in back,
+              f"without it: {stale}; after release and rebind: {back}")
+    until(lambda: lab.ping(ctx.guest_v4), 30, 2)
+
 
 def test_ntp(ctx):
     guest, res, lab = ctx.guest, ctx.res, ctx.lab
