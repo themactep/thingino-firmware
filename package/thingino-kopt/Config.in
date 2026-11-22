@@ -461,6 +461,16 @@ config BR2_PACKAGE_THINGINO_KOPT_EXTFS
 	help
 	  Enables EXT2 and EXT4 filesystem support with all dependencies.
 
+config BR2_PACKAGE_THINGINO_KOPT_F2FS
+	bool "F2FS Filesystem Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_USE_WCHAR # f2fs-tools
+	select BR2_PACKAGE_F2FS_TOOLS
+	help
+	  Flash-Friendly File System for SD cards, with mkfs.f2fs and
+	  fsck.f2fs. Data synced with fdatasync survives power loss
+	  (roll-forward recovery at mount).
+
 config BR2_PACKAGE_THINGINO_KOPT_DMIC
 	bool "I2S DMIC Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
