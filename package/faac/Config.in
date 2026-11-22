@@ -13,9 +13,19 @@ config BR2_PACKAGE_FAAC_DECODER
 	bool "Install the FAAD3 decoder (libfaad3)"
 	depends on BR2_PACKAGE_FAAC
 	help
-	  Build and install libfaad3, the AAC-LC/HE-AAC decoder that
-	  ships with FAAC 3.0 (faad3.h). Not the same library as the
-	  faad2 package: it has its own header and SONAME.
+	  Build and install libfaad3, the AAC decoder that ships with
+	  FAAC 3.0 (faad3.h). Not the same library as the faad2
+	  package: it has its own header and SONAME.
+
+	  It is built to replace Helix AAC, so it is cut down:
+	  - AAC-LC and HE-AAC (SBR) only. Parametric Stereo is off,
+	    so HE-AAC v2 decodes as mono.
+	  - DAB+ and DRC are off.
+	  - At most 2 channels (max-channels=2).
+	  SBR is kept because Helix also decoded HE-AAC.
+
+	  The FAAD3 command-line tool is never installed, even with
+	  the faac CLI enabled.
 
 config BR2_PACKAGE_FAAC_INSTALL_BIN
 	bool "Install faac CLI"
