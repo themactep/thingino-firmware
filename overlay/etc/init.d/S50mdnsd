@@ -240,9 +240,8 @@ detect_streamer() {
 }
 
 primary_mac() {
-	local iface
+	local iface mac
 
-	# default route; before DHCP, the first interface that is up
 	iface=$(ip -4 route show default 2>/dev/null |
 		awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}')
 	if [ -z "$iface" ]; then
@@ -251,7 +250,12 @@ primary_mac() {
 			iface=""
 		done
 	fi
-	[ -n "$iface" ] && cat "/sys/class/net/$iface/address" 2>/dev/null
+	[ -n "$iface" ] || return 0
+	mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+	case "$mac" in
+		"" | 00:00:00:00:00:00 | ff:ff:ff:ff:ff:ff) ;;
+		*) echo "$mac" ;;
+	esac
 }
 
 generate_thingino_service() {
@@ -329,6 +333,15 @@ stop() {
 	stop_daemon
 }
 
+reload() {
+	local before
+
+	before=$(cat "$MDNS_SERVICE_DIR/thingino.service" 2>/dev/null)
+	generate_thingino_service
+	[ "$(cat "$MDNS_SERVICE_DIR/thingino.service" 2>/dev/null)" = "$before" ] && return 0
+	start-stop-daemon -K -q -s HUP -x "$DAEMON"
+}
+
 case "$1" in
 	start)
 		start
@@ -341,8 +354,11 @@ case "$1" in
 		sleep 1
 		start
 		;;
+	reload)
+		reload
+		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac

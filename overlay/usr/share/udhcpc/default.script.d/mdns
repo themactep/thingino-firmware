@@ -1,0 +1,9 @@
+#!/bin/sh
+
+case "$1" in
+	bound | deconfig)
+		[ -x /etc/init.d/S50mdnsd ] && /etc/init.d/S50mdnsd reload >/dev/null 2>&1
+		;;
+esac
+
+exit 0
