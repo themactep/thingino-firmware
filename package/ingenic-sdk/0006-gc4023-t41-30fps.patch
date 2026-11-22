@@ -1,5 +1,6 @@
 From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
 From: WLTB Gino <gino@wltb.local>
+Date: Sat, 22 Nov 2026 04:52:00 +0000
 Subject: [PATCH] ingenic-sdk: gc4023 t41: add the real 30fps mode
 
 The t41 port's win_sizes[0] claims "2560x1440 @max 30fps" but points at
@@ -12,8 +13,10 @@ values from the bogus constant.
 Port the true 30fps table from the t32 sibling (mipi 864Mbps/lane, PLL
 0x0a36=0x60, 0x061d/e=0x22/0x78, VTS 0x05dc=1500), aim win_sizes[0] at
 it, and restore the OTP/BLC/DPC init tail plus the 0x0709/0x0719 and
-0x0704/06/16/08/18 MIPI tuning registers that the t32 table runs and
-every other t41 mode keeps.
+0x0704/06/16/08/18 MIPI tuning registers every other t41 mode keeps.
+t32 runs the same two register groups from gc4023_stream_on_mipi
+instead; t41 stream-on is empty, so the init table is the only place
+they can run.
 
 SCLK handling differs from t32: the t41 set_fps doubles HTS
 (((hts << 8) + tmp) << 1) before dividing, t32 does not. With hts=1200
@@ -26,18 +29,27 @@ the effective divisor is 2400, so the runtime clocks are:
   for case 1 (25fps_24Mmipi), which gets its own constant and its own
   set_fps case.
 
-The mipi bus struct is split per window: sensor_mipi_linear stays 864
-for win_sizes[0]; the new sensor_mipi_25fps_linear carries 702 for the
-704Mbps/lane 25fps_24Mmipi window (win_sizes[1]). Boot attributes are
-corrected per window: one_line_expr_in_us 22us for the 27MHz-mclk
-modes, 20us for the 24MHz-mclk 25fps mode (line time 19.75us);
-total_height/max-integration 1500, 2250, 3000 and 2025 to match each
-table; boot exposure 0x5a0 (1440) fits the new 30fps VTS-1500 maximum.
-sensor_set_fps now also updates the sensor max-exposure registers
-0x0259/0x025a = vts-32, matching the t32 driver.
+The mipi bus struct is split per window: sensor_mipi_linear moves from
+702 to 864 for win_sizes[0], and the new sensor_mipi_25fps_linear keeps
+702 for the 704Mbps/lane 25fps_24Mmipi window (win_sizes[1]). Boot
+attributes are corrected per window: one_line_expr_in_us 22us for the
+27MHz-mclk modes, 20us for the 24MHz-mclk 25fps mode (line time
+19.75us); total_height/max-integration 1500, 2250, 3000 and 2025 to
+match each table; boot exposure 0x5a0 (1440) fits the new 30fps
+VTS-1500 maximum. sensor_set_fps now also updates the sensor
+max-exposure registers 0x0259/0x025a = vts-32, matching the t32 driver.
 
 The now-unused 25fps_mipi table is removed and the stale /*vts =
 1500*/ comment on 25fps_24Mmipi corrected (registers say 2025).
+
+The 3.10.14 and 4.4.94 copies of t41 gc4023.c are not byte-identical:
+they differ by 49 lines (2019 vs 2032: 31 added + 18 removed of
+pre-existing formatting/comment drift: indentation of struct
+regval_list fields, define ordering, a soc/gpio.h include only the
+4.4.94 copy has, blank lines around comments). The register
+tables themselves and every line this patch touches are identical in
+both copies, and each patched file differs from its pre-patch state by
+exactly the same 138 change lines (83 added + 55 removed).
 
 T41NQ boards with GC4023 (Noorio T110) now boot at 30fps and honor fps
 changes.
@@ -45,7 +57,7 @@ changes.
 Signed-off-by: WLTB Gino <gino@wltb.local>
 ---
 diff --git a/3.10.14/sensor-src/t41/gc4023.c b/3.10.14/sensor-src/t41/gc4023.c
-index 93c82245..0c31abf2 100644
+index 93c82245..d139e6d0 100644
 --- a/3.10.14/sensor-src/t41/gc4023.c
 +++ b/3.10.14/sensor-src/t41/gc4023.c
 @@ -40,8 +40,9 @@
@@ -212,15 +224,18 @@ index 93c82245..0c31abf2 100644
  	{0x0053, 0x0a},
  	{0x0205, 0x0c},
  	{0x0202, 0x06},
-@@ -482,7 +505,7 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
+@@ -482,9 +505,9 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
  	/*version 1.2*/
  	/*mclk 24Mhz*/
  	/*mipi 704Mbps/lane*/
 -	/*vts = 1500*/
 +	/*vts = 2025*/
  	/*window 2560 1440*/
- 	/*row time=22.22us*/
+-	/*row time=22.22us*/
++	/*row time=19.75us*/
  	/*bayer order  rggb*/
+ 
+ 
 @@ -1169,7 +1192,7 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
  		.fps = 30 << 16 | 1,
  		.mbus_code = TISP_VI_FMT_SRGGB10_1X10,
@@ -318,7 +333,7 @@ index 93c82245..0c31abf2 100644
  			sensor_attr.integration_time = 0x627;
  			break;
 diff --git a/4.4.94/sensor-src/t41/gc4023.c b/4.4.94/sensor-src/t41/gc4023.c
-index be6106cc..d673fa4c 100644
+index be6106cc..25391572 100644
 --- a/4.4.94/sensor-src/t41/gc4023.c
 +++ b/4.4.94/sensor-src/t41/gc4023.c
 @@ -32,8 +32,9 @@
@@ -485,15 +500,18 @@ index be6106cc..d673fa4c 100644
  	{0x0053, 0x0a},
  	{0x0205, 0x0c},
  	{0x0202, 0x06},
-@@ -470,7 +493,7 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
+@@ -470,9 +493,9 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
  	/*version 1.2*/
  	/*mclk 24Mhz*/
  	/*mipi 704Mbps/lane*/
 -	/*vts = 1500*/
 +	/*vts = 2025*/
  	/*window 2560 1440*/
- 	/*row time=22.22us*/
+-	/*row time=22.22us*/
++	/*row time=19.75us*/
  	/*bayer order  rggb*/
+ 
+ 	{0x03fe, 0xf0},
 @@ -1154,7 +1177,7 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
  		.fps = 30 << 16 | 1,
  		.mbus_code = TISP_VI_FMT_SRGGB10_1X10,
