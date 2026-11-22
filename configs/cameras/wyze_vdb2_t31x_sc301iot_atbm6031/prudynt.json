@@ -1,4 +1,8 @@
 {
+  "image": {
+    "hflip": true,
+    "vflip": true
+  },
   "stream1": {
     "height": 480,
     "width": 640

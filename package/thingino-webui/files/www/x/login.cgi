@@ -103,6 +103,14 @@ case "$REQUEST_METHOD" in
 			printf "Cache-Control: no-store\r\n"
 			printf "\r\n"
 			printf '{"success":true,"is_default_password":%s}\n' "$is_default"
+			# The landing page asks for runtime/all and then config at once.
+			# Build them now, detached: its requests then share this build
+			# (agent_cached waits for a build in progress) instead of each
+			# starting one after the redirect.
+			if command -v agentctl >/dev/null 2>&1; then
+				setsid sh -c 'agentctl runtime all; agentctl config' \
+					</dev/null >/dev/null 2>&1 &
+			fi
 			exit 0
 		else
 			json_error 401 "Invalid credentials" "401 Unauthorized"

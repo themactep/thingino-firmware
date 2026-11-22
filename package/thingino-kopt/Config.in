@@ -291,7 +291,23 @@ config BR2_PACKAGE_THINGINO_KOPT_RTC
 	bool "RTC"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enables RTC (Real Time Clock) support
+	  Enables the RTC class, /dev/rtc0 and the SoC's own RTC driver.
+
+config BR2_PACKAGE_THINGINO_KOPT_RTC_I2C
+	bool "I2C RTC chips"
+	depends on BR2_PACKAGE_THINGINO_KOPT_RTC
+	help
+	  Enables the PCF8563 driver, plus HYM8563 where the kernel has
+	  one. The chip binds only once something instantiates it on an
+	  I2C bus, e.g. echo pcf8563 0x51 > /sys/bus/i2c/devices/i2c-0/new_device
+	  on a 3.10 kernel.
+
+config BR2_PACKAGE_THINGINO_KOPT_SPI
+	bool "SPI master"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables the SPI core, the SoC's SSI master controllers and spidev.
+	  Not for T10 and T20, whose 3.10 trees register no SSI controller.
 
 config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
 	bool "SPI1 PB2"
