@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
+From: WLTB Gino <gino@wltb.local>
+Date: Sun, 22 Nov 2026 15:08:31 +0000
+Subject: [PATCH] motor: free IRQs before draining debounce timers in teardown
+
+The min/max position hardirqs are what arm the debounce timers
+(mod_timer in motor.c :342/:383, firing the callbacks from softirq ~5ms
+later; the callbacks dereference motor->pdata and gpio_get_value() the
+min/max pins). Both the remove() path and the probe error path tore
+down in orders that leave windows:
+
+- remove() drained the timers before freeing the IRQs, so a late IRQ
+  could re-arm a timer between del_timer_sync() and gpio_free(). Per
+  motor the order is now free_irq() -> del_timer_sync() -> gpio_free().
+- the probe error path freed the min/max GPIOs before free_irq() and
+  drained the timers only after pdata was cleared. Same reorder
+  applied there; a failed probe is rare, but the window was identical.
+
+The timers are armed solely from those two handlers (grep mod_timer:
+:342, :383 - no other arming sites), so after free_irq() the drain in
+del_timer_sync() is final.
+
+ingenic_tcu_counter_stop() still moves after misc_deregister():
+stopping the counter first let a racing ioctl re-begin it. Note the
+residual window is NOT closed: misc_deregister() does not revoke fds
+already open, so a holder can still run fops across teardown. That is
+the generic chardev teardown race present throughout this SDK; closing
+it needs the probe/remove rework the vendor driver never had.
+
+mutex_destroy() keeps its original first position and is no longer
+dropped: dev_mutex is taken by real fops on this driver (:455, :482,
+:497, :561), not just under CONFIG_DEBUG_MUTEXES.
+
+The 3.10.14 ms419xx sibling has no position IRQs and no debounce
+timers, so the reorder does not apply there.
+
+Companion to 0005 (devres double-free). Regenerated against the
+restructured thingino/ingenic-sdk layout at 5ed08a39, applied on top
+of 0005.
+Signed-off-by: WLTB Gino <gino@wltb.local>
+---
+diff --git a/4.4.94/misc/motor/motor.c b/4.4.94/misc/motor/motor.c
+index 3b5d9715..8799ac34 100644
+--- a/4.4.94/misc/motor/motor.c
++++ b/4.4.94/misc/motor/motor.c
+@@ -982,12 +982,14 @@ error_min_gpio:
+ 		if(motor->pdata == NULL)
+ 			continue;
+ 		if (motor->min_pos_irq) {
+-			gpio_free(motor->pdata->motor_min_gpio);
+ 			free_irq(motor->min_pos_irq, motor);
++			del_timer_sync(&motor->min_timer);
++			gpio_free(motor->pdata->motor_min_gpio);
+ 		}
+ 		if (motor->max_pos_irq) {
+-			gpio_free(motor->pdata->motor_max_gpio);
+ 			free_irq(motor->max_pos_irq, motor);
++			del_timer_sync(&motor->max_timer);
++			gpio_free(motor->pdata->motor_max_gpio);
+ 		}
+ 		if (motor->pdata->motor_st1_gpio != -1)
+ 			gpio_free(motor->pdata->motor_st1_gpio);
+@@ -1015,7 +1017,6 @@ static int motor_remove(struct platform_device *pdev)
+ 	int i;
+ 	struct motor_device *mdev = platform_get_drvdata(pdev);
+ 	struct motor_driver *motor = NULL;
+-	ingenic_tcu_counter_stop(mdev->tcu);
+ 	mutex_destroy(&mdev->dev_mutex);
+ 
+ 	free_irq(mdev->run_step_irq, mdev);
+@@ -1023,13 +1024,20 @@ static int motor_remove(struct platform_device *pdev)
+ 		motor = &(mdev->motors[i]);
+ 		if(motor->pdata == NULL)
+ 			continue;
++		/* Free the min/max IRQs before draining the debounce
++		 * timers: the hardirq handlers mod_timer() these same
++		 * timers, so draining first would let a late IRQ re-arm
++		 * a timer that then runs after the pins are freed. The
++		 * timers are armed solely from those two handlers. */
+ 		if (motor->min_pos_irq) {
+-			gpio_free(motor->pdata->motor_min_gpio);
+ 			free_irq(motor->min_pos_irq, motor);
++			del_timer_sync(&motor->min_timer);
++			gpio_free(motor->pdata->motor_min_gpio);
+ 		}
+ 		if (motor->max_pos_irq) {
+-			gpio_free(motor->pdata->motor_max_gpio);
+ 			free_irq(motor->max_pos_irq, motor);
++			del_timer_sync(&motor->max_timer);
++			gpio_free(motor->pdata->motor_max_gpio);
+ 		}
+ 		if (motor->pdata->motor_st1_gpio != -1)
+ 			gpio_free(motor->pdata->motor_st1_gpio);
+@@ -1047,8 +1055,6 @@ static int motor_remove(struct platform_device *pdev)
+ 		motor->max_pos_irq = 0;
+ 		motor->min_pos_irq_cnt = 0;
+ 		motor->max_pos_irq_cnt = 0;
+-		del_timer_sync(&motor->min_timer);
+-		del_timer_sync(&motor->max_timer);
+ 	}
+ 
+ 	if (mdev->proc)
+@@ -1056,6 +1062,7 @@ static int motor_remove(struct platform_device *pdev)
+ 
+ 	misc_deregister(&mdev->misc_dev);
+ 
++	ingenic_tcu_counter_stop(mdev->tcu);
+ 	return 0;
+ }
+ 
