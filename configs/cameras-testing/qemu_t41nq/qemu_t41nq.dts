@@ -49,6 +49,12 @@
 	pinctrl-names = "default";
 	clock-frequency = <400000>;
 	status = "okay";
+	rtc_ext: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		interrupt-parent = <&gpd>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING INGENIC_GPIO_NOBIAS>;
+	};
 };
 &i2c1 {
 	pinctrl-0 = <&i2c1_pb>;
