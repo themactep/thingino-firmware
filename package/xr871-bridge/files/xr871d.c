@@ -48,6 +48,7 @@
  *                    blink the named pins one after the other (3 s each)
  *                    to find e.g. a LED; no default list, the roles of
  *                    PA6/11/13 are unknown
+ *   led blue 0|1     blue status LED (on while a video stream runs)
  *   fwupdate <file> [--commit] [--reboot] [--force-stage]
  *   fwupdate --info | --abort | --commit
  *                    write an XR871 application image (full 2 MiB flash
@@ -444,6 +445,8 @@ static void handle_frame(const uint8_t *b, int len)
 	case 0x83:	/* power state notice / sleep acknowledged */
 		logk("XR871: power off in %u ms", param);
 		break;
+	case 0xd5:	/* LED request accepted (param = LED bits): nothing to do */
+		break;
 	case 0xa4:	/* firmware push to the T30: never accepted here */
 		logk("ignoring XR871 firmware update request");
 		break;
@@ -729,12 +732,15 @@ static void ctl_input(void)
 		send_frame(0xc8, 0, NULL, 0);
 	} else if (!strcmp(c, "probe")) {
 		probe_ready();
+	} else if (!strcmp(c, "led blue 1") || !strcmp(c, "led blue 0")) {
+		/* blue status LED (bridge firmware ap24+; older ones ignore it) */
+		send_frame(0xd5, c[9] == '1', NULL, 0);
 	} else if (!strcmp(c, "stay")) {
 		logk("sleep withdrawn");
 		send_frame(0x83, 1, NULL, 0);
 	} else {
 		logk("unknown control command '%s'", c);
-		out("unknown command '%s' (status, mcu, gpio, fwupdate, sleep, stay, wifi, probe, ap, sta, scan)", c);
+		out("unknown command '%s' (status, mcu, gpio, fwupdate, sleep, stay, wifi, probe, ap, sta, scan, led)", c);
 		rc = 2;
 	}
 	if (!rc)
