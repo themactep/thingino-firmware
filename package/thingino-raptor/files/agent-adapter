@@ -2415,8 +2415,11 @@ agent_set_osd_setting() {
 			;;
 	esac
 
+	# osd_enabled is per stream in raptor and has no runtime path; set it on both.
 	if [ "$section" = stream ]; then
-		agent_config_set "$(agent_stream_section "$stream_id")" osd_enabled "$persist_value" || return 1
+		for s in 0 1; do
+			agent_config_set "$(agent_stream_section "$s")" osd_enabled "$persist_value" || return 1
+		done
 		agent_config_save
 		agent_print_setting_update "$path" "$response_key" "$json_value"
 		return 0
@@ -2426,8 +2429,10 @@ agent_set_osd_setting() {
 	osd_value=$persist_value
 	agent_osd_ensure_section "$section" || return 1
 	agent_config_set "$section" "$osd_key" "$osd_value" || return 1
-	agent_config_save
+	# Save after the runtime apply, so rvd writes the state it now holds
+	# (e.g. the [osd] stream<N>_<name>_pos keys rod sets on a move).
 	agent_osd_apply_runtime "$runtime_hint" "$osd_key" "$osd_value"
+	agent_config_save
 	agent_print_setting_update "$path" "$response_key" "$json_value"
 }
 
