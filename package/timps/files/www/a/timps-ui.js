@@ -1,4 +1,3 @@
-// timps-ui.js - stream tabs, restart bar and live/restart badges shared by the video pages.
 (function () {
   "use strict";
 
@@ -21,7 +20,6 @@
     return 0;
   }
 
-  // Wire the [data-stream-tab] buttons; onChange(i) runs on user switches.
   function initTabs(onChange) {
     var tabs = document.querySelectorAll("[data-stream-tab]");
     function set(i, fire) {
@@ -117,7 +115,6 @@
       .then(function () { b.querySelector(".tv-restart").disabled = false; });
   }
 
-  // [data-page-tab=name] buttons switch [data-page-pane=name]; #name deep-links
   function initPageTabs() {
     var tabs = document.querySelectorAll("[data-page-tab]");
     if (!tabs.length) return;
@@ -148,7 +145,6 @@
     document.addEventListener("DOMContentLoaded", initPageTabs, { once: true });
   else initPageTabs();
 
-  // file card backed by /x/timps-upload.cgi?kind=K; markup uses data-up=kind|info|file|reset|hint
   function uploadCard(root, kind, pendingKey, onInfo) {
     if (!root) return;
     var q = function (n) { return root.querySelector('[data-up="' + n + '"]'); };
@@ -190,7 +186,38 @@
     q("reset").addEventListener("click", function () { call("POST", "&reset", ""); });
   }
 
+  function frame(v) {
+    v = v || {};
+    var w = +v.width || 0, h = +v.height || 0, r = +v.rotation || 0;
+    var ew = +v.eff_width || w, eh = +v.eff_height || h, p = v.rotate_path;
+    if (!p) {
+      var c = window.thinginoUIConfig, soc = c && c.device && c.device.soc;
+      p = (r === 90 || r === 270) && !+v.rotation_state && v.eff_width !== undefined && ew === h && eh === w && w !== h
+        ? (/^t23/i.test(String(soc || "")) ? "sw" : "hw") : "off";
+    }
+    return { w: ew, h: eh, rot: r, path: p, jpeg: p !== "sw" || (ew % 32 === 0 && eh % 8 === 0),
+      band: p === "band" && eh > ew ? ew : 0 };
+  }
+
+  function setFrame(f) {
+    var el = document.getElementById("frame");
+    if (!el || !f || !f.w || !f.h) return;
+    el.classList.add("tv-fr");
+    el.style.setProperty("--fr", f.w + " / " + f.h);
+    el.style.setProperty("--fw", String(f.w / f.h));
+    el.style.setProperty("--fb", f.band ? (100 - f.band / f.h * 100) + "%" : "0%");
+    var n = document.getElementById("tv-frame-note"), t = [];
+    if (!n) return;
+    if (!f.jpeg) t.push("No preview: on a rotated T23 stream the snapshot needs a rotated width (= video height) that is a multiple of 32, now " + f.w + ".");
+    if (f.path === "sw") t.push("Software-rotated stream: text overlays only, no logo or privacy masks.");
+    if (f.band) t.push("Rotated stream: overlays and masks are drawn only in the top " + f.band + " px; lower ones are moved up.");
+    n.textContent = t.join(" ");
+    n.hidden = !t.length;
+  }
+
   window.timpsUi = {
+    frame: frame,
+    setFrame: setFrame,
     uploadCard: uploadCard,
     initTabs: initTabs,
     stream: function () { return curStream >= 0 ? curStream : initialStream(); },

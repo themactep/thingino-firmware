@@ -1,0 +1,7 @@
+# Anchor "# shellcheck source=<name>" to the importing script's directory.
+# Scripts that ship in the image source their helpers from /usr/share on the
+# target, where the build host cannot follow them; the repo keeps the sibling
+# file next to the importer instead. Without this, resolution depends on the
+# directory shellcheck is invoked from - the pre-commit hook lints from the
+# repo root, a developer from the script's own directory.
+source-path=SCRIPTDIR

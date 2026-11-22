@@ -12,7 +12,8 @@ state with `timectl status`.
   client that sends a wrong value is corrected instead of persisting.
 - **Timezone** — a tzdb name (`/etc/timezone`, e.g. `America/Toronto`) resolved
   to a POSIX TZ string (`/etc/TZ`, e.g. `EST5EDT,M3.2.0,M11.1.0`) through the
-  `/usr/share/tz.json` table.
+  read-only `/usr/share/tz.json` table, with the partial `/etc/tz.user.json`
+  map layered over it. A user entry wins over the shipped table.
 - **NTP server** — the resolved server list in `/tmp/ntp.conf` (tmpfs), with the
   user's persistent choice in `/etc/default/ntp.conf`.
 
@@ -23,6 +24,7 @@ state with `timectl status`.
 | `/etc/timezone` | tzdb name, e.g. `America/Toronto` |
 | `/etc/TZ` | POSIX TZ string, e.g. `EST5EDT,M3.2.0,M11.1.0` |
 | `/etc/timezone.source` | who set the timezone: `default` / `dhcp` / `user` |
+| `/etc/tz.user.json` | partial name to POSIX TZ override map (user) |
 | `/etc/default/ntp.conf` | user-pinned NTP servers (persistent) |
 | `/tmp/ntp.conf` | resolved NTP servers read by `ntpd` (tmpfs) |
 | `/etc/ntp.source` | who set the NTP servers: `default` / `dhcp` / `user` |
@@ -34,6 +36,8 @@ state with `timectl status`.
 timectl status                      # key=value dump for observers
 timectl refresh                     # boot: re-resolve /etc/timezone -> /etc/TZ
 timectl set-timezone <name> [--source user|dhcp]
+timectl set-timezone-custom <name> <posix-tz>  # add/update override, select it
+timectl remove-timezone-custom <name>
 timectl set-ntp <srv>...   [--source user|dhcp]
 timectl set-time <date>             # hint + NTP reconcile
 timectl pin-timezone                # keep current timezone, ignore DHCP
@@ -68,7 +72,7 @@ value; this is what the WebUI's "Ignore time zone sent by DHCP" toggle does.
 
 | Writer | Calls |
 |--------|-------|
-| WebUI time config | `timectl set-timezone / set-ntp / set-time / pin-timezone / unpin-timezone` |
+| WebUI time config | `timectl set-timezone / set-timezone-custom / remove-timezone-custom / set-ntp / set-time / pin-timezone / unpin-timezone` |
 | DHCP `tz` hook | `timectl set-timezone --source dhcp "$tzdbstr"` |
 | DHCP `ntp` hook | `timectl set-ntp --source dhcp "$ntpsrv"`, `timectl sync` |
 | `tzselect` (interactive) | `timectl set-timezone --source user` |
@@ -107,11 +111,19 @@ Timezone data is based on files from the OpenWrt project:
 [zoneinfo.uc](https://github.com/openwrt/luci/blob/master/modules/luci-base/ucode/zoneinfo.uc) and
 [tzdata.lua](https://github.com/openwrt/luci/blob/master/modules/luci-lua-runtime/luasrc/sys/zoneinfo/tzdata.lua).
 
+`/etc/tz.user.json` is a partial object map layered over the read-only table.
+`timectl set-timezone-custom` validates its POSIX values with the same
+uClibc-ng parser and writes the entry; the WebUI "Custom time zones" form edits
+the same file. The shipped table can be replaced by a firmware update without
+touching user overrides, which are included in `cfg-backup.list`.
+
 `/usr/share/tz.json` is LuCI's `zoneinfo.uc` (currently tz 2026e) with `_` in zone
 names replaced by spaces, sorted by name. Six names LuCI no longer lists
 (America/Nipigon, America/Thunder Bay, America/Rainy River, America/Pangnirtung,
 America/Yellowknife, Asia/Choibalsan) are kept with the string of the zone tzdb links
-them to, so a camera that stored one of them still resolves.
+them to, so a camera that stored one of them still resolves. The tz 2026f Cuba
+change is applied ahead of LuCI: America/Havana stays on -04 through
+2027-11-07 and its entry is updated accordingly.
 
 Thingino's libc, uClibc-ng, accepts less of the POSIX TZ syntax than glibc or musl:
 a rule time after `/` must be 0 to 24 hours with no sign. It discards any string it
@@ -124,15 +136,23 @@ use the nearest string uClibc-ng accepts:
 | Asia/Jerusalem | `IST-2IDT,M3.4.4/26,M10.5.0` | `IST-2IDT,M3.4.4/24,M10.5.0` | DST starts 2 h early (Friday 00:00 instead of 02:00) |
 | Asia/Gaza, Asia/Hebron | `EET-2EEST,M3.4.4/50,M10.4.4/50` | `EET-2EEST,M3.5.6/2,M10.5.6/2` | Exact, except in a March or October that ends on a Saturday, when the change comes a week late |
 
+One entry is updated ahead of LuCI, because POSIX M-rules cannot skip a single
+year's fall-back: while Cuba stays on DST through 2027, its entry is static:
+
+| Zone | tzdb 2026f | tz.json | Difference |
+| --- | --- | --- | --- |
+| America/Havana | `CDT-4` through 2027-11-07, alternating rules after | `<-04>4` | Exact until Cuba's planned 2027-11-07 fall-back; shows `-04` instead of `CDT` |
+
 `scripts/check-tz-json.sh` (part of `make lint`) fails on any `tz.json` string that
-uClibc-ng cannot parse.
+uClibc-ng cannot parse. `timectl` applies the same parser to `/etc/tz.user.json`
+values before writing them.
 
 ### IANA Time Zone Database
 
 - [GitHub Repository](https://github.com/eggert/tz)
-- [Complete Distribution](https://data.iana.org/time-zones/releases/tzdb-2026e.tar.lz)
-- [Data Only Distribution](https://data.iana.org/time-zones/releases/tzdata2026e.tar.gz)
-- [Code Only Distribution](https://data.iana.org/time-zones/releases/tzcode2026e.tar.gz)
+- [Complete Distribution](https://data.iana.org/time-zones/releases/tzdb-2026f.tar.lz)
+- [Data Only Distribution](https://data.iana.org/time-zones/releases/tzdata2026f.tar.gz)
+- [Code Only Distribution](https://data.iana.org/time-zones/releases/tzcode2026f.tar.gz)
 
 - [NODA Time Zone Database](https://nodatime.org/TimeZones)
-- [NODA TZDB in JSON](https://nodatime.org/TimeZones?version=2026e&format=json)
+- [NODA TZDB in JSON](https://nodatime.org/TimeZones?version=2026f&format=json)

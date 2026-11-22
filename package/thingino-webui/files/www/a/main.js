@@ -10,19 +10,28 @@ var API_BASE =
   (window.network_address || location.hostname) +
   ":8080/api/v1/config";
 
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
+// The API key ("" when none is set), fetched once per page on first use.
+function thinginoApiKey() {
+  if (!window.__thinginoApiKeyPromise) {
+    window.__thinginoApiKeyPromise = fetch("/x/api-key.cgi", {
+      cache: "no-store",
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : {};
+      })
+      .then(function (d) {
+        return d && d.exists && d.api_key ? d.api_key : "";
+      })
+      .catch(function () {
+        return "";
+      });
+  }
+  return window.__thinginoApiKeyPromise;
+}
+window.thinginoApiKey = thinginoApiKey;
 
 async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
+  var key = await thinginoApiKey();
   options = options || {};
   options.headers = options.headers || {};
   if (key) options.headers["X-API-Key"] = key;
@@ -329,6 +338,17 @@ function applyThemeAttribute(theme) {
   }
 
   document.documentElement.setAttribute("data-bs-theme", resolvedTheme);
+  syncThemeToggle();
+}
+
+// Keep the footer toggle's aria-pressed in step with the theme in force,
+// whoever changed it: a click, the cached theme or the server's answer.
+function syncThemeToggle() {
+  const themeBtn = $("#theme-toggle");
+  if (!themeBtn) return;
+  const dark =
+    document.documentElement.getAttribute("data-bs-theme") === "dark";
+  themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
 }
 
 function rememberThemeState(activeTheme, preferenceTheme) {
@@ -494,12 +514,19 @@ function setValue(data, domain, name) {
   }
 }
 
+function setButtonPressed(button, on) {
+  if (!button) return;
+  const pressed = !!on;
+  button.classList.toggle("active", pressed);
+  button.setAttribute("aria-pressed", pressed ? "true" : "false");
+}
+
 function updateRecordingIcons() {
   $$("#recorder-ch0, #recorder-ch1").forEach((button) => {
     const channel = parseInt(button.dataset.channel);
     const isRecording = recordingState[`ch${channel}`];
     button.classList.remove("pending");
-    button.classList.toggle("active", isRecording);
+    setButtonPressed(button, isRecording);
     button.classList.toggle("recorder-active", isRecording);
   });
 }
@@ -508,6 +535,15 @@ function updateRecordingState(state) {
   recordingState.ch0 = state.ch0;
   recordingState.ch1 = state.ch1;
   updateRecordingIcons();
+}
+
+function reportRecordingFailure(action, channel) {
+  const message = `Failed to ${action} recording on channel ${channel}`;
+  if (typeof showAlert === "function") {
+    showAlert("danger", message);
+  } else {
+    alert(message);
+  }
 }
 
 function toggleRecording(channel) {
@@ -537,12 +573,12 @@ function toggleRecording(channel) {
         return;
       }
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      reportRecordingFailure(action, channel);
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      reportRecordingFailure(action, channel);
     });
 }
 
@@ -714,6 +750,7 @@ function toggleTheme() {
       img.alt = newTheme === "dark" ? "Light mode" : "Dark mode";
     }
   }
+  syncThemeToggle();
 }
 
 async function toggleButton(el) {
@@ -796,8 +833,73 @@ async function toggleButton(el) {
     });
 }
 
+const NetworkRestartDismissKey = "thingino.networkRestartDismissed";
+
+function networkRestartDismissed() {
+  try {
+    return sessionStorage.getItem(NetworkRestartDismissKey) === "1";
+  } catch (err) {
+    return false;
+  }
+}
+
+function setNetworkRestartDismissed() {
+  try {
+    sessionStorage.setItem(NetworkRestartDismissKey, "1");
+  } catch (err) {
+    /* ignore unavailable sessionStorage */
+  }
+}
+
+function clearNetworkRestartDismissed() {
+  try {
+    sessionStorage.removeItem(NetworkRestartDismissKey);
+  } catch (err) {
+    /* ignore unavailable sessionStorage */
+  }
+}
+
+function updateNetworkRestartNotice(pending, force) {
+  const existing = document.getElementById("network-restart-notice");
+  if (!pending) {
+    if (existing) existing.remove();
+    clearNetworkRestartDismissed();
+    return;
+  }
+  if (force) clearNetworkRestartDismissed();
+  if (existing || networkRestartDismissed()) return;
+
+  const container =
+    document.querySelector("main > .container") ||
+    document.querySelector("main") ||
+    document.body;
+  if (!container) return;
+
+  const notice = document.createElement("div");
+  notice.id = "network-restart-notice";
+  notice.className =
+    "alert alert-warning d-flex align-items-center gap-2 shadow-sm mb-3";
+  notice.setAttribute("role", "alert");
+  notice.innerHTML =
+    '<i class="bi bi-exclamation-triangle-fill"></i>' +
+    '<div class="flex-grow-1">Network settings changed. Restart to apply them.</div>' +
+    '<a class="btn btn-sm btn-warning" href="/x/reboot.cgi">Reboot</a>' +
+    '<button type="button" class="btn-close" aria-label="Dismiss"></button>';
+  notice.querySelector(".btn-close").addEventListener("click", () => {
+    setNetworkRestartDismissed();
+    notice.remove();
+  });
+  container.insertBefore(notice, container.firstChild);
+}
+
+window.updateNetworkRestartNotice = updateNetworkRestartNotice;
+
 function updateHeartbeatUi(json) {
   if (!json) return;
+
+  if (typeof json.network_restart_pending !== "undefined") {
+    updateNetworkRestartNotice(json.network_restart_pending === true);
+  }
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&
@@ -839,8 +941,8 @@ function updateHeartbeatUi(json) {
     const motionBtn = $("#motion");
     if (motionBtn) {
       motionBtn.classList.remove("pending");
-      motionBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        motionBtn,
         json.motion_enabled === true || json.motion_enabled === 1,
       );
     }
@@ -851,8 +953,8 @@ function updateHeartbeatUi(json) {
     const privacyBtn = $("#privacy");
     if (privacyBtn) {
       privacyBtn.classList.remove("pending");
-      privacyBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        privacyBtn,
         json.privacy_enabled === true || json.privacy_enabled === 1,
       );
     }
@@ -863,7 +965,7 @@ function updateHeartbeatUi(json) {
     const wireguardBtn = $("#wireguard");
     if (wireguardBtn) {
       wireguardBtn.classList.remove("pending");
-      wireguardBtn.classList.toggle("active", json.wg_status === 1);
+      setButtonPressed(wireguardBtn, json.wg_status === 1);
     }
   }
 
@@ -875,7 +977,7 @@ function updateHeartbeatUi(json) {
       const isNight = json.daynight_mode === "night";
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
-      daynightBtn.classList.toggle("active", isAutoEnabled);
+      setButtonPressed(daynightBtn, isAutoEnabled);
       daynightBtn.classList.toggle("is-night", isNight);
       daynightBtn.classList.toggle("is-day", !isNight);
 
@@ -902,7 +1004,7 @@ function updateHeartbeatUi(json) {
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
       const isDay = json.daynight_mode === "day";
-      dayBtn.classList.toggle("active", !isAutoEnabled && isDay);
+      setButtonPressed(dayBtn, !isAutoEnabled && isDay);
     }
 
     // Update Night button active state
@@ -911,7 +1013,7 @@ function updateHeartbeatUi(json) {
       const isAutoEnabled =
         json.daynight_enabled === true || json.daynight_enabled === 1;
       const isNight = json.daynight_mode === "night";
-      nightBtn.classList.toggle("active", !isAutoEnabled && isNight);
+      setButtonPressed(nightBtn, !isAutoEnabled && isNight);
     }
   }
 
@@ -921,7 +1023,7 @@ function updateHeartbeatUi(json) {
     if (colorBtn) {
       colorBtn.classList.remove("pending");
       // ISP mode: 0 = color, 1 = b&w, so active when 0
-      colorBtn.classList.toggle("active", json.color_mode === 0);
+      setButtonPressed(colorBtn, json.color_mode === 0);
     }
   }
 
@@ -930,7 +1032,7 @@ function updateHeartbeatUi(json) {
     const ircutBtn = $("#ircut");
     if (ircutBtn) {
       ircutBtn.classList.remove("pending");
-      ircutBtn.classList.toggle("active", json.ircut_state === 1);
+      setButtonPressed(ircutBtn, json.ircut_state === 1);
     }
   }
 
@@ -939,7 +1041,7 @@ function updateHeartbeatUi(json) {
     const ir850Btn = $("#ir850");
     if (ir850Btn) {
       ir850Btn.classList.remove("pending");
-      ir850Btn.classList.toggle("active", json.ir850_state === 1);
+      setButtonPressed(ir850Btn, json.ir850_state === 1);
     }
   }
 
@@ -948,7 +1050,7 @@ function updateHeartbeatUi(json) {
     const ir940Btn = $("#ir940");
     if (ir940Btn) {
       ir940Btn.classList.remove("pending");
-      ir940Btn.classList.toggle("active", json.ir940_state === 1);
+      setButtonPressed(ir940Btn, json.ir940_state === 1);
     }
   }
 
@@ -957,7 +1059,7 @@ function updateHeartbeatUi(json) {
     const whiteBtn = $("#white");
     if (whiteBtn) {
       whiteBtn.classList.remove("pending");
-      whiteBtn.classList.toggle("active", json.white_state === 1);
+      setButtonPressed(whiteBtn, json.white_state === 1);
     }
   }
 
@@ -970,7 +1072,7 @@ function updateHeartbeatUi(json) {
         json.mic_enabled &&
         json.mic_enabled !== 0 &&
         json.mic_enabled !== "false";
-      micBtn.classList.toggle("active", isActive);
+      setButtonPressed(micBtn, isActive);
       const img = micBtn.querySelector("img");
       if (img) {
         img.src = isActive ? "/a/mic.svg" : "/a/mic-mute.svg";
@@ -987,7 +1089,7 @@ function updateHeartbeatUi(json) {
         json.spk_enabled &&
         json.spk_enabled !== 0 &&
         json.spk_enabled !== "false";
-      spkBtn.classList.toggle("active", isActive);
+      setButtonPressed(spkBtn, isActive);
       const img = spkBtn.querySelector("img");
       if (img) {
         img.src = isActive ? "/a/volume-up.svg" : "/a/volume-mute.svg";
@@ -1003,8 +1105,8 @@ function updateHeartbeatUi(json) {
     const autoBtn = $("#auto");
     if (autoBtn) {
       autoBtn.classList.remove("pending");
-      autoBtn.classList.toggle(
-        "active",
+      setButtonPressed(
+        autoBtn,
         json.daynight_enabled === true || json.daynight_enabled === 1,
       );
     }
@@ -1121,9 +1223,9 @@ function heartbeat() {
   startSlowHeartbeatStatus();
 }
 
-function initCopyToClipboard() {
+function initCopyToClipboard(root = document) {
   const clipboard = window.thinginoClipboard;
-  $$(".cb").forEach(function (el) {
+  root.querySelectorAll(".cb").forEach(function (el) {
     el.title = "Click to copy to clipboard";
     el.addEventListener("click", function (ev) {
       ev.preventDefault();
@@ -1655,34 +1757,48 @@ function buildSendModalGrid() {
   });
   downloadGroup.appendChild(downloadLinkCh1);
 
-  agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
-    .then((mediaConfig) => {
-      const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
-      const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
-      setDownloadLinkEnabled(
-        downloadLinkCh0,
-        ch0Enabled,
-        "Download main stream is not available on this camera.",
-      );
-      setDownloadLinkEnabled(
-        downloadLinkCh1,
-        ch1Enabled,
-        "Download substream is not available on this camera.",
-      );
-    })
-    .catch((error) => {
-      if (
-        typeof console !== "undefined" &&
-        typeof console.warn === "function"
-      ) {
-        console.warn(
-          "Could not load media capabilities for send modal downloads",
-          error,
+  // The links start enabled; the first open of the modal corrects them.
+  const loadSendModalMedia = () => {
+    agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
+      .then((mediaConfig) => {
+        const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
+        const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
+        setDownloadLinkEnabled(
+          downloadLinkCh0,
+          ch0Enabled,
+          "Download main stream is not available on this camera.",
         );
-      }
-      setDownloadLinkEnabled(downloadLinkCh0, true, "");
-      setDownloadLinkEnabled(downloadLinkCh1, true, "");
+        setDownloadLinkEnabled(
+          downloadLinkCh1,
+          ch1Enabled,
+          "Download substream is not available on this camera.",
+        );
+      })
+      .catch((error) => {
+        if (
+          typeof console !== "undefined" &&
+          typeof console.warn === "function"
+        ) {
+          console.warn(
+            "Could not load media capabilities for send modal downloads",
+            error,
+          );
+        }
+        setDownloadLinkEnabled(downloadLinkCh0, true, "");
+        setDownloadLinkEnabled(downloadLinkCh1, true, "");
+      });
+  };
+  const sendModalEl = document.getElementById("sendModal");
+  if (sendModalEl) {
+    let mediaLoaded = false;
+    sendModalEl.addEventListener("show.bs.modal", () => {
+      if (mediaLoaded) return;
+      mediaLoaded = true;
+      loadSendModalMedia();
     });
+  } else {
+    loadSendModalMedia();
+  }
 
   downloadCol.appendChild(downloadGroup);
   grid.appendChild(downloadCol);
@@ -2113,7 +2229,12 @@ function initPasswordRevealToggles(root = document) {
 }
 
 (() => {
-  function initAll() {
+  function initContent(root = document) {
+    const within = (sel) => [
+      ...(root !== document && root.matches(sel) ? [root] : []),
+      ...root.querySelectorAll(sel),
+    ];
+
     function toggleAuto(el) {
       const id = el.dataset.for;
       const p = $("#" + id);
@@ -2130,18 +2251,14 @@ function initPasswordRevealToggles(root = document) {
       }
     }
 
-    $$("form,input").forEach((el) => (el.autocomplete = "off"));
+    within("form,input").forEach((el) => (el.autocomplete = "off"));
 
-    const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
+    within('[data-bs-toggle="tooltip"]').forEach((el) =>
+      bootstrap.Tooltip.getOrCreateInstance(el),
     );
 
-    // Populate the shared Send modal once the DOM is ready.
-    buildSendModalGrid();
-
     // ranges
-    $$("input[type=range]").forEach((el) => {
+    within("input[type=range]").forEach((el) => {
       el.addEventListener("change", (ev) => {
         if ($("#" + ev.target.id + "-show"))
           $("#" + ev.target.id + "-show").textContent = ev.target.value;
@@ -2152,31 +2269,30 @@ function initPasswordRevealToggles(root = document) {
       });
     });
 
-    // scan for confirmable buttons and observe future additions
-    scanConfirmTriggers();
-    initConfirmObserver();
+    // scan for confirmable buttons
+    scanConfirmTriggers(root);
 
     // toggle auto value
-    $$("input.auto-value").forEach((el) => {
+    within("input.auto-value").forEach((el) => {
       el.addEventListener("click", (ev) => toggleAuto(ev.target));
       toggleAuto(el);
     });
 
     // add password reveal toggles for password fields
-    initPasswordRevealToggles();
+    initPasswordRevealToggles(root);
 
     // reload window when refresh button is clicked
-    $$(".refresh").forEach((el) => {
+    within(".refresh").forEach((el) => {
       el.addEventListener("click", (ev) => {
         window.location.reload();
       });
     });
 
     // set links to external resources to open in a new window.
-    $$("a[href^=http]").forEach((el) => (el.target = "_blank"));
+    within("a[href^=http]").forEach((el) => (el.target = "_blank"));
 
     // handle sendto buttons
-    $$("button[data-sendto]").forEach((el) => {
+    within("button[data-sendto]").forEach((el) => {
       if (el.dataset.sendtoBypass === "1" || el.dataset.sendtoBypass === "true")
         return;
       el.addEventListener("click", async (ev) => {
@@ -2202,7 +2318,7 @@ function initPasswordRevealToggles(root = document) {
     });
 
     // async output of a command running on camera
-    const outputEl = $("pre#output");
+    const outputEl = within("pre#output")[0];
     if (outputEl) {
       let commandInFlight = false;
 
@@ -2349,7 +2465,18 @@ function initPasswordRevealToggles(root = document) {
       });
     }
 
-    initCopyToClipboard();
+    initCopyToClipboard(root);
+    attachSliderButtons(root);
+  }
+
+  window.thinginoInitContent = initContent;
+
+  function initAll() {
+    // Populate the shared Send modal before its buttons are bound.
+    buildSendModalGrid();
+    initContent(document);
+    initConfirmObserver();
+
     // Don't start heartbeat here - wait for password check to complete
 
     // setup recording button handlers

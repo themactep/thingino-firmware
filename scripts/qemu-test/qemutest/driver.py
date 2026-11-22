@@ -31,7 +31,7 @@ import time
 from .config import PROFILES_DIR, REPO_ROOT, SOC_MACHINES
 from .context import Ctx
 from .guest import Guest
-from .launch import find_qemu, start_qemu
+from .launch import find_qemu, start_qemu, unpace_slip_uart
 from .plan import OPTIONAL_SUITES, run_suites
 from .profile import host_qemu, load as load_profile, newest_image
 from .netlab import enter_netns
@@ -207,7 +207,8 @@ def main():
 
     t_start = time.time()
     usb = ("server" if "usb_direct" in args.caps else
-           "client" if "usb_direct_client" in args.caps else None)
+           "client" if "usb_direct_client" in args.caps else
+           "webcam" if "usb_webcam" in args.caps else None)
     proc, pty, qmp_path, slip_pty = start_qemu(qemu, tmp_image, machine, ram,
                                      args.net, report_dir,
                                      tap_if=lab.tap if lab else "qtap0",
@@ -290,6 +291,8 @@ def main():
             print(f"  (QMP unavailable: {e})")
 
         ctx.qmp = qmp
+        if slip and qmp:
+            unpace_slip_uart(qmp)
         run_suites(ctx, only)
 
         print("\n── Artifacts ──")

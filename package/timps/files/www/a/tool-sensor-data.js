@@ -1,15 +1,14 @@
-// tool-sensor-data.js - day/night tuning graph, two data sources.
 (function () {
   const chartCanvas = $("#dataChart");
   if (!chartCanvas || typeof Chart === "undefined") return;
 
-  const POLL_MS = 10000;        // matches the daemon's sample period
-  const POLL_HIDDEN_MS = 60000; // still collecting server-side; just look less
-  const RETAIN_S = 14400;       // 4 h, the retention the switch asks for
+  const POLL_MS = 10000;
+  const POLL_HIDDEN_MS = 60000;
+  const RETAIN_S = 14400;
 
   function num(v) {
     const n = parseFloat(v);
-    return Number.isNaN(n) ? -1 : n;   // -1 is the daemon's "not measurable"
+    return Number.isNaN(n) ? -1 : n;
   }
 
   function fmtDur(s) {
@@ -20,18 +19,18 @@
   class SensorDataCollector {
     constructor() {
       this.maxPoints = 300;
-      this.samples = [];   // {t|wall, gain, exposure, luma, bright, mode}
+      this.samples = [];
       this.chart = null;
       this.isPaused = false;
-      this.mode = null;    // "live" (local SSE) | "ring" (daemon's buffer)
+      this.mode = null;
       this.stream = null;
-      this.cursor = null;  // next seq to ask for
+      this.cursor = null;
       this.head = null;
-      this.clock = null;   // {t_now, wall_now} from the newest response
+      this.clock = null;
       this.nightThreshold = null;
       this.dayThreshold = null;
       this.timer = null;
-      this.retainS = 0;    // the daemon's live daynight.history_s
+      this.retainS = 0;
       this.busy = false;
 
       this.metrics = [
@@ -47,8 +46,6 @@
     init() {
       this.setupEventListeners();
       this.initChart();
-      // one request decides the mode: the response carries retain_s AND, if
-      // collection is on, the backfill we would have asked for anyway
       this.reload();
       document.addEventListener("visibilitychange", () => {
         if (this.mode === "ring") this.schedule();
@@ -84,8 +81,6 @@
           const want = parseInt(e.target.dataset.points, 10) || 300;
           const grew = want > this.maxPoints;
           this.maxPoints = want;
-          // a bigger window is a backfill request, not just a trim - but only
-          // the ring has anything to backfill FROM
           if (grew && this.mode === "ring") this.reload();
           else { this.trimData(); this.render(); }
         });
@@ -93,7 +88,6 @@
     }
 
     initChart() {
-      // night stretches as a blue band behind the lines
       const shade = {
         id: "nightShade",
         beforeDatasetsDraw: (c) => {
@@ -145,8 +139,6 @@
                 text: "gain",
               },
             },
-            // luma (0-255) and brightness (0-100 %) are three orders of
-            // magnitude below a railed gain and would be a flat line on y
             y2: {
               display: true,
               position: "right",
@@ -163,18 +155,12 @@
       });
     }
 
-    /* ---- data ---------------------------------------------------------- */
-
     schedule() {
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.poll(),
                               document.hidden ? POLL_HIDDEN_MS : POLL_MS);
     }
 
-    /* ---- collection on/off --------------------------------------------- */
-
-    // The one place that writes daynight.history_s. Opening or closing this
-    // page never does - collection is a deliberate act with a life of its own.
     setCollection(on) {
       if (this.busy || !window.timpsApi) { this.syncBgUi(); return; }
       this.busy = true;
@@ -184,7 +170,7 @@
           this.busy = false;
           this.retainS = want;
           this.syncBgUi();
-          if (want) this.reload();     // ingest() hands the graph to the ring
+          if (want) this.reload();
           else this.enterLive();
         },
         () => { this.busy = false; this.syncBgUi(); },
@@ -201,10 +187,6 @@
         : "Live while this page is open: timps sends changes, steady values are repeated every 2 s.";
     }
 
-    /* ---- mode: local SSE vs the daemon's ring --------------------------- */
-
-    // A mode change resets the view. The two sources have different cadences
-    // and timebases, so splicing them would draw a seam that is not real.
     enterLive() {
       if (this.mode === "live") return;
       this.mode = "live";
@@ -223,8 +205,6 @@
       this.carryTimer = null;
     }
 
-    // live SSE only sends changes (mode, >=1 % brightness, >=5 % gain): repeat the
-    // last sample every daynight.interval_ms so a steady scene still draws
     startCarry() {
       clearInterval(this.carryTimer);
       const every = this.intervalMs || 2000;
@@ -242,7 +222,6 @@
     startStream() {
       if (!window.timpsApi) { this.updateStreamStatus(false); return; }
       if (this.stream) return;
-      // timps pushes "daynight" over its native SSE /events - the full state on connect, then every meaningful change.
       this.stream = window.timpsApi.events(
         "daynight,config",
         (type, d) => this.onEvent(type, d),
@@ -256,7 +235,6 @@
       }, () => { if (this.mode === "live") this.startCarry(); });
     }
 
-    // what the window buttons mean in time, at the current sample cadence
     updatePointHints() {
       const step = this.mode === "ring" ? 10 : (this.intervalMs || 2000) / 1000;
       document.querySelectorAll("#max-points [data-points]").forEach((b) => {
@@ -272,8 +250,6 @@
         if (d.key === "daynight.history_s") {
           this.retainS = Number(d.value) || 0;
           this.syncBgUi();
-          // !busy: our own POST echoes back here too, and setCollection is
-          // already handing the graph over - a second reload would double it
           if (this.retainS && this.mode === "live" && !this.busy) this.reload();
         }
         return;
@@ -293,8 +269,6 @@
       this.render();
     }
 
-    // full backfill: ask from the newest maxPoints samples and follow "next"
-    // until the daemon says we are level with its head.
     reload() {
       this.samples = [];
       this.cursor = null;
@@ -302,7 +276,7 @@
     }
 
     poll() {
-      if (this.mode === "live") return;   // a timer that outlived the handover
+      if (this.mode === "live") return;
       if (this.cursor === null) this.reload();
       else this.fetchPage({ since: this.cursor });
     }
@@ -327,13 +301,11 @@
       this.syncBgUi();
       if (!this.retainS) { this.enterLive(); return; }
       if (this.mode !== "ring") { this.stopStream(); this.mode = "ring"; this.updatePointHints(); }
-      this.updateStreamStatus(true);   // after the mode: it words the tooltip
+      this.updateStreamStatus(true);
 
       this.clock = { t_now: Number(d.t_now), wall_now: Number(d.wall_now) };
       this.head = Number(d.head);
 
-      // our cursor fell out of the ring's retained window: the series has a
-      // hole, so refetch it whole rather than splicing across the gap
       if (d.lapped && this.samples.length) { this.reload(); return; }
 
       if (!this.isPaused) {
@@ -347,11 +319,8 @@
       }
       this.cursor = Number(d.next);
 
-      // one chart update per response, not per sample - a 600-row backfill
-      // would otherwise redraw 600 times
       this.render();
 
-      // still behind the daemon's head: keep paging immediately
       if (this.cursor !== this.head) this.fetchPage({ since: this.cursor });
       else this.schedule();
     }
@@ -362,18 +331,14 @@
     }
 
     wallOf(s) {
-      if (s.wall !== undefined) return new Date(s.wall * 1000);  // live mode
+      if (s.wall !== undefined) return new Date(s.wall * 1000);
       if (!this.clock) return new Date();
       return new Date((this.clock.wall_now - (this.clock.t_now - s.t)) * 1000);
     }
 
-    // -1 is the daemon's "not measurable"; Chart.js draws a null as a gap
-    // rather than a dip to zero
     static val(v) {
       return (typeof v === "number" && v >= 0) ? v : null;
     }
-
-    /* ---- rendering ----------------------------------------------------- */
 
     render() {
       const S = SensorDataCollector;
@@ -422,9 +387,6 @@
       this.updateStatsDisplay();
     }
 
-    // recomputed over the whole loaded window rather than accumulated: a
-    // backfill arrives as a batch, and a trimmed-away sample must stop
-    // counting towards min/max/avg
     stats() {
       const S = SensorDataCollector;
       const out = {};
@@ -460,12 +422,9 @@
       });
     }
 
-    /* ---- controls ------------------------------------------------------ */
-
     async clearData() {
       const confirmed = await confirm("Clear all data?");
       if (!confirmed) return;
-      // only the local view: the daemon's ring keeps its series
       this.samples = [];
       this.render();
     }
@@ -476,8 +435,6 @@
         e.target.textContent = this.isPaused ? "Resume" : "Pause";
         e.target.classList.toggle("active", this.isPaused);
       }
-      // resuming backfills the paused stretch out of the ring; in live mode
-      // that stretch simply never existed
       if (!this.isPaused && this.mode === "ring") this.reload();
     }
 
@@ -496,8 +453,6 @@
         statusIcon.title = "Disconnected - retrying...";
       }
     }
-
-    /* ---- export -------------------------------------------------------- */
 
     exportJSON() {
       const payload = {

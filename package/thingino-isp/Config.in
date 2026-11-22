@@ -6,6 +6,7 @@ choice
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_THINGINO_TOOLCHAIN
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_SOC_FAMILY = "a1"
 	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_THINGINO_DEV_CAMERA
+	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_SOC_VENDOR_INGENIC
 	default BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	help
 	  Select the ISP kernel and userspace implementation used by the
@@ -18,6 +19,7 @@ config BR2_PACKAGE_THINGINO_ISP_NONE
 
 config BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	bool "Proprietary Ingenic ISP stack"
+	depends on BR2_SOC_VENDOR_INGENIC
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on BR2_THINGINO_DEV_CAMERA
 	select BR2_PACKAGE_THINGINO_ISP
@@ -44,8 +46,8 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	help
 	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
 	  T40, and T41 targets. OpenIMP supplies the userspace ABI on
-	  T20, T21, T23, T30, T31, T40, and T41; T10 retains the
-	  Ingenic libimp provider.
+	  all of them (T10 builds it through the shared T20 userspace);
+	  T23 runs fully on OpenIMP, Helix encoder included.
 
 	  Image tuning and sensor coverage remain experimental.
 

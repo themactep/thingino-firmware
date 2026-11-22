@@ -22,7 +22,13 @@
 #                 or lists of those. A pin whose last action is a toggle
 #                 depends on prior state and cannot be a static hog: skipped.
 #                 An object's toggle flag only prepends a pulse and does not
-#                 change the resting level.
+#                 change the resting level. An object may set boot_state to
+#                 the level held through the boot window while state/value
+#                 stays the runtime level S36 drives later: {"pin": 51,
+#                 "state": 1, "boot_state": 0} keeps a USB module off until
+#                 S36 powers it on, instead of pre-powering it before the
+#                 kernel USB scan. Without boot_state the hog uses the final
+#                 S36 level.
 #
 #   gpio.mmc_power (list form only) - boards whose SD slot needs more than one
 #                 supply/enable pin, [{pin, active_low}, ...], each driven at
@@ -75,7 +81,6 @@ set -e
 
 JSON="$1"
 DTS="$2"
-DT="$3"
 [ -f "$JSON" ] && [ -f "$DTS" ] || exit 0
 
 # Already injected on a previous incremental build?
@@ -128,14 +133,14 @@ def norm_state(v):  # S36wireless normalize_state_value; None = invalid
                 "false": 0, "low": 0, "off": 0, "disable": 0, "disabled": 0}.get(w[0].lower())
     return None
 
-def token(tok):  # S36wireless parse_legacy_token -> (pin, level|None=toggle) | None
+def token(tok):  # S36wireless parse_legacy_token -> (pin, level|None=toggle, boot) | None
     if tok and tok[-1] in "oOtT~":
         pin, sfx = tok[:-1], tok[-1]
     else:
         pin, sfx = tok, ""
     if not pin.isdigit():
         return None
-    return (int(pin), {"o": 0, "O": 1, "": 1}.get(sfx))
+    return (int(pin), {"o": 0, "O": 1, "": 1}.get(sfx), None)
 
 def obj(o):  # S36wireless emit_wlan_object_path final state
     pin = o.get("pin")
@@ -152,14 +157,16 @@ def obj(o):  # S36wireless emit_wlan_object_path final state
     state = o.get("state")
     if state in (None, ""):
         state = o.get("value")
+    boot = o.get("boot_state")
+    boot = norm_state(boot) if boot not in (None, "") else None
     if not action and isinstance(state, str) and state.lower() in ("toggle", "~"):
         action, state = "toggle", None
     if action == "toggle":
-        return (pin, None)
+        return (pin, None, boot)
     if state in (None, ""):
-        return (pin, 0 if is_true(al) else 1)
+        return (pin, 0 if is_true(al) else 1, boot)
     s = norm_state(state)
-    return (pin, s) if s is not None else None
+    return (pin, s, boot) if s is not None else None
 
 events = []
 def walk(v):
@@ -178,12 +185,14 @@ def walk(v):
             r and events.append(r)
 
 walk(root.get("gpio", {}).get("wlan"))
-final, order = {}, []
-for pin, lvl in events:
+final, boot_final, order = {}, {}, []
+for pin, lvl, boot in events:
     if pin not in final:
         order.append(pin)
     final[pin] = lvl  # None = toggle-final = not expressible, dropped below
-out += [("wlan", p, final[p]) for p in order if final[p] is not None]
+    boot_final[pin] = boot
+out += [("wlan", p, boot_final[p] if boot_final[p] is not None else final[p])
+        for p in order if boot_final[p] is not None or final[p] is not None]
 
 # ---- gpio.mmc_power list form: multi-pin slot power at the on level -------
 mp = root.get("gpio", {}).get("mmc_power")

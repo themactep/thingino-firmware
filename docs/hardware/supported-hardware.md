@@ -511,10 +511,6 @@ Wyze
 
 - [T31X, GC2053, ATBM6031](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-wyze_campan2_t31x_gc2053_atbm6031.bin)
 
-### Wyze Cam Pan v3
-
-- [T31X, GC2053, ATBM6031](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-wyze_campan3_t31x_gc2053_atbm6031.bin)
-
 ### Wyze Video Doorbell v1
 
 - [T30X, SC4236, RTL8189FTV](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-wyze_vdb1_t30x_sc4236_rtl8189ftv.bin)
