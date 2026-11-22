@@ -454,18 +454,23 @@ ifeq ($(FLASH_SIZE_MB),)
 endif
 export FLASH_SIZE_MB
 
-# Effective layout size. FLASH_SIZE_MB stays the physical chip size; the cap
-# makes the partition table and the image end at 8 MB so the OTA payload fits
-# in RAM on 64 MB devices. The flag may come from the camera defconfig, a
-# config fragment, or a user fragment, so resolve it like the U-Boot version.
-FLASH_CAP_8M := $(or $(filter y,$(BR2_THINGINO_FLASH_CAP_8M)),$(shell \
-	for f in $(foreach f,$(EARLY_TOOLCHAIN_INPUT_FILES),'$(f)'); do \
-		[ -f "$$f" ] && sed -n 's/^BR2_THINGINO_FLASH_CAP_8M=y$$/y/p' "$$f"; \
-	done | tail -n1))
-ifeq ($(FLASH_CAP_8M),y)
-	FLASH_LAYOUT_MB := $(shell echo $$(( $(FLASH_SIZE_MB) > 8 ? 8 : $(FLASH_SIZE_MB) )))
-else
+# Effective layout size. FLASH_SIZE_MB stays the physical chip size; a cap
+# makes the partition table and the image end at 8 or 16 MB so the OTA payload
+# fits in RAM on 64 or 128 MB devices. The flags may come from the camera
+# defconfig, a config fragment, or a user fragment, so resolve them like the
+# U-Boot version, last assignment wins. When both caps are on, the 8 MB cap
+# wins, matching the FLASH_LAYOUT_MB default.
+FLASH_CAP_MB := $(shell awk '\
+	/^BR2_THINGINO_FLASH_CAP_8M=y$$/ { cap8=1 } \
+	/^# BR2_THINGINO_FLASH_CAP_8M is not set$$/ { cap8=0 } \
+	/^BR2_THINGINO_FLASH_CAP_16M=y$$/ { cap16=1 } \
+	/^# BR2_THINGINO_FLASH_CAP_16M is not set$$/ { cap16=0 } \
+	END { if (cap8) print 8; else if (cap16) print 16 }' \
+	$(or $(EARLY_TOOLCHAIN_INPUT_FILES),/dev/null) 2>/dev/null)
+ifeq ($(FLASH_CAP_MB),)
 	FLASH_LAYOUT_MB := $(FLASH_SIZE_MB)
+else
+	FLASH_LAYOUT_MB := $(shell echo $$(( $(FLASH_SIZE_MB) > $(FLASH_CAP_MB) ? $(FLASH_CAP_MB) : $(FLASH_SIZE_MB) )))
 endif
 export FLASH_LAYOUT_MB
 

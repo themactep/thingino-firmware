@@ -907,9 +907,24 @@ config BR2_THINGINO_FLASH_CAP_8M
 	  partition shrinks with it. Keeps the full image small enough to
 	  stage in RAM for an OTA update on devices with 64 MB.
 
+	  Takes precedence over the 16 MB cap.
+
+config BR2_THINGINO_FLASH_CAP_16M
+	bool "Cap flash layout at 16 MB"
+	depends on BR2_THINGINO_FLASH_NOR
+	depends on FLASH_SIZE_MB > 16
+	help
+	  Build the partition table and image for a 16 MB flash even when
+	  the chip is larger. The remaining space stays unused and the data
+	  partition shrinks with it. Keeps the full image small enough to
+	  stage in RAM for an OTA update on devices with 128 MB.
+
+	  Ignored when the 8 MB cap is also enabled.
+
 config FLASH_LAYOUT_MB
 	int
 	default 8 if BR2_THINGINO_FLASH_CAP_8M
+	default 16 if BR2_THINGINO_FLASH_CAP_16M
 	default FLASH_SIZE_MB
 
 config BR2_THINGINO_ALIGN_SIZE_KB
