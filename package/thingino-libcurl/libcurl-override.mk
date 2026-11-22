@@ -53,6 +53,11 @@ override LIBCURL_DEPENDENCIES = host-pkgconf \
 	$(if $(BR2_PACKAGE_ZLIB),zlib) \
 	$(if $(BR2_PACKAGE_THINGINO_LIBCURL_RTMP_SUPPORT),rtmpdump)
 
+# libcurl 8.23.0 sets LIBCURL_AUTORECONF = YES, and pkg-autotools.mk then appends
+# the autotools host deps with a plain '+=', which an override variable ignores.
+# Without these, the per-package host dir has no autoreconf.
+override LIBCURL_DEPENDENCIES += host-automake host-autoconf host-libtool
+
 # TLS backends
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_TLS_NONE),y)
 override LIBCURL_CONF_OPTS += --without-ssl

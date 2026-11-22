@@ -259,6 +259,11 @@ normalize_bool() {
 	esac
 }
 
+# The answer for an invalid boolean: call it after ||, never inside $( ).
+bad_bool() {
+	json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+}
+
 handle_get() {
 	local payload wg_status supported localpub
 	payload=$(read_domain_json)
@@ -337,7 +342,7 @@ handle_post() {
 			;;
 	esac
 
-	enabled=$(normalize_bool "$(jct "$REQ_FILE" get enabled 2>/dev/null)") || json_error 422 "Invalid boolean value" "422 Unprocessable Entity"
+	enabled=$(normalize_bool "$(jct "$REQ_FILE" get enabled 2>/dev/null)") || bad_bool
 	address=$(jct "$REQ_FILE" get address 2>/dev/null)
 	allowed=$(jct "$REQ_FILE" get allowed 2>/dev/null)
 	dns=$(jct "$REQ_FILE" get dns 2>/dev/null)
