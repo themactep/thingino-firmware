@@ -242,6 +242,17 @@
             ": the saved password belongs to a different network.",
         );
       }
+      let ssidWarning = "";
+      if (/[^\x00-\x7F]/.test(payload.wifi.ssid)) {
+        ssidWarning =
+          "The SSID contains non-ASCII characters; some WiFi drivers fail to associate with them.";
+      } else if (payload.wifi.ssid.includes('"')) {
+        ssidWarning =
+          "The SSID contains a double quote; it may corrupt the saved Wi-Fi configuration.";
+      }
+      if (ssidWarning && !window.confirm(ssidWarning + " Save anyway?")) {
+        return;
+      }
       const response = await fetch("/x/json-config-network.cgi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

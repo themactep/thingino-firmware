@@ -350,7 +350,11 @@ save_config() {
 	wlan_pass=$(echo "$wlan_pass" | sed 's/[[:space:]]*$//')
 	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
 
-	# FIXME: Sanitize ssid and password
+	# SSIDs are stored in plain text and handed to the driver as-is;
+	# some drivers fail to associate with non-ASCII SSIDs.
+	if printf '%s' "$wlan_ssid" | grep -q '[^[:print:]]'; then
+		logger -t portal "SSID contains non-ASCII characters; some WiFi drivers fail to associate with them"
+	fi
 
 	# A client that can hash locally sends these instead, so neither secret
 	# crosses the portal in the clear. The portal AP is open, so anything sent
@@ -398,9 +402,23 @@ save_config() {
 	[ -n "$wlan_psk" ] && wlan_secret="$wlan_psk"
 
 	if [ "true" = "$wlan_ap" ]; then
-		wlan configure "$wlan_ssid" "$wlan_secret" ap
+		if ! wlan configure "$wlan_ssid" "$wlan_secret" ap; then
+			wlan_configure_failed=true
+		fi
 	else
-		wlan configure "$wlan_ssid" "$wlan_secret"
+		if ! wlan configure "$wlan_ssid" "$wlan_secret"; then
+			wlan_configure_failed=true
+		fi
+	fi
+	if [ "$wlan_configure_failed" = "true" ]; then
+		logger -t portal "wlan configure failed; wifi settings were not saved"
+		cat <<-EOF
+			{
+				"success": false,
+				"error": "Failed to save Wi-Fi settings. Check SSID and password and try again."
+			}
+		EOF
+		return
 	fi
 
 	# Update timezone

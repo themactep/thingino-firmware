@@ -134,6 +134,22 @@ configure() {
 		exit 1
 	fi
 
+	# SSIDs are stored in plain text and handed to the driver as-is.
+	# Non-ASCII characters are legal but some drivers fail to associate
+	# with them; a double quote would break the generated config.
+	local odd
+	odd=$(printf '%s' "$ssid" | tr -d '\040-\176')
+	if [ -n "$odd" ]; then
+		logger -t wlan "SSID contains non-ASCII characters; some WiFi drivers fail to associate with them"
+		echo "Warning: SSID contains non-ASCII characters; some WiFi drivers fail to associate with them." >&2
+	fi
+	case "$ssid" in
+		*\"*)
+			logger -t wlan "SSID contains a double quote character; it may corrupt the saved configuration"
+			echo "Warning: SSID contains a double quote character; it may corrupt the saved configuration." >&2
+			;;
+	esac
+
 	case "$3" in
 		"") ;;
 		ap) ap_mode="ap" ;;

@@ -102,6 +102,7 @@
 <dt id="review-rootpkey-label" class="hidden">User <b>root</b> Public SSH Key</dt>
 <dd class="small text-break" id="review-rootpkey"></dd>
 </dl>
+<div id="ssid-warning" class="alert alert-warning text-center hidden"></div>
 <div class="row text-center">
 <div class="col my-2">
 <button type="button" class="btn btn-danger" id="btn-edit">Edit data</button>
@@ -220,6 +221,15 @@ function showReview(data) {
   document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
   document.getElementById('review-network-pass').textContent = data.wlan_pass;
 
+  const ssidWarning = document.getElementById('ssid-warning');
+  if (/[^\x00-\x7F]/.test(data.wlan_ssid)) {
+    ssidWarning.textContent = 'The SSID contains non-ASCII characters; some WiFi drivers fail to associate with them.';
+    showElement('ssid-warning');
+  } else if (data.wlan_ssid.includes('"')) {
+    ssidWarning.textContent = 'The SSID contains a double quote; it may corrupt the saved Wi-Fi configuration.';
+    showElement('ssid-warning');
+  }
+
   if (data.rootpkey) {
     document.getElementById('review-rootpkey').textContent = data.rootpkey;
     document.getElementById('review-rootpkey-label').classList.remove('hidden');
@@ -232,6 +242,7 @@ function showReview(data) {
 
 function showForm() {
   hideElement('review-section');
+  hideElement('ssid-warning');
   showElement('config-form');
   scheduleTimeoutWarning();
 }
