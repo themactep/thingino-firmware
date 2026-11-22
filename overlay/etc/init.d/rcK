@@ -12,6 +12,11 @@ done
 
 sync
 
+# reboot -f below skips inittab's umount
+awk '$2 ~ "^/mnt/" {print $2}' /proc/mounts | sort -r | while read -r m; do
+	umount "$m" 2>/dev/null || mount -o remount,ro "$m" 2>/dev/null
+done
+
 # Kill watchdog with SIGKILL (NOT SIGTERM) so it cannot write the magic 'V'
 # that would disarm the hardware watchdog. The hardware timer then expires
 # within the configured timeout (default 60 s) and forces a hardware reset —
