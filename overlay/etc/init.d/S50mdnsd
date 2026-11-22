@@ -239,8 +239,39 @@ detect_streamer() {
 	fi
 }
 
+valid_mac() {
+	case "$1" in
+		"" | 00:00:00:00:00:00 | ff:ff:ff:ff:ff:ff) return 1 ;;
+	esac
+	return 0
+}
+
+primary_mac() {
+	local iface mac
+
+	iface=$(ip -4 route show default 2>/dev/null |
+		awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}')
+	if [ -n "$iface" ]; then
+		mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+		valid_mac "$mac" || iface=""
+	fi
+	if [ -z "$iface" ]; then
+		for iface in eth0 wlan0; do
+			mac=""
+			[ "$(cat "/sys/class/net/$iface/operstate" 2>/dev/null)" = "up" ] &&
+				mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+			if valid_mac "$mac"; then
+				break
+			fi
+			iface=""
+		done
+	fi
+	[ -n "$iface" ] || return 0
+	echo "$mac"
+}
+
 generate_thingino_service() {
-	local http_listen http_port model build streamer
+	local http_listen http_port model build streamer mac
 
 	http_listen="$UHTTPD_HTTP_LISTEN_DEFAULT"
 	[ -r "$UHTTPD_DEFAULTS" ] && . "$UHTTPD_DEFAULTS"
@@ -251,6 +282,7 @@ generate_thingino_service() {
 	model="$(sed -n 's/^IMAGE_ID=//p' /etc/os-release 2>/dev/null)"
 	build="$(sed -n 's/^BUILD_ID="\([^,]*\).*/\1/p' /etc/os-release 2>/dev/null)"
 	streamer="$(detect_streamer)"
+	mac="$(primary_mac)"
 
 	ensure_dir "$MDNS_SERVICE_DIR"
 
@@ -262,6 +294,9 @@ generate_thingino_service() {
 		txt version=$build
 		txt streamer=$streamer
 	EOF
+	if [ -n "$mac" ]; then
+		echo "txt mac=$mac" >>"$MDNS_SERVICE_DIR/thingino.service"
+	fi
 }
 
 generate_rtsp_services() {
@@ -310,6 +345,15 @@ stop() {
 	stop_daemon
 }
 
+reload() {
+	local before
+
+	before=$(cat "$MDNS_SERVICE_DIR/thingino.service" 2>/dev/null)
+	generate_thingino_service
+	[ "$(cat "$MDNS_SERVICE_DIR/thingino.service" 2>/dev/null)" = "$before" ] && return 0
+	start-stop-daemon -K -q -s HUP -x "$DAEMON"
+}
+
 case "$1" in
 	start)
 		start
@@ -322,8 +366,11 @@ case "$1" in
 		sleep 1
 		start
 		;;
+	reload)
+		reload
+		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac
