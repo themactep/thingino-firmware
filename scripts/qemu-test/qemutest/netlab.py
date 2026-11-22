@@ -510,9 +510,10 @@ log-facility={log_path}
     def mdns_query(self, name, rtype="A", timeout=3.0, collect_all=False):
         """Minimal mDNS query (legacy unicast response path).
         Returns rdata strings: A/AAAA -> address, PTR -> target name,
-        SRV -> 'port target'. collect_all keeps listening for the whole
-        timeout (service enumeration spans multiple answers)."""
-        qtype = {"A": 1, "AAAA": 28, "PTR": 12, "SRV": 33}[rtype]
+        SRV -> 'port target', TXT -> each 'key=value' string.
+        collect_all keeps listening for the whole timeout (service
+        enumeration spans multiple answers)."""
+        qtype = {"A": 1, "AAAA": 28, "PTR": 12, "TXT": 16, "SRV": 33}[rtype]
         pkt = struct.pack("!HHHHHH", 0, 0, 1, 0, 0, 0)
         for label in name.strip(".").split("."):
             pkt += bytes([len(label)]) + label.encode()
@@ -580,6 +581,13 @@ log-facility={log_path}
                 elif rtype == 12:                      # PTR
                     tgt, _ = decode_name(rdata_off)
                     out.append(tgt)
+                elif rtype == 16:                      # TXT
+                    o = rdata_off
+                    while o < off:
+                        ln = data[o]
+                        out.append(data[o + 1:o + 1 + ln].decode(
+                            errors="replace"))
+                        o += 1 + ln
                 elif rtype == 33:                      # SRV
                     _, _, port = struct.unpack(
                         "!HHH", data[rdata_off:rdata_off + 6])

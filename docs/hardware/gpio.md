@@ -109,6 +109,11 @@ Processing rules:
   `S36wireless`. On a USB Wi-Fi board whose module must not be powered before
   S36, use `{"pin": 51, "state": 1, "boot_state": 0}`: U-Boot holds the pin
   low, S36 drives it high and loads the driver.
+- On 4.4 kernels `S36wireless` applies `gpio.wlan` on every boot, before it
+  loads the driver. A board whose SDIO radio enumerates on its own does not
+  need the key: driving a power or reset line ahead of probe can wedge the
+  driver. The Wyze Pan v4 and Cam v4 profiles dropped it for this reason.
+  Add `gpio.wlan` only when the hardware actually needs the pulse.
 
 Update `/etc/thingino.json`, then restart the corresponding init script
 (`S09mmc` for storage power or `S36wireless` for Wi-Fi) to apply the new
