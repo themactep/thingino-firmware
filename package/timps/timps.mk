@@ -273,6 +273,12 @@ define TIMPS_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
+	if [ "$(BR2_PACKAGE_TIMPS_SINGLE_STREAM)" = "y" ]; then \
+		$(SED) 's|^http.preview_chn .*|http.preview_chn = 0|' $(TARGET_DIR)/etc/timps.conf; \
+		printf '\n# ---- one video stream (BR2_PACKAGE_TIMPS_SINGLE_STREAM) ----\nvideo1.enabled = 0\nmotion.monitor_stream = 0\n' \
+			>> $(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Per-camera overrides: a profile's timps.conf lists only the keys that
 	# differ. A listed key replaces the shipped line, otherwise it is appended.
 	if [ -f "$(TIMPS_CAMERA_CONF)" ]; then \

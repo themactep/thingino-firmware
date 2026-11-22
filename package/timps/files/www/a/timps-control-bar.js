@@ -128,6 +128,49 @@
     if (reason) button.title = reason;
   }
 
+  var CH1_OFF = "The substream is off on this camera (video1.enabled = 0, applies after a timps restart)";
+  var ch1Off = false;
+
+  function markSubstreamOff() {
+    var rec = $("#recorder-ch1");
+    if (rec) {
+      rec.classList.remove("pending", "active");
+      rec.disabled = true;
+      rec.classList.add("disabled");
+      rec.title = CH1_OFF;
+    }
+    var tab = document.querySelector('[data-stream-tab="1"]');
+    if (tab) {
+      var sum = tab.querySelector("small");
+      if (sum) sum.textContent = "off";
+      if (!tab.disabled) {
+        tab.disabled = true;
+        tab.classList.add("disabled", "opacity-50");
+        tab.title = CH1_OFF;
+        if (tab.classList.contains("active")) {
+          var t0 = document.querySelector('[data-stream-tab="0"]');
+          if (t0) t0.click();
+        }
+      }
+    }
+    var pv = document.getElementById("preview");
+    if (pv && pv.getAttribute("data-stream") === "ch1") {
+      pv.setAttribute("data-stream", "ch0");
+      if (window.restartStreamPreview) window.restartStreamPreview();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("select[data-stream-select]"), function (sel) {
+      var o = sel.querySelector('option[value="1"]');
+      if (!o || o.disabled) return;
+      o.disabled = true;
+      o.title = CH1_OFF;
+      o.textContent += " - off";
+      if (sel.getAttribute("data-stream-select") === "follow" && sel.value === "1") {
+        sel.value = "0";
+        sel.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
   var spkSupported = false;
 
   function speakerReason() {
@@ -253,6 +296,8 @@
           spkSupported = json.spk_supported;
           disableAudioButton("speaker", speakerReason());
         }
+        if (json && json.ch1_running === false) ch1Off = true;
+        if (ch1Off) markSubstreamOff();
       };
     }
 
