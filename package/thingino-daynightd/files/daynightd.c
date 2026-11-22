@@ -156,6 +156,7 @@ typedef struct {
     bool     schedule_enabled;
     char     schedule_start_at[8];
     char     schedule_stop_at[8];
+    char     schedule_outside[8];  /* outside the window: "keep", "day" or "night" */
 
     /* Controls - which hardware to toggle on mode change */
     bool     controls_color;
@@ -366,6 +367,7 @@ static void set_config_defaults(void) {
     g_config.schedule_enabled = false;
     g_config.schedule_start_at[0] = '\0';
     g_config.schedule_stop_at[0]  = '\0';
+    strcpy(g_config.schedule_outside, "keep");
 
     g_config.controls_color = true;
     g_config.controls_ircut = true;
@@ -380,6 +382,34 @@ static void set_config_defaults(void) {
 
     g_config.force_mode[0] = '\0';
     g_config.initial_mode[0] = '\0';
+}
+
+/* The schedule, for the first read and for every reload. */
+static void read_schedule_config(JsonValue *root) {
+    JsonValue *v;
+
+    v = get_nested_item(root, "daynight.schedule.enabled");
+    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    v = get_nested_item(root, "daynight.schedule.start_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_start_at, v->value.string,
+                sizeof(g_config.schedule_start_at) - 1);
+        g_config.schedule_start_at[sizeof(g_config.schedule_start_at) - 1] = '\0';
+    }
+    v = get_nested_item(root, "daynight.schedule.stop_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_stop_at, v->value.string,
+                sizeof(g_config.schedule_stop_at) - 1);
+        g_config.schedule_stop_at[sizeof(g_config.schedule_stop_at) - 1] = '\0';
+    }
+    /* What holds outside the window; anything but "day" or "night" keeps
+     * the mode the camera has, as before this setting existed. */
+    v = get_nested_item(root, "daynight.schedule.outside");
+    if (v && v->type == JSON_STRING && v->value.string &&
+        (strcmp(v->value.string, "day") == 0 || strcmp(v->value.string, "night") == 0))
+        strcpy(g_config.schedule_outside, v->value.string);
+    else
+        strcpy(g_config.schedule_outside, "keep");
 }
 
 static int read_config(const char *config_file) {
@@ -458,19 +488,7 @@ static int read_config(const char *config_file) {
     v = get_nested_item(root, "daynight.controls.white");
     if (v && v->type == JSON_BOOL) g_config.controls_white = v->value.boolean;
 
-    /* Schedule */
-    v = get_nested_item(root, "daynight.schedule.enabled");
-    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
-    v = get_nested_item(root, "daynight.schedule.start_at");
-    if (v && v->type == JSON_STRING && v->value.string) {
-        strncpy(g_config.schedule_start_at, v->value.string,
-                sizeof(g_config.schedule_start_at) - 1);
-    }
-    v = get_nested_item(root, "daynight.schedule.stop_at");
-    if (v && v->type == JSON_STRING && v->value.string) {
-        strncpy(g_config.schedule_stop_at, v->value.string,
-                sizeof(g_config.schedule_stop_at) - 1);
-    }
+    read_schedule_config(root);
 
     /* Force mode */
     v = get_nested_item(root, "daynight.force_mode");
@@ -551,9 +569,9 @@ static int reload_config(void) {
         g_config.force_mode[0] = '\0';
     }
 
-    /* Schedule */
-    v = get_nested_item(root, "daynight.schedule.enabled");
-    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    /* The whole schedule, not only its switch: the web UI saves the times and
+     * sends SIGHUP, and they have to hold from then on. */
+    read_schedule_config(root);
 
     /* Master enable */
     v = get_nested_item(root, "daynight.enabled");
@@ -1313,6 +1331,29 @@ static int main_loop(void) {
         if (sample_count > 0) avg_brightness /= (float)sample_count;
 
         bool within_schedule = is_within_schedule();
+
+        /* --- Outside the schedule's window: hold a mode, if one is set ---
+         * Without it the mode the camera has is kept, whatever the light
+         * does, until the window opens again. */
+        if (!within_schedule && g_config.enabled && g_config.force_mode[0] == '\0') {
+            daynight_mode_t held = MODE_UNKNOWN;
+            if (strcmp(g_config.schedule_outside, "day") == 0)
+                held = MODE_DAY;
+            else if (strcmp(g_config.schedule_outside, "night") == 0)
+                held = MODE_NIGHT;
+
+            if (held != MODE_UNKNOWN) {
+                if (held != g_state.current_mode) {
+                    log_message(LOG_INFO, "Outside schedule: holding %s",
+                                (held == MODE_DAY) ? "DAY" : "NIGHT");
+                    apply_mode(held);
+                    g_state.current_mode = held;
+                    gettimeofday(&g_state.last_transition, NULL);
+                }
+                /* The held mode stands in for the start-up detection. */
+                g_state.initial_mode_set = true;
+            }
+        }
 
         /* --- Initial mode detection --- */
         if (!g_state.initial_mode_set) {
