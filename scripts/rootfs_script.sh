@@ -21,7 +21,9 @@ sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 # must target that volume instead of a raw MTD offset (the NOR default).
 if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
-elif grep -q "^BR2_THINGINO_FLASH_NOR=y" "$BR2_CONFIG" && grep -q "^BR2_THINGINO_UBOOT_VERSION_2026_07=y" "$BR2_CONFIG"; then
+elif grep -q "^BR2_THINGINO_FLASH_NOR=y" "$BR2_CONFIG" &&
+	grep -q "^BR2_THINGINO_UBOOT_VERSION_2026_07=y" "$BR2_CONFIG" &&
+	! grep -q "^BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT=y" "$BR2_CONFIG"; then
 	printf '/dev/mtd1 0x0 0x10000 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
 fi
 
