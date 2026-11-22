@@ -1955,7 +1955,7 @@ agent_get_config() {
 
 agent_get_config_live() {
 	command -v raptorctl >/dev/null 2>&1 &&
-		agent_config_preload sensor motion ircut recording audio rtsp \
+		agent_config_preload image sensor motion ircut recording audio rtsp \
 			stream0 stream1 osd osd.logo osd.timestamp osd.uptime osd.camera
 	agent_print_config
 }
