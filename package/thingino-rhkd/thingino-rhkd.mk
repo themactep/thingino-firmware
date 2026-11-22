@@ -45,7 +45,7 @@ define THINGINO_RHKD_FETCH_DEPS
 	$(call THINGINO_RHKD_UNPACK_DEP,raptor-ipc,$(THINGINO_RHKD_RIPC_COMMIT).tar.gz,LICENSE)
 	for p in $(@D)/patches/HomeKitADK/*.patch; do \
 		if patch -d $(@D)/src/HomeKitADK -p1 -R -s -f --dry-run <$$p >/dev/null 2>&1; then continue; fi; \
-		patch -d $(@D)/src/HomeKitADK -p1 -s <$$p || exit 1; \
+		patch -d $(@D)/src/HomeKitADK -p1 -N -f -s <$$p || exit 1; \
 	done
 endef
 THINGINO_RHKD_POST_EXTRACT_HOOKS += THINGINO_RHKD_FETCH_DEPS
