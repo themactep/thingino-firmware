@@ -251,16 +251,21 @@ def test_mdns_txt_mac(ctx, mq):
     got = until(txt, 9, 3, lambda t: want in t)
     res.check("mdns_txt_mac", want in got, f"{inst} TXT -> {got}")
 
-    # the state S50mdnsd leaves at boot before the first lease
-    guest.run("sed -i '/^txt mac=/d' /etc/mdns.d/thingino.service; "
-              "killall -HUP mdnsd", via="serial")
-    stale = until(txt, 15, 3, lambda t: t and want not in t)
+    # A deconfig with the link down drops the key; the bound after the
+    # rebind puts it back.
+    guest.run("ip link set eth0 down; "
+              "/usr/share/udhcpc/default.script.d/mdns deconfig",
+              via="serial", timeout=15)
+    rc, out = guest.run("grep -c '^txt mac=' /etc/mdns.d/thingino.service",
+                        via="serial")
+    res.check("mdns_txt_mac_removed", out.strip().splitlines()[-1] == "0",
+              out.strip())
+    guest.run("ip link set eth0 up", via="serial", timeout=15)
     guest.run("killall -USR2 udhcpc; sleep 2; killall -USR1 udhcpc",
               via="serial", timeout=15)
     back = until(txt, 45, 3, lambda t: want in t)
-    res.check("mdns_txt_mac_refresh",
-              bool(stale) and want not in stale and want in back,
-              f"without it: {stale}; after release and rebind: {back}")
+    res.check("mdns_txt_mac_refresh", want in back,
+              f"after release and rebind: {back}")
     until(lambda: lab.ping(ctx.guest_v4), 30, 2)
 
 
