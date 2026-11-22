@@ -1,0 +1,309 @@
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "PRJ007.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "ingenic,isvp", "ingenic,PRJ007";
+
+	mmc0_pwrseq: mmc0_pwrseq {
+			compatible = "mmc-pwrseq-simple";
+			reset-gpios = <&gpb 27 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pb>;
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pb>;
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pc>;
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pa>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+	rtc_ext: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		interrupt-parent = <&gpd>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING INGENIC_GPIO_NOBIAS>;
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pa>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c2 {
+    pinctrl-0 = <&i2c2_pc>;
+    pinctrl-names = "default";
+	clock-frequency = <100000>;
+    status = "okay";
+};
+
+&cpufreq {
+	status = "okay";
+	operating-points = <
+		/*KHZ uV */
+		1200000	900000
+		750000	900000
+		600000	900000
+		500000	900000
+		400000	900000
+		375000	900000
+		300000	900000
+		200000	900000
+			>;
+
+};
+
+//&pwm {
+//	ingenic,pwm-outputs = <0>; /* <0 - 15> select which pwms are really used */
+//}
+
+&pdma {
+	status = "okay";
+};
+
+&msc0 {
+	status = "okay";
+	pinctrl-names = "default", "active";
+	max-frequency = <25000000>;
+	voltage-ranges = <1800 3300>;
+
+	cap-mmc-highspeed;
+	//sd-uhs-sdr50;
+	bus-width = <4>;
+	cd-inverted;
+	//ingenic,removal-removable = <1>;
+	//ingenic,sdr-gpios = <&gpa 17 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+	ingenic,cd-gpios = <&gpb 28 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,wp-gpios = <0>;
+	pinctrl-0 = <&msc0_pb_lolvl>;
+	pinctrl-1 = <&msc0_pb_func>;
+	ingenic,rst-gpios = <0>;
+	//mmc-pwrseq = <&mmc0_pwrseq>;
+//	driver-strength = <8>;/* 4: 4ma, 8: 8ma, 12: 12ma */
+//	gpio-pull-flag = <1>; /* 0: no pull, 1: pull up, 2: pull dowm */
+
+	/*mmc-hs200-1_8v;
+	bus-width = <8>;
+	non-removable;
+	pinctrl-0 = <&msc0_8bit_low_lolvl>,<&msc0_8bit_high_lolvl>;
+	pinctrl-1 = <&msc0_8bit_low_func>,<&msc0_8bit_high_func>;
+	ingenic,poc-v1.8;*/
+
+	/*mmc-hs400-1_8v;
+	bus-width = <8>;
+	non-removable;
+	pinctrl-0 = <&msc0_8bit_low_lolvl>,<&msc0_8bit_high_lolvl>,<&msc0_ds_lolvl>;
+	pinctrl-1 = <&msc0_8bit_low_func>,<&msc0_8bit_high_func>,<&msc0_ds_func>;
+	ingenic,poc-v1.8;*/
+
+	//pio-mode;
+};
+
+&msc1 {
+	status = "disable";
+	pinctrl-names = "default", "active";
+	/*mmc-hs200-1_8v;*/
+	cap-mmc-highspeed;
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	voltage-ranges = <1800 3300>;
+	non-removable;
+//	non-initial; /* loading msc1 driver but not initialized */
+//	driver-strength = <8>; /* 4: 4ma, 8: 8ma, 12: 12ma */
+//	gpio-pull-flag = <1>; /* 0: no pull, 1: pull up, 2: pull dowm */
+
+	/* special property */
+	ingenic,wp-gpios = <0>;
+	ingenic,rst-gpios = <0>;
+	pinctrl-0 = <&msc1_pc_lolvl>;
+	pinctrl-1 = <&msc1_pc_func>;
+};
+
+&mac0 {
+	pinctrl-names = "default", "reset";
+	pinctrl-0 = <&mac0_rmii_p0_normal>, <&mac0_rmii_p1_normal>;
+	pinctrl-1 = <&mac0_rmii_p0_rst>, <&mac0_rmii_p1_normal>;
+	status = "okay";
+	ingenic,rst-gpio = <&gpb 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+	ingenic,rst-ms = <10>;
+	ingenic,mac-mode = <RMII>;
+	ingenic,mode-reg = <0xb00000e8>;
+	ingenic,phy-clk-freq = <25000000>;
+};
+
+&sfc0 {
+	status = "okay";
+    pinctrl-names = "default";
+	ingenic,sfc-max-frequency = <25000000>;
+	ingenic,use_board_info      = /bits/ 8 <0>;
+	ingenic,spiflash_param_offset = <0>;
+	ingenic,spiflash_type = <0>;
+	pinctrl-0 = <&sfc0_pa>;
+	driver-strength = <8>;
+};
+
+&sfc1 {
+	status = "disable";
+	pinctrl-names = "default";
+	ingenic,sfc-max-frequency = <25000000>;
+	ingenic,use_board_info      = /bits/ 8 <0>;
+	ingenic,spiflash_param_offset = <0>;
+	ingenic,spiflash_type = <0>;
+	pinctrl-0 = <&sfc1_pc1>;
+	 driver-strength = <8>;
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pc>;
+	// pinctrl-0 = <&spi0_pb>;
+
+	spi-max-frequency = <48000000>;
+	num-cs = <2>;
+	cs-gpios = <0>, <0>;
+	ingenic,chnl = <0>;
+	ingenic,allow_cs_same = <1>;
+	ingenic,bus_num = <0>;
+	ingenic,has_dma_support = <1>;
+	spidev: spidev@0 {
+                 compatible = "ingenic,spidev";
+                 reg = <0>;
+                 spi-max-frequency = <48000000>;
+         };
+};
+
+&ssi_slv {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssi_slv_pc>;
+	ingenic,has_dma_support = <0>;
+};
+
+&otg {
+	g-use-dma;
+	dr_mode = "otg";
+	status = "disable";
+};
+
+&otg_phy {
+	dr_mode = "otg";
+	compatible = "ingenic,innophy", "syscon";
+	/* ingenic,drvvbus-gpio = <&gpb 27 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>; */
+	status = "disable";
+};
+
+/ {
+
+	extclk: extclk {
+		clock-frequency = <24000000>;
+	};
+
+};
+/*
+&el150 {
+	status = "disable";
+};
+*/
+
+/*
+&dpu {
+	status = "okay";
+};
+*/
+/* t31 not have
+/ {
+	display-dpi {
+		compatible = "simple-bus";
+		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+		panel_bm8766@0 {
+			compatible = "ingenic,bm8766";
+			pinctrl-names = "default";
+			pinctrl-0 = <&tft_lcd_pd>;
+			ingenic,bl-gpio = <&gpb 25 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		};
+
+	};
+};
+*/
+/* t31 not have
+/ {
+	display-dbi {
+		compatible = "simple-bus";
+		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+		panel_truly240240@0 {
+			compatible = "ingenic,truly240240";
+			pinctrl-names = "default";
+			pinctrl-0 = <&smart_lcd_pd>;
+			ingenic,rst-gpio = <&gpd 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,rd-gpio = <&gpd 12 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,cs-gpio = <&gpd 10 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		};
+
+		panel_st7789v240320@0 {
+			compatible = "ingenic,st7789v240320";
+			pinctrl-names = "default";
+			pinctrl-0 = <&smart_lcd_pd>;
+			ingenic,rst-gpio = <&gpd 9 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,rd-gpio = <&gpd 12 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,cs-gpio = <&gpd 10 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,bl-gpio = <&gpd 27 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+		};
+
+	};
+};
+*/
+
+/ {
+	display-dsi {
+		compatible = "simple-bus";
+		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+	/*
+		panel_ek79007@0 {
+			compatible = "ingenic,ek79007";
+			ingenic,bl-gpio = <&gpd 26 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			// ingenic,rst-gpio = <&gpd 17 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		};
+*/
+		panel_st7703@0 {
+			compatible = "ingenic,st7703";
+			ingenic,bl-gpio = <&gpb 25 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			ingenic,rst-gpio = <&gpc 22 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+		};
+	};
+
+};
