@@ -97,6 +97,16 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RTD
 	  recordings, feeds OSD variables and turns impacts into event
 	  clips. The g-sensor needs /dev/i2c-* (kernel option I2C_DEV).
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RCD
+	bool "RCD (external cameras)"
+	default y if BR2_THINGINO_DEV_DASHCAM
+	help
+	  Raptor Camera Daemon: brings external cameras (Novatek EthCam rear
+	  modules on a dashcam's Ethernet port) into raptor as extra sensors
+	  (sN_main / sN_sub rings) and runs their link: interface address,
+	  DHCP server with a lease per camera MAC, camera power. Configured in
+	  raptor.conf [cameras] / [camera1..4]; off by default.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	bool "RWD (WebRTC/WHIP server)"
 	default y if BR2_THINGINO_DEV_WEBCAM
