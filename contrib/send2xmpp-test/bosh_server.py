@@ -62,11 +62,11 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, payload):
         self._send(200, json.dumps(payload), "application/json")
 
-    def _xml(self, body):
-        rid = getattr(self, "_rid", "")
+    def _xml(self, body, req):
+        rid = req.attrib.get("rid", "")
         if rid:
             with LOCK:
-                RESPONSES[rid] = body
+                RESPONSES[(req.attrib.get("sid", ""), rid)] = body
         self._send(200, body, "text/xml; charset=utf-8")
 
     def log_message(self, fmt, *args):
@@ -123,9 +123,9 @@ class Handler(BaseHTTPRequestHandler):
         # A connection manager answers a request id it has already seen with
         # the response it gave the first time and does not process the body
         # again (XEP-0124). A client that reuses an id loses that request.
-        self._rid = root.attrib.get("rid", "")
+        sid = root.attrib.get("sid", "")
         with LOCK:
-            cached = RESPONSES.get(self._rid)
+            cached = RESPONSES.get((sid, root.attrib.get("rid", "")))
         if cached is not None:
             return self._send(200, cached, "text/xml; charset=utf-8")
 
@@ -133,7 +133,6 @@ class Handler(BaseHTTPRequestHandler):
         auth = next((c for c in children if localname(c.tag) == "auth"), None)
         iq = next((c for c in children if localname(c.tag) == "iq"), None)
         message = next((c for c in children if localname(c.tag) == "message"), None)
-        sid = root.attrib.get("sid", "")
         delay = parse_qs(parsed.query).get("delay", ["0"])[0] == "1"
 
         # BOSH delivers a held response on a later request. The client's
@@ -141,27 +140,30 @@ class Handler(BaseHTTPRequestHandler):
         if PENDING and not children:
             with LOCK:
                 stanza = PENDING.pop(0)
-            return self._xml("<body xmlns='%s'>%s</body>" % (BOSH_NS, stanza))
+            body = "<body xmlns='%s'>%s</body>" % (BOSH_NS, stanza)
+            return self._xml(body, root)
 
         if root.attrib.get("type") == "terminate":
-            return self._xml("<body %s %s/>" % (
-                attr("type", "terminate", style), attr("xmlns", BOSH_NS, style)))
+            body = "<body %s %s/>" % (
+                attr("type", "terminate", style), attr("xmlns", BOSH_NS, style))
+            return self._xml(body, root)
 
         # Session request: no sid and no child stanzas.
         if not sid and not children:
             xmpp_ns = attr("xmlns:xmpp", "urn:xmpp:xmpp-bosh", style)
-            return self._xml("<body %s %s %s %s %s/>" % (
+            body = "<body %s %s %s %s %s/>" % (
                 attr("sid", secrets.token_hex(12), style),
                 attr("wait", "60", style),
                 attr("hold", "1", style),
                 attr("xmlns", BOSH_NS, style),
                 xmpp_ns,
-            ))
+            )
+            return self._xml(body, root)
 
         if auth is not None:
-            return self._xml(
-                "<body xmlns='%s'><success xmlns='%s'/></body>"
-                % (BOSH_NS, SASL_NS))
+            body = ("<body xmlns='%s'><success xmlns='%s'/></body>"
+                    % (BOSH_NS, SASL_NS))
+            return self._xml(body, root)
 
         if message is not None:
             text = ""
@@ -171,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
                     break
             with LOCK:
                 MESSAGES.append({"body": text, "style": style})
-            return self._xml("<body xmlns='%s'/>" % BOSH_NS)
+            return self._xml("<body xmlns='%s'/>" % BOSH_NS, root)
 
         if iq is not None:
             iq_id = iq.attrib.get("id", "")
@@ -210,13 +212,13 @@ class Handler(BaseHTTPRequestHandler):
             if delay and lname in ("query", "request"):
                 with LOCK:
                     PENDING.append(iq_xml)
-                return self._xml("<body xmlns='%s'/>" % BOSH_NS)
+                return self._xml("<body xmlns='%s'/>" % BOSH_NS, root)
 
-            return self._xml("<body xmlns='%s'>%s</body>"
-                             % (BOSH_NS, iq_xml))
+            body = "<body xmlns='%s'>%s</body>" % (BOSH_NS, iq_xml)
+            return self._xml(body, root)
 
         # Stream restart and anything else the client sends.
-        return self._xml("<body xmlns='%s'/>" % BOSH_NS)
+        return self._xml("<body xmlns='%s'/>" % BOSH_NS, root)
 
 
 def main():
