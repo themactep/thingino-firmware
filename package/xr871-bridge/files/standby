@@ -40,6 +40,8 @@ busy() {
 		grep -q '^usb=1' /run/xr871d.battery 2>/dev/null; then
 		return 0
 	fi
+	# WiFi setup portal running (S38xr871portal)
+	[ -f /run/portal_mode ] && return 0
 	# firmware upgrade in progress
 	[ -e /tmp/sysupgrade ] || [ -e /tmp/fw.bin ] && return 0
 	return 1

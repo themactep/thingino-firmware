@@ -31,8 +31,12 @@ configure() {
 		echo "}"
 	} >/etc/wpa_supplicant.conf
 	rm -f /etc/xr871-portal.force
-	# xr871d notices the change within a second; nudge it anyway (in portal
-	# mode this also switches the XR871 from AP back to station)
+	# In portal mode the setup page still waits for its answer over the
+	# XR871's access point: leave the AP up. The portal reboots the T30 right
+	# after, and xr871d then sends the new credentials, which also switches
+	# the XR871 from AP back to station.
+	[ -f /run/portal_mode ] && return 0
+	# xr871d notices the change within a second; nudge it anyway
 	xr871d -c wifi 2>/dev/null || true
 }
 
