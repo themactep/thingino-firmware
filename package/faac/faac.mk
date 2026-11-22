@@ -16,9 +16,18 @@ FAAC_CFLAGS = $(TARGET_CFLAGS) -fno-math-errno
 
 FAAC_CONF_OPTS = \
 	-Dmax-channels=2 \
-	-Ddecoder=false \
 	-Dmuxer=false \
 	-Dresampler=false
+
+ifeq ($(BR2_PACKAGE_FAAC_DECODER),y)
+FAAC_CONF_OPTS += \
+	-Ddecoder=true \
+	-Ddecoder-ps=false \
+	-Ddecoder-dab=false \
+	-Ddecoder-drc=false
+else
+FAAC_CONF_OPTS += -Ddecoder=false
+endif
 
 ifeq ($(BR2_PACKAGE_FAAC_INSTALL_BIN),y)
 FAAC_CONF_OPTS += -Dfrontend=true
@@ -35,6 +44,15 @@ define FAAC_REMOVE_UNUSED_LIBS
 endef
 FAAC_POST_INSTALL_STAGING_HOOKS += FAAC_REMOVE_UNUSED_LIBS
 FAAC_POST_INSTALL_TARGET_HOOKS += FAAC_REMOVE_UNUSED_LIBS
+endif
+
+ifeq ($(BR2_PACKAGE_FAAC_DECODER)$(BR2_PACKAGE_FAAC_INSTALL_BIN),yy)
+# With the CLI on, meson also builds the faad decoder CLI; only faac is wanted.
+define FAAC_REMOVE_FAAD_BIN
+	rm -f $(TARGET_DIR)/usr/bin/faad $(STAGING_DIR)/usr/bin/faad
+endef
+FAAC_POST_INSTALL_STAGING_HOOKS += FAAC_REMOVE_FAAD_BIN
+FAAC_POST_INSTALL_TARGET_HOOKS += FAAC_REMOVE_FAAD_BIN
 endif
 
 $(eval $(meson-package))
