@@ -69,6 +69,7 @@ $(eval $(call WIFI_ADD_DRIVER,BR2_PACKAGE_WIFI_WS73V100,ws73v100,$(WIFI_WS73V100
 $(eval $(call WIFI_ADD_DRIVER,BR2_PACKAGE_WIFI_WQ9001,wq9001,usb))
 $(eval $(call WIFI_ADD_DRIVER,BR2_PACKAGE_WIFI_ZT9101,zt9101_ztopmac_usb,usb))
 $(eval $(call WIFI_ADD_DRIVER,BR2_PACKAGE_WIFI_HWSIM,hwsim,virtual))
+$(eval $(call WIFI_ADD_DRIVER,BR2_PACKAGE_WIFI_SWT6621S,skw_usb_lite,usb))
 
 WIFI_DRIVER_SELECTED := $(strip $(WIFI_DRIVER_SELECTED))
 
@@ -144,7 +145,7 @@ ifeq ($(WIFI_MODULE_IS_SDIO_FLAG),1)
 		else
 			WIFI_SDIO_SET_GPIO_FLAG := 1
 		endif
-	else ifneq ($(filter $(SOC_FAMILY),t10 t20 t21 t30 t32 t40 t41),)
+	else ifneq ($(filter $(SOC_FAMILY),t10 t20 t21 t30 t32 t33 t40 t41),)
 		# Skip mmc_gpio but still send MMC insert
 	else
 		WIFI_SDIO_UNSUPPORTED_FLAG := 1

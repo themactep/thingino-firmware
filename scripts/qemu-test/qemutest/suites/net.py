@@ -227,6 +227,47 @@ def test_mdns(ctx):
     else:
         res.fail("mdns_http_srv", "no _http._tcp instance answered")
 
+    test_mdns_txt_mac(ctx, mq)
+
+
+def test_mdns_txt_mac(ctx, mq):
+    """_thingino._tcp carries mac= of the default-route interface, and
+    the udhcpc hook puts it back after a lease is lost and bound again
+    (the Wi-Fi boot case: S50mdnsd runs before the first lease)."""
+    guest, res, lab = ctx.guest, ctx.res, ctx.lab
+    rc, out = guest.run("cat /sys/class/net/eth0/address")
+    mac = out.strip().split("\n")[-1].strip()
+    want = f"mac={mac}"
+
+    instances = mq("_thingino._tcp.local", "PTR", tries=2)
+    if not instances:
+        res.fail("mdns_txt_mac", "no _thingino._tcp instance answered")
+        return
+    inst = instances[0]
+
+    def txt():
+        return lab.mdns_query(inst, "TXT", timeout=3)
+
+    got = until(txt, 9, 3, lambda t: want in t)
+    res.check("mdns_txt_mac", want in got, f"{inst} TXT -> {got}")
+
+    # A deconfig with the link down drops the key; the bound after the
+    # rebind puts it back.
+    guest.run("ip link set eth0 down; "
+              "/usr/share/udhcpc/default.script.d/mdns deconfig",
+              via="serial", timeout=15)
+    rc, out = guest.run("grep -c '^txt mac=' /etc/mdns.d/thingino.service",
+                        via="serial")
+    res.check("mdns_txt_mac_removed", out.strip().splitlines()[-1] == "0",
+              out.strip())
+    guest.run("ip link set eth0 up", via="serial", timeout=15)
+    guest.run("killall -USR2 udhcpc; sleep 2; killall -USR1 udhcpc",
+              via="serial", timeout=15)
+    back = until(txt, 45, 3, lambda t: want in t)
+    res.check("mdns_txt_mac_refresh", want in back,
+              f"after release and rebind: {back}")
+    until(lambda: lab.ping(ctx.guest_v4), 30, 2)
+
 
 def test_ntp(ctx):
     guest, res, lab = ctx.guest, ctx.res, ctx.lab

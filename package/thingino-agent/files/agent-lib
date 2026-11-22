@@ -22,7 +22,21 @@ agent_mark_changed() {
 	return 0
 }
 
+# Tab and carriage return for agent_json_string's fast path, made once.
+AGENT_JSON_TAB=$(printf '\t')
+AGENT_JSON_CR=$(printf '\r')
+
 agent_json_string() {
+	# Most values need no escaping: quote them with builtins. awk (a pipeline
+	# and an exec per string) only runs for a backslash, quote, tab, CR or LF.
+	case "$1" in
+		*\\* | *\"* | *"$AGENT_JSON_TAB"* | *"$AGENT_JSON_CR"* | *"
+"*) ;;
+		*)
+			printf '"%s"' "$1"
+			return 0
+			;;
+	esac
 	value=$(printf '%s' "$1" | awk 'BEGIN { ORS="" } {
 		gsub(/\\/, "\\\\");
 		gsub(/"/, "\\\"");

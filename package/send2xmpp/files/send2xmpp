@@ -74,20 +74,19 @@ bosh_send() {
 # stanza in a later response. Keep polling with empty bodies until the IQ
 # with the expected id arrives, otherwise the next request's response is
 # mistaken for this one (Openfire batches/holds responses this way).
+# Sets BOSH_RESPONSE. Advances RID, so never call it in $(...).
 bosh_wait_for_id() {
 	local id="$1"
-	local response="$2"
 	local tries=0
 
-	while ! echo "$response" | grep -q "id=['\"]${id}['\"]"; do
+	BOSH_RESPONSE="$2"
+	while ! echo "$BOSH_RESPONSE" | grep -q "id=['\"]${id}['\"]"; do
 		[ "$tries" -ge 10 ] && break
 		RID=$((RID + 1))
-		response=$(bosh_send "<?xml version='1.0'?>
+		BOSH_RESPONSE=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'/>")
 		tries=$((tries + 1))
 	done
-
-	echo "$response"
 }
 
 # Push the session once before terminating it. Without this, a message
@@ -206,23 +205,23 @@ send_message() {
 }
 
 # Discover HTTP Upload component (XEP-0363)
+# Sets UPLOAD_COMPONENT. Advances RID, so never call it in $(...).
 discover_upload_component() {
-	RID=$((RID + 1))
 	local response upload_component
 
 	# Use configured component if available
-	if [ -n "$XMPP_UPLOAD_COMPONENT" ]; then
-		echo "$XMPP_UPLOAD_COMPONENT"
-		return 0
-	fi
+	UPLOAD_COMPONENT="$XMPP_UPLOAD_COMPONENT"
+	[ -n "$UPLOAD_COMPONENT" ] && return 0
 
+	RID=$((RID + 1))
 	response=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
   <iq type='get' to='$XMPP_DOMAIN' id='disco_1' xmlns='jabber:client'>
     <query xmlns='http://jabber.org/protocol/disco#items'/>
   </iq>
 </body>")
-	response=$(bosh_wait_for_id "disco_1" "$response")
+	bosh_wait_for_id "disco_1" "$response"
+	response=$BOSH_RESPONSE
 
 	# Extract upload component (usually upload.domain or http-upload.domain).
 	# Accept both quote styles, as in the SID parser.
@@ -240,7 +239,8 @@ discover_upload_component() {
     <query xmlns='http://jabber.org/protocol/disco#info'/>
   </iq>
 </body>")
-			response=$(bosh_wait_for_id "disco_2" "$response")
+			bosh_wait_for_id "disco_2" "$response"
+			response=$BOSH_RESPONSE
 
 			if echo "$response" | grep -q "urn:xmpp:http:upload"; then
 				upload_component="$component"
@@ -249,10 +249,11 @@ discover_upload_component() {
 		done
 	fi
 
-	echo "$upload_component"
+	UPLOAD_COMPONENT="$upload_component"
 }
 
 # Request upload slot from HTTP Upload component
+# Sets SLOT_INFO. Advances RID, so never call it in $(...).
 request_upload_slot() {
 	RID=$((RID + 1))
 	local component="$1"
@@ -267,7 +268,8 @@ request_upload_slot() {
     <request xmlns='urn:xmpp:http:upload:0' filename='$filename' size='$filesize' content-type='$content_type'/>
   </iq>
 </body>")
-	response=$(bosh_wait_for_id "upload_1" "$response")
+	bosh_wait_for_id "upload_1" "$response"
+	response=$BOSH_RESPONSE
 
 	# Extract PUT and GET URLs.  Servers quote attributes with either
 	# single or double quotes; accept both.
@@ -286,13 +288,14 @@ request_upload_slot() {
 		get_url=$(echo "$response" | grep -oE '<get[^>]*>[^<]*</get>' | sed 's/<[^>]*>//g' | head -n1)
 	fi
 
+	SLOT_INFO=
 	if [ -z "$put_url" ] || [ -z "$get_url" ]; then
 		echo "Error: Failed to get upload slot" >&2
 		echo "Response: $response" >&2
 		return 1
 	fi
 
-	echo "$put_url|$get_url"
+	SLOT_INFO="$put_url|$get_url"
 }
 
 # Upload file to HTTP server
@@ -346,7 +349,8 @@ send_image() {
 	esac
 
 	# Discover upload component
-	upload_component=$(discover_upload_component)
+	discover_upload_component
+	upload_component=$UPLOAD_COMPONENT
 	if [ -z "$upload_component" ]; then
 		echo "Error: Could not find HTTP Upload component" >&2
 		echo "Note: Server may not support XEP-0363 HTTP Upload" >&2
@@ -355,8 +359,9 @@ send_image() {
 	fi
 
 	# Request upload slot
-	slot_info=$(request_upload_slot "$upload_component" "$filename" "$filesize" "$content_type")
-	if [ $? -ne 0 ] || [ -z "$slot_info" ]; then
+	request_upload_slot "$upload_component" "$filename" "$filesize" "$content_type"
+	slot_info=$SLOT_INFO
+	if [ -z "$slot_info" ]; then
 		echo "Error: Failed to request upload slot" >&2
 		send_message "Image captured but upload failed: ${caption:-$image_path}"
 		return 1
