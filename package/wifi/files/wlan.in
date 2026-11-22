@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC2046,SC2086,SC2155,SC2317,SC3043,SC3045
 
+# Byte semantics: ${#ssid} must count bytes even if BusyBox has Unicode support.
+export LC_ALL=C
+
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
@@ -154,6 +157,13 @@ configure() {
 		exit 1
 	fi
 
+	# ${#ssid} counts bytes in ash; 802.11 allows 32, and wpa_supplicant
+	# rejects the whole network block beyond that.
+	if [ ${#ssid} -gt 32 ]; then
+		echo "Error: SSID is ${#ssid} bytes long; the maximum is 32 bytes." >&2
+		exit 1
+	fi
+
 	@if WIFI_ATBM6441@
 	# ATBM6441 credentials are pushed to the MCU by S38 at boot, so the
 	# plain-text key is required here instead of a derived PSK hash.
@@ -191,6 +201,12 @@ configure() {
 	if echo "$password" | grep -qE '^[0-9a-fA-F]{64}$'; then
 		psk="$password"
 	else
+		# Passphrase rules mirror wpa_passphrase: 8..63 bytes. strlen counts
+		# bytes, so multibyte passphrases hit the ceiling sooner.
+		if [ ${#password} -lt 8 ] || [ ${#password} -gt 63 ]; then
+			echo "Error: passphrase must be between 8 and 63 bytes long." >&2
+			exit 1
+		fi
 		psk=$(wpa_passphrase "$ssid" "$password" 2>/dev/null | awk -F= '/^[[:space:]]*psk=[^"]*$/{print $2; exit}')
 	fi
 	if [ -z "$psk" ]; then
@@ -317,6 +333,7 @@ case "$entry_command" in
 			configure)
 				shift
 				configure "$@"
+				exit $?
 				;;
 			info) show_info ;;
 			reset) reset ;;
