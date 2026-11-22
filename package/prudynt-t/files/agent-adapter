@@ -1256,6 +1256,16 @@ agent_get_runtime() {
 				"$stream1_enabled" \
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
+		exposure)
+			agent_query_live
+			_brightness=$(agent_heartbeat_brightness)
+			case "$_brightness" in
+				'' | *[!0-9]*) _brightness='' ;;
+			esac
+			printf '{"daynight_brightness":%s,"total_gain":%s}\n' \
+				"$(agent_json_value_or "$_brightness" null)" \
+				"$(agent_json_value_or "${_heartbeat_total_gain:-}" null)"
+			;;
 		heartbeat)
 			agent_query_live
 			_brightness=$(agent_heartbeat_brightness)

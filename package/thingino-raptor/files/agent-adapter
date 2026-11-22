@@ -1803,10 +1803,10 @@ agent_get_runtime_live() {
 	case "$resource" in
 		all)
 			# One raptorctl listing per section serves every key the builders
-			# read (65 raptorctl calls -> 7 on a T41). Values several fields
-			# share (storage path and mount, recorder status, IP address, RTSP
-			# listener) are looked up once per build and served from these
-			# AGENT_MEMO_* variables, which subshells inherit.
+			# read. Values several fields share (storage path and mount,
+			# recorder status, IP address, RTSP listener) are looked up once
+			# per build and served from these AGENT_MEMO_* variables, which
+			# subshells inherit.
 			agent_config_preload recording stream0 stream1 rtsp ircut audio motion
 			AGENT_MEMO_STORAGE_PATH=$(agent_storage_path)
 			AGENT_MEMO_RMR_STATUS=$(agent_daemon_status rmr)
@@ -1955,7 +1955,7 @@ agent_get_config() {
 
 agent_get_config_live() {
 	command -v raptorctl >/dev/null 2>&1 &&
-		agent_config_preload sensor motion ircut recording audio rtsp \
+		agent_config_preload image sensor motion ircut recording audio rtsp \
 			stream0 stream1 osd osd.logo osd.timestamp osd.uptime osd.camera
 	agent_print_config
 }
