@@ -239,8 +239,23 @@ detect_streamer() {
 	fi
 }
 
+primary_mac() {
+	local iface
+
+	# default route; before DHCP, the first interface that is up
+	iface=$(ip -4 route show default 2>/dev/null |
+		awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}')
+	if [ -z "$iface" ]; then
+		for iface in eth0 wlan0; do
+			[ "$(cat "/sys/class/net/$iface/operstate" 2>/dev/null)" = "up" ] && break
+			iface=""
+		done
+	fi
+	[ -n "$iface" ] && cat "/sys/class/net/$iface/address" 2>/dev/null
+}
+
 generate_thingino_service() {
-	local http_listen http_port model build streamer
+	local http_listen http_port model build streamer mac
 
 	http_listen="$UHTTPD_HTTP_LISTEN_DEFAULT"
 	[ -r "$UHTTPD_DEFAULTS" ] && . "$UHTTPD_DEFAULTS"
@@ -251,6 +266,7 @@ generate_thingino_service() {
 	model="$(sed -n 's/^IMAGE_ID=//p' /etc/os-release 2>/dev/null)"
 	build="$(sed -n 's/^BUILD_ID="\([^,]*\).*/\1/p' /etc/os-release 2>/dev/null)"
 	streamer="$(detect_streamer)"
+	mac="$(primary_mac)"
 
 	ensure_dir "$MDNS_SERVICE_DIR"
 
@@ -262,6 +278,9 @@ generate_thingino_service() {
 		txt version=$build
 		txt streamer=$streamer
 	EOF
+	if [ -n "$mac" ]; then
+		echo "txt mac=$mac" >>"$MDNS_SERVICE_DIR/thingino.service"
+	fi
 }
 
 generate_rtsp_services() {
