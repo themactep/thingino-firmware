@@ -1,0 +1,6 @@
+# Locally calculated: rhkd's third-party sources, fetched as THINGINO_RHKD_EXTRA_DOWNLOADS so they land
+# in the download cache and are hash-checked. The main thingino-rhkd git tarball is exempted via
+# BR_NO_CHECK_HASH_FOR in thingino-rhkd.mk.
+sha256  54c81f29eb20bf1d76df01aa488bfe2557bf93b3119b2e274ca1de68a652b9e7  fb201f98f5fdc7fef6a455054f08b59cca5d1ec8.tar.gz
+sha256  0f2e0525903a89ae1d39ce439d858be66933bda54c5b6102b72a29ed8fe7c088  v2.28.10.tar.gz
+sha256  5f5b83300cc7ecb0a2cd7dca8fffbc679011c5244d3a0318638cfbccd5db2acb  00810bb7b91c3e21210b5a76d43748a23758f36a.tar.gz

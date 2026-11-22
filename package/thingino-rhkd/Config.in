@@ -1,0 +1,50 @@
+config BR2_PACKAGE_THINGINO_RHKD
+	bool "Thingino HomeKit camera (rhkd)"
+	depends on BR2_PACKAGE_THINGINO_RAPTOR
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_THINGINO_RAPTOR_RVD
+	select BR2_PACKAGE_THINGINO_RAPTOR_RAD
+	select BR2_PACKAGE_THINGINO_RAPTOR_OPUS
+	select BR2_PACKAGE_FAAC
+	help
+	  rhkd: native Apple HomeKit camera daemon for raptor cameras,
+	  so the camera can be added to the Home app directly.
+
+	  Built on Apple's HomeKit ADK (Apache-2.0), with the camera
+	  code ported from HAP-NodeJS. Live view (H.264 and Opus over
+	  SRTP, straight from raptor's rings), two-way audio (the
+	  controller's Opus played through rad), snapshots, HomeKit Secure
+	  Video recording (fragmented MP4 over the HomeKit Data Stream,
+	  AAC-LC audio), the camera settings in Home (on/off, night
+	  vision, status light), and a Services > HomeKit web UI page
+	  with the setup code and QR.
+
+	  Motion sensor (and so Secure Video recording triggers): fed by
+	  rvd's IVS motion detection (the default "move" algorithm; IVS
+	  object detection is not needed). It must be switched on in
+	  /etc/raptor.conf ([motion] enabled = true); until then Home
+	  shows the sensor as inactive. The package leaves it off,
+	  because [motion] also controls raptor's own recording.
+
+	  Selects raptor's RVD (video and JPEG rings), RAD (audio ring)
+	  and Opus support (live view audio is Opus), and faac.
+	  Recording audio is taken from a rad AAC output if there is
+	  one; otherwise rad's Opus is converted to AAC with the system
+	  libopus and libfaac.
+
+	  Installs /usr/bin/rhkd, /usr/bin/hap-setupgen,
+	  /usr/sbin/rhkd-setup, /etc/init.d/S98rhkd and
+	  /etc/default/rhkd. On first boot it creates a setup code and,
+	  once, switches raptor's audio to Opus if no audio output
+	  carries Opus (and the substream to H.264 if no stream is
+	  H.264), since HomeKit needs those.
+	  Pairing survives sysupgrade -B (cfg-backup.list).
+
+	  HomeKit ADK and raptor-ipc are fetched as extra downloads at
+	  pinned commits, and mbedTLS 2.28 at its release tag; all are
+	  hash-checked.
+
+	  https://github.com/Small6oy/thingino-homekit
+
+comment "rhkd needs raptor and a toolchain with threads"
+	depends on !BR2_PACKAGE_THINGINO_RAPTOR || !BR2_TOOLCHAIN_HAS_THREADS
