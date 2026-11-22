@@ -239,23 +239,35 @@ detect_streamer() {
 	fi
 }
 
+valid_mac() {
+	case "$1" in
+		"" | 00:00:00:00:00:00 | ff:ff:ff:ff:ff:ff) return 1 ;;
+	esac
+	return 0
+}
+
 primary_mac() {
 	local iface mac
 
 	iface=$(ip -4 route show default 2>/dev/null |
 		awk '{for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit }}')
+	if [ -n "$iface" ]; then
+		mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+		valid_mac "$mac" || iface=""
+	fi
 	if [ -z "$iface" ]; then
 		for iface in eth0 wlan0; do
-			[ "$(cat "/sys/class/net/$iface/operstate" 2>/dev/null)" = "up" ] && break
+			mac=""
+			[ "$(cat "/sys/class/net/$iface/operstate" 2>/dev/null)" = "up" ] &&
+				mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+			if valid_mac "$mac"; then
+				break
+			fi
 			iface=""
 		done
 	fi
 	[ -n "$iface" ] || return 0
-	mac=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
-	case "$mac" in
-		"" | 00:00:00:00:00:00 | ff:ff:ff:ff:ff:ff) ;;
-		*) echo "$mac" ;;
-	esac
+	echo "$mac"
 }
 
 generate_thingino_service() {
