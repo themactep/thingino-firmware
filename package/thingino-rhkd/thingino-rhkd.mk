@@ -71,6 +71,16 @@ define THINGINO_RHKD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/usr/sbin/rhkd-setup $(TARGET_DIR)/usr/sbin/rhkd-setup
 	$(INSTALL) -D -m 0755 $(@D)/files/etc/init.d/S98rhkd $(TARGET_DIR)/etc/init.d/S98rhkd
 	$(INSTALL) -D -m 0644 $(@D)/files/etc/default/rhkd $(TARGET_DIR)/etc/default/rhkd
+endef
+
+# The page and the CGI plug into the web UI (json-homekit.cgi sources
+# /var/www/x/auth.sh), so they go in only when it is enabled. Depending on
+# thingino-webui installs them after it, so its plugin assembly hook finds the
+# manifest.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_RHKD_DEPENDENCIES += thingino-webui
+
+define THINGINO_RHKD_INSTALL_WWW_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/files/var/www/config-homekit.html $(TARGET_DIR)/var/www/config-homekit.html
 	$(INSTALL) -D -m 0644 $(@D)/files/var/www/a/config-homekit.js $(TARGET_DIR)/var/www/a/config-homekit.js
 	$(INSTALL) -D -m 0644 $(@D)/files/var/www/a/vendor/qrcode.js $(TARGET_DIR)/var/www/a/vendor/qrcode.js
@@ -78,6 +88,10 @@ define THINGINO_RHKD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_RHKD_PKGDIR)/files/homekit.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/homekit.webui.json
 endef
+# += puts a space before the block, so the newline goes first: the block must
+# start its own line, not continue the last install command.
+THINGINO_RHKD_INSTALL_TARGET_CMDS += $(sep)$(THINGINO_RHKD_INSTALL_WWW_CMDS)
+endif
 
 # Keep pairing across firmware upgrades: sysupgrade -B saves the paths in /etc/cfg-backup.list to the
 # backup partition, and S37cfg-autorestore restores them on first boot.
