@@ -350,12 +350,6 @@ save_config() {
 	wlan_pass=$(echo "$wlan_pass" | sed 's/[[:space:]]*$//')
 	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
 
-	# SSIDs are stored in plain text and handed to the driver as-is;
-	# some drivers fail to associate with non-ASCII SSIDs.
-	if printf '%s' "$wlan_ssid" | grep -q '[^[:print:]]'; then
-		logger -t portal "SSID contains non-ASCII characters; some WiFi drivers fail to associate with them"
-	fi
-
 	# A client that can hash locally sends these instead, so neither secret
 	# crosses the portal in the clear. The portal AP is open, so anything sent
 	# as plaintext is readable by anyone in range.
