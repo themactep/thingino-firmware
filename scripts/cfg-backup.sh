@@ -139,10 +139,11 @@ do_restore() {
 	[ "$stored_md5" = "$computed_md5" ] || die "MD5 mismatch - backup is corrupt"
 
 	payload="$tmpd/payload"
-	magic=$(dd if="$payload" bs=1 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')
-	if [ "$magic" = "1f8b" ]; then
-		gzip -dc "$payload" >"$tmpd/payload.tar" ||
-			die "gzip decompress failed"
+	# Detect gzip by attempting decompression. busybox od has no -A
+	# option (CONFIG_DESKTOP off), so magic sniffing with od is not
+	# portable here. A plain-tar payload makes gzip -dc fail, and we
+	# fall through to tar as-is.
+	if gzip -dc "$payload" >"$tmpd/payload.tar" 2>/dev/null; then
 		payload="$tmpd/payload.tar"
 	fi
 

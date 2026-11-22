@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC3043,SC3060
+# shellcheck disable=SC1091,SC3043,SC3060
 # recordmgr - Storage manager daemon for video recordings and timelapse
 #
 # Maintains the recording storage target writable by:
@@ -27,6 +27,8 @@
 #
 # Command line:
 #   -d, --debug               - force debug logging on regardless of config
+
+. /usr/share/prudynt-helpers
 
 PIDFILE="/var/run/recordmgr.pid"
 CONFIG_FILE="/etc/prudynt.json"
@@ -88,6 +90,9 @@ read_config() {
 	vr_cleanup_enabled=$(jct "$CONFIG_FILE" get "$DOMAIN.cleanup_enabled" 2>/dev/null)
 	vr_debug=$(jct "$CONFIG_FILE" get "$DOMAIN.debug" 2>/dev/null)
 
+	# the same default as the record script: a config without recorder.mount
+	# records to the SD card, so it is the SD card that needs the cleanup
+	[ -n "$vr_mount" ] || vr_mount="$DEFAULT_RECORD_MOUNT"
 	case "$vr_min_free_mb" in '' | *[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
 	case "$vr_check_interval" in '' | *[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
 	case "$vr_limit" in '' | *[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
@@ -214,18 +219,21 @@ run_check() {
 	case "$vr_cleanup_enabled" in
 		false | 0 | "")
 			debug_log "Skipping check: cleanup is disabled"
+			warned_no_mount=
 			return
 			;;
 	esac
 
-	if [ -z "$vr_mount" ]; then
-		debug_log "Skipping check: recorder.mount is empty"
-		return
-	fi
 	if ! mountpoint -q "$vr_mount" 2>/dev/null; then
-		debug_log "Skipping check: $vr_mount is not a mountpoint"
+		# said once per outage, not every check: cleanup is on and nothing
+		# is happening, which otherwise shows only when the card is full
+		if [ -z "$warned_no_mount" ]; then
+			logger -t recordmgr "Cleanup is enabled but $vr_mount is not mounted; waiting for it"
+			warned_no_mount=1
+		fi
 		return
 	fi
+	warned_no_mount=
 
 	ensure_writable "$vr_mount"
 

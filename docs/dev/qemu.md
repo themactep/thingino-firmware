@@ -44,6 +44,8 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `monitor [NAME] -- COMMAND` | a QEMU monitor command, such as `info registers` |
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
 | `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
+| `isp [NAME]` | the ISP trace of a session booted with `up --isp-trace`: each frame's changes, `--at` a point's registers, `--diff` another session's, `--serve` a live page; see Video |
+| `pwm [NAME]` | the PWM outputs: each change with its frequency and duty, `--vcd FILE` every edge, `--serve` a live page; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
@@ -86,6 +88,12 @@ again for a session that is already up replaces it. Other options:
   join (see Wi-Fi).
 - `--portal` leaves the camera in its setup portal, with an emulated phone
   joined to it (see Wi-Fi).
+- `--speaker speaker.wav` records the camera's speaker, and `--mic` sets
+  what its microphones hear (see Audio).
+- `--tap DIR` writes every stream the camera's encoders code to DIR, to
+  play while it runs (see Video).
+- `--riscv` runs the SoC's RISC-V core beside it, for stock firmware that
+  boots fast with one (see Fast boot).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - `--console` attaches your terminal to the console with all of the
@@ -126,24 +134,44 @@ scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --wifi thingino:thingino123 \
 ```
 
 The chip comes from the build's `.config`, or from the camera name for a
-release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips are
-emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB (atbm6012b,
-atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu, atbm6132cu,
-atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and RTL8192FS on SDIO
-(rtl8189fs, rtl8189es, rtl8192fs; cameras named rtl8189ftv and rtl8189etv)
-and RTL8188FU on USB (rtl8188fu; cameras named rtl8188ftv), the
-Broadcom/Synaptics BCM43438 of the syn4343 package on SDIO, iComm-semi's
-SSV6155P on USB (cameras named ssv6155 and ssv6155p, and the SSV6256P
-ones, whose driver is the same), SSV6355 on USB (ssv6355) and SSV6158 on
-SDIO (ssv6158), and AICSemi's AIC8800D80 on USB (the aic8800 package's
-AIC8800D80 USB model, and cameras named aic8800u; an AIC8800D40, which its
-driver takes for one, too). The pinned QEMU has them all from
-ingenic-0.6.16 on; `up` stops with a message when the QEMU it uses has
-no model for the chip, and `--qemu` picks one that has.
-atbm6132cu-6162 is the 6132CU part paired with Bluetooth, on USB id
-0x6162: a build with `BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a
-release image of such a camera only with `--wifi-chip`, though its
-driver takes either id.
+release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips
+are emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB
+(atbm6012b, atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu,
+atbm6132cu, atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and
+RTL8192FS on SDIO (rtl8189fs, rtl8189es, rtl8192fs; cameras named
+rtl8189ftv and rtl8189etv) and RTL8188FU, RTL8188EUS and RTL8733BU on
+USB (rtl8188fu, cameras named rtl8188ftv; rtl8188eu, cameras named
+rtl8188eu and rtl8188eus; rtl8733bu, cameras named rtl8731bu, rtl8731
+and rtl8131bu), the Broadcom/Synaptics BCM43438 of the syn4343 package
+on SDIO, iComm-semi's SSV6155P on USB (cameras named ssv6155 and
+ssv6155p, and the SSV6256P ones, whose driver is the same), SSV6355 on
+USB (ssv6355) and SSV6158 on SDIO (ssv6158), AICSemi's AIC8800D80 on USB
+(the aic8800 package's AIC8800D80 USB model, and cameras named aic8800u;
+an AIC8800D40, which its driver takes for one, too) and on SDIO (cameras
+named aic8800d40), AIC8800DC and AIC8800DW on USB (aic8800dc, aic8800dw)
+and the plain AIC8800 on USB (cameras named aic8800d), and MediaTek's
+MT7601U on USB (mt7601u; cameras named mt7601, mt7601u and mt7601sta),
+WuQi's WQ9001 on USB (wq9001; its own access point is wlan1),
+HiSilicon's Hi3881 on SDIO (hi3881; its access point is ap0),
+Huge-IC's TXW901U on USB (txw901u), HiSilicon's WS73V100 on USB
+(ws73v100) and Seekwave's SWT6621S on USB (swt6621s). QEMU has the
+first of them from ingenic-0.6.16 on and the AIC8800 variants,
+RTL8188EUS, RTL8733BU, MT7601U, WQ9001, Hi3881, TXW901U, WS73V100 and
+SWT6621S from ingenic-0.6.19 on. A Hi3881 image
+needs a driver that terminates split_cmd_paras' copy and registers its
+management frames without P2P: without those it reboots in a loop as a
+station and its setup portal never comes up. A WS73V100 image needs a
+driver that vmallocs its firmware for the sha256 check and keeps the AP
+SME flag on 3.10.14: without those its radio never comes up on a 31 MB
+kernel and its setup portal never comes up. The Aobocam A12 (T23DL,
+TXW901U) gives its kernel
+22 MB: with the radio up it pages from flash all the time and boots
+several times slower than its siblings, so give `up` a longer
+`--timeout`. `up` stops with a message when the QEMU it uses has no
+model for the chip, and `--qemu` picks one that has. atbm6132cu-6162 is
+the 6132CU part paired with Bluetooth, on USB id 0x6162: a build with
+`BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a release image of such a
+camera only with `--wifi-chip`, though its driver takes either id.
 
 thingino reads its Wi-Fi mode once, at boot, so the first `up` of a
 camera that was not set up for the SSID runs `wlan configure` and reboots
@@ -155,12 +183,15 @@ the cable out. SSH, HTTP and HTTPS are then forwarded over the Wi-Fi,
 and `put` and `get` go over SSH. A wrong passphrase fails the handshake
 as a real access point does.
 
-`--portal` tests the setup portal instead: the camera keeps its first-boot
-Wi-Fi mode, an access point of its own, and an emulated phone joins it.
-The forwards go through the phone, so the web address `up` prints is the
-portal, and SSH reaches the camera too; when SSH cannot get through the
-phone, `up` says so and files go over the console. With `--wifi`, the
-portal's scan lists that network and can set the camera up on it:
+`--portal` tests the setup portal instead: the camera keeps its
+first-boot Wi-Fi mode, an access point of its own, and an emulated phone
+joins it. The forwards go through the phone, so the web address `up`
+prints is the portal, and SSH reaches the camera too; when SSH cannot
+get through the phone, `up` says so and files go over the console. The
+MT7601U cameras' portal takes a passphrase, as their driver runs no open
+access point (package/wifi/wifi.mk), and `up` gives the phone that one.
+With `--wifi`, the portal's scan lists that network and can set the
+camera up on it:
 
 ```sh
 scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --portal --wifi thingino:thingino123 \
@@ -271,6 +302,20 @@ the changes as they come, the console, and for a pin its functions, its
 history and buttons that drive it from outside. The page can also set an
 ADC channel and pause the machine.
 
+The PWM outputs, the timer unit's channels and (T32, T33, T41, A1) the
+PWM block's, are logged too, from the QEMU that traces them on, and read
+with the fork's `pin-trace.py`: each change with its frequency and share
+of time high, every edge as a waveform, or a live page. An IR LED's
+brightness is its output's duty.
+
+```bash
+scripts/qemu-dev pwm
+#  48.224695078  pwm0     263.214 Hz, 37.5% high, now 0, an edge in 2372209 ns  0x55ecd7c0
+#  49.269497394  pwm0     263.214 Hz, 62.5% high, now 0, an edge in 1396908 ns  hw
+scripts/qemu-dev pwm --vcd pwm.vcd
+scripts/qemu-dev pwm --serve           # http://127.0.0.1:<port>/
+```
+
 ## Video
 
 The emulated camera streams once its session has the camera's image
@@ -307,6 +352,24 @@ point: without one, the vendor ISP driver can oops as the streamer
 starts and hold up the boot. The sensor sees colour bars that a white
 stripe crosses every two seconds.
 
+A camera with two sensors takes both, the second with `input=1`, which
+mirrors its scene so that a stream shows which sensor sent it. The eufy
+T8416 (T40) streams both from QEMU ingenic-0.6.22 on, and a T23 behind a
+MIPI switch such as the jooan W8U from ingenic-0.6.24 on, given the
+switch's GPIO; its sensors take turns, each at half the rate given. The
+W8U's profile needs no `[mipi_switch]` in raptor: tx-isp has the VIC flip
+the switch.
+
+```bash
+scripts/qemu-dev up eufy_t8416_t40xp_sc830_aic8800d40 -- \
+    -device image-sensor,model=sc830ai,bus=i2c1 \
+    -device image-sensor,model=sc3338,bus=i2c3,address=0x32,input=1
+scripts/qemu-dev up jooan_w8u_t23n_sc2336_atbm6132u -- \
+    -device image-sensor,model=sc2336p,bus=i2c0,fps=30 \
+    -device image-sensor,model=sc2336p,bus=i2c0,address=0x32,input=1,fps=30 \
+    -global ingenic-t31.mipi-switch=7
+```
+
 A recording and a snapshot can be fetched from any image, wired or not.
 `ringdump main -i` asks for a key frame and the recording starts with
 it, give or take a frame or two that the player skips; `ringdump sub`
@@ -320,6 +383,50 @@ scripts/qemu-dev get /tmp/snap.jpg snap.jpg
 ffplay main.h264
 ```
 
+The emulated encoders can also write every stream themselves, from any
+image, stock firmware included, with nothing changed in the camera:
+`--tap DIR` (QEMU ingenic-0.7.11 on) gives each stream a file in DIR,
+named for its encoder and its order (`avpu-0.h264` the T31's first,
+`helix-1.h264` a T23's second, `.h265` and `.mjpg` the rest), which
+grows a picture at a time from its first key frame:
+
+```bash
+scripts/qemu-dev up qemu_t31x --tap /tmp/tap
+ffplay -f h264 -follow 1 -i file:/tmp/tap/avpu-0.h264
+```
+
+A FIFO made at a stream's path before it starts (`mkfifo
+/tmp/tap/avpu-0.h264`) is written instead; the camera never waits for
+a slow player, which skips to the next key frame. The QEMU fork's
+contrib/ingenic/README.md ("Stream tap") has the details.
+
+The ISP's own pictures, ahead of any encoder, can be written the same
+way (QEMU ingenic-0.7.12 on): each channel's picture as a YUV4MPEG2
+stream, `isp-<pipe>-<chan>.y4m`, and the raw Bayer frame each VIC takes
+from the sensor, `raw-<n>-<W>x<H>-<pixfmt>.raw`. Give the ISP's
+`x-frame-tap` after `--` (on a T10 or T20, and for a T30's raw frame,
+it is `ingenic-t20-isp.x-frame-tap`):
+
+```bash
+scripts/qemu-dev up qemu_t31x -- -device image-sensor,model=gc2053,bus=i2c0 \
+    -global ingenic-isp.x-frame-tap=/tmp/frames
+ffplay -follow 1 -i file:/tmp/frames/isp-0-0.y4m
+```
+
+At 1080p a channel's file grows by 3 MB a frame, so for more than a few
+seconds make a FIFO at its path first. The QEMU fork's
+contrib/ingenic/README.md ("Frame tap") has the details.
+
+With the main stream over IVDC (`direct_mode=1` in
+`/etc/modules.d/20-isp`, `ivdc = true` under `[stream0]` in
+`/etc/raptor.conf`), the snapshot comes from the second stream as
+`jpeg1`, and the OSD has to be the ISP's (`isp_osd = true` under
+`[osd]`): the frames reach libimp with no buffer, at physical address 0,
+and the IPU's OSD writes over the kernel there. The T23's driver drops a
+picture its encoder starts too late (`valid_data_line` in dmesg), which
+a busy guest does as the streamer starts; the stream then predicts from
+the wrong rows until its next IDR.
+
 An image with a wired interface can be watched live over RTSP: `--fwd`
 forwards a camera port, and `info` shows where it went.
 
@@ -328,6 +435,28 @@ scripts/qemu-dev up qemu_t31x_eth --fwd 554 -- -device image-sensor,model=gc2053
 scripts/qemu-dev info                  # forwards 34399 -> 554
 ffplay -rtsp_transport tcp rtsp://thingino:thingino@127.0.0.1:34399/ch0
 ```
+
+From QEMU ingenic-0.6.23 on, `up --isp-trace` has the ISP and the image
+sensor trace what a driver programs and what the hardware does with it:
+register writes by name and the PC behind each, shadow-port pairs as the
+registers they set, frames, interrupts, channel buffers, why the VIC
+waits, and the sensor's register writes, gain and exposure (the T10's,
+T20's and T30's Apical ISP too). `isp` reads the trace with the fork's
+`isp-trace.py`, which comes with that QEMU:
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth --isp-trace -- -device image-sensor,model=gc2053,bus=i2c0
+scripts/qemu-dev isp                     # each frame's events, then what it changed
+scripts/qemu-dev isp --at frame:30       # the registers as frame 30 starts
+scripts/qemu-dev isp --serve             # the registers on a live page
+scripts/qemu-dev isp mine --diff stock   # where two sessions' registers differ
+```
+
+`--diff` compares two sessions' registers at a point (as the VIC starts,
+unless `--at`), a driver of your own against the stock one, rather than
+the order they were written in. The trace is the session's `isp.log`,
+which `down` deletes; the fork's `contrib/ingenic/README.md` lists the
+events and `isp-trace.py`'s options, which `isp` passes on after `--`.
 
 If rvd logs `IMP_FrameSource_EnableChn(0) failed` or exits after
 `enc_create_channel`, the image keeps too little memory for video (`rmem`
@@ -340,10 +469,83 @@ scripts/qemu-dev reboot
 
 That is for an XBurst1 SoC with 128 MB, which test images built before
 the 128 MB profiles got 64 MB of rmem need. The T40 and T41 keep 8 MB of
-nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. The 64 MB T21
-needs `osmem 42M@0x0` and `rmem 22M@0x2a00000` even when built today.
+nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. A 64 MB T21
+image built before `qemu_t21n` got 22 MB of rmem needs `osmem 42M@0x0` and
+`rmem 22M@0x2a00000`.
+
+A `qemu_t30x` image built before its profile set a 150 MHz ISP clock runs
+the ISP at 90 MHz, too slow for the sc4236's line rate: the ISP drops every
+frame, as a T30X does. Give it the clock and reboot:
+
+```bash
+scripts/qemu-dev sh -- "echo 'tx_isp_t30 isp_clk=150000000' > /etc/modules.d/20-isp"
+scripts/qemu-dev reboot
+```
+
 The encoders run on the host CPU, so a 4K stream may run below the
 sensor's frame rate.
+
+## USB webcam mode
+
+From QEMU ingenic-0.7.12 a PC can sit on the camera's USB port: the
+fork's `dwc2-uvc-host` enumerates the camera's webcam gadget (g_webcam,
+fed by raptor's rwc), streams each format it is given in turn and saves
+the frames as the camera sent them, `uvc-0.mjpg`, `uvc-1.h264` and so on,
+in a directory. The `qemu_t31x_webcam` profile builds such a camera:
+
+```bash
+make GROUP=testing CAMERA=qemu_t31x_webcam fast
+scripts/qemu-dev up qemu_t31x_webcam -- -device image-sensor,model=gc2053,bus=i2c0 \
+    -device dwc2-uvc-host,x-out=/tmp/uvc,x-format=mjpeg+h264,x-frames=20
+ffplay /tmp/uvc/uvc-1.h264
+```
+
+`x-frames` is the frames saved of each format (5 by default). qemu-test
+runs the profile's `webcam` suite, which decodes them and compares them
+with the pictures the encoder stream tap saw. Only bulk streaming is
+emulated. The profile runs its sensor at 5 fps: at 25 fps some H.264
+pictures leave the camera with another picture's slice header (libimp or
+rvd overwrite it before rwc copies the stream), so now and then one does
+not decode.
+
+## Audio
+
+The SoC's audio controller and codec are emulated, as is the digital
+microphone of the T30, T31, T32, T33, T40 and T41, so rad and rac record
+and play as on the board. `--speaker` says where the speaker plays: a WAV
+file, or a host audio backend such as `pa`, `pipewire` or `alsa` to hear
+it live, when the QEMU has that driver (`qemu-system-mipsel -audiodev
+help`; the fork's release builds have none of them, only WAV files).
+`--mic` says what the microphones hear: a test tone, `tone[:HZ[:DBFS]]`
+(1 kHz at -20 dBFS by default), a 16-bit PCM WAV file to loop, or `host`,
+the input of the `--speaker` backend. With `--mic` alone the speaker
+plays to nowhere.
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth --speaker speaker.wav --mic tone:1000
+scripts/qemu-dev sh -- 'rac beep -f 440 -d 3000'
+```
+
+libimp adds 10 dB of gain of its own at raptor's default volume, so the
+default tone records at -10 dBFS. The microphones need QEMU
+ingenic-0.6.12, the A1's audio ingenic-0.6.20.
+
+## Fast boot
+
+Stock firmware built with Ingenic's fast-boot SDKs (Zeratul, and Tassadar
+for the T32 and T33) runs the camera's first exposure on the SoC's small
+RISC-V core while Linux loads, and Linux takes it over from there.
+`--riscv` runs that core's firmware in the `qemu-system-riscv32` beside
+the session's QEMU (the fork's Linux and macOS releases ship one from
+ingenic-0.6.18), linked to it over a socket in the session's directory;
+it ends with the session, and `info` shows its log. The T23, T31, T32,
+T33, T40, T41 and A1 have a core; the T10, T20, T21 and T30 have none.
+thingino's own images do not use it.
+
+```bash
+scripts/qemu-dev up stock.bin --soc t31zx --riscv --console -- \
+    -device image-sensor,model=sc5235,bus=i2c0
+```
 
 ## Iterating on a package
 
@@ -379,8 +581,11 @@ a session's console and another waits its turn; SSH copies run alongside.
   details may not match.
 - The emulated phone of `--portal` joins open portals only.
 - The guest runs under TCG: its timing is not the hardware's.
-- The emulated NAND never wears: no bitflips, no bad blocks, and its
-  spare areas are blank again whenever QEMU starts.
+- The emulated NAND never wears by itself, and with qemu-dev its spare
+  areas are blank again whenever QEMU starts. Bad blocks and ECC errors
+  can be set from QEMU ingenic-0.7.11 on (`nand-bad-blocks`,
+  `nand-ecc-correctable`, `nand-ecc-uncorrectable`; the QEMU fork's
+  contrib/ingenic/README.md, "SPI NAND").
 - The console is UART1 on most cameras and UART0 on a few, and some run
   U-Boot on one and Linux on the other; `up` follows the UART the
   kernel prints its banner on.

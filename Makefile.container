@@ -1,7 +1,7 @@
 # Podman/Docker build configuration — uses prebuilt GHCR image
 CONTAINER_IMAGE := ghcr.io/themactep/thingino-builder-image
 CONTAINER_TAG := latest
-SHELL := /bin/bash
+SHELL := bash
 CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
@@ -128,7 +128,7 @@ container-make: container-pull
 	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
 	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
 	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(IP_ARG) $(MAKECMDGOALS) in container..."
-	@echo '#!/bin/bash' > /tmp/container-make-run.sh
+	@echo '#!/usr/bin/env bash' > /tmp/container-make-run.sh
 	@echo 'cleanup() {' >> /tmp/container-make-run.sh
 	@echo '    echo' >> /tmp/container-make-run.sh
 	@echo '    echo "Interrupted! Stopping container..."' >> /tmp/container-make-run.sh

@@ -1,2 +1,2 @@
-sha256  5ab3fd7b8c5abfac81b84bc2586d0d35439ce1301d4111737a0f9977370a0bae  qemu-system-mipsel-linux-x86_64.tar.gz
-sha256  8b60927b346bfcf3e19a63774aa4dcbb44fad345d5dce00f783b2cfb3816e044  qemu-system-mipsel-linux-aarch64.tar.gz
+sha256  3fcf8cf7363645d1eb0543c0f83de4f0f13b291396e8f0e93bf7f8fca9260dc8  qemu-system-mipsel-linux-x86_64.tar.gz
+sha256  73f68ec780d5e9269e73d94b83e0117775983baf73cff852573a8f780a2e863f  qemu-system-mipsel-linux-aarch64.tar.gz

@@ -14,10 +14,11 @@ replicated here.
 
 ## Problem statement
 
-Partition sizes are derived from image sizes at build time
-(`ROOTFS_PARTITION_SIZE = ROOTFS_BIN_SIZE_ALIGNED` in the top-level
-Makefile; `DATA_PARTITION_SIZE` is always the remainder of the flash). A
-build whose rootfs grew past the layout carved on the device fails to flash:
+Partition sizes are derived from image sizes at build time: the rootfs
+partition is the aligned squashfs size, capped so that the data partition
+keeps the five erase blocks JFFS2 needs, and `DATA_PARTITION_SIZE` is the
+remainder of the flash. A build whose rootfs grew past the layout carved on
+the device fails to flash:
 
 ```
 flashcp: /tmp/rootfs.bin bigger than /dev/mtd4

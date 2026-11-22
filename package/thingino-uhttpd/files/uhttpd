@@ -34,4 +34,7 @@ UHTTPD_ERROR_HANDLER="/x/legacy-url-recovery.cgi"
 
 # Additional uhttpd arguments
 # Add any extra arguments here
-EXTRA_ARGS=""
+# -M 600 -F /a/: cache /a/ for 10 min. The JS and CSS URLs carry ?ts=<tag>,
+# which changes with any asset; other /a files update within the window.
+# Every file outside /a gets no-cache, so pages are always revalidated (0008)
+EXTRA_ARGS="-M 600 -F /a/"

@@ -158,6 +158,11 @@ Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
 in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 `BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
+Raptor's runtime config (`/etc/raptor.conf`) has its own Kconfig and
+`.config`, not Buildroot symbols: `CAMERA=<cam> make raptor-menuconfig` and
+`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.config`.
+See [docs/dev/raptor-config.md](docs/dev/raptor-config.md).
+
 ## Firmware image
 
 Three flash types are supported:
@@ -249,6 +254,37 @@ Installable skills for OpenCode/Copilot are maintained at
 [github.com/themactep/thingino-skills](https://github.com/themactep/thingino-skills).
 These cover NFS dev deploy, package overrides, RTSP stress testing,
 diagnostics, OTA workflows, adding streamers, and more.
+
+## Multica
+
+Cross-agent task handoffs arrive as issues in the `thingino` workspace on
+`https://multica.themactep.com`, through the local `multica` CLI. The server
+comes from `~/.multica/config.json`, auth from `multica login`.
+
+```bash
+multica workspace list                   # active workspace
+multica issue list                       # ING-* items
+multica issue get ING-77                 # description, attachment ids
+multica attachment download <id> -o ./tmp
+multica issue comment add ING-77 --content-stdin < reply.md
+multica issue status ING-77 in_review --no-start
+```
+
+- Handed-in issues are unassigned. Nothing picks them up automatically; read
+  them and work them from the repo checkout.
+- A multica agent run is not this session. The daemon's runtimes (claude,
+  codex, opencode, copilot, ...) have no Kilo backend, so issue work happens
+  here, in the working tree, not on the server.
+- `--content-file` refuses paths outside the working directory. Pipe long
+  bodies with `--content-stdin` instead.
+- Handoffs have targeted both SDK forks. Before touching `ingenic-sdk` check
+  `package/ingenic-sdk/ingenic-sdk.mk` on the branch: `master` uses
+  `thingino/ingenic-sdk` (`main`, per-kernel `$(kver)/misc/...` layout),
+  `ciao` uses `themactep/ingenic-sdk` (`master`, merged `common/misc/...`
+  layout). The same driver can have a different path in each.
+- Never invent a pin hash. After an SDK PR merges, `scripts/update_packages.py
+  ingenic-sdk --dry-run` prints the new tip, and the package patch series must
+  still apply at it.
 
 ## Git credentials
 

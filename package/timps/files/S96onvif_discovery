@@ -28,17 +28,10 @@ is_gateway_reachable() {
 		ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1
 }
 
-# ------------------------------------------------------------------- timps ---
-# timps uses a flat "key = value" config (dotted keys); parse it with sed,
-# mirroring the credential/URL logic that S95timps already uses for TLS keys.
 timps_conf_get() {
 	key="$1"
 	esc=$(echo "$key" | sed 's/[.[\*^$]/\\&/g')
-	# Match the daemon's parser (config.c): capture the whole value, then strip an
-	# inline comment only when the '#' is preceded by whitespace (so a literal
-	# 'p#ss' is kept), trim trailing space, and unquote a "..."/'...' value. The
-	# old "[^#]*" capture truncated at the first '#' and left quotes in place,
-	# yielding different ONVIF creds than timps enforces -> clients locked out.
+	# same rules as timps config.c: "#" starts a comment only after whitespace
 	sed -n "s/^[[:space:]]*${esc}[[:space:]]*=[[:space:]]*\(.*\)$/\1/p" \
 		"$TIMPS_CONFIG" 2>/dev/null | head -n1 |
 		sed 's/[[:space:]]\{1,\}#.*$//; s/[[:space:]]*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/'
@@ -91,11 +84,6 @@ timps_rtsp_endpoint() {
 	echo "${ep#/}"
 }
 
-# http.https is a TRI-STATE, not a boolean: 0 = plaintext, 1 = http and https
-# together on the one port, 2 = TLS only (plaintext gets 426 Upgrade Required).
-# Deliberately not timps_bool_default(), which is shared with the genuinely
-# boolean keys and would report "http" for 2 - the URIs advertised to ONVIF
-# clients would then all be refused by the daemon.
 timps_http_scheme() {
 	case "$(timps_conf_get http.https | tr 'A-Z' 'a-z')" in
 		1 | 2 | true | yes | on) echo "https" ;;
@@ -109,14 +97,6 @@ timps_http_port() {
 	echo "$port"
 }
 
-# ---- live fallback via GET /control -----------------------------------------
-# videoN.width/height/fps are "config-first with auto-detect" keys: when they
-# are absent from timps.conf the real values only exist inside the running
-# daemon. GET /control on loopback needs no auth (timps' httpd skips auth for
-# 127.0.0.0/8) and dumps them as one line of JSON:
-#   "video":{"0":{...,"codec":"h264","width":1920,"height":1080,"fps":25,
-#   "bitrate":3000,...,"rtsp_path":"/ch0"},"1":{...}},"osd":{...
-# Fetched lazily (only when a needed key is missing) and at most once.
 TIMPS_CONTROL_JSON=""
 TIMPS_CONTROL_TRIED=0
 
@@ -127,12 +107,6 @@ fetch_timps_control() {
 	scheme=$(timps_http_scheme)
 	url="$scheme://127.0.0.1:$(timps_http_port)/control"
 
-	# S96 runs right after S95timps starts the daemon; at boot timps' httpd may
-	# not have bound its port yet, so the first /control fetch returns nothing
-	# and framerate/bitrate never reach onvif.json until the next S96 run. Retry
-	# (bounded, ~10s) until the daemon answers. curl preferred (busybox wget
-	# returns an empty body for timps' /control on some builds); wget only as a
-	# fallback when curl is absent.
 	i=0
 	while [ "$i" -lt 10 ]; do
 		if command -v curl >/dev/null 2>&1; then
@@ -147,18 +121,13 @@ fetch_timps_control() {
 			TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - "$url" 2>/dev/null)
 		fi
 		case "$TIMPS_CONTROL_JSON" in
-			*'"video"'*) return ;; # daemon answered
+			*'"video"'*) return ;;
 		esac
 		i=$((i + 1))
 		sleep 1
 	done
 }
 
-# timps_live_get <stream> <field>: pull one scalar out of the cached /control
-# dump. Scope to the "video" object first and cut at the "osd" marker that
-# directly follows it (stream ids like "0":{ repeat later under "osd0"). The
-# per-stream object is flat, so "N":{[^}]*} captures it whole; the needed
-# numeric fields all precede rtsp_path, the only free-form string in it.
 timps_live_get() {
 	json=${TIMPS_CONTROL_JSON#*\"video\":\{}
 	[ "$json" = "$TIMPS_CONTROL_JSON" ] && return
@@ -168,8 +137,6 @@ timps_live_get() {
 		sed -n "s/.*\"$2\":\"\{0,1\}\([^\",}]*\).*/\1/p"
 }
 
-# Write profiles.streamN.<field> only for values we actually determined: a
-# skipped key keeps the daemon's onvif.json default, which beats writing 0.
 jct_set_stream_num() {
 	case "$3" in
 		"" | 0 | *[!0-9]*) ;;
@@ -177,15 +144,6 @@ jct_set_stream_num() {
 	esac
 }
 
-# Populate the per-profile video encoder parameters so ONVIF clients report
-# the camera's real values instead of the onvif.json template defaults
-# (1920x1080/640x360, H264, 30 fps, 5000 kbps). onvif_simple_server reads
-# profiles.streamN.width/.height (get_int_from_json) and .type ("H264"/"H265",
-# conf.c). framerate/bitrate are written under those names for the daemon too;
-# the currently pinned onvif_simple_server still hardcodes FrameRateLimit/
-# BitrateLimit in its XML templates and will use these keys once it learns
-# them - they are correct, forward-compatible metadata either way.
-# Config-first: timps.conf; auto-detected keys fall back to live /control.
 set_timps_video_params() {
 	n="$1"
 
@@ -210,18 +168,12 @@ set_timps_video_params() {
 	jct_set_stream_num "$n" framerate "$fps"
 	jct_set_stream_num "$n" bitrate "$bitrate"
 
-	# map timps' codec spelling to the daemon's profile type enum
 	case "$codec" in
 		h264) jct "$tmpfile" set "profiles.stream$n.type" "H264" ;;
 		h265 | hevc) jct "$tmpfile" set "profiles.stream$n.type" "H265" ;;
 	esac
 }
 
-# timps_stream_jpeg_enabled <n>: does /snapshot.jpg?chn=N actually work?
-# jpeg_src_from_path() (httpd.c) requires videoN.enabled AND videoN.jpeg,
-# both default-true in config.c, and the whole endpoint needs http.enabled.
-# The WebUI snapshot CGIs (x/chN.jpg) proxy the same endpoint over loopback,
-# so the same conditions gate both snapurl variants.
 timps_stream_jpeg_enabled() {
 	[ "$(timps_bool_default http.enabled true)" = "true" ] || {
 		echo "false"
@@ -234,13 +186,6 @@ timps_stream_jpeg_enabled() {
 	timps_bool_default "video$1.jpeg" true
 }
 
-# timps supports the ONVIF audio backchannel (client -> camera speaker;
-# src/rtsp/backchannel.c, RTSP "Require: www.onvif.org/ver20/backchannel" on
-# the main stream) when the build has USE_BACKCHANNEL and timps.conf sets
-# audio.backchannel = true (config.c default: off). The conf can claim true
-# on a build without the feature, so when it does, also check the running
-# daemon's capability flag (caps "backchannel":{"available":N} in /control);
-# if /control is unreachable, trust the conf rather than dropping the feature.
 timps_backchannel_enabled() {
 	[ "$(timps_bool_default audio.backchannel false)" = "true" ] || {
 		echo "false"
@@ -253,13 +198,11 @@ timps_backchannel_enabled() {
 	esac
 }
 
-# Map audio.backchannel_codec (pcmu/pcma/aac or 0/1/2, config.c T_BCCODEC) to
-# onvif_simple_server's audio_decoder enum string (conf.c: NONE/G711/G726/AAC).
 timps_backchannel_decoder() {
 	codec=$(timps_conf_get audio.backchannel_codec | tr 'A-Z' 'a-z')
 	case "$codec" in
 		2 | aac) echo "AAC" ;;
-		*) echo "G711" ;; # pcmu/pcma/0/1/unset: G.711 either way
+		*) echo "G711" ;;
 	esac
 }
 
@@ -273,27 +216,6 @@ configure_timps_onvif_profiles() {
 
 	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
 	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
-	# timps snapshots come from its own HTTP server (per-stream via ?chn=N, needs
-	# videoN.jpeg = true). Prefer the WebUI's port-80 snapshot CGIs:
-	# /onvif/image[1].cgi are symlinks into the /x CGI prefix (-> x/ch0.jpg,
-	# x/ch1.jpg; shipped by package/timps/timps.mk) whose script fetches
-	# timps's /snapshot.jpg over loopback (timps skips auth for 127.0.0.0/8)
-	# and derives timps's port/scheme from /etc/timps.conf itself, so a
-	# non-default http.port or TLS-only http is fine. The ?token= that
-	# onvif_simple_server appends to the snapurl satisfies the WebUI auth
-	# layer (auth.sh verify_api_key). Fall back to the direct URL
-	# (authenticated via http.pass) only when the WebUI snapshot CGIs aren't
-	# installed.
-	#
-	# Only advertise a snapurl for channels whose JPEG source actually exists
-	# (videoN.jpeg=true etc., see timps_stream_jpeg_enabled): a snapurl on a
-	# jpeg-disabled channel 404s (jpeg_src_from_path returns -1 for explicit
-	# chn=) and clients show "snapshot unavailable" against a configured URI.
-	# snap0_on/snap1_on stay global: start() uses them after the import to
-	# DELETE stale snapurl keys (import can only add/overwrite, and the shipped
-	# onvif.json template carries default snapurls). A missing snapurl makes
-	# onvif_simple_server answer GetSnapshotUri with a proper SOAP fault
-	# instead of a dead URL.
 	snap0_on=$(timps_stream_jpeg_enabled 0)
 	snap1_on=$(timps_stream_jpeg_enabled 1)
 	if [ -x /var/www/x/ch1.jpg ] && [ -e /var/www/onvif/image1.cgi ]; then
@@ -307,20 +229,6 @@ configure_timps_onvif_profiles() {
 	set_timps_video_params 0
 	set_timps_video_params 1
 
-	# ONVIF audio backchannel: when timps has it enabled (and built in),
-	# advertise the AudioOutput so Profile S/T clients (HA ONVIF integration,
-	# ODM, Surveillance Station talkback) discover two-way audio instead of
-	# needing a hand-configured Require: header. audio.output_enabled gates
-	# every AudioOutput/GetAudioOutputs answer in onvif_simple_server and
-	# profiles.streamN.audio_decoder must name the codec timps actually
-	# decodes - the shipped onvif.json template claims AAC unconditionally.
-	# audio.backchannel.uri points at the main stream (timps multiplexes the
-	# backchannel onto it); the pinned onvif_simple_server parses the key but
-	# doesn't emit it yet (clients attach via the profile's GetStreamUri) -
-	# correct forward-compatible metadata, mirroring the raptor branch.
-	# Write the disabled state explicitly too: the template defaults
-	# output_enabled=true + decoder AAC, which advertised talkback on cameras
-	# that don't have it.
 	if [ "$(timps_backchannel_enabled)" = "true" ]; then
 		bc_decoder=$(timps_backchannel_decoder)
 		jct "$tmpfile" set audio.output_enabled true
@@ -334,12 +242,7 @@ configure_timps_onvif_profiles() {
 	fi
 }
 
-# ----------------------------------------------------------------- daemons ---
-# No -m here: wsd_simple_server acquires the pidfile itself (atomic O_EXCL
-# with stale-pid takeover, wsd_simple_server.c). With -m, start-stop-daemon
-# pre-writes the daemon's own pid into that same file, so the daemon's
-# acquire_pid_file() finds a "live" owner (itself) and exits fatally with
-# "Program is already running" - every warm restart killed discovery.
+# no -m: the daemon writes its own pidfile and would find itself "already running"
 start_daemon() {
 	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
 }
@@ -357,10 +260,7 @@ stop_daemon() {
 
 iface="$(iface_default)"
 
-# A slow WiFi association outlasts udhcpc's foreground tries, so the lease
-# (and default route) can land after rcS has passed S96. Poll off the boot
-# path instead of losing discovery until the next reboot; 10 min covers a
-# router still booting after a power cut.
+# a slow WiFi lease can land after rcS has passed S96
 wait_for_gateway() {
 	i=0
 	while [ "$i" -lt 120 ]; do
@@ -386,7 +286,6 @@ start() {
 		exit 0
 	fi
 
-	# Start one instance per active non-loopback interface
 	for active_iface in $(ip -4 -o addr show | awk '$2 != "lo" {print $2}' | sort -u); do
 		PIDFILE="/run/${DAEMON_SHORT}_${active_iface}.pid"
 		DAEMON_ARGS="-i $active_iface -x http://%s/onvif/device_service -n thingino -p $PIDFILE"
@@ -394,24 +293,13 @@ start() {
 		start_daemon $DAEMON_ARGS
 	done
 
-	# Create the temp file atomically (mktemp, mode 0600, O_EXCL) instead of the
-	# old "mktemp -u" predictable name + redirect, which a local attacker could
-	# pre-plant as a symlink for this root-run script to follow.
 	tmpfile="$(mktemp /tmp/onvif.XXXXXX)" || exit 1
 	echo '{}' >"$tmpfile"
 
-	# timps is the only streamer this package ships with, and /etc/timps.conf
-	# always exists on a timps image: configure the profiles from it
-	# unconditionally. (raptor images install their own S96onvif_discovery from
-	# the raptor package.)
 	configure_timps_onvif_profiles
 	jct $ONVIF_CONFIG import $tmpfile
 
-	# import can only add/overwrite, never remove -> the snapshot URIs need
-	# explicit deletion: the shipped onvif.json template (and any earlier S96
-	# run) carries snapurl defaults, so when a channel's JPEG source is off
-	# they must be deleted, not just skipped. Without a snapurl
-	# onvif_simple_server faults GetSnapshotUri cleanly.
+	# import never removes keys: drop stale snapurls explicitly
 	[ "$snap0_on" = "true" ] || jct $ONVIF_CONFIG del profiles.stream0.snapurl 2>/dev/null
 	[ "$snap1_on" = "true" ] || jct $ONVIF_CONFIG del profiles.stream1.snapurl 2>/dev/null
 

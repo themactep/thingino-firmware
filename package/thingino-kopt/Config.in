@@ -121,6 +121,7 @@ config BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	bool "Ethernet Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_SOC_VENDOR_INGENIC
 	help
 	  Enable native wired Ethernet support on the SoC.
 
@@ -177,6 +178,14 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC
 	select BR2_PACKAGE_THINGINO_MMC
 	help
 	  Enable MMC support for SD/MMC and SDIO devices
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC_BUILTIN
+	bool "Build the MMC host driver into the kernel"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Build the jzmmc host driver into the kernel instead of as a module.
+	  Some XBurst1 boards crash when jzmmc is loaded as a module because
+	  the platform data is not available at probe time.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC0
 	bool "Enable MMC0"
@@ -282,7 +291,23 @@ config BR2_PACKAGE_THINGINO_KOPT_RTC
 	bool "RTC"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enables RTC (Real Time Clock) support
+	  Enables the RTC class, /dev/rtc0 and the SoC's own RTC driver.
+
+config BR2_PACKAGE_THINGINO_KOPT_RTC_I2C
+	bool "I2C RTC chips"
+	depends on BR2_PACKAGE_THINGINO_KOPT_RTC
+	help
+	  Enables the PCF8563 driver, plus HYM8563 where the kernel has
+	  one. The chip binds only once something instantiates it on an
+	  I2C bus, e.g. echo pcf8563 0x51 > /sys/bus/i2c/devices/i2c-0/new_device
+	  on a 3.10 kernel.
+
+config BR2_PACKAGE_THINGINO_KOPT_SPI
+	bool "SPI master"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables the SPI core, the SoC's SSI master controllers and spidev.
+	  Not for T10 and T20, whose 3.10 trees register no SSI controller.
 
 config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
 	bool "SPI1 PB2"
@@ -360,6 +385,22 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 endchoice
 
 endif
+
+config BR2_PACKAGE_THINGINO_KOPT_INPUT
+	bool "Input device support (GPIO buttons)"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable evdev, the keyboard input core and the gpio-keys driver.
+	  Boards with a gpio-keys node in their device tree need this to
+	  expose /dev/input/event0 for thingino-button.
+
+config BR2_PACKAGE_THINGINO_KOPT_SFC_ERASE_64K
+	bool "SFC: 64 KiB flash erase blocks"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Use 64 KiB erase blocks for the SFC SPI NOR driver instead of the
+	  default 32 KiB. The image tools take the erase size from the kernel
+	  config when they build data.jffs2, so the two stay in step.
 
 config BR2_PACKAGE_THINGINO_KOPT_I2C
 	bool "I2C Support"

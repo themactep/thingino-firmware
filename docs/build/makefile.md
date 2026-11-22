@@ -353,23 +353,28 @@ Interactive menu to edit various configuration files.
 make edit
 ```
 Presents a dialog menu with options:
-1. Camera Config (defconfig)
-2. Module Config
-3. System Config
-4. Camera U-Boot Environment
-5. Local Fragment
-6. Local Makefile
-7. Local U-Boot Environment
+1. Camera Config (`edit-defconfig`)
+2. Thingino Config (`edit-thingino`)
+3. Camera U-Boot Environment (`edit-uenv`)
+4. Raptor Config (`raptor-menuconfig`)
+5. Local Makefile (`edit-localmk`)
+6. Local Fragment (`edit-localfragment`)
+7. Local U-Boot Environment (`edit-localuenv`)
+
+Option 4 launches raptor's own Kconfig instead of opening a file, because the
+per-camera `raptor.config` is a generated artifact. See
+[../dev/raptor-config.md](../dev/raptor-config.md).
 
 #### Direct Edit Targets
 
 ```bash
 make edit-defconfig      # Edit camera's defconfig
-make edit-config         # Edit system config
+make edit-thingino       # Edit camera's thingino.json
 make edit-uenv           # Edit U-Boot environment
 make edit-localfragment  # Edit local.fragment
 make edit-localmk        # Edit local.mk
 make edit-localuenv      # Edit local.uenv.txt
+make raptor-menuconfig   # Edit raptor's runtime config (Kconfig)
 ```
 
 The system will use the first available editor from: `nano`, `vim`, `vi`, `ed`
@@ -635,6 +640,14 @@ Downloads:
 - `docs/buildroot/manual.pdf`
 - `docs/buildroot/manual.txt`
 
+#### `update-certs`
+Refresh the static CA trust store shipped in the rootfs overlay.
+```bash
+make update-certs
+```
+- Downloads the current Mozilla root store extract from `https://curl.se/ca/cacert.pem`
+- Validates the bundle before replacing `overlay/etc/ssl/certs/ca-certificates.crt`
+
 ### Information and Debugging
 
 #### `info`
@@ -888,6 +901,12 @@ Firmware is assembled from multiple partitions:
 | DATA      | Dynamic    | Dynamic | Overlay layers (JFFS2)      |
 
 Sizes are 64KB-aligned for JFFS2 compatibility.
+
+`FLASH_SIZE_MB` is the physical chip size. To build an 8 MB or 16 MB layout on
+a camera with a larger chip, set `BR2_THINGINO_FLASH_CAP_8M=y` or
+`BR2_THINGINO_FLASH_CAP_16M=y` in its defconfig. The effective layout size is
+`FLASH_LAYOUT_MB` and drives the partition table, the data partition, and the
+final image size. The 8 MB cap wins when both are enabled.
 
 ---
 

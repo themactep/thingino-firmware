@@ -13,6 +13,14 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>
+    /* the preview stays in view while the controls scroll (below the sticky navbar) */
+    .iq-pin { position: sticky; top: 4.25rem; z-index: 5; align-self: flex-start; }
+    @media (max-width: 1199.98px) {
+      .iq-pin { background: var(--bs-body-bg); padding-bottom: .5rem; box-shadow: 0 .5rem .5rem -.5rem rgb(0 0 0 / .5); }
+      .iq-pin #preview { max-height: 34vh; object-fit: contain; }
+    }
+  </style>
 </head>
 
 <body id="page-streamer-image">
@@ -25,7 +33,7 @@
       <span class="small text-body-secondary ms-auto"><span class="tv-badge live">live</span> every change applies to the running image and is saved</span>
     </div>
     <div class="row g-3">
-      <div class="col-12 col-xl-5">
+      <div class="col-12 col-xl-5 iq-pin">
         <div id="frame" class="position-relative">
           <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch1">
         </div>
@@ -50,12 +58,14 @@
           <div class="tv-fields">
             <div data-f="image_ae_compensation"><label for="image_ae_compensation"><abbr title="Automatic exposure">AE</abbr> compensation <output class="ms-auto font-monospace" id="image_ae_compensation-v"></output></label>
               <input type="range" class="form-range" id="image_ae_compensation" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="image_max_again"><label for="image_max_again">Max analog gain <output class="ms-auto font-monospace" id="image_max_again-v"></output></label>
+              <input type="range" class="form-range" id="image_max_again" min="0" max="255" step="1" data-default="160" title="AE analog gain ceiling, 32 steps per doubling; double-click resets to 160 (the default)"></div>
             <div data-f="backlight"><label for="backlight">Backlight <output class="ms-auto font-monospace" id="backlight-v"></output></label>
               <input type="range" class="form-range" id="backlight" min="0" max="10" step="1" title="Double-click resets to the middle"></div>
             <div data-f="wide_dynamic_range"><label for="wide_dynamic_range">WDR <output class="ms-auto font-monospace" id="wide_dynamic_range-v"></output></label>
               <input type="range" class="form-range" id="wide_dynamic_range" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
             <div data-f="tone"><label for="tone">Highlights <output class="ms-auto font-monospace" id="tone-v"></output></label>
-              <input type="range" class="form-range" id="tone" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+              <input type="range" class="form-range" id="tone" min="0" max="10" step="1" title="Double-click resets to the middle"></div>
             <div data-f="defog"><label for="defog">Defog <output class="ms-auto font-monospace" id="defog-v"></output></label>
               <input type="range" class="form-range" id="defog" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
           </div>
@@ -65,6 +75,26 @@
           <div class="tv-fields">
             <div data-f="noise_reduction"><label for="noise_reduction">Noise reduction <output class="ms-auto font-monospace" id="noise_reduction-v"></output></label>
               <input type="range" class="form-range" id="noise_reduction" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="dpc"><label for="dpc">Dead pixels <output class="ms-auto font-monospace" id="dpc-v"></output></label>
+              <input type="range" class="form-range" id="dpc" min="0" max="255" step="1" title="Dead-pixel correction strength. Double-click resets to the middle"></div>
+          </div>
+        </div>
+        <div class="tv-card" id="img-effects-card">
+          <h6>Effects</h6>
+          <div class="tv-fields">
+            <div data-f="image_colorfx"><label for="image_colorfx">Colour effect</label>
+              <select class="form-select" id="image_colorfx">
+                <option value="0">None</option><option value="1">Black &amp; white</option><option value="2">Sepia</option>
+                <option value="3">Negative</option><option value="9">Vivid</option>
+              </select></div>
+            <div data-f="image_scene"><label for="image_scene">Scene</label>
+              <select class="form-select" id="image_scene">
+                <option value="0">Auto</option><option value="2">Beach / snow</option><option value="3">Candle light</option>
+                <option value="4">Dawn / dusk</option><option value="5">Fall colours</option><option value="6">Fireworks</option>
+                <option value="7">Landscape</option><option value="8">Night</option><option value="9">Party / indoor</option>
+                <option value="11">Sports</option><option value="12">Sunset</option><option value="13">Text</option>
+                <option value="14">Night portrait</option>
+              </select></div>
           </div>
         </div>
         <div class="tv-card">
@@ -119,6 +149,7 @@
 <script src="/a/footer.js"></script>
 <script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
+<script src="/a/timps-errors.js"></script>
 <script src="/a/timps-version.js"></script>
 <script src="/a/timps-ui.js"></script>
 <script src="/a/streamer-image.js"></script>

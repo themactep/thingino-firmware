@@ -12,6 +12,22 @@ br-%: check-config
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst br-,,$@)
 
+### Raptor runtime configuration (own Kconfig and .config)
+
+raptor-menuconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-menuconfig
+
+# Buildroot's own -update-defconfig refuses to run while KCONFIG_FRAGMENT_FILES
+# is set, so the minimal config is placed as the camera's fragment here.
+raptor-saveconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-savedefconfig
+	@mkdir -p $(CAMERA_SUBDIR)/$(CAMERA)
+	@install -m 0644 $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig \
+		$(CAMERA_SUBDIR)/$(CAMERA)/raptor.config
+	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.config"
+
 # checkout buidroot submodule
 buildroot/Makefile:
 	@$(TEAL) "$@"
@@ -164,6 +180,19 @@ endif
 # create data partition image (merged config + extras, single overlay)
 $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
+	# JFFS2 needs 5 erase blocks and the data partition is only the flash
+	# tail, so a rootfs that grew too far leaves an overlay that cannot mount.
+	# Fail before writing an image instead of letting the camera find out.
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+		$(RED) "ROOTFS TOO LARGE FOR THE LAYOUT: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_MAX) bytes"; \
+		$(RED) "  JFFS2 data needs $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_ERASE_BLOCK)): shrink the rootfs by $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
+		exit 1; \
+	fi
+	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
+		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2: $(DATA_PARTITION_SIZE) < $(JFFS2_MIN_SIZE) bytes"; \
+		$(RED) "  JFFS2 needs 5 erase blocks of $(JFFS2_ERASE_BLOCK) bytes"; \
+		exit 1; \
+	fi
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
@@ -388,6 +417,7 @@ show-vars:
 	@echo "FLASH_SIZE = $(FLASH_SIZE)";
 	@echo "FLASH_SIZE_KB = $(FLASH_SIZE_KB)";
 	@echo "FLASH_SIZE_MB = $(FLASH_SIZE_MB)";
+	@echo "FLASH_LAYOUT_MB = $(FLASH_LAYOUT_MB)";
 	@echo "HOST_DIR = $(HOST_DIR)";
 	@echo "IP = $(IP)";
 	@echo "ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS = $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS)";

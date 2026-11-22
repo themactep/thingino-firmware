@@ -2,6 +2,7 @@
 # shellcheck disable=SC2018,SC2019
 
 THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
+THINGINO_NETWORK_RESTART_FLAG="${THINGINO_NETWORK_RESTART_FLAG:-/tmp/network-restart.txt}"
 THINGINO_RAPTOR_CONFIG="${THINGINO_RAPTOR_CONFIG:-/etc/raptor.conf}"
 THINGINO_RAPTOR_PRIVACY_STATE="${THINGINO_RAPTOR_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 THINGINO_IRCUT_MODE_FILE="${THINGINO_IRCUT_MODE_FILE:-/tmp/ircutmode.txt}"
@@ -208,6 +209,10 @@ thingino_heartbeat_has_daynightd() {
 	command -v daynightd >/dev/null 2>&1
 }
 
+thingino_heartbeat_network_restart_pending() {
+	[ -f "$THINGINO_NETWORK_RESTART_FLAG" ] && printf 'true' || printf 'false'
+}
+
 # daynightd replaces ric as the day/night engine when selected (Kconfig
 # makes RIC and daynightd mutually exclusive), so the raptor payload
 # sources the daynight fields from daynightd the same way json-imp.cgi
@@ -325,17 +330,16 @@ thingino_heartbeat_raptor_payload() {
 			_v=$(cat /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n')
 			[ -n "$_v" ] && daynight_brightness=$_v
 		fi
-		total_gain="null"
-		if [ -r /run/thingino/daynight_sensors ] && command -v jct >/dev/null 2>&1; then
-			_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null | tr -d '\n"')
-			[ -n "$_bp" ] && [ "$_bp" != "null" ] && total_gain=$_bp
-		fi
+		total_gain=$(thingino_heartbeat_json_number_field total_gain "$(raptorctl rvd get-exposure 2>/dev/null || true)")
 	else
-		daynight_brightness=$(thingino_heartbeat_json_number_field ae_luma "$ric_status")
-		total_gain=$(thingino_heartbeat_json_number_field total_gain "$ric_status")
+		# Only the exposure figures are needed: the full heartbeat resource
+		# builds every field this payload already has (about 0.6 s on a T41).
+		_hb=$(agentctl runtime exposure 2>/dev/null || true)
+		daynight_brightness=$(thingino_heartbeat_json_number_field daynight_brightness "$_hb")
 		[ -n "$daynight_brightness" ] || daynight_brightness=null
-		[ -n "$total_gain" ] || total_gain=null
+		total_gain=$(thingino_heartbeat_json_number_field total_gain "$_hb")
 	fi
+	[ -n "$total_gain" ] || total_gain=null
 
 	color_mode=$(thingino_heartbeat_raptor_color_mode "$daynight_mode")
 
@@ -351,7 +355,7 @@ thingino_heartbeat_raptor_payload() {
 			;;
 	esac
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s,"network_restart_pending":%s}\n' \
 		"$now" \
 		"$uptime" \
 		"$daynight_brightness" \
@@ -369,7 +373,8 @@ thingino_heartbeat_raptor_payload() {
 		"$(thingino_heartbeat_light_state ir850)" \
 		"$(thingino_heartbeat_light_state ir940)" \
 		"$(thingino_heartbeat_light_state white)" \
-		"$(thingino_heartbeat_wireguard_status)"
+		"$(thingino_heartbeat_wireguard_status)" \
+		"$(thingino_heartbeat_network_restart_pending)"
 }
 
 thingino_heartbeat_native_payload() {
@@ -475,7 +480,7 @@ thingino_heartbeat_native_payload() {
 		esac
 	fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s,"network_restart_pending":%s}\n' \
 		"$now" "$uptime" "$daynight_brightness" "$total_gain" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
 		"$motion_enabled" "$privacy_enabled" "$_color_mode" "$mic_enabled" "$spk_enabled" \
 		"$daynight_enabled" \
@@ -483,7 +488,8 @@ thingino_heartbeat_native_payload() {
 		"$(thingino_heartbeat_light_state ir850)" \
 		"$(thingino_heartbeat_light_state ir940)" \
 		"$(thingino_heartbeat_light_state white)" \
-		"$wg_status"
+		"$wg_status" \
+		"$(thingino_heartbeat_network_restart_pending)"
 }
 
 thingino_heartbeat_payload() {
@@ -492,4 +498,61 @@ thingino_heartbeat_payload() {
 	else
 		thingino_heartbeat_native_payload
 	fi
+}
+
+# Every open WebUI tab runs its own SSE heartbeat loop, and a payload costs
+# about 0.5 s of shell work on a loaded SoC. Share one payload for
+# HEARTBEAT_SHARED_TTL seconds, so N tabs cost the same as one. agentctl
+# moves AGENT_CHANGE_STAMP on every settings write, which retires the copy.
+THINGINO_HEARTBEAT_SHARED="${THINGINO_HEARTBEAT_SHARED:-/tmp/heartbeat.json}"
+
+thingino_heartbeat_shared_valid() {
+	[ -s "$_hbs_f" ] || return 1
+	_hbs_stamp=${AGENT_CHANGE_STAMP:-/run/agent/changed}
+	if [ -e "$_hbs_stamp" ] && ! [ "$_hbs_f" -nt "$_hbs_stamp" ]; then
+		return 1
+	fi
+	_hbs_age=$(($(date +%s) - $(stat -c %Y "$_hbs_f" 2>/dev/null || echo 0)))
+	[ "$_hbs_age" -ge 0 ] && [ "$_hbs_age" -lt "${HEARTBEAT_SHARED_TTL:-4}" ]
+}
+
+thingino_heartbeat_payload_shared() {
+	_hbs_f=$THINGINO_HEARTBEAT_SHARED
+	_hbs_lock="$_hbs_f.lock"
+	# cat fails if the file was replaced away after the check; build then.
+	if thingino_heartbeat_shared_valid && cat "$_hbs_f" 2>/dev/null; then
+		return 0
+	fi
+	if ! mkdir "$_hbs_lock" 2>/dev/null; then
+		_hbs_lage=$(($(date +%s) - $(stat -c %Y "$_hbs_lock" 2>/dev/null || date +%s)))
+		if [ "$_hbs_lage" -le 30 ]; then
+			# Another request is building it: wait up to 3 s and share it.
+			_hbs_end=$(($(date +%s) + 3))
+			while [ -d "$_hbs_lock" ] && [ "$(date +%s)" -lt "$_hbs_end" ]; do
+				sleep 0.2
+			done
+			if thingino_heartbeat_shared_valid && cat "$_hbs_f" 2>/dev/null; then
+				return 0
+			fi
+			thingino_heartbeat_payload
+			return 0
+		fi
+		# Left by a killed builder.
+		rmdir "$_hbs_lock" 2>/dev/null
+		mkdir "$_hbs_lock" 2>/dev/null || {
+			thingino_heartbeat_payload
+			return 0
+		}
+	fi
+	_hbs_tmp="$_hbs_f.$$"
+	# A subshell keeps the builders off this function's variables.
+	(thingino_heartbeat_payload) >"$_hbs_tmp" 2>/dev/null
+	if [ -s "$_hbs_tmp" ]; then
+		cat "$_hbs_tmp"
+		mv -f "$_hbs_tmp" "$_hbs_f"
+	else
+		rm -f "$_hbs_tmp"
+	fi
+	rmdir "$_hbs_lock" 2>/dev/null
+	return 0
 }

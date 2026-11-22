@@ -14,3 +14,5 @@ config BR2_THINGINO_SYSTEM_PACKAGES_INGENIC
 	# Every other vendor so far keeps its bootloader on the chip, and no
 	# soc/<vendor>/<model>.mk outside Ingenic sets a U-Boot board name.
 	select BR2_TARGET_UBOOT
+	# Wired Ethernet on these SoCs is the JZ MAC.
+	select BR2_PACKAGE_THINGINO_KOPT_JZ_MAC if BR2_PACKAGE_THINGINO_ETHERNET

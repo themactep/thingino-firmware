@@ -172,6 +172,11 @@ update_manual:
 	@curl -s -z docs/buildroot/manual.pdf -o docs/buildroot/manual.pdf https://buildroot.org/manual.pdf
 	@curl -s -z docs/buildroot/manual.txt -o docs/buildroot/manual.txt https://buildroot.org/manual.text
 
+# Refresh the static CA bundle shipped in the rootfs overlay
+update-certs:
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/update-certs.sh
+
 # install what's needed
 bootstrap:
 	@$(TEAL) "$@"

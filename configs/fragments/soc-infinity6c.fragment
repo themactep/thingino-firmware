@@ -1,0 +1,6 @@
+BR2_arm=y
+# ARMv7-A whatever the part number suggests: the vendor's kernel modules and MI
+# libraries are ARMv7 builds, and the libraries are loaded into our processes.
+BR2_cortex_a7=y
+BR2_ARM_FPU_NEON_VFPV4=y
+BR2_ARM_INSTRUCTIONS_THUMB2=y

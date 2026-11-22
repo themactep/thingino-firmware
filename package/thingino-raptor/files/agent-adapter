@@ -5,6 +5,17 @@ AGENT_CONFIG="${AGENT_CONFIG:-/etc/raptor.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 AGENT_PRIVACY_STATE="${AGENT_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 
+# Per-invocation temp files are keyed by AGENT_TMP_ID (see agent_cache_refresh).
+AGENT_TMP_ID=$$
+
+# The adapter owns the EXIT trap of the agentctl shell that sources it;
+# agentctl chains agent_adapter_exit when it sets its own.
+agent_adapter_exit() {
+	rm -f "/tmp/agent-raptor-isp.$AGENT_TMP_ID" "/tmp/agent-raptor-wb.$AGENT_TMP_ID" \
+		"/tmp/agent-raptor-rvdconfig.$AGENT_TMP_ID"
+}
+trap agent_adapter_exit EXIT
+
 agent_name() {
 	printf 'raptor'
 }
@@ -45,7 +56,60 @@ agent_config_get() {
 	section=$1
 	key=$2
 	command -v raptorctl >/dev/null 2>&1 || return 0
-	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
+	if agent_config_get_cached "$section" "$key"; then
+		return 0
+	fi
+	value=$(raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"')
+	# A single-key get only finds keys set in raptor.conf; the section listing
+	# also carries the defaults the daemons run with.
+	if [ -z "$value" ]; then
+		value=$(raptorctl config get "$section" 2>/dev/null |
+			sed -n "s/^$key = //p" | head -n 1 | tr -d '\r\n"')
+	fi
+	printf '%s' "$value"
+}
+
+AGENT_NL='
+'
+
+agent_config_var() {
+	_var=AGENT_CONF_$1
+	while :; do
+		case "$_var" in
+			*.*) _var="${_var%%.*}_${_var#*.}" ;;
+			*) break ;;
+		esac
+	done
+}
+
+# The section listing holds every effective value, set or default, so one
+# raptorctl call per section serves all of its keys.
+agent_config_preload() {
+	for _section in "$@"; do
+		agent_config_var "$_section"
+		# A failed read stays uncached so its keys fall back to single gets.
+		_listing=$(raptorctl config get "$_section" 2>/dev/null) &&
+			eval "$_var=\$_listing"
+	done
+}
+
+agent_config_get_cached() {
+	agent_config_var "$1"
+	eval "[ -n \"\${$_var+x}\" ]" || return 1
+	eval "_listing=\$$_var"
+	case "$_listing" in
+		*"$AGENT_NL$2 = "*) ;;
+		*) return 1 ;;
+	esac
+	value=${_listing#*"$AGENT_NL$2 = "}
+	value=${value%%"$AGENT_NL"*}
+	while :; do
+		case "$value" in
+			*\"*) value=${value%%\"*}${value#*\"} ;;
+			*) break ;;
+		esac
+	done
+	printf '%s' "$value"
 }
 
 agent_config_bool() {
@@ -82,18 +146,197 @@ agent_config_save() {
 	raptorctl config save >/dev/null 2>&1 || true
 }
 
+# Building agent JSON is slow in busybox sh on a loaded SoC (GET /config
+# 1.5-3 s, /runtime/all about 2 s), and the web UI waits on it. Cached
+# answers live in AGENT_CACHE_DIR (tmpfs). One is served at once while it is
+# newer than raptor.conf and younger than its max age, which bounds how
+# stale a client can see it. Once older than its fresh age it is rebuilt in
+# the background. agentctl drops the caches around every write and moves
+# AGENT_CHANGE_STAMP, and a build that saw the stamp move is not published.
+AGENT_CACHE_DIR=${AGENT_CACHE_DIR:-/tmp/agent-cache}
+AGENT_CHANGE_STAMP=${AGENT_CHANGE_STAMP:-/run/agent/changed}
+
+agent_cache_gen() {
+	cat "$AGENT_CHANGE_STAMP" 2>/dev/null
+}
+
+agent_cache_drop() {
+	rm -f "$AGENT_CACHE_DIR"/*.json
+}
+
+# mkdir is atomic; a lock left by a killed builder expires after 60 s.
+agent_cache_lock() {
+	_acl_dir="$AGENT_CACHE_DIR/$1.lock"
+	mkdir -p "$AGENT_CACHE_DIR" 2>/dev/null
+	mkdir "$_acl_dir" 2>/dev/null && return 0
+	_acl_age=$(($(date +%s) - $(stat -c %Y "$_acl_dir" 2>/dev/null || date +%s)))
+	[ "$_acl_age" -gt 60 ] || return 1
+	rmdir "$_acl_dir" 2>/dev/null
+	mkdir "$_acl_dir" 2>/dev/null
+}
+
+# Wait up to 10 s for another builder to release <name>'s lock.
+agent_cache_wait() {
+	_acw_end=$(($(date +%s) + 10))
+	while [ -d "$AGENT_CACHE_DIR/$1.lock" ]; do
+		[ "$(date +%s)" -lt "$_acw_end" ] || return 1
+		sleep 0.2
+	done
+}
+
+# agent_cache_valid <name> <max-seconds>; sets _acv_age.
+agent_cache_valid() {
+	_acv_f="$AGENT_CACHE_DIR/$1.json"
+	[ -s "$_acv_f" ] && [ "$_acv_f" -nt "$AGENT_CONFIG" ] || return 1
+	_acv_age=$(($(date +%s) - $(stat -c %Y "$_acv_f" 2>/dev/null || echo 0)))
+	[ "$_acv_age" -ge 0 ] && [ "$_acv_age" -lt "$2" ]
+}
+
+# agent_cache_build print|quiet <name> <command...>: build while holding
+# <name>'s lock, publish unless the stamp moved, then release the lock. The
+# command runs in a subshell, so it can't clobber the caller's variables.
+# Returns 1 when the build printed nothing.
+agent_cache_build() {
+	_acb_f="$AGENT_CACHE_DIR/$2.json"
+	_acb_tmp="$_acb_f.$AGENT_TMP_ID"
+	_acb_gen=$(agent_cache_gen)
+	(
+		shift 2
+		"$@"
+	) >"$_acb_tmp" 2>/dev/null
+	_acb_rc=1
+	if [ -s "$_acb_tmp" ]; then
+		_acb_rc=0
+		[ "$1" != print ] || cat "$_acb_tmp"
+	fi
+	if [ "$_acb_rc" = 0 ] && [ "$_acb_gen" = "$(agent_cache_gen)" ]; then
+		mv -f "$_acb_tmp" "$_acb_f"
+	else
+		rm -f "$_acb_tmp"
+	fi
+	rmdir "$AGENT_CACHE_DIR/$2.lock" 2>/dev/null
+	return "$_acb_rc"
+}
+
+# Background refresh, run in a subshell. $$ is still the parent's PID there,
+# and the parent's EXIT trap may already have run, so the refresher builds
+# under its own temp-file ID and removes those files itself.
+agent_cache_refresh() {
+	AGENT_TMP_ID="$$.bg"
+	agent_cache_build quiet "$@"
+	agent_adapter_exit
+}
+
+# agent_cached <name> <fresh-seconds> <max-seconds> <command...>
+agent_cached() {
+	_ac_name=$1
+	_ac_fresh=$2
+	_ac_max=$3
+	shift 3
+	# cat fails if a write dropped the file after the check; rebuild then.
+	if agent_cache_valid "$_ac_name" "$_ac_max" &&
+		cat "$AGENT_CACHE_DIR/$_ac_name.json" 2>/dev/null; then
+		if [ "$_acv_age" -ge "$_ac_fresh" ] && agent_cache_lock "$_ac_name"; then
+			# Detached: the refresher must not hold the listener's output pipe.
+			(agent_cache_refresh "$_ac_name" "$@") </dev/null >/dev/null 2>&1 &
+		fi
+		return 0
+	fi
+	if agent_cache_lock "$_ac_name"; then
+		agent_cache_build print "$_ac_name" "$@" && return 0
+	elif agent_cache_wait "$_ac_name" && agent_cache_valid "$_ac_name" "$_ac_max" &&
+		cat "$AGENT_CACHE_DIR/$_ac_name.json" 2>/dev/null; then
+		# Another request was building it; share its answer.
+		return 0
+	fi
+	"$@"
+}
+
 agent_ctl() {
 	command -v raptorctl >/dev/null 2>&1 || {
 		echo "raptorctl is not available" >&2
 		return 1
 	}
-	raptorctl "$@"
+	# raptorctl exits 0 whenever the daemon replies, so an error reply has
+	# to be caught here.
+	_ctl_reply=$(raptorctl "$@") || return 1
+	printf '%s\n' "$_ctl_reply"
+	case "$_ctl_reply" in
+		*'"status":"error"'*)
+			echo "raptorctl $1 $2: $_ctl_reply" >&2
+			return 1
+			;;
+	esac
+}
+
+# Sinter/temper strength exist only on T20-T31; the HAL reports them as not
+# supported on later SoCs.
+agent_has_nr() {
+	[ -n "$AGENT_SOC_FAMILY" ] || AGENT_SOC_FAMILY=$(soc -f 2>/dev/null)
+	case "$AGENT_SOC_FAMILY" in
+		t20 | t21 | t23 | t30 | t31) return 0 ;;
+	esac
+	return 1
+}
+
+# rvd applies 128 when raptor.conf leaves sinter/temper unset.
+agent_image_nr() {
+	agent_has_nr || return 0
+	_nr=$(agent_config_get image "$1")
+	printf '%s' "${_nr:-128}"
 }
 
 agent_daemon_status() {
 	daemon=$1
+	if [ "$daemon" = rmr ] && [ -n "${AGENT_MEMO_RMR_STATUS+x}" ]; then
+		printf '%s\n' "$AGENT_MEMO_RMR_STATUS"
+		return 0
+	fi
 	command -v raptorctl >/dev/null 2>&1 || return 0
 	raptorctl "$daemon" status 2>/dev/null || true
+}
+
+agent_exposure_status() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl rvd get-exposure 2>/dev/null || true
+}
+
+# log2 of a positive integer, in 1/256 steps
+agent_log2_q8() {
+	x=$1
+	n=0
+	while [ "$x" -ge 2 ]; do
+		x=$((x / 2))
+		n=$((n + 1))
+	done
+	m=$(($1 * 65536 >> n))
+	f=0
+	i=0
+	while [ "$i" -lt 8 ]; do
+		m=$((m * m / 65536))
+		if [ "$m" -ge 131072 ]; then
+			m=$((m / 2))
+			f=$((f * 2 + 1))
+		else
+			f=$((f * 2))
+		fi
+		i=$((i + 1))
+	done
+	printf '%s' $((n * 256 + f))
+}
+
+# Scene brightness in percent from exposure time x gain on a log scale:
+# 100 us at 1x is 100 %, 25 s at 1x (log2 = 6291/256) is 0 %.
+agent_exposure_brightness() {
+	us=$(agent_json_number_field exposure_us "$1")
+	gain=$(agent_json_number_field total_gain "$1")
+	[ -n "$us" ] && [ -n "$gain" ] || return 0
+	e=$((us * gain / 256))
+	[ "$e" -ge 1 ] || e=1
+	pct=$((((6291 - $(agent_log2_q8 "$e")) * 100 + 2295) / 4590))
+	[ "$pct" -ge 0 ] || pct=0
+	[ "$pct" -le 100 ] || pct=100
+	printf '%s' "$pct"
 }
 
 agent_streamer_running() {
@@ -101,6 +344,10 @@ agent_streamer_running() {
 }
 
 agent_network_ip() {
+	if [ -n "${AGENT_MEMO_IP+x}" ]; then
+		printf '%s' "$AGENT_MEMO_IP"
+		return 0
+	fi
 	agent_default_ip
 }
 
@@ -255,12 +502,21 @@ agent_print_firmware_capabilities() {
 
 agent_print_runtime_firmware() {
 	printf '{'
-	printf '"upgrade_supported":%s,' "$(agent_json_bool "$(agent_firmware_upgrade_supported)")"
-	printf '"pending_full":%s,' "$(agent_json_bool "$(agent_firmware_pending_full)")"
-	printf '"pending_partial":%s,' "$(agent_json_bool "$(agent_firmware_pending_partial)")"
-	printf '"pending_action":%s,' "$(agent_json_string "$(agent_firmware_pending_action)")"
+	printf '"upgrade_supported":'
+	agent_json_bool "$(agent_firmware_upgrade_supported)"
+	printf ','
+	printf '"pending_full":'
+	agent_json_bool "$(agent_firmware_pending_full)"
+	printf ','
+	printf '"pending_partial":'
+	agent_json_bool "$(agent_firmware_pending_partial)"
+	printf ','
+	printf '"pending_action":'
+	agent_json_string "$(agent_firmware_pending_action)"
+	printf ','
 	printf '"boot_marked_complete":%s,' "$(agent_firmware_boot_marked_complete)"
-	printf '"current_version":%s' "$(agent_json_string_or_null "$(agent_firmware_version)")"
+	printf '"current_version":'
+	agent_json_string_or_null "$(agent_firmware_version)"
 	printf '}'
 }
 
@@ -292,7 +548,7 @@ agent_json_bool_to_01() {
 agent_isp_json() {
 	# Cache one get-isp call per adapter invocation when possible via a temp file
 	# keyed by PID; callers that need multiple fields reuse it.
-	_isp_cache="/tmp/agent-raptor-isp.$$"
+	_isp_cache="/tmp/agent-raptor-isp.$AGENT_TMP_ID"
 	if [ ! -s "$_isp_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 0
 		raptorctl rvd get-isp >"$_isp_cache" 2>/dev/null || {
@@ -359,7 +615,7 @@ agent_wb_mode_from_int() {
 }
 
 agent_wb_json() {
-	_wb_cache="/tmp/agent-raptor-wb.$$"
+	_wb_cache="/tmp/agent-raptor-wb.$AGENT_TMP_ID"
 	if [ ! -s "$_wb_cache" ]; then
 		command -v raptorctl >/dev/null 2>&1 || return 0
 		raptorctl rvd get-wb >"$_wb_cache" 2>/dev/null || {
@@ -392,7 +648,7 @@ agent_wb_mode_raw() {
 }
 
 agent_wb_gain_raw() {
-	# $1 = r|b — prefer live get-wb, then ISP, then persisted image.wb_{r,b}
+	# $1 = r|b - prefer live get-wb, then ISP, then persisted image.wb_{r,b}
 	channel=$1
 	wb=$(agent_wb_json)
 	if [ -n "$wb" ]; then
@@ -446,6 +702,24 @@ agent_profile_to_name() {
 
 agent_motion_enabled() {
 	agent_config_bool motion enabled false
+}
+
+# A running rmd answers config reads itself and keeps detecting, so it is
+# stopped before false is written and started after true is written.
+agent_motion_set_enabled() {
+	if [ "$1" = false ]; then
+		agent_ctl rmd stop >/dev/null 2>&1
+	fi
+	if ! agent_config_set motion enabled "$1"; then
+		# Put detection back if the write failed after stopping rmd.
+		[ "$1" = false ] && agent_ctl rmd start >/dev/null 2>&1
+		return 1
+	fi
+	agent_config_save
+	if [ "$1" = true ]; then
+		agent_ctl rmd start >/dev/null 2>&1 || return 1
+	fi
+	return 0
 }
 
 agent_motion_active() {
@@ -618,6 +892,123 @@ agent_privacy_enabled() {
 	printf 'false'
 }
 
+agent_runtime_stream_json() {
+	_rvd_cache="/tmp/agent-raptor-rvdconfig.$AGENT_TMP_ID"
+	if [ ! -e "$_rvd_cache" ]; then
+		command -v raptorctl >/dev/null 2>&1 || return 1
+		raptorctl rvd config 2>/dev/null |
+			sed -n '/"streams"[[:space:]]*:/,$p' >"$_rvd_cache"
+	fi
+	[ -s "$_rvd_cache" ] || return 1
+	cat "$_rvd_cache" 2>/dev/null
+}
+
+agent_runtime_stream_field() {
+	json=$(agent_runtime_stream_json) || return 0
+	[ -n "$json" ] || return 0
+	printf '%s' "$json" | tr -d '\n' |
+		awk -v chn="$1" -v field="$2" '
+		{
+			if (chn !~ /^[0-9]+$/ || field !~ /^[A-Za-z_][A-Za-z_0-9]*$/) exit
+			line = $0
+			pat = "\"chn\""
+			plen = length(pat)
+			while ((pos = index(line, pat)) > 0) {
+				p = pos + plen
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				if (substr(line, p, 1) != ":") {
+					line = substr(line, pos + plen)
+					continue
+				}
+				p++
+				while (substr(line, p, 1) == " " || substr(line, p, 1) == "\t") p++
+				id = ""
+				while (substr(line, p, 1) ~ /[0-9]/) {
+					id = id substr(line, p, 1)
+					p++
+				}
+				if (id == "" || id + 0 != chn + 0) {
+					line = substr(line, pos + plen)
+					continue
+				}
+				obr = 0
+				for (i = pos; i > 0; i--) {
+					if (substr(line, i, 1) == "{") {
+						obr = i
+						break
+					}
+				}
+				obj = ""
+				if (obr > 0) {
+					depth = 0
+					for (i = obr; i <= length(line); i++) {
+						c = substr(line, i, 1)
+						if (c == "{") {
+							depth++
+						} else if (c == "}") {
+							depth--
+							if (depth == 0) {
+								obj = substr(line, obr, i - obr + 1)
+								break
+							}
+						}
+					}
+				}
+				obj_rest_offset = 1
+				while (match(substr(obj, obj_rest_offset), "\"" field "\"[ \t]*:[ \t]*-?[0-9]+")) {
+					# top-level fields only: match must sit at brace depth 1
+					mstart = obj_rest_offset + RSTART - 1
+					depth = 0
+					for (j = 1; j < mstart; j++) {
+						c = substr(obj, j, 1)
+						if (c == "{") depth++
+						else if (c == "}") depth--
+					}
+					if (depth == 1) {
+						value = substr(obj, mstart, RLENGTH)
+						sub(/^.*:[ \t]*/, "", value)
+						print value
+						exit
+					}
+					obj_rest_offset = mstart + RLENGTH
+				}
+				line = substr(line, pos + plen)
+			}
+			exit
+		}'
+}
+
+agent_runtime_codec_name() {
+	codec=$(agent_runtime_stream_field "$1" codec)
+	case "$codec" in
+		0) printf 'H264' ;;
+		1) printf 'H265' ;;
+		2) printf 'JPEG' ;;
+		3) printf 'MJPEG' ;;
+	esac
+}
+
+agent_runtime_rc_mode_name() {
+	rc=$(agent_runtime_stream_field "$1" rc_mode)
+	case "$rc" in
+		0) printf 'FIXQP' ;;
+		1) printf 'CBR' ;;
+		2) printf 'VBR' ;;
+		3) printf 'SMART' ;;
+		4) printf 'CAPPED_VBR' ;;
+		5) printf 'CAPPED_QUALITY' ;;
+	esac
+}
+
+agent_runtime_profile_name() {
+	profile=$(agent_runtime_stream_field "$1" profile)
+	case "$profile" in
+		0) printf 'baseline' ;;
+		1) printf 'main' ;;
+		2) printf 'high' ;;
+	esac
+}
+
 agent_stream_section() {
 	printf 'stream%s' "$1"
 }
@@ -639,6 +1030,25 @@ agent_stream_field() {
 	stream_id=$1
 	field=$2
 	agent_config_get "$(agent_stream_section "$stream_id")" "$field"
+}
+
+agent_stream_nr_vbs() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	value=$(agent_stream_field "$1" nr_vbs)
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	value=$(agent_runtime_stream_field "$1" nr_vbs)
+	case "$value" in
+		[1-9]*)
+			printf '%s' "$value"
+			return 0
+			;;
+	esac
+	printf '2'
 }
 
 agent_stream_format() {
@@ -712,6 +1122,10 @@ agent_stream_rtsp_url() {
 }
 
 agent_rtsp_listening() {
+	if [ -n "${AGENT_MEMO_RTSP_UP+x}" ]; then
+		printf '%s' "$AGENT_MEMO_RTSP_UP"
+		return 0
+	fi
 	port=$(agent_rtsp_port)
 	if command -v netstat >/dev/null 2>&1; then
 		netstat -lnt 2>/dev/null | grep -q ":${port} " && printf 'true' && return 0
@@ -762,6 +1176,10 @@ agent_stream_healthy() {
 }
 
 agent_storage_path() {
+	if [ -n "${AGENT_MEMO_STORAGE_PATH+x}" ]; then
+		printf '%s' "$AGENT_MEMO_STORAGE_PATH"
+		return 0
+	fi
 	path=$(agent_config_get recording storage_path)
 	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
 	printf '%s' "$path"
@@ -780,6 +1198,10 @@ agent_storage_mount() {
 }
 
 agent_storage_is_mounted() {
+	if [ -n "${AGENT_MEMO_MOUNTED+x}" ]; then
+		printf '%s' "$AGENT_MEMO_MOUNTED"
+		return 0
+	fi
 	mount_point=$(agent_storage_mount)
 	[ -n "$mount_point" ] || {
 		printf 'false'
@@ -814,14 +1236,29 @@ agent_print_runtime_storage() {
 		fi
 	fi
 	printf '{'
-	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$mount_point")"
-	printf '"mounted":%s,' "$(agent_json_bool "$mounted")"
-	printf '"filesystem":%s,' "$(agent_json_string_or_null "$filesystem")"
-	printf '"record_root":%s,' "$(agent_json_string_or_null "$record_root")"
-	printf '"writable":%s,' "$(agent_json_bool "$writable")"
-	printf '"total_kib":%s,' "$(agent_json_value_or "$total_kib" null)"
-	printf '"used_kib":%s,' "$(agent_json_value_or "$used_kib" null)"
-	printf '"available_kib":%s' "$(agent_json_value_or "$available_kib" null)"
+	printf '"configured_mount":'
+	agent_json_string_or_null "$mount_point"
+	printf ','
+	printf '"mounted":'
+	agent_json_bool "$mounted"
+	printf ','
+	printf '"filesystem":'
+	agent_json_string_or_null "$filesystem"
+	printf ','
+	printf '"record_root":'
+	agent_json_string_or_null "$record_root"
+	printf ','
+	printf '"writable":'
+	agent_json_bool "$writable"
+	printf ','
+	printf '"total_kib":'
+	agent_json_value_or "$total_kib" null
+	printf ','
+	printf '"used_kib":'
+	agent_json_value_or "$used_kib" null
+	printf ','
+	printf '"available_kib":'
+	agent_json_value_or "$available_kib" null
 	printf '}'
 }
 
@@ -838,17 +1275,25 @@ agent_print_runtime_recording() {
 	[ "$active" = true ] && current_channel=$(agent_record_channel)
 	printf '{'
 	printf '"supported":%s,' "$supported"
-	printf '"active":%s,' "$(agent_json_bool "$active")"
+	printf '"active":'
+	agent_json_bool "$active"
+	printf ','
 	printf '"configured_autostart":%s,' "$configured_autostart"
 	printf '"configured_channel":%s,' "$configured_channel"
 	printf '"configured_duration_seconds":%s,' "$configured_duration"
-	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$configured_mount")"
-	printf '"record_root":%s,' "$(agent_json_string_or_null "$record_root")"
+	printf '"configured_mount":'
+	agent_json_string_or_null "$configured_mount"
+	printf ','
+	printf '"record_root":'
+	agent_json_string_or_null "$record_root"
+	printf ','
 	printf '"writable":%s,' "$storage_writable"
 	printf '"current_channel":%s,' "$current_channel"
 	printf '"current_duration_seconds":null,'
 	printf '"current_path":null,'
-	printf '"current_mount":%s,' "$(agent_json_string_or_null "$configured_mount")"
+	printf '"current_mount":'
+	agent_json_string_or_null "$configured_mount"
+	printf ','
 	printf '"current_directory":null,'
 	printf '"current_name_template":null,'
 	printf '"loop":null'
@@ -861,21 +1306,63 @@ agent_print_stream_config() {
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$(agent_stream_enabled "$stream_id")"
 	printf '"audio_enabled":%s,' "$(agent_stream_audio_enabled)"
-	printf '"width":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"gop":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
-	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+	_width=$(agent_stream_field "$stream_id" width)
+	[ -n "$_width" ] || _width=$(agent_runtime_stream_field "$stream_id" w)
+	printf '"width":'
+	agent_json_value_or "$_width" null
+	printf ','
+	_height=$(agent_stream_field "$stream_id" height)
+	[ -n "$_height" ] || _height=$(agent_runtime_stream_field "$stream_id" h)
+	printf '"height":'
+	agent_json_value_or "$_height" null
+	printf ','
+	_fps=$(agent_stream_field "$stream_id" fps)
+	[ -n "$_fps" ] || _fps=$(agent_runtime_stream_field "$stream_id" fps)
+	printf '"fps":'
+	agent_json_value_or "$_fps" null
+	printf ','
+	_bitrate=$(agent_stream_field "$stream_id" bitrate)
+	[ -n "$_bitrate" ] || _bitrate=$(agent_runtime_stream_field "$stream_id" bitrate)
+	printf '"bitrate":'
+	agent_json_value_or "$_bitrate" null
+	printf ','
+	_gop=$(agent_stream_field "$stream_id" gop)
+	[ -n "$_gop" ] || _gop=$(agent_runtime_stream_field "$stream_id" gop)
+	printf '"gop":'
+	agent_json_value_or "$_gop" null
+	printf ','
+	printf '"buffers":'
+	agent_json_value_or "$(agent_stream_nr_vbs "$stream_id")" null
+	printf ','
 	_profile_raw=$(agent_stream_field "$stream_id" profile)
+	_profile_name=""
 	if [ -n "$_profile_raw" ]; then
-		printf '"profile":%s,' "$(agent_json_string "$(agent_profile_to_name "$_profile_raw")")"
+		_profile_name=$(agent_profile_to_name "$_profile_raw")
+	elif _profile_name=$(agent_runtime_profile_name "$stream_id") && [ -n "$_profile_name" ]; then
+		:
+	else
+		_profile_name=""
+	fi
+	if [ -n "$_profile_name" ]; then
+		printf '"profile":'
+		agent_json_string "$_profile_name"
+		printf ','
 	else
 		printf '"profile":null,'
 	fi
-	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")")"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_format "$stream_id")")"
-	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_mode "$stream_id")")"
+	printf '"rtsp_endpoint":'
+	agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")"
+	printf ','
+	_format=$(agent_stream_format "$stream_id")
+	[ -n "$_format" ] || _format=$(agent_runtime_codec_name "$stream_id")
+	printf '"format":'
+	agent_json_string_or_null "$_format"
+	printf ','
+	_mode=$(agent_stream_mode "$stream_id")
+	[ -n "$_mode" ] || _mode=$(agent_runtime_rc_mode_name "$stream_id")
+	printf '"mode":'
+	agent_json_string_or_null "$_mode"
+	printf ','
 	printf '"osd":'
 	agent_print_stream_osd "$stream_id"
 	printf '}'
@@ -887,38 +1374,65 @@ agent_print_stream_osd() {
 	stream_id=$1
 	printf '{'
 	printf '"enabled":%s,' "$(agent_config_bool "$(agent_stream_section "$stream_id")" osd_enabled true)"
-	printf '"font_path":%s,' "$(agent_json_string_or_null "$(agent_config_get osd font)")"
-	printf '"font_size":%s,' "$(agent_json_value_or "$(agent_config_get osd font_size)" null)"
-	printf '"stroke_size":%s,' "$(agent_json_value_or "$(agent_config_get osd font_stroke)" null)"
+	printf '"font_path":'
+	agent_json_string_or_null "$(agent_config_get osd font)"
+	printf ','
+	printf '"font_size":'
+	agent_json_value_or "$(agent_config_get osd font_size)" null
+	printf ','
+	printf '"stroke_size":'
+	agent_json_value_or "$(agent_config_get osd font_stroke)" null
+	printf ','
 	printf '"logo":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.logo visible false)"
-	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.logo position)")"
-	printf '"path":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.logo path)")"
-	printf '"width":%s,' "$(agent_json_value_or "$(agent_config_get osd.logo width)" null)"
-	printf '"height":%s' "$(agent_json_value_or "$(agent_config_get osd.logo height)" null)"
+	printf '"position":'
+	agent_json_string_or_null "$(agent_config_get osd.logo position)"
+	printf ','
+	printf '"path":'
+	agent_json_string_or_null "$(agent_config_get osd.logo path)"
+	printf ','
+	printf '"width":'
+	agent_json_value_or "$(agent_config_get osd.logo width)" null
+	printf ','
+	printf '"height":'
+	agent_json_value_or "$(agent_config_get osd.logo height)" null
 	printf '},'
 	printf '"time":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.timestamp visible false)"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_config_get osd time_format)")"
-	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.timestamp position)")"
+	printf '"format":'
+	agent_json_string_or_null "$(agent_config_get osd time_format)"
+	printf ','
+	printf '"position":'
+	agent_json_string_or_null "$(agent_config_get osd.timestamp position)"
+	printf ','
 	_fill=$(agent_config_get osd font_color)
 	_stroke=$(agent_config_get osd stroke_color)
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	_fill=$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")
+	_stroke=$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '},'
 	printf '"uptime":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.uptime visible false)"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.uptime template)")"
-	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.uptime position)")"
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"format":'
+	agent_json_string_or_null "$(agent_config_get osd.uptime template)"
+	printf ','
+	printf '"position":'
+	agent_json_string_or_null "$(agent_config_get osd.uptime position)"
+	printf ','
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '},'
 	printf '"usertext":{'
 	printf '"enabled":%s,' "$(agent_config_bool osd.camera visible false)"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.camera template)")"
-	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_config_get osd.camera position)")"
-	printf '"fill_color":%s,' "$(agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"format":'
+	agent_json_string_or_null "$(agent_config_get osd.camera template)"
+	printf ','
+	printf '"position":'
+	agent_json_string_or_null "$(agent_config_get osd.camera position)"
+	printf ','
+	printf '"fill_color":%s,' "$_fill"
+	printf '"stroke_color":%s' "$_stroke"
 	printf '}'
 	printf '}'
 }
@@ -933,41 +1447,86 @@ agent_print_stream_runtime() {
 	printf '"enabled":%s,' "$enabled"
 	printf '"video_enabled":%s,' "$enabled"
 	printf '"audio_enabled":%s,' "$(agent_stream_audio_enabled)"
-	printf '"width":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_format "$stream_id")")"
-	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_mode "$stream_id")")"
-	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")")"
-	printf '"rtsp_name":%s,' "$(agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")")"
-	printf '"rtsp_url":%s,' "$(agent_json_string_or_null "$(agent_stream_rtsp_url "$stream_id")")"
-	printf '"rtsp_listener_up":%s,' "$(agent_json_bool "$rtsp_listener_up")"
-	printf '"recording_active":%s,' "$(agent_json_bool "$(agent_stream_recording_active "$stream_id")")"
-	printf '"healthy":%s' "$(agent_json_bool "$healthy")"
+	printf '"width":'
+	agent_json_value_or "$(agent_stream_field "$stream_id" width)" null
+	printf ','
+	printf '"height":'
+	agent_json_value_or "$(agent_stream_field "$stream_id" height)" null
+	printf ','
+	printf '"fps":'
+	agent_json_value_or "$(agent_stream_field "$stream_id" fps)" null
+	printf ','
+	printf '"bitrate":'
+	agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null
+	printf ','
+	printf '"format":'
+	agent_json_string_or_null "$(agent_stream_format "$stream_id")"
+	printf ','
+	printf '"mode":'
+	agent_json_string_or_null "$(agent_stream_mode "$stream_id")"
+	printf ','
+	printf '"rtsp_endpoint":'
+	agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")"
+	printf ','
+	printf '"rtsp_name":'
+	agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")"
+	printf ','
+	printf '"rtsp_url":'
+	agent_json_string_or_null "$(agent_stream_rtsp_url "$stream_id")"
+	printf ','
+	printf '"rtsp_listener_up":'
+	agent_json_bool "$rtsp_listener_up"
+	printf ','
+	printf '"recording_active":'
+	agent_json_bool "$(agent_stream_recording_active "$stream_id")"
+	printf ','
+	printf '"healthy":'
+	agent_json_bool "$healthy"
 	printf '}'
 }
 
 agent_print_runtime_system() {
+	# /proc/loadavg and /proc/meminfo read with builtins: the per-field
+	# awk helpers forked seven times for these eight numbers.
+	_la1='' _la5='' _la15=''
+	read -r _la1 _la5 _la15 _ </proc/loadavg 2>/dev/null
+	_mt='' _mf='' _ma='' _mb='' _mc=''
+	while read -r _k _v _; do
+		case "$_k" in
+			MemTotal:) _mt=$_v ;;
+			MemFree:) _mf=$_v ;;
+			MemAvailable:) _ma=$_v ;;
+			Buffers:) _mb=$_v ;;
+			Cached:) _mc=$_v ;;
+		esac
+	done </proc/meminfo 2>/dev/null
+	[ -n "$_ma" ] || _ma=$((${_mf:-0} + ${_mb:-0} + ${_mc:-0}))
+	_mu=$((${_mt:-0} - _ma))
+	[ "$_mu" -lt 0 ] && _mu=0
 	printf '{'
 	printf '"uptime_seconds":%s,' "$(agent_uptime_seconds)"
-	printf '"hostname":%s,' "$(agent_json_string "$(agent_hostname)")"
+	printf '"hostname":'
+	agent_json_string "$(agent_hostname)"
+	printf ','
 	printf '"streamer_running":%s,' "$(agent_streamer_running)"
-	printf '"load_average_1m":%s,' "$(agent_json_value_or "$(agent_loadavg_field 1)" null)"
-	printf '"load_average_5m":%s,' "$(agent_json_value_or "$(agent_loadavg_field 2)" null)"
-	printf '"load_average_15m":%s,' "$(agent_json_value_or "$(agent_loadavg_field 3)" null)"
-	printf '"memory_total_kib":%s,' "$(agent_json_value_or "$(agent_meminfo_kib MemTotal)" null)"
-	printf '"memory_free_kib":%s,' "$(agent_json_value_or "$(agent_meminfo_kib MemFree)" null)"
-	printf '"memory_available_kib":%s,' "$(agent_json_value_or "$(agent_mem_available_kib)" null)"
-	printf '"memory_used_kib":%s' "$(agent_json_value_or "$(agent_mem_used_kib)" null)"
+	printf '"load_average_1m":%s,' "${_la1:-null}"
+	printf '"load_average_5m":%s,' "${_la5:-null}"
+	printf '"load_average_15m":%s,' "${_la15:-null}"
+	printf '"memory_total_kib":%s,' "${_mt:-null}"
+	printf '"memory_free_kib":%s,' "${_mf:-null}"
+	printf '"memory_available_kib":%s,' "$_ma"
+	printf '"memory_used_kib":%s' "$_mu"
 	printf '}'
 }
 
 agent_print_runtime_network() {
 	ip_addr=$(agent_network_ip)
 	printf '{'
-	printf '"ip":%s,' "$(agent_json_string_or_null "$ip_addr")"
-	printf '"online":%s' "$(agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)")"
+	printf '"ip":'
+	agent_json_string_or_null "$ip_addr"
+	printf ','
+	printf '"online":'
+	agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)"
 	printf '}'
 }
 
@@ -1133,16 +1692,17 @@ agent_get_events() {
 			keepalive_counter=0
 		elif [ "$keepalive_counter" -ge 3 ]; then
 			agent_sse_emit keepalive "$(agent_sse_payload keepalive '')" || exit 0
-			# Sensor sample for timegraph / tooling (ric exposure metrics).
-			ric_status=$(agent_daemon_status ric)
-			ae_luma=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
-			ev=$(agent_json_number_field ev "$ric_status")
+			# Sensor sample for timegraph / tooling.
+			exposure_status=$(agent_exposure_status)
+			ae_luma=$(agent_json_number_field ae_luma "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
+			ev=$(agent_json_number_field ev "$exposure_status")
+			brightness=$(agent_exposure_brightness "$exposure_status")
 			daynight_mode=$(agent_daynight_running_mode)
 			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":%s,"daynight_mode":%s' \
 				"$(date +%s)" \
 				"$(agent_json_value_or "$ae_luma" null)" \
-				"$(agent_json_value_or "$ae_luma" null)" \
+				"$(agent_json_value_or "$brightness" null)" \
 				"$(agent_json_value_or "$total_gain" null)" \
 				"$(agent_json_value_or "$ev" null)" \
 				"$(agent_json_string "$daynight_mode")")
@@ -1232,9 +1792,27 @@ agent_get_capabilities() {
 }
 
 agent_get_runtime() {
+	case "${1:-all}" in
+		all) agent_cached runtime-all 5 30 agent_get_runtime_live all ;;
+		*) agent_get_runtime_live "$@" ;;
+	esac
+}
+
+agent_get_runtime_live() {
 	resource=${1:-all}
 	case "$resource" in
 		all)
+			# One raptorctl listing per section serves every key the builders
+			# read. Values several fields share (storage path and mount,
+			# recorder status, IP address, RTSP listener) are looked up once
+			# per build and served from these AGENT_MEMO_* variables, which
+			# subshells inherit.
+			agent_config_preload recording stream0 stream1 rtsp ircut audio motion
+			AGENT_MEMO_STORAGE_PATH=$(agent_storage_path)
+			AGENT_MEMO_RMR_STATUS=$(agent_daemon_status rmr)
+			AGENT_MEMO_MOUNTED=$(agent_storage_is_mounted)
+			AGENT_MEMO_IP=$(agent_network_ip)
+			AGENT_MEMO_RTSP_UP=$(agent_rtsp_listening)
 			printf '{'
 			printf '"system":%s,' "$(agent_print_runtime_system)"
 			printf '"network":%s,' "$(agent_print_runtime_network)"
@@ -1255,6 +1833,8 @@ agent_get_runtime() {
 			agent_print_stream_runtime 1
 			printf ']'
 			printf '}\n'
+			unset AGENT_MEMO_STORAGE_PATH AGENT_MEMO_RMR_STATUS AGENT_MEMO_MOUNTED \
+				AGENT_MEMO_IP AGENT_MEMO_RTSP_UP
 			;;
 		system)
 			agent_print_runtime_system
@@ -1312,11 +1892,20 @@ agent_get_runtime() {
 				"$stream1_enabled" \
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
+		exposure)
+			# The two exposure figures the web UI heartbeat needs, from one
+			# raptorctl call, without building the whole heartbeat for them.
+			exposure_status=$(agent_exposure_status)
+			daynight_brightness=$(agent_exposure_brightness "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
+			printf '{"daynight_brightness":%s,"total_gain":%s}\n' \
+				"${daynight_brightness:-null}" "${total_gain:-null}"
+			;;
 		heartbeat)
-			ric_status=$(agent_daemon_status ric)
+			exposure_status=$(agent_exposure_status)
 			daynight_mode=$(agent_daynight_running_mode)
-			daynight_brightness=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
+			daynight_brightness=$(agent_exposure_brightness "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
 			case "$daynight_mode" in
 				day) color_mode=0 ;;
 				night) color_mode=1 ;;
@@ -1343,6 +1932,16 @@ agent_get_runtime() {
 			printf '"wg_status":%s' "$(agent_heartbeat_wg_status)"
 			printf '}\n'
 			;;
+		encoder)
+			caps=$(agent_ctl rvd get-enc-caps 2>/dev/null)
+			case "$caps" in
+				*'"status":"ok"'*) printf '%s\n' "$caps" ;;
+				*)
+					echo "encoder capabilities unavailable" >&2
+					return 1
+					;;
+			esac
+			;;
 		*)
 			echo "unsupported runtime resource: $resource" >&2
 			return 1
@@ -1351,17 +1950,52 @@ agent_get_runtime() {
 }
 
 agent_get_config() {
+	agent_cached config 10 60 agent_get_config_live
+}
+
+agent_get_config_live() {
+	command -v raptorctl >/dev/null 2>&1 &&
+		agent_config_preload image sensor motion ircut recording audio rtsp \
+			stream0 stream1 osd osd.logo osd.timestamp osd.uptime osd.camera
+	agent_print_config
+}
+
+agent_print_config() {
 	printf '{'
 	printf '"image":{'
-	printf '"brightness":%s,' "$(agent_json_value_or "$(agent_image_raw brightness)" null)"
-	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_image_raw contrast)" null)"
-	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_image_raw saturation)" null)"
-	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
-	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
-	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_image_raw ae_comp)" null)"
-	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null)"
-	printf '"wb_rgain":%s,' "$(agent_json_value_or "$(agent_wb_gain_raw r)" null)"
-	printf '"wb_bgain":%s,' "$(agent_json_value_or "$(agent_wb_gain_raw b)" null)"
+	printf '"brightness":'
+	agent_json_value_or "$(agent_image_raw brightness)" null
+	printf ','
+	printf '"contrast":'
+	agent_json_value_or "$(agent_image_raw contrast)" null
+	printf ','
+	printf '"saturation":'
+	agent_json_value_or "$(agent_image_raw saturation)" null
+	printf ','
+	printf '"sharpness":'
+	agent_json_value_or "$(agent_image_raw sharpness)" null
+	printf ','
+	printf '"noise_reduction":'
+	agent_json_value_or "$(agent_image_nr sinter)" null
+	printf ','
+	printf '"temporal_noise_reduction":'
+	agent_json_value_or "$(agent_image_nr temper)" null
+	printf ','
+	printf '"anti_flicker":'
+	agent_json_value_or "$(agent_config_get sensor antiflicker)" null
+	printf ','
+	printf '"ae_compensation":'
+	agent_json_value_or "$(agent_image_raw ae_comp)" null
+	printf ','
+	printf '"core_wb_mode":'
+	agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null
+	printf ','
+	printf '"wb_rgain":'
+	agent_json_value_or "$(agent_wb_gain_raw r)" null
+	printf ','
+	printf '"wb_bgain":'
+	agent_json_value_or "$(agent_wb_gain_raw b)" null
+	printf ','
 	printf '"hflip":%s,' "$(agent_image_bool hflip)"
 	printf '"vflip":%s' "$(agent_image_bool vflip)"
 	printf '},'
@@ -1371,11 +2005,18 @@ agent_get_config() {
 	printf '"privacy":{"enabled":%s,"channel":"all"},' "$(agent_privacy_enabled)"
 	printf '"storage":{'
 	printf '"autostart":%s,' "$(agent_config_bool recording enabled false)"
-	printf '"channel":%s,' "$(agent_json_value_or "$(agent_config_get recording stream)" null)"
-	printf '"device_path":%s,' "$(agent_json_string_or_null "$(agent_storage_path)")"
-	printf '"duration":%s,' "$(agent_json_value_or "$(agent_config_get recording clip_length_sec)" null)"
+	printf '"channel":'
+	agent_json_value_or "$(agent_config_get recording stream)" null
+	printf ','
+	printf '"device_path":'
+	agent_json_string_or_null "$(agent_storage_path)"
+	printf ','
+	printf '"duration":'
+	agent_json_value_or "$(agent_config_get recording clip_length_sec)" null
+	printf ','
 	printf '"filename":null,'
-	printf '"mount":%s' "$(agent_json_string_or_null "$(agent_storage_mount)")"
+	printf '"mount":'
+	agent_json_string_or_null "$(agent_storage_mount)"
 	printf '},'
 	printf '"streams":['
 	agent_print_stream_config 0
@@ -1383,7 +2024,8 @@ agent_get_config() {
 	agent_print_stream_config 1
 	printf '],'
 	printf '"backend":{"name":"raptor","raw":{'
-	printf '"config_path":%s' "$(agent_json_string "$AGENT_CONFIG")"
+	printf '"config_path":'
+	agent_json_string "$AGENT_CONFIG"
 	printf '}}'
 	printf '}\n'
 }
@@ -1489,7 +2131,7 @@ agent_send2_motion_set() {
 
 # Map canonical OSD leaf paths onto raptor's global [osd] / [osd.<element>] model.
 # Raptor OSD is mostly global; streamN only owns osd_enabled. Stream-scoped agent
-# paths still work — both streams read/write the same global element config.
+# paths still work: both streams read/write the same global element config.
 agent_osd_element_name() {
 	case "$1" in
 		time) printf 'timestamp' ;;
@@ -1511,16 +2153,19 @@ agent_osd_spec() {
 		time/enabled) printf 'osd.timestamp|visible|enabled|bool|element:timestamp\n' ;;
 		time/format) printf 'osd|time_format|format|text|time_format\n' ;;
 		time/position) printf 'osd.timestamp|position|position|text|element:timestamp\n' ;;
+		time/max-chars) printf 'osd.timestamp|max_chars|max_chars|int|element:timestamp\n' ;;
 		time/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		time/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		uptime/enabled) printf 'osd.uptime|visible|enabled|bool|element:uptime\n' ;;
 		uptime/format) printf 'osd.uptime|template|format|text|element:uptime\n' ;;
 		uptime/position) printf 'osd.uptime|position|position|text|element:uptime\n' ;;
+		uptime/max-chars) printf 'osd.uptime|max_chars|max_chars|int|element:uptime\n' ;;
 		uptime/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		uptime/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		usertext/enabled) printf 'osd.camera|visible|enabled|bool|element:camera\n' ;;
 		usertext/format) printf 'osd.camera|template|format|text|element:camera\n' ;;
 		usertext/position) printf 'osd.camera|position|position|text|element:camera\n' ;;
+		usertext/max-chars) printf 'osd.camera|max_chars|max_chars|int|element:camera\n' ;;
 		usertext/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		usertext/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		logo/enabled) printf 'osd.logo|visible|enabled|bool|element:logo\n' ;;
@@ -1532,8 +2177,10 @@ agent_osd_spec() {
 		privacy/text) printf 'osd.privacy|template|text|text|element:privacy\n' ;;
 		privacy/position) printf 'osd.privacy|position|position|text|element:privacy\n' ;;
 		privacy/font-size) printf 'osd.privacy|font_size|font_size|int|element:privacy\n' ;;
-		privacy/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
-		privacy/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
+		privacy/max-chars) printf 'osd.privacy|max_chars|max_chars|int|element:privacy\n' ;;
+		privacy/fill-color) printf 'osd.privacy|color|fill_color|text|element:privacy\n' ;;
+		privacy/stroke-color) printf 'osd.privacy|stroke_color|stroke_color|text|element:privacy\n' ;;
+		privacy/cover-color) printf 'osd|privacy_color|cover_color|text|global\n' ;;
 		*) return 1 ;;
 	esac
 }
@@ -1581,9 +2228,7 @@ agent_osd_color_to_ui() {
 	hex=$(printf '%s' "$value" | sed 's/^0[xX]//;s/^#//' | tr 'a-f' 'A-F')
 	case "$hex" in
 		????????)
-			aa=$(printf '%s' "$hex" | cut -c1-2)
-			rgb=$(printf '%s' "$hex" | cut -c3-8)
-			printf '#%s%s' "$rgb" "$aa"
+			printf '#%s%s' "${hex#??}" "${hex%??????}"
 			;;
 		*)
 			printf '%s' "$value"
@@ -1665,7 +2310,7 @@ agent_print_osd_setting() {
 			;;
 		text)
 			case "$response_key" in
-				fill_color | stroke_color)
+				fill_color | stroke_color | cover_color)
 					if [ -n "$raw" ]; then
 						raw=$(agent_osd_color_to_ui "$raw")
 					fi
@@ -1678,6 +2323,48 @@ agent_print_osd_setting() {
 			return 1
 			;;
 	esac
+}
+
+# A single `raptorctl config set` on a missing [osd.<name>] section creates it
+# with that one key only, and an element section without its type, template
+# or position scrambles the OSD regions on T20. Write the whole default
+# section first (values from raptor's stock raptor.conf), and repair a section
+# that exists but is missing any of those keys.
+agent_osd_ensure_section() {
+	section=$1
+	case "$section" in
+		osd.timestamp | osd.uptime | osd.camera | osd.privacy) required='type template position' ;;
+		osd.logo) required='type path width height position' ;;
+		*) return 0 ;;
+	esac
+	section_dump=$(raptorctl config get "$section" 2>/dev/null || true)
+	complete=1
+	for key in $required; do
+		printf '%s\n' "$section_dump" | grep -q "^[[:space:]]*${key}[[:space:]]*=" || complete=0
+	done
+	[ "$complete" = 1 ] && return 0
+	case "$section" in
+		osd.timestamp)
+			set -- type text visible false template %time% position top_left align left max_chars 22
+			;;
+		osd.uptime)
+			set -- type text visible false template %uptime% position top_right align right max_chars 18
+			;;
+		osd.camera)
+			set -- type text visible false template Camera position top_center align center max_chars 14 update change
+			;;
+		osd.privacy)
+			set -- type text visible false template 'Privacy Mode' position center align center max_chars 20 update change
+			;;
+		osd.logo)
+			set -- type image visible false path /usr/share/images/thingino_100x30.bgra width 100 height 30 position bottom_right
+			;;
+	esac
+	osd_section=$section
+	while [ $# -ge 2 ]; do
+		agent_config_set "$osd_section" "$1" "$2" || return 1
+		shift 2
+	done
 }
 
 agent_set_osd_setting() {
@@ -1713,7 +2400,7 @@ agent_set_osd_setting() {
 		text)
 			text_value=$(agent_unquote_string "$raw_value")
 			case "$response_key" in
-				fill_color | stroke_color)
+				fill_color | stroke_color | cover_color)
 					persist_value=$(agent_osd_color_to_raptor "$text_value")
 					;;
 				*)
@@ -1728,17 +2415,67 @@ agent_set_osd_setting() {
 			;;
 	esac
 
+	# osd_enabled is per stream in raptor and has no runtime path; set it on both.
 	if [ "$section" = stream ]; then
-		agent_config_set "$(agent_stream_section "$stream_id")" osd_enabled "$persist_value" || return 1
+		for s in 0 1; do
+			agent_config_set "$(agent_stream_section "$s")" osd_enabled "$persist_value" || return 1
+		done
 		agent_config_save
 		agent_print_setting_update "$path" "$response_key" "$json_value"
 		return 0
 	fi
 
-	agent_config_set "$section" "$config_key" "$persist_value" || return 1
+	osd_key=$config_key
+	osd_value=$persist_value
+	agent_osd_ensure_section "$section" || return 1
+	agent_config_set "$section" "$osd_key" "$osd_value" || return 1
+	# Save after the runtime apply, so rvd writes the state it now holds
+	# (e.g. the [osd] stream<N>_<name>_pos keys rod sets on a move).
+	agent_osd_apply_runtime "$runtime_hint" "$osd_key" "$osd_value"
 	agent_config_save
-	agent_osd_apply_runtime "$runtime_hint" "$config_key" "$persist_value"
 	agent_print_setting_update "$path" "$response_key" "$json_value"
+}
+
+# ric applies thresholds live but keeps them only in its in-memory config,
+# so each write is followed by a config save.
+agent_set_ric_setting() {
+	path=$1
+	body_file=$2
+	key=$(printf '%s' "${path#ric/}" | tr '-' '_')
+	raw_value=$(agent_setting_value "$body_file" "$key") || return 1
+	case "$key" in
+		trigger)
+			value=$(agent_unquote_string "$raw_value")
+			resp=$(agent_ctl ric set-trigger "$value" 2>/dev/null) || return 1
+			json_value=$(agent_json_string "$value")
+			;;
+		ir850 | ir940)
+			agent_validate_bool "$raw_value" || return 1
+			[ "$raw_value" = true ] && value=1 || value=0
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$raw_value
+			;;
+		night_luma | night_gain | day_gain_pct | night_threshold | day_threshold | hysteresis_sec | night_fps | probe_gain_pct | probe_holdoff_sec | photo_ev_night | photo_ev_deep | photo_ev_day | adc_night | adc_day)
+			agent_validate_int "$raw_value" || return 1
+			value=$raw_value
+			resp=$(agent_ctl ric set-threshold "$key" "$value" 2>/dev/null) || return 1
+			json_value=$value
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+	case "$resp" in
+		*'"status":"ok"'*) ;;
+		*)
+			reason=$(printf '%s' "$resp" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+			echo "ric rejected $key: ${reason:-no reply}" >&2
+			return 1
+			;;
+	esac
+	agent_config_save
+	agent_print_setting_update "$path" "$key" "$json_value"
 }
 
 agent_print_storage_setting() {
@@ -1832,6 +2569,64 @@ agent_set_storage_setting() {
 	esac
 }
 
+# Audio input/output tuning. rad applies each value live but keeps only some
+# of them in its config, so every write is also saved to raptor.conf.
+agent_audio_rad() {
+	agent_ctl rad "$@" 2>/dev/null | grep -q '"status":"ok"' || {
+		echo "rad $1 failed" >&2
+		return 1
+	}
+}
+
+agent_audio_save() {
+	agent_config_set audio "$1" "$2" || return 1
+	agent_config_save
+}
+
+agent_audio_int() {
+	agent_json_value_or "$(agent_config_get audio "$1")" "$2"
+}
+
+# 0 = off, 1-3 = on at that rad noise suppression level.
+agent_audio_ns() {
+	if [ "$(agent_config_bool audio ns_enabled false)" = true ]; then
+		agent_audio_int ns_level 1
+	else
+		printf '0'
+	fi
+}
+
+agent_audio_codec_to_name() {
+	case "$1" in
+		aac) printf 'AAC' ;;
+		opus) printf 'OPUS' ;;
+		pcma) printf 'G711A' ;;
+		pcmu) printf 'G711U' ;;
+		l16) printf 'PCM' ;;
+		*) printf '%s' "$1" ;;
+	esac
+}
+
+agent_audio_codec_from_name() {
+	case "$1" in
+		AAC) printf 'aac' ;;
+		OPUS) printf 'opus' ;;
+		G711A) printf 'pcma' ;;
+		G711U) printf 'pcmu' ;;
+		PCM) printf 'l16' ;;
+		*) return 1 ;;
+	esac
+}
+
+# set-agc takes the switch, target and compression together.
+agent_audio_agc() {
+	enabled=$1
+	target=$2
+	compression=$3
+	[ "$enabled" = true ] && on=1 || on=0
+	agent_audio_rad set-agc "$on" "$target" "$compression"
+}
+
 agent_get_setting() {
 	path=$1
 	case "$path" in
@@ -1846,6 +2641,12 @@ agent_get_setting() {
 			;;
 		image/sharpness)
 			agent_print_setting_leaf sharpness "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
+			;;
+		image/noise-reduction)
+			agent_print_setting_leaf noise_reduction "$(agent_json_value_or "$(agent_image_nr sinter)" null)"
+			;;
+		image/temporal-nr)
+			agent_print_setting_leaf temporal_noise_reduction "$(agent_json_value_or "$(agent_image_nr temper)" null)"
 			;;
 		image/anti-flicker)
 			agent_print_setting_leaf anti_flicker "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
@@ -1874,6 +2675,36 @@ agent_get_setting() {
 		audio/spk-enabled)
 			agent_print_setting_leaf spk_enabled "$(agent_command_bool speaker "$(agent_config_bool audio ao_enabled false)")"
 			;;
+		audio/mic-format)
+			agent_print_setting_leaf mic_format "$(agent_json_string "$(agent_audio_codec_to_name "$(agent_config_get audio codec)")")"
+			;;
+		audio/mic-vol)
+			agent_print_setting_leaf mic_vol "$(agent_audio_int volume null)"
+			;;
+		audio/mic-gain)
+			agent_print_setting_leaf mic_gain "$(agent_audio_int gain null)"
+			;;
+		audio/mic-noise-suppression)
+			agent_print_setting_leaf mic_noise_suppression "$(agent_audio_ns)"
+			;;
+		audio/mic-high-pass-filter)
+			agent_print_setting_leaf mic_high_pass_filter "$(agent_config_bool audio hpf_enabled false)"
+			;;
+		audio/mic-agc-enabled)
+			agent_print_setting_leaf mic_agc_enabled "$(agent_config_bool audio agc_enabled false)"
+			;;
+		audio/mic-agc-target-level-dbfs)
+			agent_print_setting_leaf mic_agc_target_level_dbfs "$(agent_audio_int agc_target_dbfs 10)"
+			;;
+		audio/mic-agc-compression-gain-db)
+			agent_print_setting_leaf mic_agc_compression_gain_db "$(agent_audio_int agc_compression_db 0)"
+			;;
+		audio/spk-vol)
+			agent_print_setting_leaf spk_vol "$(agent_audio_int ao_volume null)"
+			;;
+		audio/spk-gain)
+			agent_print_setting_leaf spk_gain "$(agent_audio_int ao_gain null)"
+			;;
 		motion/enabled)
 			agent_print_setting_leaf enabled "$(agent_motion_enabled)"
 			;;
@@ -1899,6 +2730,15 @@ agent_get_setting() {
 			;;
 		privacy/channel)
 			agent_print_setting_leaf channel '"all"'
+			;;
+		privacy/on-boot)
+			agent_print_setting_leaf on_boot "$(agent_json_value_or "$(agent_json_config_value "$THINGINO_CONFIG_FILE" privacy.on_boot)" false)"
+			;;
+		ric/settings)
+			agent_ctl ric get-thresholds 2>/dev/null || return 1
+			;;
+		ric/status)
+			agent_ctl ric status 2>/dev/null || return 1
 			;;
 		storage/*)
 			agent_print_storage_setting "$path"
@@ -1939,7 +2779,7 @@ agent_get_setting() {
 		streams/[01]/buffers)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/buffers}
-			agent_print_setting_leaf buffers "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+			agent_print_setting_leaf buffers "$(agent_stream_nr_vbs "$stream_id")"
 			;;
 		streams/[01]/profile)
 			stream_id=${path#streams/}
@@ -2023,6 +2863,22 @@ agent_set_setting() {
 			agent_config_set image saturation "$value" || return 1
 			agent_config_save
 			agent_print_setting_update "$path" saturation "$value"
+			;;
+		image/noise-reduction)
+			value=$(agent_setting_value "$body_file" noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-sinter "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image sinter "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" noise_reduction "$value"
+			;;
+		image/temporal-nr)
+			value=$(agent_setting_value "$body_file" temporal_noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-temper "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image temper "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" temporal_noise_reduction "$value"
 			;;
 		image/sharpness)
 			value=$(agent_setting_value "$body_file" sharpness) || return 1
@@ -2145,11 +3001,86 @@ agent_set_setting() {
 			agent_config_save
 			agent_print_setting_update "$path" spk_enabled "$value"
 			;;
+		audio/mic-format)
+			audio_value=$(agent_setting_value "$body_file" mic_format | tr -d '"') || return 1
+			codec=$(agent_audio_codec_from_name "$audio_value") || {
+				echo "unsupported codec: $audio_value" >&2
+				return 1
+			}
+			agent_audio_rad set-codec "$codec" || return 1
+			agent_audio_save codec "$codec" || return 1
+			agent_print_setting_update "$path" mic_format "$(agent_json_string "$audio_value")"
+			;;
+		audio/mic-vol | audio/mic-gain | audio/spk-vol | audio/spk-gain)
+			case "$path" in
+				audio/mic-vol) field=mic_vol key=volume cmd=set-volume ;;
+				audio/mic-gain) field=mic_gain key=gain cmd=set-gain ;;
+				audio/spk-vol) field=spk_vol key=ao_volume cmd=ao-set-volume ;;
+				audio/spk-gain) field=spk_gain key=ao_gain cmd=ao-set-gain ;;
+			esac
+			audio_value=$(agent_setting_value "$body_file" "$field") || return 1
+			agent_validate_int "$audio_value" || return 1
+			agent_audio_rad "$cmd" "$audio_value" || return 1
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
+		audio/mic-noise-suppression)
+			audio_value=$(agent_setting_value "$body_file" mic_noise_suppression) || return 1
+			agent_validate_int "$audio_value" || return 1
+			if [ "$audio_value" -le 0 ]; then
+				audio_value=0
+				agent_audio_rad set-ns 0 || return 1
+				agent_config_set audio ns_enabled false || return 1
+			else
+				[ "$audio_value" -gt 3 ] && audio_value=3
+				agent_audio_rad set-ns 1 "$audio_value" || return 1
+				agent_config_set audio ns_enabled true || return 1
+				agent_config_set audio ns_level "$audio_value" || return 1
+			fi
+			agent_config_save
+			agent_print_setting_update "$path" mic_noise_suppression "$audio_value"
+			;;
+		audio/mic-high-pass-filter)
+			audio_value=$(agent_setting_value "$body_file" mic_high_pass_filter) || return 1
+			agent_validate_bool "$audio_value" || return 1
+			[ "$audio_value" = true ] && on=1 || on=0
+			agent_audio_rad set-hpf "$on" || return 1
+			agent_audio_save hpf_enabled "$audio_value" || return 1
+			agent_print_setting_update "$path" mic_high_pass_filter "$audio_value"
+			;;
+		audio/mic-agc-enabled | audio/mic-agc-target-level-dbfs | audio/mic-agc-compression-gain-db)
+			enabled=$(agent_config_bool audio agc_enabled false)
+			target=$(agent_audio_int agc_target_dbfs 10)
+			compression=$(agent_audio_int agc_compression_db 0)
+			case "$path" in
+				audio/mic-agc-enabled)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_enabled) || return 1
+					agent_validate_bool "$audio_value" || return 1
+					enabled=$audio_value field=mic_agc_enabled key=agc_enabled
+					;;
+				audio/mic-agc-target-level-dbfs)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_target_level_dbfs) || return 1
+					agent_validate_int "$audio_value" || return 1
+					target=$audio_value field=mic_agc_target_level_dbfs key=agc_target_dbfs
+					;;
+				*)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_compression_gain_db) || return 1
+					agent_validate_int "$audio_value" || return 1
+					compression=$audio_value field=mic_agc_compression_gain_db key=agc_compression_db
+					;;
+			esac
+			# rad has no separate target/compression command, so they only
+			# reach it while AGC is on; the saved values apply when it is.
+			if [ "$enabled" = true ] || [ "$key" = agc_enabled ]; then
+				agent_audio_agc "$enabled" "$target" "$compression" || return 1
+			fi
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
 		motion/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_config_set motion enabled "$value" || return 1
-			agent_config_save
+			agent_motion_set_enabled "$value" || return 1
 			agent_print_setting_update "$path" enabled "$value"
 			;;
 		motion/sensitivity)
@@ -2246,6 +3177,18 @@ agent_set_setting() {
 					;;
 			esac
 			agent_print_setting_update "$path" channel "$value"
+			;;
+		privacy/on-boot)
+			value=$(agent_setting_value "$body_file" on_boot) || return 1
+			agent_validate_bool "$value" || return 1
+			jct "$THINGINO_CONFIG_FILE" set privacy.on_boot "$value" >/dev/null 2>&1 || {
+				echo "failed to persist privacy.on_boot" >&2
+				return 1
+			}
+			agent_print_setting_update "$path" on_boot "$value"
+			;;
+		ric/*)
+			agent_set_ric_setting "$path" "$body_file"
 			;;
 		storage/*)
 			agent_set_storage_setting "$path" "$body_file"
@@ -2473,7 +3416,7 @@ agent_apply_config() {
 	done
 
 	value=$(agent_json_config_value "$source_file" motion.enabled)
-	[ -n "$value" ] && agent_config_set motion enabled "$value"
+	[ -n "$value" ] && agent_motion_set_enabled "$value"
 
 	value=$(agent_json_config_value "$source_file" daynight.enabled)
 	case "$value" in
@@ -2508,8 +3451,10 @@ agent_snapshot() {
 		echo "snapshot is not supported on this camera" >&2
 		return 1
 	}
-	tmp=$(mktemp /tmp/agent-snap.XXXXXX.jpg) || return 1
-	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
+	tmp=$(mktemp /tmp/agent-snap.XXXXXX) || return 1
+	# raptorctl exits 0 on a failed save and reports it only in its JSON reply.
+	if ! raptorctl rvd save jpeg "$tmp" "$channel" 2>/dev/null | grep -q '"status":"ok"' ||
+		[ ! -s "$tmp" ]; then
 		rm -f "$tmp"
 		echo "failed to capture snapshot" >&2
 		return 1
@@ -2611,7 +3556,7 @@ agent_privacy() {
 	}
 
 	# Privacy state lives in RVD (rod privacy is redirected). Capture the
-	# command response — status queries do not include the privacy array.
+	# command response: status queries do not include the privacy array.
 	if [ "$channel" = "all" ]; then
 		resp=$(raptorctl rod privacy "$state" 2>/dev/null) || return 1
 	else
