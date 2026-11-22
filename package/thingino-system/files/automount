@@ -40,7 +40,9 @@ cleanup() {
 }
 
 do_fsck() {
-	res=$(fsck -V -y "$device_node" 2>&1)
+	opt=-y
+	[ "$(dd if="$device_node" bs=4 skip=256 count=1 2>/dev/null | hexdump -e '"%08x"')" = f2f52010 ] && opt=-a
+	res=$(fsck -V $opt "$device_node" 2>&1)
 	fsck_status=$?
 
 	echo "$res" | while IFS= read -r line; do
