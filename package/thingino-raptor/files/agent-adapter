@@ -127,6 +127,20 @@ agent_config_bool() {
 	esac
 }
 
+# From the file the setters write: a daemon's own copy is not reloaded after a write.
+agent_config_file_bool() {
+	value=$(awk -v s="[$1]" -v k="$2" '
+		{ line = $0; sub(/#.*/, "", line); gsub(/[ \t\r"]/, "", line) }
+		substr(line, 1, 1) == "[" { in_s = (line == s); next }
+		in_s && index(line, k "=") == 1 { v = substr(line, length(k) + 2) }
+		END { print v }' "$AGENT_CONFIG" 2>/dev/null | tr 'A-Z' 'a-z')
+	case "$value" in
+		1 | true | yes | on) printf 'true' ;;
+		0 | false | no | off) printf 'false' ;;
+		*) printf '%s' "${3:-false}" ;;
+	esac
+}
+
 agent_config_set() {
 	section=$1
 	key=$2
@@ -2513,12 +2527,12 @@ agent_set_storage_setting() {
 		storage/autostart)
 			value=$(agent_setting_value "$body_file" autostart) || return 1
 			agent_validate_bool "$value" || return 1
-			was=$(agent_config_bool recording enabled false)
+			was=$(agent_config_file_bool recording enabled false)
 			agent_config_set recording enabled "$value" || return 1
 			agent_config_save
 			if [ "$value" = true ]; then
 				agent_rmr_arm "$was" || {
-					echo "failed to start rmr recording daemon" >&2
+					echo "failed to arm rmr recording" >&2
 					return 1
 				}
 			else
