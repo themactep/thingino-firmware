@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · GPS &amp; G-sensor</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .gps-value { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .gps-label { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; opacity: .7; }
+    .gsensor-bar { height: .5rem; }
+  </style>
+</head>
+
+<body id="page-info-gps">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="alert alert-warning d-none" id="gpsUnavailable">
+        No telematics on this camera, or the telematics daemon (rtd) is not running.
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+          <h2 class="card-title mb-0 me-auto">GPS</h2>
+          <span class="badge" id="gpsState">…</span>
+          <span class="badge text-bg-danger d-none" id="gpsEvent"><i class="bi bi-exclamation-triangle-fill"></i> Event clip</span>
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-2 row-cols-md-4 g-3">
+            <div class="col"><div class="gps-label">Satellites</div><div class="gps-value" id="gpsSats">–</div></div>
+            <div class="col"><div class="gps-label">HDOP</div><div class="gps-value" id="gpsHdop">–</div></div>
+            <div class="col"><div class="gps-label">Speed</div><div class="gps-value" id="gpsSpeed">–</div></div>
+            <div class="col"><div class="gps-label">Course</div><div class="gps-value" id="gpsCourse">–</div></div>
+            <div class="col"><div class="gps-label">Latitude</div><div class="gps-value" id="gpsLat">–</div></div>
+            <div class="col"><div class="gps-label">Longitude</div><div class="gps-value" id="gpsLon">–</div></div>
+            <div class="col"><div class="gps-label">Altitude</div><div class="gps-value" id="gpsAlt">–</div></div>
+            <div class="col"><div class="gps-label">Map</div><div class="gps-value"><a id="gpsMap" class="d-none" target="_blank" rel="noopener">open <i class="bi bi-box-arrow-up-right"></i></a><span id="gpsMapNone">–</span></div></div>
+          </div>
+          <hr>
+          <div class="row row-cols-1 row-cols-md-2 g-2">
+            <div class="col"><span class="gps-label">GPS time (UTC)</span> <span id="gpsUtc">–</span></div>
+            <div class="col"><span class="gps-label">Camera clock</span> <span id="gpsClock">–</span> <small class="ms-1" id="gpsClockDiff"></small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3" id="gsensorCard">
+        <div class="card-header">
+          <h2 class="card-title mb-0">G-sensor</h2>
+          <small>Acceleration in g; deviation is the distance from the resting vector that the impact threshold compares against</small>
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-2 row-cols-md-4 g-3" id="gsensorAxes">
+            <div class="col"><div class="gps-label">X</div><div class="gps-value" id="gX">–</div></div>
+            <div class="col"><div class="gps-label">Y</div><div class="gps-value" id="gY">–</div></div>
+            <div class="col"><div class="gps-label">Z</div><div class="gps-value" id="gZ">–</div></div>
+            <div class="col"><div class="gps-label">Deviation</div><div class="gps-value" id="gDev">–</div></div>
+          </div>
+          <div class="progress gsensor-bar mt-3" role="progressbar" aria-label="Deviation">
+            <div class="progress-bar" id="gDevBar" style="width:0%"></div>
+          </div>
+          <p class="text-muted small mb-0 mt-2" id="gsensorNone">No g-sensor on this camera.</p>
+        </div>
+      </div>
+      <p class="text-muted small">Updates every second.</p>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/streamer.js"></script>
+<script src="/a/info-gps.js"></script>
+</body>
+</html>

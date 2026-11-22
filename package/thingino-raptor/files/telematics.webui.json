@@ -1,0 +1,30 @@
+{
+  "name": "telematics",
+  "label": "GPS and g-sensor",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddInfo",
+      "position": "append",
+      "items": [
+        {
+          "label": "GPS & G-sensor",
+          "href": "/info-gps.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "telematics": true
+  },
+  "cgi": [],
+  "pages": [
+    "/info-gps.html"
+  ]
+}

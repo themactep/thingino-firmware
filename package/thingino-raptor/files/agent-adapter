@@ -2235,6 +2235,13 @@ agent_get_setting() {
 		storage/*)
 			agent_print_storage_setting "$path"
 			;;
+		telematics/status)
+			[ -x /usr/bin/rtd ] || {
+				echo "no telematics on this camera" >&2
+				return 1
+			}
+			agent_ctl rtd status 2>/dev/null || return 1
+			;;
 		telematics/speed-unit)
 			[ -x /usr/bin/rtd ] || {
 				echo "no telematics on this camera" >&2
