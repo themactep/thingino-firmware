@@ -340,7 +340,10 @@ enum webrtc audio_mode RAPTOR_WEBRTC_AUDIO_MODE OPUS AUTO PCMU
 bool cameras enabled RAPTOR_CAMERAS_ENABLED
 str cameras iface RAPTOR_CAMERAS_IFACE
 str cameras local_ip RAPTOR_CAMERAS_LOCAL_IP
+str cameras netmask RAPTOR_CAMERAS_NETMASK
 bool cameras dhcp RAPTOR_CAMERAS_DHCP
+str cameras dhcp_start RAPTOR_CAMERAS_DHCP_START
+str cameras dhcp_end RAPTOR_CAMERAS_DHCP_END
 str cameras power_gpio RAPTOR_CAMERAS_POWER_GPIO
 bool cameras power_cycle RAPTOR_CAMERAS_POWER_CYCLE
 bool camera1 enabled RAPTOR_CAMERA1_ENABLED
@@ -352,3 +355,16 @@ str camera1 codec RAPTOR_CAMERA1_CODEC
 str camera1 enc_buf_sec RAPTOR_CAMERA1_ENC_BUF_SEC
 bool camera1 keyframe_requests RAPTOR_CAMERA1_KEYFRAME_REQUESTS
 bool camera1 sub RAPTOR_CAMERA1_SUB
+str camera1 main_data_mb RAPTOR_CAMERA1_MAIN_DATA_MB
+str camera1 sub_data_mb RAPTOR_CAMERA1_SUB_DATA_MB
+bool camera2 enabled RAPTOR_CAMERA2_ENABLED
+str camera2 type RAPTOR_CAMERA2_TYPE
+str camera2 ip RAPTOR_CAMERA2_IP
+str camera2 mac RAPTOR_CAMERA2_MAC
+str camera2 slot RAPTOR_CAMERA2_SLOT
+str camera2 codec RAPTOR_CAMERA2_CODEC
+str camera2 enc_buf_sec RAPTOR_CAMERA2_ENC_BUF_SEC
+bool camera2 keyframe_requests RAPTOR_CAMERA2_KEYFRAME_REQUESTS
+bool camera2 sub RAPTOR_CAMERA2_SUB
+str camera2 main_data_mb RAPTOR_CAMERA2_MAIN_DATA_MB
+str camera2 sub_data_mb RAPTOR_CAMERA2_SUB_DATA_MB

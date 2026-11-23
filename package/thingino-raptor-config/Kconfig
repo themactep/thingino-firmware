@@ -1798,7 +1798,9 @@ config RAPTOR_TIMELAPSE_MAX_MB
 
 endmenu
 
-menu "External cameras [cameras] [camera1]"
+menu "External cameras (rcd)"
+
+menu "Camera link [cameras]"
 
 choice
 	prompt "enabled (default false)"
@@ -1816,15 +1818,19 @@ config RAPTOR_CAMERAS_ENABLED_FALSE
 endchoice
 
 config RAPTOR_CAMERAS_IFACE
-	string "iface (link to the cameras, empty = leave networking alone)"
+	string "iface (link to the cameras; empty = leave networking alone)"
 	default ""
 
 config RAPTOR_CAMERAS_LOCAL_IP
 	string "local_ip (default 192.168.0.3)"
 	default ""
 
+config RAPTOR_CAMERAS_NETMASK
+	string "netmask (default 255.255.255.0)"
+	default ""
+
 choice
-	prompt "dhcp (default true)"
+	prompt "dhcp server on iface (default true)"
 	default RAPTOR_CAMERAS_DHCP_DEFAULT
 
 config RAPTOR_CAMERAS_DHCP_DEFAULT
@@ -1838,12 +1844,20 @@ config RAPTOR_CAMERAS_DHCP_FALSE
 
 endchoice
 
+config RAPTOR_CAMERAS_DHCP_START
+	string "dhcp_start (default 192.168.0.12)"
+	default ""
+
+config RAPTOR_CAMERAS_DHCP_END
+	string "dhcp_end (default 192.168.0.20)"
+	default ""
+
 config RAPTOR_CAMERAS_POWER_GPIO
 	string "power_gpio (camera supply switch, default -1)"
 	default ""
 
 choice
-	prompt "power_cycle (default true)"
+	prompt "power_cycle at rcd start (default true)"
 	default RAPTOR_CAMERAS_POWER_CYCLE_DEFAULT
 
 config RAPTOR_CAMERAS_POWER_CYCLE_DEFAULT
@@ -1857,8 +1871,12 @@ config RAPTOR_CAMERAS_POWER_CYCLE_FALSE
 
 endchoice
 
+endmenu
+
+menu "Camera 1 [camera1]"
+
 choice
-	prompt "camera1 enabled (default false)"
+	prompt "enabled (default false)"
 	default RAPTOR_CAMERA1_ENABLED_DEFAULT
 
 config RAPTOR_CAMERA1_ENABLED_DEFAULT
@@ -1873,31 +1891,31 @@ config RAPTOR_CAMERA1_ENABLED_FALSE
 endchoice
 
 config RAPTOR_CAMERA1_TYPE
-	string "camera1 type (ethcam)"
+	string "type (ethcam)"
 	default ""
 
 config RAPTOR_CAMERA1_IP
-	string "camera1 ip (default 192.168.0.12)"
+	string "ip (default 192.168.0.12)"
 	default ""
 
 config RAPTOR_CAMERA1_MAC
-	string "camera1 mac (static DHCP lease; empty = first pool address)"
+	string "mac (static DHCP lease; empty = next pool address)"
 	default ""
 
 config RAPTOR_CAMERA1_SLOT
-	string "camera1 slot (1 or 2, default 1)"
+	string "slot (sensor slot 1 or 2, default 1)"
 	default ""
 
 config RAPTOR_CAMERA1_CODEC
-	string "camera1 codec (h265/h264, default h265)"
+	string "codec (h265/h264, default h265)"
 	default ""
 
 config RAPTOR_CAMERA1_ENC_BUF_SEC
-	string "camera1 enc_buf_sec (0 = module default)"
+	string "enc_buf_sec (EthCam encoder buffer s, 0 = module default)"
 	default ""
 
 choice
-	prompt "camera1 keyframe_requests (default true)"
+	prompt "keyframe_requests (default true)"
 	default RAPTOR_CAMERA1_KEYFRAME_REQUESTS_DEFAULT
 
 config RAPTOR_CAMERA1_KEYFRAME_REQUESTS_DEFAULT
@@ -1912,7 +1930,7 @@ config RAPTOR_CAMERA1_KEYFRAME_REQUESTS_FALSE
 endchoice
 
 choice
-	prompt "camera1 sub (default true)"
+	prompt "sub stream (default true)"
 	default RAPTOR_CAMERA1_SUB_DEFAULT
 
 config RAPTOR_CAMERA1_SUB_DEFAULT
@@ -1925,6 +1943,97 @@ config RAPTOR_CAMERA1_SUB_FALSE
 	bool "false"
 
 endchoice
+
+config RAPTOR_CAMERA1_MAIN_DATA_MB
+	string "main_data_mb (ring size, default 3)"
+	default ""
+
+config RAPTOR_CAMERA1_SUB_DATA_MB
+	string "sub_data_mb (ring size, default 1)"
+	default ""
+
+endmenu
+
+menu "Camera 2 [camera2]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_CAMERA2_ENABLED_DEFAULT
+
+config RAPTOR_CAMERA2_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_CAMERA2_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_CAMERA2_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_CAMERA2_TYPE
+	string "type (ethcam)"
+	default ""
+
+config RAPTOR_CAMERA2_IP
+	string "ip (default 192.168.0.13)"
+	default ""
+
+config RAPTOR_CAMERA2_MAC
+	string "mac (static DHCP lease; empty = next pool address)"
+	default ""
+
+config RAPTOR_CAMERA2_SLOT
+	string "slot (sensor slot 1 or 2, default 2)"
+	default ""
+
+config RAPTOR_CAMERA2_CODEC
+	string "codec (h265/h264, default h265)"
+	default ""
+
+config RAPTOR_CAMERA2_ENC_BUF_SEC
+	string "enc_buf_sec (EthCam encoder buffer s, 0 = module default)"
+	default ""
+
+choice
+	prompt "keyframe_requests (default true)"
+	default RAPTOR_CAMERA2_KEYFRAME_REQUESTS_DEFAULT
+
+config RAPTOR_CAMERA2_KEYFRAME_REQUESTS_DEFAULT
+	bool "default"
+
+config RAPTOR_CAMERA2_KEYFRAME_REQUESTS_TRUE
+	bool "true"
+
+config RAPTOR_CAMERA2_KEYFRAME_REQUESTS_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "sub stream (default true)"
+	default RAPTOR_CAMERA2_SUB_DEFAULT
+
+config RAPTOR_CAMERA2_SUB_DEFAULT
+	bool "default"
+
+config RAPTOR_CAMERA2_SUB_TRUE
+	bool "true"
+
+config RAPTOR_CAMERA2_SUB_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_CAMERA2_MAIN_DATA_MB
+	string "main_data_mb (ring size, default 3)"
+	default ""
+
+config RAPTOR_CAMERA2_SUB_DATA_MB
+	string "sub_data_mb (ring size, default 1)"
+	default ""
+
+endmenu
 
 endmenu
 
