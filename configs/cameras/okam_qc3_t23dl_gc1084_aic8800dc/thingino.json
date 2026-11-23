@@ -1,7 +1,7 @@
 {
   "gpio": {
     "ir850": 61,
-    "ircut": "58 57",
+    "ircut": "53 52",
     "white": 50,
     "wlan": {
       "pin": 62,
