@@ -5,7 +5,7 @@ _timps_port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\
 [ -n "$_timps_port" ] || _timps_port=8880
 _timps_https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n1)
 case "$_timps_https" in
-	1 | true | yes | on)
+	2)
 		_timps_scheme=https
 		TIMPS_CURL_K="-k"
 		;;
@@ -76,6 +76,9 @@ timps_heartbeat_payload() {
 	MUTE=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"mute":\([01]\).*/\1/p')
 	AEN=$(printf '%s' "$CUR" | sed -n 's/.*"audio":{[^}]*"enabled":\([01]\).*/\1/p')
 	case "$CUR" in *'"backchannel":{"available":1'*) SPK=true ;; *) SPK=false ;; esac
+	CH1=$(printf '%s' "$CUR" | sed -n 's/.*"video":{"0":{[^}]*},"1":{"enabled":[01],"running":\([01]\).*/\1/p')
+	[ -n "$CH1" ] || CH1=$(printf '%s' "$CUR" | sed -n 's/.*"video":{"0":{[^}]*},"1":{"enabled":\([01]\).*/\1/p')
+	case "$CH1" in 0) CH1=false ;; 1) CH1=true ;; *) CH1=null ;; esac
 	PRIV=$(printf '%s' "$CUR" | sed -n 's/.*"privacy":{\(.*\)},"daynight".*/\1/p')
 	case "$PRIV" in *'"enabled":1'*) PRIV=true ;; *) PRIV=false ;; esac
 	REC=$(printf '%s' "$CUR" | sed -n 's/.*"record":{\([^}]*\)}.*/\1/p')
@@ -111,7 +114,7 @@ timps_heartbeat_payload() {
 	MOTION=$(sed -n 's/^[[:space:]]*motion\.enabled[[:space:]]*=[[:space:]]*\([01]\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n 1)
 	if [ "$MOTION" = "1" ]; then MOTION=true; else MOTION=false; fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":false,"spk_supported":%s,"ch1_running":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s%s}\n' \
 		"$(date +%s)" \
 		"$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')" \
 		"$BRI" \
@@ -124,6 +127,7 @@ timps_heartbeat_payload() {
 		"$COLOR" \
 		"$MIC" \
 		"$SPK" \
+		"$CH1" \
 		"$DN_JSON" \
 		"$(timps_hb_ircut_state)" \
 		"$(timps_hb_light_state ir850)" \
