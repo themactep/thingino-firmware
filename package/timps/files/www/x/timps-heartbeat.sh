@@ -5,7 +5,7 @@ _timps_port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\
 [ -n "$_timps_port" ] || _timps_port=8880
 _timps_https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n1)
 case "$_timps_https" in
-	1 | true | yes | on)
+	2)
 		_timps_scheme=https
 		TIMPS_CURL_K="-k"
 		;;
