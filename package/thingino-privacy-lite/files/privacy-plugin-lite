@@ -1,11 +1,233 @@
 #!/bin/sh
 # shellcheck disable=SC3043
 
-FIFO="/run/prudynt/video_ctrl"
+STATE_FILE="/run/prudynt/privacy-lite.state"
+ACTIVE_FILE="/run/prudynt/privacy-lite.active"
+PRUDYNT_CONFIG="/usr/bin/prudynt-config"
+IMP_CONTROL="/usr/sbin/imp-control"
+MICROPHONE="/usr/sbin/microphone"
+MIC_ACTIVE="/run/prudynt/mic.active"
+
+LITE_BITRATE="${PRIVACY_LITE_BITRATE:-96}"
+LITE_FPS="${PRIVACY_LITE_FPS:-2}"
+LITE_GOP="${PRIVACY_LITE_GOP:-2}"
 
 usage() {
-	echo "Usage: $0 [on|off] [0|1|all]" >&2
+	echo "Usage: $0 [on|off] [0|1|all]"
 	exit 1
+}
+
+require_tool() {
+	if [ ! -x "$1" ]; then
+		echo "error: required tool not found: $1" >&2
+		exit 1
+	fi
+}
+
+parse_channel() {
+	case "$1" in
+		"" | all)
+			echo "0 1"
+			;;
+		0 | 1)
+			echo "$1"
+			;;
+		ch=0 | ch=1)
+			echo "${1#ch=}"
+			;;
+		*)
+			echo "error: invalid channel '$1' (use 0, 1, or all)" >&2
+			exit 1
+			;;
+	esac
+}
+
+write_active_state() {
+	cat >"$ACTIVE_FILE" <<EOF
+CH0_ACTIVE=$CH0_ACTIVE
+CH1_ACTIVE=$CH1_ACTIVE
+EOF
+}
+
+load_active_state() {
+	CH0_ACTIVE=0
+	CH1_ACTIVE=0
+	if [ -f "$ACTIVE_FILE" ]; then
+		# shellcheck disable=SC1090
+		. "$ACTIVE_FILE"
+	fi
+}
+
+# Effective config (core plus user layer). Reading the core file alone replaces
+# a user override with the shipped default. The values are written to a staging
+# file and only published once the throttle succeeded, so a half-applied run
+# never leaves a backup of throttled values behind.
+backup_runtime_state() {
+	BITRATE_0="$("$PRUDYNT_CONFIG" get stream0.bitrate)"
+	BITRATE_1="$("$PRUDYNT_CONFIG" get stream1.bitrate)"
+	FPS_0="$("$PRUDYNT_CONFIG" get stream0.fps)"
+	FPS_1="$("$PRUDYNT_CONFIG" get stream1.fps)"
+	GOP_0="$("$PRUDYNT_CONFIG" get stream0.gop)"
+	GOP_1="$("$PRUDYNT_CONFIG" get stream1.gop)"
+	# Whether the mic was live, as prudynt publishes it; the saved config key
+	# says nothing about the current state.
+	MIC_WAS_ON=false
+	[ -f "$MIC_ACTIVE" ] && MIC_WAS_ON=true
+
+	# Without a sound backup there is no way back from the throttle.
+	for value in "$BITRATE_0" "$BITRATE_1" "$FPS_0" "$FPS_1" "$GOP_0" "$GOP_1"; do
+		case "$value" in
+			"" | *[!0-9]*)
+				echo "error: cannot read stream settings to restore" >&2
+				exit 1
+				;;
+		esac
+	done
+
+	cat >"$STATE_FILE.tmp" <<EOF
+BITRATE_0=$BITRATE_0
+BITRATE_1=$BITRATE_1
+FPS_0=$FPS_0
+FPS_1=$FPS_1
+GOP_0=$GOP_0
+GOP_1=$GOP_1
+MIC_WAS_ON=$MIC_WAS_ON
+EOF
+}
+
+throttle_channel() {
+	local channel="$1"
+
+	"$IMP_CONTROL" bitrate "$channel" "$LITE_BITRATE" || return 1
+	"$IMP_CONTROL" fps "$channel" "$LITE_FPS" 1 || return 1
+	"$IMP_CONTROL" gop "$channel" "$LITE_GOP" || return 1
+}
+
+restore_channel() {
+	local channel="$1"
+	local source="$2"
+	local bitrate=""
+	local fps=""
+	local gop=""
+
+	[ -f "$source" ] || return 0
+
+	# shellcheck disable=SC1090
+	. "$source"
+
+	case "$channel" in
+		0)
+			bitrate="$BITRATE_0"
+			fps="$FPS_0"
+			gop="$GOP_0"
+			;;
+		1)
+			bitrate="$BITRATE_1"
+			fps="$FPS_1"
+			gop="$GOP_1"
+			;;
+		*)
+			echo "error: invalid channel '$channel'" >&2
+			return 1
+			;;
+	esac
+
+	"$IMP_CONTROL" bitrate "$channel" "$bitrate" || return 1
+	"$IMP_CONTROL" fps "$channel" "$fps" 1 || return 1
+	"$IMP_CONTROL" gop "$channel" "$gop" || return 1
+	return 0
+}
+
+set_mic_enabled() {
+	local enabled="$1"
+	if [ "$enabled" = "true" ]; then
+		"$MICROPHONE" on
+	else
+		"$MICROPHONE" off
+	fi
+}
+
+restore_mic_state() {
+	local source="$1"
+
+	[ -f "$source" ] || return 0
+
+	# shellcheck disable=SC1090
+	. "$source"
+
+	# A mic that was already off stays off.
+	if [ "$MIC_WAS_ON" = "true" ]; then
+		set_mic_enabled true
+	fi
+}
+
+apply_on() {
+	local channels="$1"
+	local ch=""
+	local failed=0
+
+	# Already throttled; a repeat must not overwrite the backup with the
+	# throttled values it just applied.
+	[ -f "$STATE_FILE" ] && return 0
+
+	backup_runtime_state
+	load_active_state
+
+	if [ -f "$MIC_ACTIVE" ]; then
+		set_mic_enabled false
+	fi
+
+	for ch in $channels; do
+		if ! throttle_channel "$ch"; then
+			failed=1
+			break
+		fi
+		if [ "$ch" = "0" ]; then
+			CH0_ACTIVE=1
+		else
+			CH1_ACTIVE=1
+		fi
+	done
+
+	if [ "$failed" = "1" ]; then
+		# Put back what this run changed; the cover stays as it is. Restoring
+		# a channel that was not reached yet is harmless.
+		restore_mic_state "$STATE_FILE.tmp"
+		for ch in $channels; do
+			restore_channel "$ch" "$STATE_FILE.tmp" || true
+		done
+		rm -f "$STATE_FILE.tmp"
+		exit 1
+	fi
+
+	mv -f "$STATE_FILE.tmp" "$STATE_FILE"
+	write_active_state
+}
+
+apply_off() {
+	local channels="$1"
+	local ch=""
+
+	# Nothing was throttled: the cover did not go through us, or a previous
+	# run already restored.
+	[ -f "$STATE_FILE" ] || return 0
+
+	load_active_state
+
+	for ch in $channels; do
+		restore_channel "$ch" "$STATE_FILE" || exit 1
+		if [ "$ch" = "0" ]; then
+			CH0_ACTIVE=0
+		else
+			CH1_ACTIVE=0
+		fi
+	done
+	write_active_state
+
+	if [ "$CH0_ACTIVE" = "0" ] && [ "$CH1_ACTIVE" = "0" ]; then
+		restore_mic_state "$STATE_FILE"
+		rm -f "$STATE_FILE" "$ACTIVE_FILE"
+	fi
 }
 
 COMMAND="$1"
@@ -13,29 +235,21 @@ CHANNEL_ARG="$2"
 
 [ -z "$COMMAND" ] && usage
 
+require_tool "$PRUDYNT_CONFIG"
+require_tool "$IMP_CONTROL"
+require_tool "$MICROPHONE"
+
+CHANNELS="$(parse_channel "$CHANNEL_ARG")"
+
 case "$COMMAND" in
-	on | off) ;;
-	*) usage ;;
-esac
-
-if [ ! -p "$FIFO" ]; then
-	echo "error: prudynt control FIFO is missing: $FIFO" >&2
-	exit 1
-fi
-
-case "$CHANNEL_ARG" in
-	"" | all)
-		printf "PRIVACY value=%s\n" "$COMMAND" >"$FIFO"
+	on)
+		apply_on "$CHANNELS"
 		;;
-	0 | 1)
-		printf "PRIVACY ch=%s value=%s\n" "$CHANNEL_ARG" "$COMMAND" >"$FIFO"
-		;;
-	ch=0 | ch=1)
-		printf "PRIVACY %s value=%s\n" "$CHANNEL_ARG" "$COMMAND" >"$FIFO"
+	off)
+		apply_off "$CHANNELS"
 		;;
 	*)
-		echo "error: invalid channel '$CHANNEL_ARG' (use 0, 1, or all)" >&2
-		exit 1
+		usage
 		;;
 esac
 

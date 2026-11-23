@@ -507,8 +507,20 @@ agent_daynight_target_mode() {
 	fi
 }
 
+# Live cover state, as published by prudynt.
 agent_privacy_enabled() {
 	[ -f /run/prudynt/privacy.active ] && printf 'true' || printf 'false'
+}
+
+# Boot value of the cover: the saved config key, not the live cover.
+agent_privacy_configured() {
+	_cfgval=""
+	command -v prudynt-config >/dev/null 2>&1 &&
+		_cfgval=$(prudynt-config get privacy.enabled 2>/dev/null)
+	case "$_cfgval" in
+		true) printf 'true' ;;
+		*) printf 'false' ;;
+	esac
 }
 
 agent_stream_field() {
@@ -1397,7 +1409,7 @@ agent_get_setting() {
 			printf '{"force_mode":%s}\n' "$(agent_daynight_force_mode)"
 			;;
 		privacy/enabled)
-			agent_print_setting_leaf enabled "$(agent_privacy_enabled)"
+			agent_print_setting_leaf enabled "$(agent_privacy_configured)"
 			;;
 		privacy/channel)
 			agent_print_setting_leaf channel '"all"'
@@ -1767,7 +1779,8 @@ agent_set_setting() {
 		privacy/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_apply_payload "{\"privacy\":{\"enabled\":$value}}" || return 1
+			# Saved value only: the live cover is driven by the privacy action.
+			agent_persist_value privacy.enabled "$value"
 			agent_print_setting_update "$path" enabled "$value"
 			;;
 		privacy/channel)

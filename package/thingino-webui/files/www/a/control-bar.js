@@ -355,6 +355,14 @@
       icon: "bi bi-eye-slash",
       label: "Privacy",
     });
+    group.appendChild(button);
+
+    // The configuration page ships with the privacy plugin; an OSD-only
+    // backend has no such page.
+    const uiConfig = window.thinginoUIConfig || {};
+    if (!(uiConfig.device && uiConfig.device.privacy)) {
+      return group;
+    }
 
     const toggle = createButton({
       className: "btn btn-secondary dropdown-toggle dropdown-toggle-split",
@@ -390,7 +398,6 @@
     item.appendChild(link);
     menu.appendChild(item);
 
-    group.appendChild(button);
     group.appendChild(toggle);
     group.appendChild(menu);
     return group;
