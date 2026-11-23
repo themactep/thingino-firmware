@@ -24,7 +24,7 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 elif grep -q "^BR2_THINGINO_FLASH_NOR=y" "$BR2_CONFIG" &&
 	grep -q "^BR2_THINGINO_UBOOT_VERSION_2026_07=y" "$BR2_CONFIG" &&
 	! grep -q "^BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT=y" "$BR2_CONFIG"; then
-	printf '/dev/mtd1 0x0 0x10000 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
+	printf '/dev/mtd1 0x0 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
 fi
 
 cd $BR2_EXTERNAL
