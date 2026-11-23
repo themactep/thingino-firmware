@@ -1,0 +1,76 @@
+#!/bin/sh
+# 32 MB low-memory tuning (BR2_THINGINO_LOWMEM, Lu-Fi/openimp#785).
+# Runs after S00sysctl, so these values win over /etc/sysctl.conf.
+
+# zram swap (Lu-Fi/openimp#800). Without swap only clean file pages are
+# reclaimable, and on a squashfs rootfs those are the program text of
+# timpsd, busybox and the libraries. Under load (several viewers, WebUI
+# heartbeat CGIs) the page cache fell below the working set: every page
+# fault re-read and XZ-decompressed a 128 KiB squashfs block, the kernel
+# never declared OOM (reclaim always "made progress"), the watchdog
+# daemon did not run for 60 s and the hardware watchdog reset the board
+# (reset PCs in putback_inactive_pages / grab_super_passive / the
+# scheduler). A small compressed swap lets reclaim take cold anonymous
+# pages (idle daemons, cold heap) at a few microseconds per page instead,
+# so the text pages stay resident.
+ZRAM_DISKSIZE=4194304 # 4 MiB of swapped pages, about 1.3 MiB of RAM at 3:1
+zram_swap() {
+	[ -e /sys/block/zram0/disksize ] || return 0
+	command -v swapon >/dev/null 2>&1 || return 0
+	grep -q '^/dev/zram0 ' /proc/swaps && return 0
+	echo lz4 >/sys/block/zram0/comp_algorithm 2>/dev/null
+	echo "$ZRAM_DISKSIZE" >/sys/block/zram0/disksize || return 0
+	mkswap /dev/zram0 >/dev/null 2>&1 || return 0
+	swapon -p 100 /dev/zram0 || return 0
+	# Prefer swapping cold anon over dropping program text; zram has no
+	# seek cost, so no swap readahead.
+	echo 100 >/proc/sys/vm/swappiness
+	echo 0 >/proc/sys/vm/page-cluster
+	# The kernel default is 559 KiB here (min 139 pages). zram stores
+	# pages from inside reclaim and the Wi-Fi driver allocates its RX
+	# buffers with GFP_ATOMIC; keep a little more in reserve for both.
+	echo 768 >/proc/sys/vm/min_free_kbytes
+}
+
+# Android low-memory killer (Lu-Fi/openimp#800): the 3.10 OOM killer never fires while
+# reclaim can still drop (and re-read) program text, so a thrashing board
+# runs into the hardware watchdog instead. The LMK acts from inside reclaim
+# on the page-cache size: below LMK_MINFREE pages of file cache it kills the
+# biggest process with oom_score_adj >= LMK_ADJ. Every WebUI CGI raises
+# itself to that score in auth.sh (and so its helpers: heartbeat loops, curl),
+# while S61lowmem keeps uhttpd itself at 0 or below, so an overloaded board
+# drops a WebUI request instead of resetting. timpsd (-500), the watchdog
+# daemon (-1000) and the network daemons are never candidates.
+LMK_ADJ=800
+LMK_MINFREE=896 # pages = 3.5 MiB; healthy load keeps 4-6 MiB of file cache
+lmk_levels() {
+	d=/sys/module/lowmemorykiller/parameters
+	[ -w "$d/minfree" ] || return 0
+	echo "$LMK_ADJ" >"$d/adj"
+	echo "$LMK_MINFREE" >"$d/minfree"
+}
+
+case "$1" in
+	start)
+		# TCP buffers are unreclaimable slab: cap all sockets together at
+		# 1.5 MiB (default on 19 MB is 864 pages = 3.4 MiB), pressure from 1 MiB.
+		echo "192 256 384" >/proc/sys/net/ipv4/tcp_mem
+		# Dirty page cache (SD recording) bounded to 1 MiB instead of 4 MiB.
+		echo 262144 >/proc/sys/vm/dirty_background_bytes
+		echo 1048576 >/proc/sys/vm/dirty_bytes
+		# A killed watchdog daemon leaves /dev/watchdog armed: the board
+		# resets 60 s later. Never let the OOM killer pick it.
+		for p in $(pidof watchdog); do
+			echo -1000 >"/proc/$p/oom_score_adj" 2>/dev/null
+		done
+		zram_swap
+		lmk_levels
+		;;
+	stop | restart | reload) ;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+
+exit 0

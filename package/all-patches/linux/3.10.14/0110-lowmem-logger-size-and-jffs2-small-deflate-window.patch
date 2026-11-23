@@ -1,0 +1,119 @@
+From: Lu-Fi <lutz@fiebach.de>
+Subject: [PATCH] lowmem: configurable log_main size, small JFFS2 deflate workspace
+
+Two static/boot-time kernel allocations cost 32 MB boards ~460 KiB for
+nothing they need (Lu-Fi/openimp#785, O-KAM QC3 T23DL):
+
+- CONFIG_LOGGER_MAIN_SIZE_KB (default 256 = unchanged): the Android
+  log_main ring is a 256 KiB .bss array (_buf_log_main).
+- CONFIG_JFFS2_ZLIB_SMALL_WINDOW (default n = unchanged): JFFS2 deflates
+  at most one page per call, but allocates a MAX_WBITS/MAX_MEM_LEVEL
+  workspace (268 KiB vmalloc, jffs2_zlib_init) for the whole uptime.
+  windowBits 12 / memLevel 6 needs ~48 KiB; inflate is unchanged.
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -595,6 +595,16 @@
+ 	tristate "Log driver porting from Android"
+ 	default n
+ 
++config LOGGER_MAIN_SIZE_KB
++	int "Size of the log_main ring in KiB (power of two)"
++	depends on LOGGER
++	range 16 256
++	default 256
++	help
++	  The log_main ring is a static buffer in the kernel image (.bss),
++	  so every KiB here is RAM the system never gets back. 256 is the
++	  vendor value; 32 MB boards can use 64.
++
+ config LINUX_PMEM
+ 	bool "linux pmem allocator"
+ 	depends on !ANDROID_PMEM
+--- a/drivers/misc/logger.c
++++ b/drivers/misc/logger.c
+@@ -559,7 +559,10 @@
+ 	.size = SIZE, \
+ };
+ 
+-DEFINE_LOGGER_DEVICE(log_main, LOGGER_LOG_MAIN, 256*1024)
++#ifndef CONFIG_LOGGER_MAIN_SIZE_KB
++#define CONFIG_LOGGER_MAIN_SIZE_KB 256
++#endif
++DEFINE_LOGGER_DEVICE(log_main, LOGGER_LOG_MAIN, CONFIG_LOGGER_MAIN_SIZE_KB*1024)
+ #ifndef OPTIMIZED_MEM
+ DEFINE_LOGGER_DEVICE(log_events, LOGGER_LOG_EVENTS, 256*1024)
+ DEFINE_LOGGER_DEVICE(log_radio, LOGGER_LOG_RADIO, 256*1024)
+--- a/fs/jffs2/compr_zlib.c
++++ b/fs/jffs2/compr_zlib.c
+@@ -31,6 +31,17 @@
+ 	*/
+ #define STREAM_END_SPACE 12
+ 
++/* Deflate window/memLevel: JFFS2 feeds at most one page per call, so a
++ * 4 KiB window (12 bits) loses nothing and the workspace drops from
++ * ~268 KiB to ~48 KiB (CONFIG_JFFS2_ZLIB_SMALL_WINDOW). */
++#ifdef CONFIG_JFFS2_ZLIB_SMALL_WINDOW
++#define JFFS2_DEFLATE_WBITS	12
++#define JFFS2_DEFLATE_MEMLEVEL	6
++#else
++#define JFFS2_DEFLATE_WBITS	MAX_WBITS
++#define JFFS2_DEFLATE_MEMLEVEL	MAX_MEM_LEVEL
++#endif
++
+ static DEFINE_MUTEX(deflate_mutex);
+ static DEFINE_MUTEX(inflate_mutex);
+ static z_stream inf_strm, def_strm;
+@@ -42,13 +53,14 @@
+ 
+ static int __init alloc_workspaces(void)
+ {
+-	def_strm.workspace = vmalloc(zlib_deflate_workspacesize(MAX_WBITS,
+-							MAX_MEM_LEVEL));
++	def_strm.workspace = vmalloc(zlib_deflate_workspacesize(JFFS2_DEFLATE_WBITS,
++							JFFS2_DEFLATE_MEMLEVEL));
+ 	if (!def_strm.workspace)
+ 		return -ENOMEM;
+ 
+ 	jffs2_dbg(1, "Allocated %d bytes for deflate workspace\n",
+-		  zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
++		  zlib_deflate_workspacesize(JFFS2_DEFLATE_WBITS,
++					     JFFS2_DEFLATE_MEMLEVEL));
+ 	inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
+ 	if (!inf_strm.workspace) {
+ 		vfree(def_strm.workspace);
+@@ -80,7 +92,10 @@
+ 
+ 	mutex_lock(&deflate_mutex);
+ 
+-	if (Z_OK != zlib_deflateInit(&def_strm, 3)) {
++	if (Z_OK != zlib_deflateInit2(&def_strm, 3, Z_DEFLATED,
++				      JFFS2_DEFLATE_WBITS,
++				      (JFFS2_DEFLATE_MEMLEVEL == MAX_MEM_LEVEL ? DEF_MEM_LEVEL : JFFS2_DEFLATE_MEMLEVEL),
++				      Z_DEFAULT_STRATEGY)) {
+ 		pr_warn("deflateInit failed\n");
+ 		mutex_unlock(&deflate_mutex);
+ 		return -1;
+--- a/fs/jffs2/Kconfig
++++ b/fs/jffs2/Kconfig
+@@ -127,6 +127,18 @@
+ 
+ 	  Say 'Y' if unsure.
+ 
++config JFFS2_ZLIB_SMALL_WINDOW
++	bool "Small zlib deflate workspace (4 KiB window)"
++	depends on JFFS2_ZLIB
++	default n
++	help
++	  JFFS2 compresses at most one page (4 KiB) per call, so a 32 KiB
++	  window and memLevel 8 buy nothing but a 268 KiB vmalloc'd deflate
++	  workspace that is held for the whole uptime. With this option
++	  deflate uses windowBits 12 and memLevel 6 (about 48 KiB). The
++	  output is ordinary zlib data; inflate is unchanged, so existing
++	  file systems stay readable. Useful on 32 MB boards.
++
+ config JFFS2_LZO
+ 	bool "JFFS2 LZO compression support" if JFFS2_COMPRESSION_OPTIONS
+ 	select LZO_COMPRESS
