@@ -7,7 +7,11 @@ choice
 	  Select the U-Boot version to build.
 
 config BR2_THINGINO_UBOOT_VERSION_2026_07
-	bool "2026.07 (buildroot)"
+	bool "2026.07 (buildroot, xburst2 only)"
+	help
+	  aperto keeps the 2026.07 U-Boot for the xburst2 SoCs (T40/T41):
+	  the 2013.07 tree has no isvp_t4x boards. Uses the 320K boot
+	  partition (env at 0x50000); all other SoCs use 2013.07 and 192K.
 
 config BR2_THINGINO_UBOOT_VERSION_2013_07
 	bool "2013.07 (ingenic)"

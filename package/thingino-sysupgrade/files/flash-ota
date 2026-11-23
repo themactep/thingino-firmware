@@ -15,6 +15,27 @@ shift
 echo "flash-ota: mode=$mode files=$*"
 
 mtd_dev() { awk -F: "/\"$1\"\$/{print \$1}" /proc/mtd; }
+mtd_size() { awk "/\"$1\"\$/{print \"0x\"\$2}" /proc/mtd; }
+
+# The host pads the boot image to the new build's boot partition size. If
+# that differs from the partition on this device, the env partition sits at
+# a different offset, and writing env here would leave U-Boot without a
+# valid environment. Refuse before erasing or stopping anything.
+if [ "$mode" = "boot" ] && [ "$#" -ge 1 ] && [ -f "$1" ]; then
+	boot_part_size=$(mtd_size boot)
+	[ -n "$boot_part_size" ] || {
+		echo "ERROR: boot partition not found"
+		exit 1
+	}
+	boot_part_size=$((boot_part_size))
+	boot_file_size=$(stat -c%s "$1")
+	if [ "$boot_file_size" -ne "$boot_part_size" ]; then
+		echo "ERROR: boot image is ${boot_file_size} bytes, boot partition is ${boot_part_size} bytes"
+		echo "ERROR: refusing to flash: the env partition offset would change"
+		echo "Use a full upgrade (sysupgrade -f) to change the boot partition size."
+		exit 1
+	fi
+fi
 
 # Partition geometry from /proc/mtd (KiB).  ROOTFS_OFF_K / DATA_OFF_K are
 # the chip offsets of the rootfs and data partitions.

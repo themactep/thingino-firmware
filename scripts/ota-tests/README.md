@@ -101,7 +101,7 @@ serial logs are `run-<scenario>.log`.
 
 | dependency | notes |
 |---|---|
-| kernel source | `/usr/src/linux-source-*`, override with `KERNEL_SRC` |
+| kernel source | downloaded from kernel.org (6.18.63) into the scratch dir; override with `KERNEL_SRC` or `KERNEL_VERSION` |
 | busybox tarball | picked from the thingino dl cache, override with `BUSYBOX_TARBALL` |
 | qemu-system-x86_64 | KVM used automatically when `/dev/kvm` is present |
 | u-boot-tools / libubootenv | `mkenvimage`, `fw_printenv`, `fw_setenv` |
@@ -112,8 +112,8 @@ it is a no-op until artifacts are deleted.
 
 ## Scenario catalog
 
-Layouts use the standard thingino partition scheme (`boot 320k, env 64k,
-backup 64k, kernel 1600k` at offset 0..2048k, then rootfs/data, then
+Layouts use the standard thingino partition scheme (`boot 192k, env 64k,
+backup 64k, kernel 1600k` at offset 0..1920k, then rootfs/data, then
 `8192k@0(all)`).
 
 | # | scenario | old layout | new images | expect |

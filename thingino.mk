@@ -618,7 +618,7 @@ UBOOT_BOARDNAME_MISSING := $(if $(filter y,$(UBOOT_BOARDNAME_CHECKABLE)),$(if $(
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# BR2_TARGET_UBOOT_BOARDNAME only selects <name>_config on U-Boot's legacy
-	# build system. The Kconfig build system 2026.07 uses takes
+	# build system. Kconfig-era trees take
 	# <name>_defconfig from BR2_TARGET_UBOOT_BOARD_DEFCONFIG instead, so a
 	# camera that names a board has to reach that symbol -- otherwise its board
 	# choice is dropped for the plain SoC defconfig with nothing to show for it
@@ -626,8 +626,8 @@ ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# UBOOT_BOARDNAME is already resolved above (camera name, else SOC_UBOOT).
 	UBOOT_DEFCONFIG := $(UBOOT_BOARDNAME)
 ifeq ($(UBOOT_BOARDNAME_MISSING),y)
-	# Some camera defconfigs still name 2013.07-era boards that the 2026.07
-	# tree never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
+	# Some camera defconfigs still name 2013.07-era boards that Kconfig-era
+	# trees never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
 	# the SoC default the same as before -- but say so, rather than either
 	# failing the U-Boot configure or going quiet about it again.
 	# Unindented $(warning) for the same reason as the SOC_FAMILY $(error).
@@ -670,6 +670,9 @@ endif
 # would wrongly point the env at a raw offset.
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else ifeq ($(THINGINO_UBOOT_VERSION_TAG),2026-07)
+# aperto: 2026.07 (xburst2 only) keeps the 320K boot partition, env at 0x50000
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor-320k.config
 else
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
 endif

@@ -12,11 +12,24 @@ U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
 SSTAR_IPL_MAGIC="49504c5f" # "IPL_", at offset 4 rather than 0
 GITHUB_URL="https://github.com"
+GITHUB_API_URL="https://api.github.com"
 BRANCH="ciao"
+# Release series published by each branch's CI.  Keep this in sync with the
+# TAG_NAME of the branch's firmware workflow so a device updates to an image
+# built from the same branch it is running.  ciao publishes the main
+# firmware-YYYY-MM-DD series; every other branch publishes <branch>-YYYY-MM-DD.
+release_prefix_for_branch() {
+	case "$1" in
+		master) echo "master" ;;
+		ciao) echo "firmware" ;;
+		*) echo "$1" ;;
+	esac
+}
 
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
+backup_file="$workdir/backup.bin"
 
 SD_CARD_ROOT="/mnt/mmcblk0p1"
 
@@ -70,8 +83,7 @@ image_starts_with_bootloader() {
 
 die() {
 	echo_c 160 "$1"
-	cleanup
-	exit 1
+	cleanup 1
 }
 
 bye() {
@@ -186,7 +198,7 @@ partial_upgrade_partition_size() {
 cleanup() {
 	echo "Clean up temporary files."
 	rm -rf "$workdir"
-	exit 0
+	exit "${1:-0}"
 }
 
 clone_app() {
@@ -212,6 +224,25 @@ download() {
 	[ -z "$file" ] && file="$fw_file"
 	echo "Downloading from $1 to $file"
 	curl -fL# --url "$1" -o "$file" $3 || return 1
+}
+
+# Return the tag of the newest GitHub release named "<prefix>-*" that
+# contains the firmware image for the given profile.  /releases/latest only
+# resolves non-prerelease releases, but the master series is published as
+# prereleases, so its tag has to be looked up through the API.  Skipping
+# releases without the image also skips failed or still-running builds.
+latest_release_tag() {
+	local prefix profile url
+	prefix="$1"
+	profile="$2"
+	url=$(curl -sfL --tls-max 1.2 \
+		"$GITHUB_API_URL/repos/themactep/thingino-firmware/releases?per_page=100" |
+		sed -n 's/.*"browser_download_url": *"\([^"]*\)".*/\1/p' |
+		grep -E "/releases/download/$prefix-[0-9]{4}-[0-9]{2}-[0-9]{2}/thingino-$profile\.bin$" |
+		head -n 1)
+	[ -n "$url" ] || return 1
+	url="${url#*/download/}"
+	echo "${url%%/*}"
 }
 
 expand_bb() {
@@ -266,9 +297,21 @@ handle_payload() {
 		profile="${profile%-4.4}"
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
+		release_tag=""
 		if [ -n "$release_date" ]; then
-			gh_url="$gh_url/download/firmware-$release_date"
+			release_tag="$RELEASE_PREFIX-$release_date"
 			echo "Requested release from $release_date"
+		elif [ "$RELEASE_PREFIX" = "firmware" ]; then
+			# The firmware series is marked as the latest non-prerelease.
+			:
+		else
+			release_tag=$(latest_release_tag "$RELEASE_PREFIX" "$profile") ||
+				die "Cannot find a $RELEASE_PREFIX release for branch $RELEASE_BRANCH"
+			echo "Using latest $RELEASE_BRANCH release: $release_tag"
+		fi
+
+		if [ -n "$release_tag" ]; then
+			gh_url="$gh_url/download/$release_tag"
 		else
 			gh_url="$gh_url/latest/download"
 		fi
@@ -293,9 +336,9 @@ handle_payload() {
 			curl_range="-r $offset-$range_end"
 			skip_sha256=1
 		elif [ "boot" = "$upgrade" ]; then
-			# Download only the first 320 KB (boot partition)
+			# Download only the first 192 KB (boot partition)
 			offset=0
-			range_end=$((320 * 1024 - 1))
+			range_end=$((192 * 1024 - 1))
 			curl_range="-r 0-$range_end"
 			skip_sha256=1
 		elif [ "part" = "$upgrade" ]; then
@@ -385,7 +428,7 @@ flush_memory() {
 }
 
 show_help() {
-	echo -e "Usage: $0 [-x] [-f|-k|-r|-b|-p|<file>|<URL>] [--backup|-B]
+	echo -e "Usage: $0 [-x] [-t BRANCH] [-f|-k|-r|-b|-p|<file>|<URL>] [--backup|-B]
 Where:
   -f      full upgrade with a binary from GitHub
   -k      kernel-only upgrade
@@ -393,6 +436,7 @@ Where:
   -b      bootloader-only upgrade
   -p      partial upgrade (rootfs + data + backup)
   -d      release date (the latest available, if omitted)
+  -t      target branch to download from (full upgrades only)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
   --backup|-B  create config backup before flashing
@@ -437,6 +481,7 @@ dl_dir="/tmp"
 fw_file="$workdir/fw.bin"
 download_dir_ready="false"
 do_backup="false"
+target_branch=""
 
 flush_memory
 
@@ -448,7 +493,7 @@ for arg in "$@"; do
 done
 
 ORIGINAL_ARG="$@"
-while getopts "b:Bd:fhkrpx" flag; do
+while getopts "b:Bd:fhkrpxt:" flag; do
 	case "$flag" in
 		b)
 			upgrade="boot"
@@ -474,6 +519,9 @@ while getopts "b:Bd:fhkrpx" flag; do
 			echo "Partial upgrades are not supported anymore."
 			exit 1
 			;;
+		t)
+			target_branch="$OPTARG"
+			;;
 		x)
 			selfupdate="false"
 			;;
@@ -483,6 +531,14 @@ while getopts "b:Bd:fhkrpx" flag; do
 	esac
 done
 shift "$((OPTIND - 1))"
+
+# -t switches which branch's release series is downloaded.  The upgrade
+# scripts themselves still self-update from the running branch.
+RELEASE_BRANCH="${target_branch:-$BRANCH}"
+if [ -n "$target_branch" ]; then
+	echo_c 112 "\nTarget branch: $RELEASE_BRANCH"
+fi
+RELEASE_PREFIX=$(release_prefix_for_branch "$RELEASE_BRANCH")
 
 # When a positional argument is present and is not a URL, it is a local
 # file.  Override any default GitHub URL that a mode flag may have set
@@ -525,6 +581,12 @@ if [ -z "$upgrade" ]; then
 			url="$1"
 			;;
 	esac
+fi
+
+# Switching branches replaces the whole image; partial upgrades would mix
+# partitions from two different builds.
+if [ -n "$target_branch" ] && [ "full" != "$upgrade" ]; then
+	die "Target branch (-t) is only supported for full upgrades (-f)."
 fi
 
 # For all modes that receive a local file, move it into the workdir.
@@ -675,6 +737,29 @@ PARTLIST
 get_mtd_size() { awk "/\"$1\"$/{print \"0x\"\$2}" /proc/mtd; }
 get_mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
 
+# Locate the backup partition inside a full image.  The early layout is
+# boot, env, backup, kernel: the backup slot is the blank 64K block right
+# before the kernel, and the kernel starts with the uImage magic at a 64K
+# boundary.  This does not depend on the layout the running kernel sees.
+find_backup_offset() {
+	local img="$1" size off blk blank
+	size=$(stat -c%s "$img") || return 1
+	off=131072
+	while [ "$off" -lt "$size" ]; do
+		if [ "$KERNEL_MAGIC" = "$(xxd -s "$off" -l 4 -p "$img")" ]; then
+			blk=$((off - 65536))
+			blank=$(dd if="$img" bs=65536 skip=$((blk / 65536)) count=1 2>/dev/null |
+				tr -d '\377' | wc -c)
+			if [ "$blank" -eq 0 ]; then
+				echo $blk
+				return 0
+			fi
+		fi
+		off=$((off + 65536))
+	done
+	return 1
+}
+
 # Snapshot config files to the backup MTD partition before flashing.
 # cfg-backup is installed by this package (scripts/cfg-backup.sh).
 create_config_backup() {
@@ -685,6 +770,27 @@ create_config_backup() {
 	else
 		echo_c 160 "Warning: cfg-backup failed (non-fatal)"
 	fi
+}
+
+# Copy the snapshot to tmpfs so it can be rewritten at the offset the new
+# layout uses, after the image has been flashed.
+dump_config_backup() {
+	local bdev magic
+	bdev=$(get_mtd_dev backup)
+	[ -n "$bdev" ] || {
+		echo_c 160 "No backup partition found"
+		return 1
+	}
+	if ! dd if="/dev/$bdev" of="$backup_file" bs=65536 count=1 2>/dev/null; then
+		echo_c 160 "Cannot read /dev/$bdev"
+		return 1
+	fi
+	magic=$(dd if="$backup_file" bs=10 count=1 2>/dev/null)
+	if [ "THNG_BCKUP" != "$magic" ]; then
+		echo_c 160 "Backup partition has no valid snapshot"
+		return 1
+	fi
+	echo "Config backup saved to $backup_file"
 }
 # --- end helpers ---
 
@@ -815,7 +921,18 @@ if [ -z "$mtd_dev" ]; then
 			# detached tmpfs process so overwriting rootfs cannot kill
 			# the flash loop or the SSH session.
 			echo "Full firmware upgrade"
+			if [ "$do_backup" = "true" ] && [ -z "$(get_mtd_dev backup)" ]; then
+				echo_c 160 "Warning: no backup partition; config backup skipped"
+				do_backup="false"
+			fi
 			create_config_backup
+			backup_off=""
+			if [ "$do_backup" = "true" ]; then
+				dump_config_backup || die "Config backup requested but not readable"
+				backup_off=$(find_backup_offset "$fw_file") ||
+					die "Cannot locate the backup slot in the image"
+				report_size "Config backup offset" "$backup_off"
+			fi
 			stop_services
 			clone_app /bin/busybox
 			clone_app /sbin/$stage2app
@@ -824,7 +941,8 @@ if [ -z "$mtd_dev" ]; then
 			watchdog_device=$(jct /etc/thingino.json get watchdog.device 2>/dev/null)
 			[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
 			[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
-			if ! DO_BACKUP="$do_backup" WATCHDOG_DEV="$watchdog_device" \
+			if ! DO_BACKUP="$do_backup" BACKUP_OFF="$backup_off" BACKUP_FILE="$backup_file" \
+				WATCHDOG_DEV="$watchdog_device" \
 				exec "$workdir/busybox" sh "$workdir/$stage2app" full "$fw_file"; then
 				echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 				cleanup

@@ -12,9 +12,9 @@ Thingino has two camera-side upgrade utilities:
 All SFC (SPI NOR) builds share a fixed early-partition layout:
 
 ```
-mtdparts=...:256k(boot),64k(env),64k(backup),1600k(kernel),*k(rootfs),*k(data),*@0(all)
+mtdparts=...:192k(boot),64k(env),64k(backup),1600k(kernel),*k(rootfs),*k(data),*@0(all)
 
-mtd0   boot       256KB   fixed   U-Boot SPL + image
+mtd0   boot       192KB   fixed   U-Boot SPL + image
 mtd1   env         64KB   fixed   U-Boot environment
 mtd2   backup      64KB   fixed   config backup (raw, cfg-backup)
 mtd3   kernel    1600KB   fixed   uImage
@@ -49,6 +49,11 @@ For rootfs mode, `flash-ota`:
 Boot and kernel modes skip the busybox-clone / remount step since they do not
 touch the rootfs partition.
 
+Boot mode checks that the padded boot image size matches the device's boot
+partition before writing anything. A mismatch means env would land at the
+wrong offset, so it refuses; changing the boot partition size requires a full
+upgrade.
+
 ## sysupgrade (full upgrades)
 
 The `sysupgrade` utility handles full firmware upgrades and on-camera GitHub
@@ -62,10 +67,23 @@ sysupgrade -k              kernel only from GitHub
 sysupgrade -r              rootfs + data from GitHub
 sysupgrade -B | --backup   create config backup before any flash
 sysupgrade -d DATE         request a specific GitHub release date
+sysupgrade -t BRANCH       full upgrade from another branch's release series
 
 sysupgrade <file>          auto-detect magic and flash accordingly
 sysupgrade <URL>           download from URL, then auto-detect
 ```
+
+GitHub downloads follow the release series of the branch the running image
+was built from: `master` firmware resolves the newest `master-YYYY-MM-DD`
+prerelease, while `ciao` resolves through `/releases/latest` to the
+`firmware-YYYY-MM-DD` series. `-d DATE` selects `master-DATE` or
+`firmware-DATE` accordingly. Other branches resolve `<branch>-YYYY-MM-DD`.
+
+Use `-t BRANCH` with a full upgrade to switch branches, for example
+`sysupgrade -f -t master` on a `ciao` device. The target branch's release
+series is used for the image; the upgrade scripts still self-update from the
+running branch. Partial upgrades reject `-t` because mixing partitions from
+two branches is not supported.
 
 ## Make Targets (OTA)
 
@@ -99,7 +117,8 @@ IP=192.168.88.127 make ota-kernel FORCE=1
 ### How host-driven OTA works
 
 1. `fw_ota.sh` pads partition files to exact MTD sizes on the host (boot to
-   256KB, env to 64KB, rootfs to 64KB-aligned, data as-is).
+   the build's boot partition size, env to 64KB, rootfs to 64KB-aligned, data
+   as-is).
 2. Uploads `flash-ota.sh` and the partition files to `/tmp/` on the camera.
 3. Invokes `flash-ota.sh <mode> <file> [file2]` which flashes each partition
    directly to its MTD device and reboots.
@@ -137,9 +156,12 @@ Stores selected config files to the raw 64KB backup partition (mtd2) before flas
 
 `sysupgrade` calls `cfg-backup write` before flashing (and `fw_ota.sh` does the same for
 `ota-upgrade`). On rootfs/kernel-only upgrades the backup partition is untouched, so the
-snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is flashed
-partition-by-partition; `sysupgrade` snapshots the config first and then skips the backup
-region, so the snapshot written moments earlier is preserved. The `S37cfg-autorestore`
+snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is written
+linearly, so bytes land at the offsets baked into the image. The backup slot can move
+when the bootloader partition changes size between releases, so `sysupgrade` copies the
+snapshot to tmpfs, flashes the image untouched, then writes the snapshot back at the
+offset found in the image (the blank 64KB block before the kernel). The downloaded image
+stays byte-identical to the release artifact. The `S37cfg-autorestore`
 boot script puts the files back into the fresh system automatically: on the first boot
 after any upgrade that wiped the overlay (rootfs+data and full-chip flashes), it runs
 `cfg-backup restore`, removes itself from the overlay, and reboots once more for a clean

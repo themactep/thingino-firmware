@@ -24,6 +24,12 @@ endif
 # Only proceed with board selection if not exempted
 ifeq ($(SKIP_CAMERA_SELECTION),)
 
+# The secureboot group depends on the 2026.07 U-Boot and secureboop, both
+# removed from ciao. Refuse to build it here and point at master.
+ifeq ($(CAMERA_SUBDIR),configs/cameras-secureboot)
+$(error The secureboot camera group is not supported on the ciao branch; build these cameras from the master branch instead)
+endif
+
 # --- build session memo ---------------------------------------------
 #
 # BUILD_MEMO is scoped to the terminal session (parent PID of make).
