@@ -334,6 +334,12 @@ ALIGN_BLOCK := 65536
 # Kconfig symbol never reaches the driver, so the fragment line and the chip
 # table have to describe the same flash, or mkfs.jffs2, the partition floor
 # below and the kernel disagree about what an erase block is.
+#
+# Today no 3.10 jz_sfc config selects CONFIG_ERASE_SIZE_64K while the chip
+# tables use 64 KiB (T10/T20/T21/T23/T30/T31), so the image is built without
+# cleanmarkers: a 32 KiB cleanmarker in the middle of an empty 64 KiB block
+# makes jffs2 write over it (see Makefile.utils,
+# scripts/check-jffs2-cleanmarkers.sh).
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
 JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
