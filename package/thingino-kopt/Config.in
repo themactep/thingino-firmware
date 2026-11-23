@@ -459,4 +459,37 @@ config BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG
 	  detection). Boots with slub_debug on by default to catch heap
 	  corruption at the point of the bad write/free.
 
+config BR2_THINGINO_LOWMEM
+	bool "32 MB low-memory tuning"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on KERNEL_VERSION_3
+	help
+	  For boards with ~19 MB of Linux RAM (32 MB DDR, 7-8 MB rmem),
+	  Lu-Fi/openimp#785. No feature is removed:
+	  - kernel log buffer 64 KiB (LOG_BUF_SHIFT=16), Android
+	    log_main ring 64 KiB instead of 256 KiB, JFFS2 deflate
+	    workspace ~48 KiB instead of 268 KiB (kernel patch 0110);
+	  - S03lowmem: TCP memory capped (tcp_mem 192/256/384 pages),
+	    dirty page cache limit 1 MiB, the watchdog daemon and the ssh
+	    listener exempt from the OOM killer (a killed watchdog daemon
+	    means a hardware reset 60 s later);
+	  - zram swap (Lu-Fi/openimp#800): kernel ZRAM + LZ4 and the
+	    busybox mkswap/swapon applets; S03lowmem adds a 4 MiB
+	    /dev/zram0 swap (swappiness 100, page-cluster 0,
+	    min_free_kbytes 768) so reclaim takes cold anonymous pages
+	    instead of thrashing the squashfs program text into a
+	    watchdog reset. VM event counters on for /proc/vmstat;
+	  - Android low-memory killer (#800, kernel STAGING/ANDROID):
+	    below 3.5 MiB of file cache it kills the biggest process
+	    with oom_score_adj >= 800. Every WebUI CGI raises itself to
+	    800 (a line added to auth.sh at target-finalize), uhttpd
+	    stays <= 0 and wpa_supplicant/dropbear get -500 (S61lowmem),
+	    so an overloaded board drops a WebUI request instead of
+	    thrashing into a hardware-watchdog reset;
+	  - AIC8800 USB WLAN: 10 message-endpoint RX URBs like the OEM
+	    driver instead of the upstream 100 (~360 KiB less slab,
+	    Lu-Fi/openimp#802, BR2_PACKAGE_WIFI_AIC8800_USB_MSG_RX_URBS).
+	  Pair it with BR2_TARGET_ROOTFS_SQUASHFS_BS_128K (squashfs read
+	  caches and the XZ dictionary scale with the block size).
+
 endmenu
