@@ -12,8 +12,12 @@ the old SDK layout pinned here (common/misc/motor):
 - switch-less (limit-less) heads, devm double free, fops .owner,
   check_params y fix
 ---
+
+[rebased onto ingenic-sdk fb8d2ee: the motor_fops .owner hunk is upstream
+since b6e70af9 and was dropped]
+
 --- a/common/misc/motor/motor.c
-+++ b/common/misc/motor/motor.c	2026-10-22 18:53:21.530369155 +0200
++++ b/common/misc/motor/motor.c
 @@ -1,9 +1,17 @@
 -// SPDX-License-Identifier: GPL-2.0-only
  /*
@@ -33,7 +37,7 @@ the old SDK layout pinned here (common/misc/motor):
   */
  
  #include <linux/mm.h>
-@@ -73,6 +81,113 @@
+@@ -73,6 +81,113 @@ struct motor_platform_data motors_pdata[HAS_MOTOR_CNT] = {
  	},
  };
  
@@ -147,7 +151,7 @@ the old SDK layout pinned here (common/misc/motor):
  static void motor_set_default(struct motor_device *mdev)
  {
  	int index = 0;
-@@ -82,13 +197,13 @@
+@@ -82,13 +197,13 @@ static void motor_set_default(struct motor_device *mdev)
  		motor =  &mdev->motors[index];
  		motor->state = MOTOR_OPS_STOP;
  		if (motor->pdata->motor_st1_gpio)
@@ -165,7 +169,7 @@ the old SDK layout pinned here (common/misc/motor):
  	}
  	return;
  }
-@@ -116,22 +231,22 @@
+@@ -116,22 +231,22 @@ static void motor_move_step(struct motor_device *mdev)
  			step = motor->cur_steps % 8;
  			step = step < 0 ? step + 8 : step;
  			if (motor->pdata->motor_st1_gpio)
@@ -196,7 +200,7 @@ the old SDK layout pinned here (common/misc/motor):
  		}
  		if(motor->state == MOTOR_OPS_RESET){
  			motor->total_steps++;
-@@ -153,6 +268,16 @@
+@@ -153,6 +268,16 @@ static irqreturn_t jz_timer_interrupt(int irq, void *dev_id)
  			&& motors[VERTICAL_MOTOR].state == MOTOR_OPS_STOP){
  		mdev->dev_state = MOTOR_OPS_STOP;
  		motor_move_step(mdev);
@@ -213,7 +217,7 @@ the old SDK layout pinned here (common/misc/motor):
  		return IRQ_HANDLED;
  	}
  
-@@ -299,27 +424,40 @@
+@@ -299,27 +424,40 @@ static long motor_ops_move(struct motor_device *mdev, int x, int y)
  	int times = 1;
  	int value = 0;
  
@@ -273,7 +277,7 @@ the old SDK layout pinned here (common/misc/motor):
  	x_dir = x > 0 ? MOTOR_MOVE_RIGHT_UP : (x < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
  	y_dir = y > 0 ? MOTOR_MOVE_RIGHT_UP : (y < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
  	x1 = x < 0 ? 0 - x : x;
-@@ -418,7 +556,7 @@
+@@ -418,7 +556,7 @@ static inline int motor_ops_reset_check_params(struct motor_reset_data *rdata)
  	if(rdata->x_max_steps == 0 || rdata->y_max_steps == 0){
  		return -1;
  	}
@@ -282,7 +286,7 @@ the old SDK layout pinned here (common/misc/motor):
  		return -1;
  	return 0;
  }
-@@ -438,6 +576,10 @@
+@@ -438,6 +576,10 @@ static long motor_ops_reset(struct motor_device *mdev, struct motor_reset_data *
  		return -EPERM;
  	}
  
@@ -293,7 +297,7 @@ the old SDK layout pinned here (common/misc/motor):
  	if(motor_ops_reset_check_params(rdata) == 0){
  		/* app set max steps and current pos */
  		mutex_lock(&mdev->dev_mutex);
-@@ -448,6 +590,27 @@
+@@ -448,6 +590,27 @@ static long motor_ops_reset(struct motor_device *mdev, struct motor_reset_data *
  		mdev->motors[VERTICAL_MOTOR].cur_steps = rdata->y_cur_step;
  		spin_unlock_irqrestore(&mdev->slock, flags);
  		mutex_unlock(&mdev->dev_mutex);
@@ -321,7 +325,7 @@ the old SDK layout pinned here (common/misc/motor):
  	}else{
  		/* driver calculate max steps. */
  		mutex_lock(&mdev->dev_mutex);
-@@ -567,6 +730,8 @@
+@@ -567,6 +730,8 @@ static long motor_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  		return -EPERM;
  	}
  
@@ -330,15 +334,7 @@ the old SDK layout pinned here (common/misc/motor):
  	switch (cmd) {
  		case MOTOR_STOP:
  			motor_ops_stop(mdev);
-@@ -653,6 +818,7 @@
- }
- 
- static struct file_operations motor_fops = {
-+	.owner = THIS_MODULE,	/* an open /dev/motor pins the module */
- 	.open = motor_open,
- 	.release = motor_release,
- 	.unlocked_ioctl = motor_ioctl,
-@@ -691,6 +857,7 @@
+@@ -692,6 +857,7 @@ static int motor_info_open(struct inode *inode, struct file *file)
  }
  
  static const struct file_operations motor_info_fops ={
@@ -346,7 +342,7 @@ the old SDK layout pinned here (common/misc/motor):
  	.read = seq_read,
  	.open = motor_info_open,
  	.llseek = seq_lseek,
-@@ -718,6 +885,8 @@
+@@ -719,6 +885,8 @@ static int motor_probe(struct platform_device *pdev)
  		goto error_devm_kzalloc;
  	}
  
@@ -355,7 +351,7 @@ the old SDK layout pinned here (common/misc/motor):
  	mdev->dev = &pdev->dev;
  	mdev->tcu = (struct ingenic_tcu_chn *)mdev->cell->platform_data;
  	mdev->tcu->irq_type = FULL_IRQ_MODE;
-@@ -794,9 +963,17 @@
+@@ -795,9 +963,17 @@ static int motor_probe(struct platform_device *pdev)
  		setup_timer(&motor->max_timer,
  			    gpio_keys_max_timer, (unsigned long)motor);
  	}
@@ -376,7 +372,7 @@ the old SDK layout pinned here (common/misc/motor):
  	ingenic_tcu_channel_to_virq(mdev->tcu);
  	mdev->run_step_irq = mdev->tcu->virq[0];
  	if (mdev->run_step_irq < 0) {
-@@ -833,7 +1010,27 @@
+@@ -834,7 +1010,27 @@ static int motor_probe(struct platform_device *pdev)
  	proc_create_data("motor_info", S_IRUGO, proc, &motor_info_fops, (void *)mdev);
  
  	motor_set_default(mdev);
@@ -404,7 +400,7 @@ the old SDK layout pinned here (common/misc/motor):
  	ingenic_tcu_counter_begin(mdev->tcu);
  
  	//printk("%s%d\n",__func__,__LINE__);
-@@ -874,7 +1071,6 @@
+@@ -875,7 +1071,6 @@ error_min_gpio:
  		del_timer_sync(&motor->min_timer);
  		del_timer_sync(&motor->max_timer);
  	}
@@ -412,7 +408,7 @@ the old SDK layout pinned here (common/misc/motor):
  error_devm_kzalloc:
  	return ret;
  }
-@@ -884,6 +1080,12 @@
+@@ -885,6 +1080,12 @@ static int motor_remove(struct platform_device *pdev)
  	int i;
  	struct motor_device *mdev = platform_get_drvdata(pdev);
  	struct motor_driver *motor = NULL;
@@ -425,7 +421,7 @@ the old SDK layout pinned here (common/misc/motor):
  	ingenic_tcu_counter_stop(mdev->tcu);
  	mutex_destroy(&mdev->dev_mutex);
  
-@@ -920,26 +1122,28 @@
+@@ -921,26 +1122,28 @@ static int motor_remove(struct platform_device *pdev)
  		del_timer_sync(&motor->max_timer);
  	}
  
