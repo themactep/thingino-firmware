@@ -275,7 +275,7 @@
             <div class="st-panel st-tile"><i class="bi bi-record-circle"></i><span class="v" id="st-rec">–</span><span class="s" id="st-rec-s"></span></div>
             <div class="st-panel st-tile"><i class="bi bi-people"></i><span class="v" id="st-cl">–</span><span class="s">all protocols, no events</span></div>
             <div class="st-panel st-tile"><i class="bi bi-clock-history"></i><span class="v" id="st-up">–</span><span class="s" id="st-ver"></span></div>
-            <div class="st-panel st-tile"><i class="bi bi-heart-pulse"></i><span class="v"><span class="st-dot me-1" id="st-hd"></span><span id="st-h">–</span></span><span class="s" id="st-h-s"></span></div>
+            <div class="st-panel st-tile"><i class="bi bi-heart-pulse"></i><span class="v"><span class="st-dot me-2" id="st-hd"></span><span id="st-h">–</span></span><span class="s" id="st-h-s"></span></div>
             <div class="st-panel st-tile st-sys"><i class="bi bi-cpu"></i><span class="v" id="st-sys">–</span>
               <div class="st-bar"><i id="st-sysb-t"></i><i id="st-sysb"></i></div><span class="s" id="st-sys-s"></span></div>
             <div class="st-panel st-tile st-sys"><i class="bi bi-memory"></i><span class="v" id="st-mem">–</span>
@@ -532,11 +532,13 @@
       if (stLive.drops) issues.push(stLive.drops + " dropped frames");
       const qd = (stCfg.queue_drops || []).reduce((a, b) => a + b, 0);
       if (qd) issues.push(qd + " queue drops");
-      const errs = Object.keys(stCfg.last_errors || {});
-      if (errs.length) issues.push("errors: " + errs.join(", "));
+      const le = stCfg.last_errors || {};
+      const errs = Object.keys(le).sort((a, b) => (le[a].age_s || 0) - (le[b].age_s || 0));
+      if (errs.length) issues.push("errors: " + errs.join(", ") + " · " + errs[0] + ": " + (le[errs[0]].msg || ""));
       $st("hd").classList.toggle("warn", issues.length > 0);
       $st("h").textContent = issues.length ? "Check" : "Healthy";
       $st("h-s").textContent = issues.length ? issues.join(" · ") : "no drops · no errors";
+      $st("h-s").title = errs.map((m) => m + " " + (le[m].level || "") + " " + (le[m].count || 0) + "x, " + formatUptime(le[m].age_s || 0) + " ago: " + (le[m].msg || "")).join("\n");
     }
 
     function renderStats(j) {
