@@ -764,6 +764,50 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL
 endef
 endif
 
+################ LOW MEMORY (32 MB boards) ########
+# 32 MB low-memory tuning (Lu-Fi/openimp#785, #800). Called last in the
+# fixups list, so its log buffer size wins over earlier settings.
+ifeq ($(BR2_THINGINO_LOWMEM),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LOWMEM
+	$(call KCONFIG_SET_OPT,CONFIG_LOG_BUF_SHIFT,16)
+	$(call KCONFIG_SET_OPT,CONFIG_LOGGER_MAIN_SIZE_KB,64)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_JFFS2_ZLIB_SMALL_WINDOW)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SWAP)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ZSMALLOC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ZRAM)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ZRAM_LZ4_COMPRESS)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ZRAM_DEBUG)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VM_EVENT_COUNTERS)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STAGING)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ANDROID)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ANDROID_LOW_MEMORY_KILLER)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ANDROID_TIMED_OUTPUT)
+	# USB_DWC2 is the staging dwc2 driver; the SoC USB is USB_JZ_DWC2.
+	# With STAGING on it would be built too and clash at link time.
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2)
+endef
+
+define THINGINO_KOPT_INSTALL_TARGET_CMDS_LOWMEM
+	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/S03lowmem $(TARGET_DIR)/etc/init.d/S03lowmem
+	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/S61lowmem $(TARGET_DIR)/etc/init.d/S61lowmem
+	echo "# BR2_THINGINO_LOWMEM: 32 MB board, see S03lowmem, S61lowmem" > $(TARGET_DIR)/etc/lowmem
+endef
+
+# Every WebUI CGI sources auth.sh first: there it raises its own
+# oom_score_adj to 800 (inherited by its helpers and curl), so the
+# low-memory killer (S03lowmem) takes WebUI requests, never uhttpd itself.
+# Done after all packages installed, so the webui file is not edited in
+# its own package.
+define THINGINO_KOPT_LOWMEM_CGI_OOM
+	if [ -f $(TARGET_DIR)/var/www/x/auth.sh ] && \
+	   ! grep -q 'lowmem_cgi_oom' $(TARGET_DIR)/var/www/x/auth.sh; then \
+		sed -i '1a # lowmem_cgi_oom (BR2_THINGINO_LOWMEM, Lu-Fi/openimp#800)\n[ -f /etc/lowmem ] \&\& echo 800 > /proc/self/oom_score_adj 2>/dev/null' \
+			$(TARGET_DIR)/var/www/x/auth.sh; \
+	fi
+endef
+TARGET_FINALIZE_HOOKS += THINGINO_KOPT_LOWMEM_CGI_OOM
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -819,17 +863,24 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LOWMEM)
 endef
 
 define THINGINO_KOPT_INSTALL_TARGET_CMDS
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6)
 	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_NETFILTER)
+	$(THINGINO_KOPT_INSTALL_TARGET_CMDS_LOWMEM)
 endef
 
 # The SLIP line discipline is attached from userspace; busybox carries the
-# applet only when the kopt asks for it.
+# applet only when the kopt asks for it. LOWMEM boards need mkswap/swapon
+# for the zram swap S03lowmem sets up (Lu-Fi/openimp#800).
 define THINGINO_KOPT_BUSYBOX_CONFIG_FIXUPS
 	$(if $(filter y,$(BR2_PACKAGE_THINGINO_KOPT_SLIP)),$(call KCONFIG_ENABLE_OPT,CONFIG_SLATTACH))
+	$(if $(filter y,$(BR2_THINGINO_LOWMEM)),$(call KCONFIG_ENABLE_OPT,CONFIG_MKSWAP))
+	$(if $(filter y,$(BR2_THINGINO_LOWMEM)),$(call KCONFIG_ENABLE_OPT,CONFIG_SWAPON))
+	$(if $(filter y,$(BR2_THINGINO_LOWMEM)),$(call KCONFIG_ENABLE_OPT,CONFIG_SWAPOFF))
+	$(if $(filter y,$(BR2_THINGINO_LOWMEM)),$(call KCONFIG_ENABLE_OPT,CONFIG_FEATURE_SWAPON_PRI))
 endef
 
 $(eval $(generic-package))
