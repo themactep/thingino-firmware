@@ -6,8 +6,9 @@
 
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
-# Release tag of the Lu-Fi open-stack fork.
-OPEN_TX_ISP_VERSION = v2026.11.07-rc3
+# Lu-Fi open-stack fork, next branch head (2026-11-23): newer than the
+# v2026.11.07-rc3 tag, carries the T23 IVDC direct re-init (Lu-Fi/openimp#800, #807).
+OPEN_TX_ISP_VERSION = 18601ae44c0a06dbc2e04005d2d1ad3bdcd41ba2
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.

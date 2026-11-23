@@ -6,8 +6,9 @@
 
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/Lu-Fi/openimp
-# Release tag of the Lu-Fi open-stack fork.
-OPENIMP_VERSION = v2026.11.07-rc3
+# Lu-Fi open-stack fork, next branch head (2026-11-23): newer than the
+# v2026.11.07-rc3 tag, carries the T23 IVDC direct mode (Lu-Fi/openimp#767, #807).
+OPENIMP_VERSION = b14b292c1986091ded6953a3b6a125c709d58655
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
