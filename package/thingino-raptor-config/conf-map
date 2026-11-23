@@ -258,6 +258,7 @@ str recording storage_path RAPTOR_RECORDING_STORAGE_PATH
 str recording max_storage_mb RAPTOR_RECORDING_MAX_STORAGE_MB
 str recording min_free_mb RAPTOR_RECORDING_MIN_FREE_MB
 str recording prebuffer_sec RAPTOR_RECORDING_PREBUFFER_SEC
+str recording prebuffer_max_mb RAPTOR_RECORDING_PREBUFFER_MAX_MB
 str recording clip_length_sec RAPTOR_RECORDING_CLIP_LENGTH_SEC
 str recording clip_max_mb RAPTOR_RECORDING_CLIP_MAX_MB
 bool recording sei_timecode RAPTOR_RECORDING_SEI_TIMECODE

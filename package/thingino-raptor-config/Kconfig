@@ -875,6 +875,7 @@ endchoice
 
 config RAPTOR_RING_MAIN_SLOTS
 	string "main_slots (default 32)"
+	default "64" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RING_MAIN_DATA_MB
@@ -1700,6 +1701,11 @@ config RAPTOR_RECORDING_MAX_STORAGE_MB
 config RAPTOR_RECORDING_MIN_FREE_MB
 	string "min_free_mb (loop recording: keep this much free, 0=off, default 0)"
 	default "1024" if (RAPTOR_ENV_DEV_DASHCAM = "y")
+	default ""
+
+config RAPTOR_RECORDING_PREBUFFER_MAX_MB
+	string "prebuffer_max_mb (per-stream pre-buffer ceiling 1-64, default 16)"
+	default "8" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_PREBUFFER_SEC
