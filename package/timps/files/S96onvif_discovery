@@ -91,6 +91,10 @@ timps_http_scheme() {
 	esac
 }
 
+timps_loop_scheme() {
+	[ "$(timps_conf_get http.https)" = "2" ] && echo "https" || echo "http"
+}
+
 timps_http_port() {
 	port=$(timps_conf_get http.port)
 	[ -n "$port" ] || port="8880"
@@ -104,7 +108,7 @@ fetch_timps_control() {
 	[ "$TIMPS_CONTROL_TRIED" = "1" ] && return
 	TIMPS_CONTROL_TRIED=1
 
-	scheme=$(timps_http_scheme)
+	scheme=$(timps_loop_scheme)
 	url="$scheme://127.0.0.1:$(timps_http_port)/control"
 
 	i=0

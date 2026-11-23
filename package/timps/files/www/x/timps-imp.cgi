@@ -9,7 +9,7 @@ TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{
 [ -z "$TIMPS_PORT" ] && TIMPS_PORT=8880
 TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1 | tr '[:upper:]' '[:lower:]')
 case "$TIMPS_HTTPS" in
-	1 | 2 | true | yes | on)
+	2)
 		TIMPS_SCHEME=https
 		TIMPS_CURL_K="-k"
 		;;
