@@ -1,6 +1,6 @@
 clean-config:
 	@$(TEAL) "$@"
-	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original $(DL_MIRROR_STAMP)
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
@@ -15,6 +15,10 @@ nconfig: check-config $(OUTPUT_DIR)/.config
 saveconfig:
 	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+	@if [ -n "$(DL_MIRROR_DIR)" ]; then \
+		sed -i '\|^BR2_PRIMARY_SITE="file://$(DL_MIRROR_DIR)"$$|d' \
+			"$(CAMERA_CONFIG_REAL)"; \
+	fi
 
 ### Files
 
@@ -267,7 +271,7 @@ ota-full: check-image-fits
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
 	if [ -n "$(FLASH_SIZE)" ] && [ "$$(stat -c%s "$$fw_path")" -gt "$(FLASH_SIZE)" ]; then \
-		echo "ERROR: $$fw_path is larger than the $(FLASH_SIZE_MB)MB flash; refusing to flash."; exit 1; \
+		echo "ERROR: $$fw_path is larger than the $(FLASH_LAYOUT_MB)MB flash layout; refusing to flash."; exit 1; \
 	fi; \
 	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
 

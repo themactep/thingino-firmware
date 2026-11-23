@@ -1,0 +1,426 @@
+Merge NS analyze and process into a single-pass core.
+
+audio_process_ns_process() called WebRtcNs_Analyze() and then
+WebRtcNs_Process() on the same frame. Both update their own sliding
+buffer and compute the same 256-point real FFT.
+
+Add WebRtcNs_AnalyzeProcessCore() that updates both buffers, windows and
+transforms once, runs the existing analysis and noise estimate, then the
+Wiener filter and IFFT. The old WebRtcNs_Analyze()/WebRtcNs_Process()
+entry points are kept and the exported audio_process_* surface is
+unchanged.
+
+The zero-energy path, the blockInd increment, the noise statistics
+order, and the high-band time-domain gain are preserved. Output is
+bit-identical to the previous path: verified with tests/ns_bench.c at
+8/16/32/48 kHz, policies 0-3, 1 and 2 bands.
+
+--- a/src/ns.c
++++ b/src/ns.c
+@@ -1,6 +1,7 @@
+ /* SPDX-License-Identifier: MIT */
+ #include "audio_process.h"
+ #include "webrtc/modules/audio_processing/ns/include/noise_suppression.h"
++#include "webrtc/modules/audio_processing/ns/ns_core.h"
+ 
+ void *audio_process_ns_create(void)
+ {
+@@ -28,8 +29,8 @@
+ 	if (!ns || !in_bands || !*in_bands || !out_bands || !*out_bands || !num_bands)
+ 		return;
+ 
+-	WebRtcNs_Analyze(ns, in_bands[0]);
+-	WebRtcNs_Process(ns, in_bands, (size_t)num_bands, out_bands);
++	WebRtcNs_AnalyzeProcessCore((NoiseSuppressionC *)ns, in_bands,
++				    (size_t)num_bands, out_bands);
+ }
+ 
+ int audio_process_ns_free(void *ns)
+--- a/src/webrtc/modules/audio_processing/ns/ns_core.c
++++ b/src/webrtc/modules/audio_processing/ns/ns_core.c
+@@ -1413,3 +1413,356 @@
+     }
+   }  // End of H band gain computation.
+ }
++
++// Performs the analysis and the synthesis for a single frame with a single
++// forward transform. Equivalent to calling WebRtcNs_AnalyzeCore() followed by
++// WebRtcNs_ProcessCore(), which compute the same FFT twice.
++void WebRtcNs_AnalyzeProcessCore(NoiseSuppressionC* self,
++                                 const float* const* speechFrame,
++                                 size_t num_bands,
++                                 float* const* outFrame) {
++  const size_t kStartBand = 5;  // Skip first frequency bins during estimation.
++  int updateParsFlag;
++  int flagHB = 0;
++  size_t i, j;
++
++  // Analysis variables.
++  float energy;
++  float signalEnergy = 0.f;
++  float sumMagn = 0.f;
++  float tmpFloat1, tmpFloat2, tmpFloat3;
++  float winData[ANAL_BLOCKL_MAX];
++  float magn[HALF_ANAL_BLOCKL], noise[HALF_ANAL_BLOCKL];
++  float snrLocPost[HALF_ANAL_BLOCKL], snrLocPrior[HALF_ANAL_BLOCKL];
++  float real[ANAL_BLOCKL_MAX], imag[HALF_ANAL_BLOCKL];
++  // Variables during startup.
++  float sum_log_i = 0.0;
++  float sum_log_i_square = 0.0;
++  float sum_log_magn = 0.0;
++  float sum_log_i_log_magn = 0.0;
++  float parametric_exp = 0.0;
++  float parametric_num = 0.0;
++
++  // Processing variables.
++  float energy2, gain, factor, factor1, factor2;
++  float fout[BLOCKL_MAX];
++  float theFilter[HALF_ANAL_BLOCKL], theFilterTmp[HALF_ANAL_BLOCKL];
++
++  // SWB variables.
++  int deltaBweHB = 1;
++  int deltaGainHB = 1;
++  float decayBweHB = 1.0;
++  float gainMapParHB = 1.0;
++  float gainTimeDomainHB = 1.0;
++  float avgProbSpeechHB, avgProbSpeechHBTmp, avgFilterGainHB, gainModHB;
++  float sumMagnAnalyze, sumMagnProcess;
++
++  const float* const* speechFrameHB = NULL;
++  float* const* outFrameHB = NULL;
++  size_t num_high_bands = 0;
++
++  // Check that initiation has been done.
++  assert(self->initFlag == 1);
++  assert((num_bands - 1) <= NUM_HIGH_BANDS_MAX);
++  updateParsFlag = self->modelUpdatePars[0];
++
++  if (num_bands > 1) {
++    speechFrameHB = &speechFrame[1];
++    outFrameHB = &outFrame[1];
++    num_high_bands = num_bands - 1;
++    flagHB = 1;
++    // Range for averaging low band quantities for H band gain.
++    deltaBweHB = (int)self->magnLen / 4;
++    deltaGainHB = deltaBweHB;
++  }
++
++  // Update both the analysis and the process buffer. They receive the same
++  // frame, so one of them can feed the shared transform below.
++  UpdateBuffer(speechFrame[0], self->blockLen, self->anaLen, self->analyzeBuf);
++  UpdateBuffer(speechFrame[0], self->blockLen, self->anaLen, self->dataBuf);
++
++  if (flagHB == 1) {
++    // Update analysis buffer for H bands.
++    for (i = 0; i < num_high_bands; ++i) {
++      UpdateBuffer(speechFrameHB[i],
++                   self->blockLen,
++                   self->anaLen,
++                   self->dataBufHB[i]);
++    }
++  }
++
++  Windowing(self->window, self->analyzeBuf, self->anaLen, winData);
++  energy = Energy(winData, self->anaLen);
++  if (energy == 0.0) {
++    // Synthesize the special case of zero input. This matches the old pair of
++    // calls: Analyze returns without touching blockInd or the statistics, and
++    // Process copies the synthesis buffer to the output.
++    for (i = self->windShift; i < self->blockLen + self->windShift; i++) {
++      fout[i - self->windShift] = self->syntBuf[i];
++    }
++    UpdateBuffer(NULL, self->blockLen, self->anaLen, self->syntBuf);
++
++    for (i = 0; i < self->blockLen; ++i)
++      outFrame[0][i] =
++          WEBRTC_SPL_SAT(WEBRTC_SPL_WORD16_MAX, fout[i], WEBRTC_SPL_WORD16_MIN);
++
++    // For time-domain gain of HB.
++    if (flagHB == 1) {
++      for (i = 0; i < num_high_bands; ++i) {
++        for (j = 0; j < self->blockLen; ++j) {
++          outFrameHB[i][j] = WEBRTC_SPL_SAT(WEBRTC_SPL_WORD16_MAX,
++                                            self->dataBufHB[i][j],
++                                            WEBRTC_SPL_WORD16_MIN);
++        }
++      }
++    }
++
++    return;
++  }
++
++  self->blockInd++;  // Update the block index only when we process a block.
++
++  FFT(self, winData, self->anaLen, self->magnLen, real, imag, magn);
++
++  for (i = 0; i < self->magnLen; i++) {
++    signalEnergy += real[i] * real[i] + imag[i] * imag[i];
++    sumMagn += magn[i];
++    if (self->blockInd < END_STARTUP_SHORT) {
++      if (i >= kStartBand) {
++        tmpFloat2 = logf((float)i);
++        sum_log_i += tmpFloat2;
++        sum_log_i_square += tmpFloat2 * tmpFloat2;
++        tmpFloat1 = logf(magn[i]);
++        sum_log_magn += tmpFloat1;
++        sum_log_i_log_magn += tmpFloat2 * tmpFloat1;
++      }
++    }
++  }
++  signalEnergy /= self->magnLen;
++  self->signalEnergy = signalEnergy;
++  self->sumMagn = sumMagn;
++
++  // Quantile noise estimate.
++  NoiseEstimation(self, magn, noise);
++  // Compute simplified noise model during startup.
++  if (self->blockInd < END_STARTUP_SHORT) {
++    // Estimate White noise.
++    self->whiteNoiseLevel += sumMagn / self->magnLen * self->overdrive;
++    // Estimate Pink noise parameters.
++    tmpFloat1 = sum_log_i_square * (self->magnLen - kStartBand);
++    tmpFloat1 -= (sum_log_i * sum_log_i);
++    tmpFloat2 =
++        (sum_log_i_square * sum_log_magn - sum_log_i * sum_log_i_log_magn);
++    tmpFloat3 = tmpFloat2 / tmpFloat1;
++    // Constrain the estimated spectrum to be positive.
++    if (tmpFloat3 < 0.f) {
++      tmpFloat3 = 0.f;
++    }
++    self->pinkNoiseNumerator += tmpFloat3;
++    tmpFloat2 = (sum_log_i * sum_log_magn);
++    tmpFloat2 -= (self->magnLen - kStartBand) * sum_log_i_log_magn;
++    tmpFloat3 = tmpFloat2 / tmpFloat1;
++    // Constrain the pink noise power to be in the interval [0, 1].
++    if (tmpFloat3 < 0.f) {
++      tmpFloat3 = 0.f;
++    }
++    if (tmpFloat3 > 1.f) {
++      tmpFloat3 = 1.f;
++    }
++    self->pinkNoiseExp += tmpFloat3;
++
++    // Calculate frequency independent parts of parametric noise estimate.
++    if (self->pinkNoiseExp > 0.f) {
++      // Use pink noise estimate.
++      parametric_num =
++          expf(self->pinkNoiseNumerator / (float)(self->blockInd + 1));
++      parametric_num *= (float)(self->blockInd + 1);
++      parametric_exp = self->pinkNoiseExp / (float)(self->blockInd + 1);
++    }
++    for (i = 0; i < self->magnLen; i++) {
++      // Estimate the background noise using the white and pink noise
++      // parameters.
++      if (self->pinkNoiseExp == 0.f) {
++        // Use white noise estimate.
++        self->parametricNoise[i] = self->whiteNoiseLevel;
++      } else {
++        // Use pink noise estimate.
++        float use_band = (float)(i < kStartBand ? kStartBand : i);
++        self->parametricNoise[i] =
++            parametric_num / powf(use_band, parametric_exp);
++      }
++      // Weight quantile noise with modeled noise.
++      noise[i] *= (self->blockInd);
++      tmpFloat2 =
++          self->parametricNoise[i] * (END_STARTUP_SHORT - self->blockInd);
++      noise[i] += (tmpFloat2 / (float)(self->blockInd + 1));
++      noise[i] /= END_STARTUP_SHORT;
++    }
++  }
++  // Compute average signal during END_STARTUP_LONG time:
++  // used to normalize spectral difference measure.
++  if (self->blockInd < END_STARTUP_LONG) {
++    self->featureData[5] *= self->blockInd;
++    self->featureData[5] += signalEnergy;
++    self->featureData[5] /= (self->blockInd + 1);
++  }
++
++  // Post and prior SNR needed for SpeechNoiseProb.
++  ComputeSnr(self, magn, noise, snrLocPrior, snrLocPost);
++
++  FeatureUpdate(self, magn, updateParsFlag);
++  SpeechNoiseProb(self, self->speechProb, snrLocPrior, snrLocPost);
++  UpdateNoiseEstimate(self, magn, snrLocPrior, snrLocPost, noise);
++
++  // Keep track of noise spectrum for next frame.
++  memcpy(self->noise, noise, sizeof(*noise) * self->magnLen);
++  memcpy(self->magnPrevAnalyze, magn, sizeof(*magn) * self->magnLen);
++
++  if (self->blockInd < END_STARTUP_SHORT) {
++    for (i = 0; i < self->magnLen; i++) {
++      self->initMagnEst[i] += magn[i];
++    }
++  }
++
++  ComputeDdBasedWienerFilter(self, magn, theFilter);
++
++  for (i = 0; i < self->magnLen; i++) {
++    // Flooring bottom.
++    if (theFilter[i] < self->denoiseBound) {
++      theFilter[i] = self->denoiseBound;
++    }
++    // Flooring top.
++    if (theFilter[i] > 1.f) {
++      theFilter[i] = 1.f;
++    }
++    if (self->blockInd < END_STARTUP_SHORT) {
++      theFilterTmp[i] =
++          (self->initMagnEst[i] - self->overdrive * self->parametricNoise[i]);
++      theFilterTmp[i] /= (self->initMagnEst[i] + 0.0001f);
++      // Flooring bottom.
++      if (theFilterTmp[i] < self->denoiseBound) {
++        theFilterTmp[i] = self->denoiseBound;
++      }
++      // Flooring top.
++      if (theFilterTmp[i] > 1.f) {
++        theFilterTmp[i] = 1.f;
++      }
++      // Weight the two suppression filters.
++      theFilter[i] *= (self->blockInd);
++      theFilterTmp[i] *= (END_STARTUP_SHORT - self->blockInd);
++      theFilter[i] += theFilterTmp[i];
++      theFilter[i] /= (END_STARTUP_SHORT);
++    }
++
++    self->smooth[i] = theFilter[i];
++    real[i] *= self->smooth[i];
++    imag[i] *= self->smooth[i];
++  }
++  // Keep track of |magn| spectrum for next frame.
++  memcpy(self->magnPrevProcess, magn, sizeof(*magn) * self->magnLen);
++  memcpy(self->noisePrev, self->noise, sizeof(self->noise[0]) * self->magnLen);
++  // Back to time domain.
++  IFFT(self, real, imag, self->magnLen, self->anaLen, winData);
++
++  // Scale factor: only do it after END_STARTUP_LONG time.
++  factor = 1.f;
++  if (self->gainmap == 1 && self->blockInd > END_STARTUP_LONG) {
++    factor1 = 1.f;
++    factor2 = 1.f;
++
++    energy2 = Energy(winData, self->anaLen);
++    gain = (float)sqrt(energy2 / (energy + 1.f));
++
++    // Scaling for new version.
++    if (gain > B_LIM) {
++      factor1 = 1.f + 1.3f * (gain - B_LIM);
++      if (gain * factor1 > 1.f) {
++        factor1 = 1.f / gain;
++      }
++    }
++    if (gain < B_LIM) {
++      // Don't reduce scale too much for pause regions:
++      // attenuation here should be controlled by flooring.
++      if (gain <= self->denoiseBound) {
++        gain = self->denoiseBound;
++      }
++      factor2 = 1.f - 0.3f * (B_LIM - gain);
++    }
++    // Combine both scales with speech/noise prob:
++    // note prior (priorSpeechProb) is not frequency dependent.
++    factor = self->priorSpeechProb * factor1 +
++             (1.f - self->priorSpeechProb) * factor2;
++  }  // Out of self->gainmap == 1.
++
++  Windowing(self->window, winData, self->anaLen, winData);
++
++  // Synthesis.
++  for (i = 0; i < self->anaLen; i++) {
++    self->syntBuf[i] += factor * winData[i];
++  }
++  // Read out fully processed segment.
++  for (i = self->windShift; i < self->blockLen + self->windShift; i++) {
++    fout[i - self->windShift] = self->syntBuf[i];
++  }
++  // Update synthesis buffer.
++  UpdateBuffer(NULL, self->blockLen, self->anaLen, self->syntBuf);
++
++  for (i = 0; i < self->blockLen; ++i)
++    outFrame[0][i] =
++        WEBRTC_SPL_SAT(WEBRTC_SPL_WORD16_MAX, fout[i], WEBRTC_SPL_WORD16_MIN);
++
++  // For time-domain gain of HB.
++  if (flagHB == 1) {
++    // Average speech prob from low band.
++    // Average over second half (i.e., 4->8kHz) of frequencies spectrum.
++    avgProbSpeechHB = 0.0;
++    for (i = self->magnLen - deltaBweHB - 1; i < self->magnLen - 1; i++) {
++      avgProbSpeechHB += self->speechProb[i];
++    }
++    avgProbSpeechHB = avgProbSpeechHB / ((float)deltaBweHB);
++    // If the speech was suppressed by a component between Analyze and
++    // Process, for example the AEC, then it should not be considered speech
++    // for high band suppression purposes.
++    sumMagnAnalyze = 0;
++    sumMagnProcess = 0;
++    for (i = 0; i < self->magnLen; ++i) {
++      sumMagnAnalyze += self->magnPrevAnalyze[i];
++      sumMagnProcess += self->magnPrevProcess[i];
++    }
++    avgProbSpeechHB *= sumMagnProcess / sumMagnAnalyze;
++    // Average filter gain from low band.
++    // Average over second half (i.e., 4->8kHz) of frequencies spectrum.
++    avgFilterGainHB = 0.0;
++    for (i = self->magnLen - deltaGainHB - 1; i < self->magnLen - 1; i++) {
++      avgFilterGainHB += self->smooth[i];
++    }
++    avgFilterGainHB = avgFilterGainHB / ((float)(deltaGainHB));
++    avgProbSpeechHBTmp = 2.f * avgProbSpeechHB - 1.f;
++    // Gain based on speech probability.
++    gainModHB = 0.5f * (1.f + (float)tanh(gainMapParHB * avgProbSpeechHBTmp));
++    // Combine gain with low band gain.
++    gainTimeDomainHB = 0.5f * gainModHB + 0.5f * avgFilterGainHB;
++    if (avgProbSpeechHB >= 0.5f) {
++      gainTimeDomainHB = 0.25f * gainModHB + 0.75f * avgFilterGainHB;
++    }
++    gainTimeDomainHB = gainTimeDomainHB * decayBweHB;
++    // Make sure gain is within flooring range.
++    // Flooring bottom.
++    if (gainTimeDomainHB < self->denoiseBound) {
++      gainTimeDomainHB = self->denoiseBound;
++    }
++    // Flooring top.
++    if (gainTimeDomainHB > 1.f) {
++      gainTimeDomainHB = 1.f;
++    }
++    // Apply gain.
++    for (i = 0; i < num_high_bands; ++i) {
++      for (j = 0; j < self->blockLen; j++) {
++        outFrameHB[i][j] =
++            WEBRTC_SPL_SAT(WEBRTC_SPL_WORD16_MAX,
++                           gainTimeDomainHB * self->dataBufHB[i][j],
++                           WEBRTC_SPL_WORD16_MIN);
++      }
++    }
++  }  // End of H band gain computation.
++}
+--- a/src/webrtc/modules/audio_processing/ns/ns_core.h
++++ b/src/webrtc/modules/audio_processing/ns/ns_core.h
+@@ -184,6 +184,26 @@
+                           size_t num_bands,
+                           float* const* outFrame);
+ 
++/****************************************************************************
++ * WebRtcNs_AnalyzeProcessCore
++ *
++ * Estimate the background noise and suppress it in a single pass, sharing
++ * the forward transform between analysis and synthesis.
++ *
++ * Input:
++ *      - self          : Instance that should be initialized
++ *      - inFrame       : Input speech frame for each band
++ *      - num_bands     : Number of bands
++ *
++ * Output:
++ *      - self          : Updated instance
++ *      - outFrame      : Output speech frame for each band
++ */
++void WebRtcNs_AnalyzeProcessCore(NoiseSuppressionC* self,
++                                 const float* const* inFrame,
++                                 size_t num_bands,
++                                 float* const* outFrame);
++
+ #ifdef __cplusplus
+ }
+ #endif

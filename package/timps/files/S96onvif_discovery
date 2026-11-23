@@ -91,6 +91,10 @@ timps_http_scheme() {
 	esac
 }
 
+timps_loop_scheme() {
+	[ "$(timps_conf_get http.https)" = "2" ] && echo "https" || echo "http"
+}
+
 timps_http_port() {
 	port=$(timps_conf_get http.port)
 	[ -n "$port" ] || port="8880"
@@ -104,7 +108,7 @@ fetch_timps_control() {
 	[ "$TIMPS_CONTROL_TRIED" = "1" ] && return
 	TIMPS_CONTROL_TRIED=1
 
-	scheme=$(timps_http_scheme)
+	scheme=$(timps_loop_scheme)
 	url="$scheme://127.0.0.1:$(timps_http_port)/control"
 
 	i=0
@@ -215,7 +219,12 @@ configure_timps_onvif_profiles() {
 	http_port=$(timps_http_port)
 
 	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
-	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
+	# onvif_simple_server skips a profile whose url is not rtsp://
+	if [ "$(timps_bool_default video1.enabled true)" = "true" ]; then
+		jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
+	else
+		jct "$tmpfile" set profiles.stream1.url "off"
+	fi
 	snap0_on=$(timps_stream_jpeg_enabled 0)
 	snap1_on=$(timps_stream_jpeg_enabled 1)
 	if [ -x /var/www/x/ch1.jpg ] && [ -e /var/www/onvif/image1.cgi ]; then

@@ -13,6 +13,7 @@ port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\)
 [ -z "$port" ] && port=8880
 pchn=$(sed -n 's/^[[:space:]]*http\.preview_chn[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
 [ "$pchn" = 1 ] || pchn=0
+grep -qiE '^[[:space:]]*video1\.enabled[[:space:]]*=[[:space:]]*(0|false|no|off)([[:space:]#]|$)' "$CONF" 2>/dev/null && pchn=0
 https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1 | tr '[:upper:]' '[:lower:]')
 case "$https" in
 	1 | true | yes | on)

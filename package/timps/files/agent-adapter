@@ -36,7 +36,7 @@ agent_timps_port() {
 
 agent_timps_scheme() {
 	case "$(agent_conf_get http.https | tr 'A-Z' 'a-z')" in
-		1 | 2 | true | yes | on) printf 'https' ;;
+		2) printf 'https' ;;
 		*) printf 'http' ;;
 	esac
 }

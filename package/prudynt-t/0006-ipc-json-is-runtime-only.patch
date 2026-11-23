@@ -1,0 +1,138 @@
+The local control socket can apply a value to the running process only, but
+every path it sets is marked dirty, so the next persist from any caller writes
+those values into the user layer. Transient runtime changes -- a privacy
+throttle, a mic mute -- silently became saved configuration.
+
+A blanket runtime-only socket is not an option: the web UI stages page edits
+over the same socket and relies on an explicit save_config to commit them.
+Make the runtime behaviour opt-in instead. imp-control and microphone send
+RUNTIME, and only that transport keeps its paths out of the dirty set. The
+flag is per thread because every IPC client runs in its own thread, so one
+client cannot silence another's staging.
+
+diff --git a/src/config/Config.cpp b/src/config/Config.cpp
+index 11bbe59..3f75f06 100644
+--- a/src/config/Config.cpp
++++ b/src/config/Config.cpp
+@@ -818,7 +818,17 @@ bool CFG::readConfig() {
+   return true;
+ }
+ 
++namespace {
++// Per-thread: every IPC client is handled in its own thread.
++thread_local bool t_runtime_only = false;
++} // namespace
++
++void CFG::set_runtime_only(bool on) { t_runtime_only = on; }
++
+ void CFG::mark_dirty_path(const std::string &path) {
++  // Runtime-only callers must not leave a path behind for the next persist.
++  if (t_runtime_only)
++    return;
+   dirty_ = true;
+   std::lock_guard<std::mutex> lock(configMutex);
+   dirty_paths_.insert(path);
+diff --git a/src/config/Config.hpp b/src/config/Config.hpp
+index 2e60aab..960cd36 100644
+--- a/src/config/Config.hpp
++++ b/src/config/Config.hpp
+@@ -363,6 +363,12 @@ public:
+     dirty_ = false;
+     dirty_paths_.clear();
+   }
++  // Transports that apply configuration without persisting it set this while
++  // they run. Their paths never reach the user layer, so a later persist from
++  // another caller cannot turn a transient runtime value into saved config.
++  // Scoped to the calling thread: every IPC client runs in its own thread, and
++  // one client must not silence another's persistence.
++  void set_runtime_only(bool on);
+   void mark_dirty() {
+     dirty_ = true;
+     std::lock_guard<std::mutex> lock(configMutex);
+diff --git a/src/network/IPCServer.cpp b/src/network/IPCServer.cpp
+index 14d8e63..dbd15be 100644
+--- a/src/network/IPCServer.cpp
++++ b/src/network/IPCServer.cpp
+@@ -546,10 +546,25 @@ int IPCServer::handle_client(int fd) {
+     return 0;
+ 
+   // Determine command
+-  if (starts_with(req, "JSON ") || req[0] == '{') {
+-    const char *json = req[0] == '{' ? req.c_str() : (req.c_str() + 5);
++  // RUNTIME applies a payload to the running process without staging it for
++  // persistence. Plain JSON keeps accumulating in the dirty set: that is how
++  // the web UI stages page edits for an explicit save_config.
++  const bool runtime_only = starts_with(req, "RUNTIME ");
++  if (starts_with(req, "JSON ") || req[0] == '{' || runtime_only) {
++    const char *json;
++    if (runtime_only)
++      json = req.c_str() + 8;
++    else if (req[0] == '{')
++      json = req.c_str();
++    else
++      json = req.c_str() + 5;
+     std::string resp;
+-    if (process_json_with_jct(json, resp)) {
++    if (runtime_only && cfg)
++      cfg->set_runtime_only(true);
++    const bool ok = process_json_with_jct(json, resp);
++    if (runtime_only && cfg)
++      cfg->set_runtime_only(false);
++    if (ok) {
+       write(fd, resp.c_str(), resp.size());
+       write(fd, "\n", 1);
+     } else {
+diff --git a/src/prudyntctl.cpp b/src/prudyntctl.cpp
+index a9e8f06..88589ff 100644
+--- a/src/prudyntctl.cpp
++++ b/src/prudyntctl.cpp
+@@ -49,7 +49,8 @@ static bool write_full(int fd, const void *data, size_t len) {
+   return true;
+ }
+ 
+-static int cmd_json(int argc, char **argv) {
++// runtime: apply without staging the values for the next persist.
++static int cmd_json(int argc, char **argv, bool runtime) {
+   std::string payload;
+   if (argc >= 1 && strcmp(argv[0], "-") == 0) {
+     // read from stdin
+@@ -78,12 +79,12 @@ static int cmd_json(int argc, char **argv) {
+     return 2;
+   }
+ 
+-  // Allow bare JSON body or prefixed with JSON
++  // Allow bare JSON body or prefixed with the transport verb
+   if (!payload.empty() && payload[0] == '{') {
+     // write JSON directly
+     (void)write(fd, payload.c_str(), payload.size());
+   } else {
+-    std::string line = "JSON ";
++    std::string line = runtime ? "RUNTIME " : "JSON ";
+     line += payload;
+     line += "\n";
+     (void)write(fd, line.c_str(), line.size());
+@@ -244,11 +245,12 @@ static void usage(const char *prog) {
+   fprintf(stderr,
+           "Usage:\n"
+           "  %s json <json-string>|-     # read stdin with '-'\n"
++          "  %s runtime <json-string>|-  # same, not staged for persistence\n"
+           "  %s events                   # newline-delimited JSON events\n"
+           "  %s snapshot [-c CH] [-q Q]  # writes a single JPEG to stdout\n"
+           "  %s mjpeg [-c CH] [-q Q] [-f F] [-w W] [-h H]\n"
+           "                              # multipart MJPEG (server-side)\n",
+-          prog, prog, prog, prog);
++          prog, prog, prog, prog, prog);
+ }
+ 
+ int main(int argc, char **argv) {
+@@ -258,7 +260,9 @@ int main(int argc, char **argv) {
+   }
+   const char *cmd = argv[1];
+   if (strcmp(cmd, "json") == 0) {
+-    return cmd_json(argc - 2, argv + 2);
++    return cmd_json(argc - 2, argv + 2, false);
++  } else if (strcmp(cmd, "runtime") == 0) {
++    return cmd_json(argc - 2, argv + 2, true);
+   } else if (strcmp(cmd, "snapshot") == 0) {
+     return cmd_snapshot(argc - 2, argv + 2);
+   } else if (strcmp(cmd, "mjpeg") == 0) {
