@@ -280,5 +280,17 @@ endef
 
 WIFI_AIC8800_POST_INSTALL_TARGET_HOOKS += WIFI_AIC8800_INSTALL_FIRMWARE
 
+# USB message-endpoint RX URB count (BR2_PACKAGE_WIFI_AIC8800_USB_MSG_RX_URBS):
+# every URB pins a 2 KiB skb, 100 of them ~400 KiB on a 32 MB board.
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_USB),y)
+define WIFI_AIC8800_SET_MSG_RX_URBS
+	$(SED) 's/^#define AICWF_USB_MSG_RX_URBS .*/#define AICWF_USB_MSG_RX_URBS           ($(BR2_PACKAGE_WIFI_AIC8800_USB_MSG_RX_URBS))/' \
+		$(@D)/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_usb.h
+	grep -q '^#define AICWF_USB_MSG_RX_URBS *($(BR2_PACKAGE_WIFI_AIC8800_USB_MSG_RX_URBS))' \
+		$(@D)/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_usb.h
+endef
+WIFI_AIC8800_POST_PATCH_HOOKS += WIFI_AIC8800_SET_MSG_RX_URBS
+endif
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
