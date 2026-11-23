@@ -12,7 +12,10 @@
 # 85 19 03 20 0c 00 00 00. Nodes are 4-byte aligned in the image.
 set -e
 img="$1"
-[ -f "$img" ] || { echo "check-jffs2-cleanmarkers: no image '$img'" >&2; exit 1; }
+[ -f "$img" ] || {
+	echo "check-jffs2-cleanmarkers: no image '$img'" >&2
+	exit 1
+}
 # 8-byte words read from offset 0 and from offset 4 cover every 4-aligned slot
 hits=0
 for skip in 0 4; do
