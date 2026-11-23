@@ -1,0 +1,11 @@
+{
+  "gpio": {
+    "ir850": 61,
+    "ircut": "53 52",
+    "white": 50,
+    "wlan": {
+      "pin": 62,
+      "active_low": true
+    }
+  }
+}
