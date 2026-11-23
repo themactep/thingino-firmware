@@ -1705,7 +1705,7 @@ config RAPTOR_RECORDING_MIN_FREE_MB
 
 config RAPTOR_RECORDING_PREBUFFER_MAX_MB
 	string "prebuffer_max_mb (per-stream pre-buffer ceiling 1-64, default 16)"
-	default "8" if (RAPTOR_ENV_DEV_DASHCAM = "y")
+	default "6" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_PREBUFFER_SEC
