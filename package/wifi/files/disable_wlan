@@ -5,6 +5,11 @@ if [ "wlan0" != "$IFACE" ]; then
 	exit 0
 fi
 
+# wlanap owns the interface while its access point is up
+if [ -f /run/wlanap/wpa.pid ] && kill -0 "$(cat /run/wlanap/wpa.pid)" 2>/dev/null; then
+	exit 1
+fi
+
 # Portal mode intentionally runs an open AP without stored credentials.
 # Allow the interface to come up so DHCP can serve portal clients.
 if [ -f /run/portal_mode ]; then

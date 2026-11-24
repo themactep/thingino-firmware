@@ -235,6 +235,14 @@ define WIFI_INSTALL_TARGET_CMDS
 	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlansetup
 	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlantemp
 
+	# Access point on demand (button, timer) or always
+	sed -e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
+		-e 's,@SOUND_EXT@,$(WIFI_SOUND_EXT),g' \
+		$(WIFI_PKGDIR)/files/wlanap.in > $(TARGET_DIR)/usr/sbin/wlanap
+	chmod 0755 $(TARGET_DIR)/usr/sbin/wlanap
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S42wlanap \
+		$(TARGET_DIR)/etc/init.d/S42wlanap
+
 	# Captive Portal
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wpa_supplicant.conf \
 		$(TARGET_DIR)/etc/wpa_supplicant.conf

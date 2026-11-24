@@ -1,0 +1,191 @@
+#!/bin/sh
+
+# wlanap: an access point on demand, beside the configured Wi-Fi client.
+# thingino.json wlan_ap: mode (button|always|off), timeout (s, default 600,
+# 0 = none), band (auto: 5 GHz ch 36, else 2.4 GHz ch 6 | 5 | 2.4), ssid,
+# ssid_prefix, password (generated on first use).
+
+IFACE=@WLAN_AP_NETDEV@
+CONFIG_JSON=/etc/thingino.json
+RUN=/run/wlanap
+NET=100.64.1
+IP=$NET.1
+
+cfg() {
+	jct "$CONFIG_JSON" get "wlan_ap.$1" 2>/dev/null
+}
+
+chime() {
+	[ -f "/usr/share/sounds/$1.@SOUND_EXT@" ] && play "/usr/share/sounds/$1.@SOUND_EXT@" >/dev/null 2>&1 &
+}
+
+running() {
+	[ -f $RUN/wpa.pid ] && kill -0 "$(cat $RUN/wpa.pid)" 2>/dev/null
+}
+
+ssid() {
+	s=$(cfg ssid)
+	[ -n "$s" ] && { echo "$s"; return; }
+	echo "$(cfg ssid_prefix | grep . || echo THINGINO-AP)-$(hostname | sed 's/.*-//' | tr a-z A-Z)"
+}
+
+password() {
+	p=$(cfg password)
+	if [ ${#p} -lt 8 ]; then
+		p=$(tr -dc 'a-km-np-zA-HJ-NP-Z2-9' </dev/urandom | head -c 12)
+		jct "$CONFIG_JSON" set wlan_ap.password "$p" >/dev/null
+	fi
+	echo "$p"
+}
+
+client_configured() {
+	grep -q 'ssid=' /etc/wpa_supplicant.conf 2>/dev/null &&
+		grep -q 'psk=' /etc/wpa_supplicant.conf && ! grep -q 'mode=2' /etc/wpa_supplicant.conf
+}
+
+timer_cancel() {
+	start-stop-daemon -K -q -p $RUN/timer.pid 2>/dev/null
+	rm -f $RUN/timer.pid
+}
+
+timer_start() {
+	timer_cancel
+	[ "${1:-0}" -gt 0 ] || return 0
+	start-stop-daemon -S -b -m -p $RUN/timer.pid -x /bin/sh -- \
+		-c "sleep $1; exec /usr/sbin/wlanap expire"
+}
+
+# Until every wpa_supplicant is gone: S38 will not start one beside another
+wpa_gone() {
+	i=0
+	while pidof wpa_supplicant >/dev/null && [ $i -lt 30 ]; do
+		sleep 0.1
+		i=$((i + 1))
+	done
+}
+
+ap_conf() {
+	cat >$RUN/wpa.conf <<-EOF
+		ctrl_interface=/run/wpa_supplicant
+		ap_scan=2
+		network={
+			ssid="$1"
+			mode=2
+			frequency=$3
+			key_mgmt=WPA-PSK
+			proto=RSN
+			pairwise=CCMP
+			group=CCMP
+			psk=$2
+		}
+	EOF
+}
+
+ap_up() {
+	i=0
+	while [ $i -lt 12 ]; do
+		wpa_cli -p /run/wpa_supplicant -i "$IFACE" status 2>/dev/null | grep -q '^wpa_state=COMPLETED' &&
+			return 0
+		sleep 0.5
+		i=$((i + 1))
+	done
+	return 1
+}
+
+start() {
+	secs=${1:-$(cfg timeout)}
+	secs=${secs:-600}
+	mkdir -p $RUN
+	if running; then
+		timer_start "$secs"
+		return 0
+	fi
+	ifdown "$IFACE" >/dev/null 2>&1
+	/etc/init.d/S38wpa_supplicant stop >/dev/null 2>&1
+	wpa_gone
+	ip address flush dev "$IFACE"
+
+	s=$(ssid)
+	psk=$(wpa_passphrase "$s" "$(password)" | sed -n 's/^[[:space:]]*psk=\([0-9a-f]\{64\}\)$/\1/p')
+	sed "s/%dev%/$IFACE/; s|/var/run/udhcpd_ap|$RUN/udhcpd|g" /etc/udhcpd-ap.conf >$RUN/udhcpd.conf
+	touch $RUN/udhcpd.leases
+	{ cat /etc/dnsd-ap.conf; echo "$(hostname).local $IP"; } >$RUN/dnsd.conf
+
+	ip link set "$IFACE" up
+	ip address add $IP/24 dev "$IFACE"
+	case "$(cfg band)" in
+		2.4) freqs=2437 ;;
+		5) freqs=5180 ;;
+		*) freqs="5180 2437" ;;
+	esac
+	freq=
+	for f in $freqs; do
+		ap_conf "$s" "$psk" "$f"
+		if wpa_supplicant -B -i "$IFACE" -c $RUN/wpa.conf -P $RUN/wpa.pid && ap_up; then
+			freq=$f
+			break
+		fi
+		start-stop-daemon -K -q -p $RUN/wpa.pid 2>/dev/null
+		wpa_gone
+	done
+	if [ -z "$freq" ]; then
+		logger -t wlanap "access point failed ($freqs MHz)"
+		stop
+		return 1
+	fi
+	start-stop-daemon -S -b -m -p $RUN/udhcpd.pid -x /sbin/udhcpd -- -f -S -I $IP $RUN/udhcpd.conf
+	start-stop-daemon -S -b -m -p $RUN/dnsd.pid -x /sbin/dnsd -- -i $IP -c $RUN/dnsd.conf
+	timer_start "$secs"
+	logger -t wlanap "up: $s on $IP, $freq MHz, timeout ${secs}s"
+	chime chime_1
+}
+
+stop() {
+	[ "$1" = expire ] && rm -f $RUN/timer.pid || timer_cancel
+	was=0
+	running && was=1
+	for p in udhcpd dnsd wpa; do
+		[ -f $RUN/$p.pid ] && kill "$(cat $RUN/$p.pid)" 2>/dev/null
+		rm -f $RUN/$p.pid
+	done
+	wpa_gone
+	ip address flush dev "$IFACE" 2>/dev/null
+	if client_configured; then
+		/etc/init.d/S38wpa_supplicant start >/dev/null 2>&1
+		ifup "$IFACE" >/dev/null 2>&1
+	else
+		ip link set "$IFACE" down
+	fi
+	[ $was = 1 ] && logger -t wlanap "down" && chime chime_2
+	return 0
+}
+
+case "$1" in
+	start) start "$2" ;;
+	stop) stop ;;
+	expire) stop expire ;;
+	toggle)
+		if running; then
+			stop
+		elif [ "$(cfg mode)" != off ]; then
+			start "$2"
+		fi
+		;;
+	boot)
+		[ "$(cfg mode)" = always ] && start 0
+		;;
+	status)
+		if running; then
+			left=
+			[ -f $RUN/timer.pid ] && left=" (timer)"
+			echo "up: $(ssid) on $IP$left"
+		else
+			echo "down"
+		fi
+		;;
+	password) password ;;
+	*)
+		echo "Usage: $0 {start [seconds]|stop|toggle [seconds]|boot|status|password}" >&2
+		exit 1
+		;;
+esac
