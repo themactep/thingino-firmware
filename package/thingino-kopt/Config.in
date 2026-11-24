@@ -19,6 +19,17 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
 	help
 	  Enable CIFS (SMB) networking support
 
+config BR2_PACKAGE_THINGINO_KOPT_COMPACTION
+	bool "Memory compaction"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	default y
+	help
+	  Let the kernel move pages to rebuild physically contiguous blocks
+	  when a large allocation would otherwise fail. Without it, a few
+	  pipeline restarts leave the ISP's start-up allocation (256 KB on
+	  T32) unsatisfiable on 40-64 MB boards, and the vendor driver
+	  ignores the failure and crashes the kernel.
+
 config BR2_PACKAGE_THINGINO_KOPT_LEDS
 	bool "GPIO LEDs"
 	depends on BR2_PACKAGE_THINGINO_KOPT
