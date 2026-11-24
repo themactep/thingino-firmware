@@ -57,7 +57,9 @@ endif
 
 else ifeq ($(KERNEL_VERSION),7.4)
 
-# Mainline lives in gtxaspec/linux, one branch per family.
+# Mainline lives in gtxaspec/linux, one branch per family for now. Once they
+# merge into one branch, this chain becomes a single KERNEL_BRANCH/KERNEL_HASH
+# pair guarded by $(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)).
 KERNEL_SITE := https://github.com/gtxaspec/linux
 
 ifeq ($(SOC_FAMILY),t10)
