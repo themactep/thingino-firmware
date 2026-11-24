@@ -1,6 +1,6 @@
 {
   "name": "telematics",
-  "label": "Dashcam: GPS, g-sensor, ignition",
+  "label": "Dashcam: GPS, g-sensor, ignition, access point",
   "apiVersion": 1,
   "nav": [
     {
@@ -10,6 +10,10 @@
         {
           "label": "Ignition & Parking",
           "href": "/config-ignition.html"
+        },
+        {
+          "label": "Access Point",
+          "href": "/config-wlanap.html"
         }
       ]
     },
@@ -36,6 +40,7 @@
   "cgi": [],
   "pages": [
     "/info-gps.html",
-    "/config-ignition.html"
+    "/config-ignition.html",
+    "/config-wlanap.html"
   ]
 }

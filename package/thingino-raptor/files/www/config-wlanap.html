@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Access Point</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-wlanap">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="alert alert-warning d-none" id="apUnavailable">
+        This camera has no access point support.
+      </div>
+      <div id="apContent">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Access Point</h2>
+            <small>The camera's own Wi-Fi network, for a phone in the car. While it runs, the camera leaves its home Wi-Fi network and returns to it when the access point goes off.</small>
+          </div>
+          <div class="card-body">
+            <p class="mb-2"><span class="badge text-bg-secondary" id="apState">…</span></p>
+            <dl class="row mb-3">
+              <dt class="col-sm-3">Network</dt><dd class="col-sm-9" id="apSsid">–</dd>
+              <dt class="col-sm-3">Address</dt><dd class="col-sm-9" id="apIp">–</dd>
+              <dt class="col-sm-3">Band</dt><dd class="col-sm-9" id="apBand">–</dd>
+            </dl>
+            <button type="button" class="btn btn-success me-2" id="apOn"><i class="bi bi-wifi me-1"></i> Turn on</button>
+            <button type="button" class="btn btn-outline-secondary" id="apOff"><i class="bi bi-wifi-off me-1"></i> Turn off</button>
+            <small class="d-block text-muted mt-2">Turning it on from the home network disconnects this page: join the camera's network and open http://100.64.1.1.</small>
+          </div>
+        </div>
+
+        <form id="apForm" novalidate>
+          <div class="card mb-3">
+            <div class="card-header">
+              <h2 class="card-title">Settings</h2>
+              <small>Apply the next time the access point starts.</small>
+            </div>
+            <div class="card-body">
+              <div class="row row-cols-1 row-cols-md-3 g-4">
+                <div class="col">
+                  <h4>When</h4>
+                  <p>
+                    <label for="apMode">Access point</label>
+                    <select class="form-select" id="apMode">
+                      <option value="button">Power button</option>
+                      <option value="always">Always on</option>
+                      <option value="off">Off</option>
+                    </select>
+                  </p>
+                  <small class="text-muted">Power button: a short press turns it on, the next turns it off. Always on: from boot, the home network is not used.</small>
+                </div>
+                <div class="col">
+                  <h4>Timeout</h4>
+                  <p>
+                    <label for="apTimeout">Off after, minutes</label>
+                    <input type="number" class="form-control" id="apTimeout" min="0" max="1440" step="1" value="10">
+                  </p>
+                  <small class="text-muted">How long a button press keeps it on. 0 = until turned off.</small>
+                </div>
+                <div class="col">
+                  <h4>Band</h4>
+                  <p>
+                    <label for="apBandPref">Radio</label>
+                    <select class="form-select" id="apBandPref">
+                      <option value="auto">5 GHz, else 2.4 GHz</option>
+                      <option value="5">5 GHz only</option>
+                      <option value="2.4">2.4 GHz only</option>
+                    </select>
+                  </p>
+                  <small class="text-muted">5 GHz needs the Wi-Fi country set (thingino.json wlan.country).</small>
+                </div>
+                <div class="col">
+                  <h4>Network name</h4>
+                  <p>
+                    <label for="apSsidIn">SSID</label>
+                    <input type="text" class="form-control" id="apSsidIn" maxlength="32">
+                  </p>
+                  <small class="text-muted">Empty: the default name shown above.</small>
+                </div>
+                <div class="col">
+                  <h4>Password</h4>
+                  <p>
+                    <label for="apPassword">WPA2 password</label>
+                    <input type="text" class="form-control" id="apPassword" minlength="8" maxlength="63" autocomplete="off">
+                  </p>
+                  <small class="text-muted">8 to 63 characters.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="apSubmit">
+            <i class="bi bi-save me-1"></i> Save changes
+          </button>
+          <span class="ms-2" id="apStatus"></span>
+        </form>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/streamer.js"></script>
+<script src="/a/config-wlanap.js"></script>
+</body>
+</html>

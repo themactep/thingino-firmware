@@ -285,6 +285,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/var/www/config-ignition.html; \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/config-ignition.js \
 			$(TARGET_DIR)/var/www/a/config-ignition.js; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-wlanap.html \
+			$(TARGET_DIR)/var/www/config-wlanap.html; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/config-wlanap.js \
+			$(TARGET_DIR)/var/www/a/config-wlanap.js; \
 	fi
 	# Photosensing page for ric; daynightd ships its own under the same name.
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \

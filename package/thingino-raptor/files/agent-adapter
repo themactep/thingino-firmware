@@ -1564,6 +1564,23 @@ agent_ignition_set() {
 	return 1
 }
 
+agent_wlanap_present() {
+	[ -x /usr/sbin/wlanap ] && return 0
+	echo "no access point support on this camera" >&2
+	return 1
+}
+
+# wlanap reads thingino.json at every start: no restart needed.
+agent_wlanap_set() {
+	jct "$THINGINO_CONFIG_FILE" set "wlan_ap.$1" "$2" >/dev/null 2>&1 && return 0
+	echo "failed to persist wlan_ap.$1" >&2
+	return 1
+}
+
+agent_wlanap_get() {
+	agent_json_config_value "$THINGINO_CONFIG_FILE" "wlan_ap.$1"
+}
+
 agent_validate_int() {
 	case "$1" in
 		'' | *[!0-9-]*)
@@ -2263,6 +2280,30 @@ agent_get_setting() {
 			agent_ignition_present || return 1
 			agent_print_setting_leaf off_delay "$(agent_json_value_or "$(agent_json_config_value "$THINGINO_CONFIG_FILE" ignition.off_delay)" 0)"
 			;;
+		wlan-ap/state)
+			agent_wlanap_present || return 1
+			/usr/sbin/wlanap json
+			;;
+		wlan-ap/mode)
+			agent_wlanap_present || return 1
+			agent_print_setting_leaf mode "$(agent_json_string "$(agent_wlanap_get mode | grep . || echo button)")"
+			;;
+		wlan-ap/timeout)
+			agent_wlanap_present || return 1
+			agent_print_setting_leaf timeout "$(agent_wlanap_get timeout | grep . || echo 600)"
+			;;
+		wlan-ap/band)
+			agent_wlanap_present || return 1
+			agent_print_setting_leaf band "$(agent_json_string "$(agent_wlanap_get band | grep . || echo auto)")"
+			;;
+		wlan-ap/ssid)
+			agent_wlanap_present || return 1
+			agent_print_setting_leaf ssid "$(agent_json_string_or_null "$(agent_wlanap_get ssid)")"
+			;;
+		wlan-ap/password)
+			agent_wlanap_present || return 1
+			agent_print_setting_leaf password "$(agent_json_string "$(/usr/sbin/wlanap password)")"
+			;;
 		telematics/status)
 			[ -x /usr/bin/rtd ] || {
 				echo "no telematics on this camera" >&2
@@ -2712,6 +2753,81 @@ agent_set_setting() {
 					;;
 			esac
 			agent_print_setting_update "$path" channel "$value"
+			;;
+		wlan-ap/state)
+			agent_wlanap_present || return 1
+			value=$(agent_setting_value "$body_file" running) || return 1
+			agent_validate_bool "$value" || return 1
+			if [ "$value" = true ]; then
+				/usr/sbin/wlanap start >/dev/null 2>&1 || {
+					echo "access point failed to start" >&2
+					return 1
+				}
+			else
+				/usr/sbin/wlanap stop >/dev/null 2>&1
+			fi
+			agent_print_setting_update "$path" running "$value"
+			;;
+		wlan-ap/mode)
+			agent_wlanap_present || return 1
+			value=$(agent_setting_value "$body_file" mode) || return 1
+			case "$value" in
+				button | always | off) ;;
+				*)
+					echo "mode must be button, always or off" >&2
+					return 1
+					;;
+			esac
+			agent_wlanap_set mode "$value" || return 1
+			agent_print_setting_update "$path" mode "$(agent_json_string "$value")"
+			;;
+		wlan-ap/timeout)
+			agent_wlanap_present || return 1
+			value=$(agent_setting_value "$body_file" timeout) || return 1
+			agent_validate_int "$value" || return 1
+			[ "$value" -ge 0 ] && [ "$value" -le 86400 ] || {
+				echo "timeout must be 0..86400 seconds" >&2
+				return 1
+			}
+			agent_wlanap_set timeout "$value" || return 1
+			agent_print_setting_update "$path" timeout "$value"
+			;;
+		wlan-ap/band)
+			agent_wlanap_present || return 1
+			value=$(agent_setting_value "$body_file" band) || return 1
+			case "$value" in
+				auto | 5 | 2.4) ;;
+				*)
+					echo "band must be auto, 5 or 2.4" >&2
+					return 1
+					;;
+			esac
+			agent_wlanap_set band "$value" || return 1
+			agent_print_setting_update "$path" band "$(agent_json_string "$value")"
+			;;
+		wlan-ap/ssid)
+			agent_wlanap_present || return 1
+			value=$(agent_json_config_value "$body_file" ssid)
+			[ ${#value} -le 32 ] && ! printf '%s' "$value" | grep -q '["\\]' || {
+				echo "ssid: up to 32 characters, no quotes or backslashes" >&2
+				return 1
+			}
+			if [ -n "$value" ]; then
+				agent_wlanap_set ssid "$value" || return 1
+			else
+				jct "$THINGINO_CONFIG_FILE" del wlan_ap.ssid >/dev/null 2>&1
+			fi
+			agent_print_setting_update "$path" ssid "$(agent_json_string_or_null "$value")"
+			;;
+		wlan-ap/password)
+			agent_wlanap_present || return 1
+			value=$(agent_setting_value "$body_file" password) || return 1
+			[ ${#value} -ge 8 ] && [ ${#value} -le 63 ] && ! printf '%s' "$value" | grep -q '["\\]' || {
+				echo "password: 8 to 63 characters, no quotes or backslashes" >&2
+				return 1
+			}
+			agent_wlanap_set password "$value" || return 1
+			agent_print_setting_update "$path" password "$(agent_json_string "$value")"
 			;;
 		ignition/park)
 			agent_ignition_present || return 1
