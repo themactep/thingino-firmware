@@ -38,3 +38,10 @@ define THINGINO_KOPT_USB_DT
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_USB_DT
 endif
+
+# The 7.4 kernel packs uImage.lzma with xz --format=lzma and MIPS-tuned
+# lc/lp/pb, which buildroot's host-lzma (LZMA Utils 4.32) cannot do.
+ifeq ($(KERNEL_VERSION),7.4)
+LINUX_DEPENDENCIES += host-xz
+LINUX_MAKE_FLAGS += XZ=$(HOST_DIR)/bin/xz
+endif
