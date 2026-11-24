@@ -62,7 +62,7 @@ KERNEL_SITE := https://github.com/gtxaspec/linux
 
 ifneq ($(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)),)
 KERNEL_BRANCH := ingenic-7.4
-KERNEL_HASH   := 0ec12fac0d4896f6e366502acf873b5ca437c1a3
+KERNEL_HASH   := 67e1a16485917eab05344098c74fca30a20c0426
 endif
 
 endif
