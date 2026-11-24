@@ -64,6 +64,14 @@ do_fsck() {
 	fi
 }
 
+do_autoupdate_done() {
+	[ "$(fw_printenv -n au_applied 2>/dev/null)" = 1 ] || return 0
+	[ -f "$mount_point/autoupdate-full.bin" ] &&
+		mv -f "$mount_point/autoupdate-full.bin" "$mount_point/autoupdate-full.done"
+	sync
+	fw_setenv au_applied && echo -c 240 -e "- Autoupdate applied, $mount_point/autoupdate-full.done"
+}
+
 do_mount() {
 	if mkdir -p "$mount_point"; then
 		echo -c 240 -e "- Created mount point $mount_point"
@@ -85,6 +93,7 @@ do_mount() {
 		return 1
 	fi
 
+	[ "$device_node" = /dev/mmcblk0p1 ] && do_autoupdate_done
 	[ -f "$diag" ] && do_run_diag
 	[ -f "$run_once" ] && do_run_once
 	[ -f "$run" ] && do_run_always
