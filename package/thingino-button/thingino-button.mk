@@ -78,13 +78,14 @@ endef
 endif
 
 # A dashcam's short press protects the moment (an event clip) instead of
-# speaking the IP; holding the power button shuts down cleanly before the
-# RTC's own hold timer cuts the power mid-write.
+# speaking the IP. The power button toggles the access point: the RTC
+# reports a press as down and up at once, and holding it is the hardware's
+# own power cycle, so a press is all there is.
 ifeq ($(BR2_THINGINO_DEV_DASHCAM),y)
 define DASHCAM_BUTTON_CONF
 	sed -i 's|^KEY_ENTER TIMED 0.1 tell %ip$$|KEY_ENTER TIMED 0.1 raptorctl rtd event|' \
 		$(TARGET_DIR)/etc/thingino-button.conf
-	printf 'KEY_POWER TIMED_FIRE 2 play /usr/share/sounds/chime_1.opus\nKEY_POWER TIMED 2 touch /run/poweroff; poweroff\n' \
+	printf 'KEY_POWER PRESS 0 wlanap toggle\n' \
 		>> $(TARGET_DIR)/etc/thingino-button.conf
 endef
 endif
