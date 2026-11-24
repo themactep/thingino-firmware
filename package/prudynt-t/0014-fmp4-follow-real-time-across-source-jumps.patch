@@ -1,0 +1,80 @@
+The HTTP fMP4 preview (/ch0.mp4, /ch1.mp4) rebases the source timestamps
+to the first sample and passes every later jump straight to the browser.
+A video restart recreates the encoder, and on T31 the new ch0 encoder
+starts tens of seconds or minutes ahead of the old one. MSE then holds
+every new frame until its clock catches up: the preview freezes after the
+restart and only creeps back with a large delay.
+
+Compare each jump with the monotonic time elapsed since the previous
+sample, per track. A jump that matches it is a real gap and is kept; one
+that does not is absorbed into the base, so the timeline keeps following
+real time. This is the same rule the RTSP server uses (0011).
+
+diff --git a/src/network/HTTPMJPEG.cpp b/src/network/HTTPMJPEG.cpp
+index 76938b3..75ed105 100644
+--- a/src/network/HTTPMJPEG.cpp
++++ b/src/network/HTTPMJPEG.cpp
+@@ -494,13 +494,38 @@ void serve_fmp4(int cfd, int vch) {
+   // Video and audio come from different clocks (encoder packs vs IMP audio
+   // frames), so each track needs its own base; sharing one shifts audio by
+   // the offset between the clocks and leaves the preview blank.
+-  int64_t base_video_ms = -1;
+-  int64_t base_audio_ms = -1;
+-  auto rebase_pts = [](int64_t &base, int64_t pts_ms) {
+-    if (base < 0)
+-      base = pts_ms;
+-    int64_t r = pts_ms - base;
+-    return r > 0 ? r : 0;
++  //
++  // The source can also change its time base under a running stream (a
++  // video restart recreates the encoder; on T31 the new ch0 encoder starts
++  // tens of seconds or minutes ahead). A jump that the real time elapsed
++  // since the previous sample does not explain is absorbed into the base,
++  // or the browser holds every later frame until its clock catches up and
++  // the preview freezes. Same rule as the RTSP timestamps.
++  struct TrackClock {
++    int64_t base = -1, last = -1, last_mono = -1;
++  };
++  TrackClock video_clock, audio_clock;
++  auto rebase_pts = [&](TrackClock &c, int64_t pts_ms, const char *track) {
++    const int64_t mono = now_ms();
++    if (c.base < 0)
++      c.base = pts_ms;
++    int64_t r = pts_ms - c.base;
++    if (c.last >= 0) {
++      const int64_t jump = r - c.last;
++      const int64_t elapsed = mono - c.last_mono;
++      if (jump > elapsed + 500 || jump < -500) {
++        const int64_t want = c.last + (elapsed > 0 ? elapsed : 1);
++        c.base += r - want;
++        r = want;
++        LOG_INFO("fMP4 ch" << vch << ": " << track << " time base moved by "
++                 << jump - elapsed << " ms, re-anchored");
++      }
++    }
++    if (r < 0)
++      r = 0;
++    c.last = r;
++    c.last_mono = mono;
++    return r;
+   };
+ 
+   // Drain the tap queues, mux, and send video + audio fragments.
+@@ -580,7 +605,7 @@ void serve_fmp4(int cfd, int vch) {
+         // collide for two consecutive frames and yield duplicate DTS.
+         int64_t pts_ms = unit.imp_ts > 0 ? unit.imp_ts / 1000 : now_ms();
+         auto frag = muxer->muxVideo(sample.data(), sample.size(),
+-                                    rebase_pts(base_video_ms, pts_ms), isKey);
++                                    rebase_pts(video_clock, pts_ms, "video"), isKey);
+         sample.clear();
+         // Hand the payload back so the next frame reuses it instead of
+         // allocating afresh.
+@@ -599,7 +624,7 @@ void serve_fmp4(int cfd, int vch) {
+         int64_t pts_ms = static_cast<int64_t>(af.time.tv_sec) * 1000 +
+                          af.time.tv_usec / 1000;
+         auto frag = muxer->muxAudio(af.data.data(), af.data.size(),
+-                                    rebase_pts(base_audio_ms, pts_ms));
++                                    rebase_pts(audio_clock, pts_ms, "audio"));
+         aq->release(af);
+         if (!frag.empty() && !write_chunk(frag))
+           return;
