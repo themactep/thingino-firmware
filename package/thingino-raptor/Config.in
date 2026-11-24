@@ -182,25 +182,41 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 menuconfig BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
 	bool "IVS detection"
 	default n
-	select BR2_THINGINO_LIBSTDCPP
 	help
 	  Enable IVS (Intelligent Video Surveillance) detection in RVD.
 	  Select which detection backends to install below.
 
 if BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
 
-config BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
-	bool "JZDL inference engine"
-	default y
-	select BR2_PACKAGE_INGENIC_LIB_JZDL
+choice
+	prompt "JZDL inference engine"
+	default BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
 	help
-	  Ingenic JZDL neural network inference engine (libjzdl.m.so).
-	  Required for YOLO and standalone NNA inference.
+	  Runtime for JZDL models (YOLO and standalone inference).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
+	bool "Ingenic libjzdl"
+	select BR2_PACKAGE_INGENIC_LIB_JZDL
+	select BR2_THINGINO_LIBSTDCPP
+	help
+	  Ingenic JZDL neural network inference engine (libjzdl.m.so,
+	  609KB) with raptor-hal's C++ backend (needs libstdc++).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_OJZDL
+	bool "ojzdl (open, no libjzdl or libstdc++)"
+	help
+	  ojzdl, an open runtime for JZDL models built into raptor-hal
+	  (OJZDL=1). Same detections as libjzdl, bit for bit; about
+	  33KB in rvd instead of libjzdl.m.so + libstdc++ (~2.8MB).
+	  MXU2 vector kernels on the T31 (as fast as libjzdl there);
+	  plain C on other SoCs.
+
+endchoice
 
 config BR2_PACKAGE_THINGINO_RAPTOR_IVS_YOLOV5
 	bool "YOLOv5 model (person/bicycle/car/motorcycle)"
 	default y
-	depends on BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL || BR2_PACKAGE_THINGINO_RAPTOR_IVS_OJZDL
 	select BR2_PACKAGE_MAGIK_MODELS
 	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
 	help
