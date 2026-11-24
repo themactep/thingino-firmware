@@ -325,8 +325,16 @@ endif
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
 	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
-	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
+	# 4.4.94 uses the custom git repo from thingino-linux. 7.4 is a branch of a
+	# full mainline fork, which Buildroot's git download would fetch whole (every
+	# ref), so it takes the pinned commit's archive instead.
+	@if [ "$(KERNEL_VERSION)" = "7.4" ]; then \
+		echo "** kernel override: $(KERNEL_VERSION) uses $(KERNEL_TARBALL_URL)"; \
+		sed -i -e 's/^BR2_LINUX_KERNEL_CUSTOM_GIT=y/# BR2_LINUX_KERNEL_CUSTOM_GIT is not set/' \
+			-e '/^BR2_LINUX_KERNEL_CUSTOM_REPO_/d' $(OUTPUT_DIR)/.config; \
+		echo "BR2_LINUX_KERNEL_CUSTOM_TARBALL=y" >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="$(KERNEL_TARBALL_URL)"' >> $(OUTPUT_DIR)/.config; \
+	elif [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \

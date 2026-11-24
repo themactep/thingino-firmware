@@ -125,7 +125,7 @@ export SOC_TARGET_ARCH
 # makefile, so guarding only ever protected an environment variable, which
 # nothing sets.
 ifeq ($(KERNEL_VERSION_7),y)
-KERNEL_VERSION := 7.1-rc1
+KERNEL_VERSION := 7.4
 else ifeq ($(KERNEL_VERSION_4),y)
 KERNEL_VERSION := 4.4.94
 endif
@@ -153,7 +153,7 @@ endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 endif
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),7.4)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n

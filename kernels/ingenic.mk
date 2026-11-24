@@ -55,9 +55,29 @@ else ifeq ($(SOC_ARCH),xburst1)
 KERNEL_BRANCH := ingenic-t31-4.4.94
 endif
 
-else ifeq ($(KERNEL_VERSION),7.1-rc1)
+else ifeq ($(KERNEL_VERSION),7.4)
 
-# One branch for every family, whatever the architecture.
-KERNEL_BRANCH := ingenic-7.1-rc1
+# Mainline lives in gtxaspec/linux, one branch per family.
+KERNEL_SITE := https://github.com/gtxaspec/linux
+
+ifeq ($(SOC_FAMILY),t10)
+KERNEL_BRANCH := ingenic-t10-7.4
+KERNEL_HASH   := d253bfa6a09a86b742b15979da60bbb4bc391d8e
+else ifeq ($(SOC_FAMILY),t20)
+KERNEL_BRANCH := ingenic-t20-7.4
+KERNEL_HASH   := aefcde34554969233e5f8b798b00a9799e0f5b30
+else ifeq ($(SOC_FAMILY),t21)
+KERNEL_BRANCH := ingenic-t21-7.4
+KERNEL_HASH   := 3096331335146b151e5fbfa3af0e81daf3d24a5d
+else ifeq ($(SOC_FAMILY),t23)
+KERNEL_BRANCH := ingenic-t23-7.4
+KERNEL_HASH   := fb5fa259ac10f5878cf656d974833db8702544ed
+else ifeq ($(SOC_FAMILY),t30)
+KERNEL_BRANCH := ingenic-t30-7.4
+KERNEL_HASH   := 2951463f5dc4f4e10d6a65cc81fdfd4b54878200
+else ifeq ($(SOC_FAMILY),t31)
+KERNEL_BRANCH := ingenic-t31-7.4
+KERNEL_HASH   := 192ddcf0589c49711ee0c4d2ad0e9379a99fed07
+endif
 
 endif

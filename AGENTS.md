@@ -148,8 +148,9 @@ such file names its kernel through Buildroot symbols instead.
 `thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
-Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
-Kernel source: `github.com/gtxaspec/thingino-linux`.
+Kernel versions: `3.10.14`, `4.4.94`, `7.4`.
+Kernel source: `github.com/gtxaspec/thingino-linux`; 7.4 (mainline) from
+`github.com/gtxaspec/linux`, branch `ingenic-<family>-7.4`.
 
 ## Streamers
 
