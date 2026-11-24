@@ -341,6 +341,12 @@ start() {
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
+		country=$(jct "$WLAN_CONFIG_JSON" get wlan.country 2>/dev/null)
+		case "$WLAN_MODULE_NAME" in
+			8188* | 8189* | 8192* | 8723* | 8733* | 8811* | 8812* | 8821* | 8822* | rtl*)
+				[ -n "$country" ] && WLAN_MODULE_OPTS="$WLAN_MODULE_OPTS rtw_country_code=$country"
+				;;
+		esac
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
 		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
