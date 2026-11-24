@@ -206,6 +206,9 @@ ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
 endif
 CONFIG_INPUT_FILES += $(THINGINO_USER_MK_FILES)
+# The kernel pin (branch, hash, tarball URL) is written into .config, so a
+# change to the vendor kernel map has to regenerate it too.
+CONFIG_INPUT_FILES += $(wildcard $(BR2_EXTERNAL)/kernels/$(SOC_VENDOR).mk)
 
 # Function to check if configuration needs regeneration
 define config_needs_regen
