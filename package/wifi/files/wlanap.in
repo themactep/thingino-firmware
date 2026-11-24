@@ -183,9 +183,20 @@ case "$1" in
 			echo "down"
 		fi
 		;;
+	json)
+		up=false freq=null
+		if running; then
+			up=true
+			freq=$(wpa_cli -p /run/wpa_supplicant -i "$IFACE" status 2>/dev/null | sed -n 's/^freq=//p')
+		fi
+		timer=false
+		[ -f $RUN/timer.pid ] && timer=true
+		printf '{"running":%s,"ssid":"%s","ip":"%s","freq":%s,"timer":%s}\n' \
+			"$up" "$(ssid)" "$IP" "${freq:-null}" "$timer"
+		;;
 	password) password ;;
 	*)
-		echo "Usage: $0 {start [seconds]|stop|toggle [seconds]|boot|status|password}" >&2
+		echo "Usage: $0 {start [seconds]|stop|toggle [seconds]|boot|status|json|password}" >&2
 		exit 1
 		;;
 esac
