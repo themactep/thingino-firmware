@@ -12,14 +12,24 @@ start_daemon() {
 }
 
 stop_daemon() {
+	status=1
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		status=$?
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON" && status=0
 		rm -f "$PIDFILE"
-		return $status
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	# Also stop instances the pidfile does not cover (started with -d by
+	# an older script, or started by hand); only processes of $DAEMON
+	# match -x.
+	start-stop-daemon -K -x "$DAEMON" >/dev/null 2>&1 && status=0
+
+	i=0
+	while pidof thingino-button >/dev/null && [ $i -lt 20 ]; do
+		sleep 0.1
+		i=$((i + 1))
+	done
+
+	return $status
 }
 
 start() {
@@ -44,7 +54,6 @@ case "$1" in
 		;;
 	restart | reload)
 		stop || true
-		sleep 1
 		start
 		;;
 	*)
