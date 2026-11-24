@@ -15,8 +15,9 @@
 # sub + JPEG) fits in 7M (Lu-Fi/openimp#800).
 # Device-checked 2026-11-23: IR-cut 53 (day) / 52 (night) and the reset key
 # PB26 (GPIO 58); the older cameras-exp profile (ircut 58/57, key PA6) is
-# replaced. OEM image orientation is mirror 1 / flip 1 (sensor shvflip=1);
-# not set here until checked on the device.
+# replaced. The sensor is mounted upside down (OEM: mirror 1 / flip 1):
+# open-tx-isp sensor_mount_flip=3 turns it in the driver for every streamer,
+# the sensor does it with shvflip=1 (device-checked 2026-11-24).
 BR2_INGENIC_SOC_MODEL="t23dl"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
@@ -24,6 +25,7 @@ BR2_ISP_CLK_200MHZ=y
 BR2_ISP_CLK_SCLKA=y
 BR2_ISP_DIRECT_MODE_1=y
 BR2_ISP_MEMOPT_1=y
+BR2_ISP_PARAMS="sensor_mount_flip=3"
 # ivdc_mem_line 360 = height/2 (vendor guide; OEM 300 aborts jobs at 30 fps, #807)
 BR2_ISP_IVDC_MEM_LINE=y
 BR2_ISP_IVDC_MEM_LINE_VALUE=360
