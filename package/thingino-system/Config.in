@@ -59,6 +59,18 @@ config BR2_PACKAGE_THINGINO_SYSTEM_SWAP
 	help
 	  Enables swap support.
 
+config BR2_PACKAGE_THINGINO_SYSTEM_ZRAM
+	bool "zram swap"
+	default y if KERNEL_VERSION_7
+	depends on BR2_PACKAGE_THINGINO_SYSTEM
+	help
+	  A compressed swap in RAM, half of MemTotal by default. When memory
+	  runs out the camera compresses idle pages instead of evicting the
+	  code of running programs and re-reading it from flash over and over.
+	  Needs a kernel with CONFIG_ZRAM; the init script does nothing
+	  without it. Turn it off with "zram": {"enabled": false} in
+	  /etc/thingino.json, or size it with "size_mb".
+
 config BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS
 	default y
 	bool "sensor utilities"
