@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Training Pool</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-send2-train">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="tool-send2.html" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to Services
+        </a>
+        <h2 class="mb-0">Training Pool</h2>
+      </div>
+
+      <div class="alert alert-warning" role="alert">
+        <h5 class="alert-heading">
+          <i class="bi bi-shield-check me-2"></i>Opt in, and know what you are sharing
+        </h5>
+        <p class="mb-2">
+          Thingino is building its own open object-recognition engine. If you turn
+          this on, one JPEG frame from each accepted motion event is sent to the
+          Thingino training pool and used only to train those models.
+        </p>
+        <p class="mb-2"><strong>What is sent:</strong></p>
+        <ul class="mb-2">
+          <li>the camera frame itself, with EXIF and other metadata removed by the collector;</li>
+          <li>a random contributor ID generated on this camera. It is a pseudonym that lets the
+            collector count frames per device. It cannot be traced back to you, and it is not
+            derived from your hardware.</li>
+        </ul>
+        <p class="mb-2"><strong>What is never sent:</strong></p>
+        <ul class="mb-0">
+          <li>your camera's hostname, MAC address, serial number or model;</li>
+          <li>audio, video clips, other files, or your notification settings;</li>
+          <li>your location, account, or any other service credential.</li>
+        </ul>
+      </div>
+
+      <form id="trainForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="row row-cols-1 row-cols-md-2 g-4 mb-4">
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Contribution</div>
+              <div class="card-body">
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="train_enabled" name="train_enabled">
+                  <label class="form-check-label" for="train_enabled">
+                    Contribute motion-detection frames to the Thingino training pool
+                  </label>
+                </p>
+                <p class="text-secondary small mb-0">
+                  Turning this off stops all uploads immediately. The switch on the
+                  Services page controls whether frames are sent automatically on
+                  motion; this switch is the opt-in itself.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Limits</div>
+              <div class="card-body">
+                <p>
+                  <label for="train_daily_limit">Maximum frames per day</label>
+                  <input type="number" class="form-control" id="train_daily_limit"
+                    name="train_daily_limit" min="1" max="48" step="1" value="12" required>
+                  <span class="text-secondary small">1 to 48. Counted per UTC day on this camera.</span>
+                </p>
+                <p class="mb-0">
+                  <label for="train_min_interval">Minimum seconds between frames</label>
+                  <input type="number" class="form-control" id="train_min_interval"
+                    name="train_min_interval" min="60" max="86400" step="1" value="300" required>
+                  <span class="text-secondary small">A random delay is added on top, so a group of
+                    cameras does not upload in lockstep.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header">
+            <button class="btn btn-sm btn-link text-decoration-none p-0" type="button"
+              data-bs-toggle="collapse" data-bs-target="#trainAdvanced" aria-expanded="false"
+              aria-controls="trainAdvanced">
+              <i class="bi bi-gear me-1"></i>Advanced
+            </button>
+          </div>
+          <div class="collapse" id="trainAdvanced">
+            <div class="card-body">
+              <p class="mb-2">
+                <label for="train_endpoint">Collector endpoint</label>
+                <input type="url" class="form-control" id="train_endpoint" name="train_endpoint"
+                  placeholder="https://train.thingino.com/v1/samples">
+                <span class="text-secondary small">
+                  Leave as it is to use the pool run by the Thingino project. Point it at your own
+                  collector to keep the frames in-house; the endpoint must use HTTPS.
+                </span>
+              </p>
+              <p class="text-secondary small mb-0">
+                Deleting <code>/etc/send2-train.token</code> on the camera gives it a new
+                pseudonym and a clean daily quota.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button type="button" class="btn btn-outline-secondary" id="train-reload">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Save Settings
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/tool-send2-train.js"></script>
+</body>
+</html>

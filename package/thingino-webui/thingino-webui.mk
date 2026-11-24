@@ -135,6 +135,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-send2-storage.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-telegram.html \
 		$(TARGET_DIR)/var/www/tool-send2-telegram.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-train.html \
+		$(TARGET_DIR)/var/www/tool-send2-train.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-webhook.html \
 		$(TARGET_DIR)/var/www/tool-send2-webhook.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-xmpp.html \
@@ -219,6 +221,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-send2-storage.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-telegram.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-telegram.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-train.js \
+		$(TARGET_DIR)/var/www/a/tool-send2-train.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-webhook.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-webhook.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-xmpp.js \

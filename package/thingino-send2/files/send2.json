@@ -107,6 +107,14 @@
     "send_photo": false,
     "send_video": false
   },
+  "train": {
+    "endpoint": "https://train.thingino.com/v1/samples",
+    "enabled": false,
+    "daily_limit": 12,
+    "min_interval": 300,
+    "send_photo": true,
+    "send_video": false
+  },
   "webhook": {
     "url": "",
     "message": "{\"message\":\"test\"}",
