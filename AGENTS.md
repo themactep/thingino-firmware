@@ -82,7 +82,7 @@ terminal. See `docs/dev/qemu.md`.
 ```bash
 scripts/qemu-dev up qemu_t31x_eth             # boot the newest build; returns at a root shell
 scripts/qemu-dev sh -- 'cat /proc/cmdline'    # run a command; exits with its status
-scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, gpio, adc, down
+scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, gpio, adc, light, ae, down; `sh --script FILE` or `sh -` for anything with `$` or quotes; `up --sensor MODEL`
 ```
 
 ## Repo layout
@@ -148,8 +148,9 @@ such file names its kernel through Buildroot symbols instead.
 `thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
-Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
-Kernel source: `github.com/gtxaspec/thingino-linux`.
+Kernel versions: `3.10.14`, `4.4.94`, `7.4`.
+Kernel source: `github.com/gtxaspec/thingino-linux`; 7.4 (mainline) from
+`github.com/gtxaspec/linux`, branch `ingenic-<family>-7.4`.
 
 ## Streamers
 

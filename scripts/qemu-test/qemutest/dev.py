@@ -4,6 +4,8 @@ running in the background and driven one command at a time.
   qemu-dev images                          built images and their SoCs
   qemu-dev up CAMERA|IMAGE [--uboot]       boot one (replaces its session)
   qemu-dev sh [NAME] -- CMD...             run CMD, exit with its status
+  qemu-dev sh [NAME] --script FILE [-- ARG...]  run a local script there
+  qemu-dev sh [NAME] -                     run the script on stdin there
   qemu-dev put [NAME] LOCAL REMOTE         copy a file onto the camera
   qemu-dev get [NAME] REMOTE LOCAL         copy a file off it
   qemu-dev log [NAME] [--boot] [-n N] [-f] the console output
@@ -17,8 +19,14 @@ running in the background and driven one command at a time.
   qemu-dev isp [NAME] --log|--serve        the ISP trace (up --isp-trace)
   qemu-dev pwm [NAME] --log|--serve        the PWM outputs (--vcd FILE)
   qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
+  qemu-dev light [NAME] N|--ramp A B SECS  the image sensor's scene light
+  qemu-dev ae [NAME]                       the guest's AE exposure and gain
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
+
+up takes --sensor MODEL to wire the image sensor on the SoC's sensor bus
+and tell the guest. ls shows each session's age and flags the ones that
+look stuck or orphaned.
 
 Each session is one QEMU with its own copy of the flash, so the image
 under output/ is never written. NAME defaults to the only session.
@@ -444,6 +452,53 @@ def card_detect(image, explicit):
     return None
 
 
+# The SoC's I2C bus the image sensor sits on; every other family uses i2c0
+SENSOR_BUS = {"t40": "i2c1"}
+SENSOR_ID = "sens"
+# ELF e_machine of the host architectures QEMU is built for
+ELF_MACHINES = {"x86_64": 62, "amd64": 62, "aarch64": 183, "arm64": 183,
+                "i686": 3, "i386": 3, "armv7l": 40, "armv8l": 40,
+                "riscv64": 243, "ppc64le": 21, "s390x": 22,
+                "loongarch64": 258}
+ELF_NAMES = {62: "x86_64", 183: "aarch64", 3: "i386", 40: "arm",
+             243: "riscv64", 21: "ppc64", 22: "s390x", 258: "loongarch64",
+             8: "mips", 20: "ppc"}
+
+
+def elf_machine(path):
+    """The e_machine of an ELF file, None for anything else (a wrapper
+    script, a missing file)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(20)
+    except OSError:
+        return None
+    if len(head) < 20 or head[:4] != b"\x7fELF":
+        return None
+    return int.from_bytes(head[18:20], "little" if head[5] == 1 else "big")
+
+
+def foreign_binary(path):
+    """(binary's arch, host's arch) when path is an ELF for another
+    architecture than this host, which only runs under binfmt emulation
+    at a fraction of the speed; None otherwise."""
+    host = platform.machine().lower()
+    want = ELF_MACHINES.get(host)
+    got = elf_machine(path)
+    if want is None or got is None or got == want:
+        return None
+    return ELF_NAMES.get(got, f"e_machine {got}"), host
+
+
+def check_native(qemu):
+    q = qemu if os.path.sep in qemu else shutil.which(qemu)
+    bad = foreign_binary(q) if q else None
+    if bad:
+        die(f"{qemu} is built for {bad[0]} but this host is {bad[1]}: it "
+            f"would run under binfmt emulation, far too slowly to boot; "
+            f"pass --qemu with a {bad[1]} build (or unset QEMU_BIN)")
+
+
 def find_qemu(image, explicit):
     """--qemu or QEMU_BIN, else the QEMU package/qemu-ingenic pins: the
     one built beside the image if the build used that pin (a build tree
@@ -833,6 +888,61 @@ def follow_kernel(s, con, timeout):
                 return s.connect()
         time.sleep(0.2)
     return con
+
+
+def proc_start(pid):
+    """A process's start time in clock ticks, which tells it from a later
+    process that got its pid."""
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            return int(f.read().rpartition(")")[2].split()[19])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def launcher_gone(s):
+    """Whether the `up` that started the session has exited (None when
+    the session predates the record)."""
+    try:
+        pid, start = s.info["launcher"]
+    except (KeyError, TypeError, ValueError):
+        return None
+    return proc_start(pid) != start
+
+
+def fmt_age(secs):
+    secs = max(int(secs), 0)
+    for big, small, n in (("d", "h", 86400), ("h", "m", 3600),
+                          ("m", "s", 60)):
+        if secs >= n:
+            rest = secs % n // (n // (24 if big == "d" else 60))
+            return f"{secs // n}{big}{rest}{small}"
+    return f"{secs}s"
+
+
+def session_flags(s):
+    """What looks wrong with a session, as short phrases."""
+    i = s.info
+    flags = []
+    alive = s.alive()
+    age = time.time() - i.get("started", time.time())
+    if not alive:
+        flags.append("QEMU gone")
+        return flags
+    if i.get("state") == "booting":
+        limit = i.get("boot_timeout", 300) + 60
+        gone = launcher_gone(s)
+        if i.get("no_wait"):
+            if age > 3600:
+                flags.append("never waited for a shell")
+        elif gone:
+            flags.append("launcher gone, never reached a shell")
+        elif age > limit:
+            flags.append(f"still booting after {fmt_age(age)}")
+    bad = foreign_binary(i.get("qemu", ""))
+    if bad:
+        flags.append(f"{bad[0]} qemu on a {bad[1]} host (binfmt)")
+    return flags
 
 
 def sessions():
@@ -1256,6 +1366,11 @@ def describe(s, as_json=False):
     view = {k: i.get(k) for k in ("name", "machine", "variant", "model",
                                   "image", "qemu", "pid", "password")}
     view.update(state=state, ssh=bool(i.get("ssh")), console_log=s.log)
+    if i.get("started"):
+        view["age_s"] = int(time.time() - i["started"])
+    view["flags"] = session_flags(s)
+    if i.get("sensor"):
+        view["sensor"] = i["sensor"]
     if i.get("audio"):
         view["audio"] = i["audio"]
     if i.get("riscv"):
@@ -1398,6 +1513,22 @@ def cmd_up(args, extra):
     if not re.fullmatch(r"[\w.+-]+", name):
         die(f"bad session name {name!r}; pass --name")
     qemu = find_qemu(image, args.qemu)
+    check_native(qemu)
+    sensor = None
+    if args.sensor:
+        model_s, _, opts = args.sensor.partition(",")
+        if not re.fullmatch(r"[\w.+-]+", model_s):
+            die(f"bad sensor model {model_s!r} for --sensor")
+        if "image-sensor" not in qemu_devices(qemu):
+            die(f"{qemu} has no image-sensor model")
+        keys = {o.partition("=")[0] for o in opts.split(",") if o}
+        sensor = {"model": model_s,
+                  "device": ",".join(
+                      ["image-sensor", f"model={model_s}"]
+                      + ([] if "bus" in keys else
+                         [f"bus={SENSOR_BUS.get(family, 'i2c0')}"])
+                      + ([] if "id" in keys else [f"id={SENSOR_ID}"])
+                      + ([opts] if opts else []))}
     wifi = None
     if args.wifi or args.portal:
         ssid, _, psk = (args.wifi or "").partition(":")
@@ -1423,6 +1554,7 @@ def cmd_up(args, extra):
             die(f"the {model} has no RISC-V core for --riscv")
         rv_qemu = os.path.join(os.path.dirname(os.path.abspath(qemu)),
                                "qemu-system-riscv32")
+        check_native(rv_qemu)
         if not os.access(rv_qemu, os.X_OK):
             die(f"no qemu-system-riscv32 beside {qemu} for --riscv; the "
                 f"fork's Linux and macOS builds ship one from ingenic-0.6.18")
@@ -1544,6 +1676,8 @@ def cmd_up(args, extra):
                   f"the start (ingenic-0.6.17 can), so U-Boot will not see "
                   f"the card; `{PROG} gpio {name}=0` inserts it for Linux",
                   file=sys.stderr)
+    if sensor:
+        argv += ["-device", sensor["device"]]
     argv += extra
 
     with open(s.path("qemu.log"), "wb") as log:
@@ -1557,6 +1691,9 @@ def cmd_up(args, extra):
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
               "wifi": wifi, "started": int(time.time()),
+              "launcher": [os.getpid(), proc_start(os.getpid())],
+              "boot_timeout": args.timeout, "no_wait": args.no_wait,
+              "sensor": sensor["model"] if sensor else None,
               "isp_trace": args.isp_trace,
               "audio": {"speaker": args.speaker
                         if args.speaker in AUDIO_BACKENDS | {None}
@@ -1641,6 +1778,12 @@ def cmd_up(args, extra):
         join_wifi(s, ssid, psk, args.timeout)
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
+    if sensor and not (args.no_wait or args.uboot):
+        set_guest_sensor(s, sensor["model"], args.timeout)
+    elif sensor:
+        print(f"{PROG}: {name}: the sensor is wired, but the guest was not "
+              f"told (fw_setenv sensor {sensor['model']}) as it is not at "
+              f"a shell", file=sys.stderr)
     print(describe(s, args.json))
     if args.console:
         args.name, args.all = name, True
@@ -1648,31 +1791,65 @@ def cmd_up(args, extra):
     return 0
 
 
-def cmd_sh(args, cmd):
-    s = pick(args.name)
-    if not cmd:
-        die("no command: sh [NAME] -- CMD...")
-    cmd = " ".join(cmd)
+def guest_run(s, timeout, cmd=None, script=None, script_args=()):
+    """Run a command, or a script's bytes copied over first, in the
+    guest's shell: (rc, output, rebooted)."""
     for retry in (False, True):
-        with s.console(args.timeout) as con:
+        with s.console(timeout) as con:
             if needs_settle(s):
-                settle(s, con, args.timeout)
-            rc, out = serial_run(con, cmd, args.timeout)
+                settle(s, con, timeout)
+            if script is None:
+                rc, out = serial_run(con, cmd, timeout)
+            else:
+                rc, out = run_script(s, con, script, script_args, timeout)
             rebooted = BANNER.search(s.log_since(s.info.get("mark", 0)))
             if not rebooted:
                 s.info["mark"] = s.log_size()
                 s.save()
-        sys.stdout.write(out)
         if rc != REBOOTED:
-            if rebooted:
-                print(f"\n{PROG}: {s.name} rebooted under the command",
-                      file=sys.stderr)
-            return rc
+            return rc, out, bool(rebooted)
         if retry:
-            return 255
+            return 255, out, False
         # It was going down already: run it once it is back up
         print(f"{PROG}: {s.name} was rebooting; running the command once "
               f"it is back", file=sys.stderr)
+
+
+def run_script(s, con, data, script_args, timeout):
+    """Copy the script to the guest unchanged and run it there: with its
+    #! interpreter if it names one, else sh."""
+    path = f"/tmp/.qemu-dev-sh-{secrets.token_hex(4)}"
+    with console_unpaced(s):
+        if serial_upload(con, data, path, timeout):
+            return 124, "(could not send the script)\n"
+    run = path if data.startswith(b"#!") else f"sh {path}"
+    run += "".join(" " + shlex.quote(a) for a in script_args)
+    return serial_run(con, f"chmod 700 {path}; {run}; rc=$?; "
+                           f"rm -f {path}; exit $rc", timeout)
+
+
+def cmd_sh(args, cmd):
+    s = pick(args.name)
+    script = None
+    if args.script:
+        try:
+            with open(args.script, "rb") as f:
+                script = f.read()
+        except OSError as e:
+            die(f"{args.script}: {e.strerror}")
+    elif cmd == ["-"]:
+        script = sys.stdin.buffer.read()
+        cmd = []
+    if script is None and not cmd:
+        die("no command: sh [NAME] -- CMD..., --script FILE or -")
+    rc, out, rebooted = guest_run(
+        s, args.timeout, " ".join(cmd) if script is None else None,
+        script, cmd if script is not None else ())
+    sys.stdout.write(out)
+    if rebooted:
+        print(f"\n{PROG}: {s.name} rebooted under the command",
+              file=sys.stderr)
+    return rc
 
 
 def cmd_put(args):
@@ -2243,6 +2420,92 @@ def cmd_console(args):
     return 0
 
 
+def set_guest_sensor(s, model, timeout):
+    """Tell the guest which sensor it has: the U-Boot env's sensor, then
+    raptor, restarted to pick it up when the image runs one."""
+    q = shlex.quote(model)
+    rc, out, _ = guest_run(
+        s, timeout,
+        f"fw_setenv sensor {q} || exit 1; r=/etc/init.d/S31raptor; "
+        f"if [ -x $r ]; then $r restart; else echo 'no raptor'; fi")
+    if rc:
+        print(f"{PROG}: {s.name}: telling the guest its sensor failed "
+              f"(exit {rc}): {out.strip()}", file=sys.stderr)
+    return rc
+
+
+def sensor_path(q):
+    """The QOM path of the image sensor: id=sens as `up --sensor` names
+    it, else the first image-sensor on the machine."""
+    path = f"/machine/peripheral/{SENSOR_ID}"
+    try:
+        q.cmd("qom-list", path=path)
+        return path
+    except RuntimeError:
+        pass
+    for root in ("/machine/peripheral", "/machine/peripheral-anon"):
+        try:
+            kids = q.cmd("qom-list", path=root)
+        except RuntimeError:
+            continue
+        for k in kids:
+            if k["type"].endswith("<image-sensor>"):
+                return f"{root}/{k['name']}"
+    die("this session has no image sensor; start it with `up --sensor "
+        "MODEL`")
+
+
+def cmd_light(args, words):
+    """Set the sensor's scene brightness, or ramp it in the model."""
+    s = pick(args.name)
+    q = Qmp(s.path("qmp"))
+    try:
+        path = sensor_path(q)
+        qom_props(q, path, "light-to")
+
+        def pct(w):
+            if not w.isdigit() or int(w) > 10000:
+                die(f"not a light level in percent: {w}")
+            return int(w)
+
+        def put(prop, v):
+            q.cmd("qom-set", path=path, property=prop, value=v)
+
+        if args.ramp:
+            a, b, secs = args.ramp
+            if not secs.isdigit() or not int(secs):
+                die(f"not a number of seconds: {secs}")
+            put("light", pct(a))
+            put("light-secs", int(secs))
+            put("light-to", pct(b))
+            print(f"light {a} -> {b} over {secs} s")
+            return 0
+        if len(words) > 1:
+            die("usage: light [NAME] N | --ramp A B SECONDS")
+        if words:
+            put("light", pct(words[0]))
+        print(q.cmd("qom-get", path=path, property="light"))
+    finally:
+        q.close()
+    return 0
+
+
+AE_CMD = (r"grep -i -E 'integration|gain|exposure|isp ev' "
+          r"/proc/jz/isp/isp-m0 2>/dev/null "
+          r"| grep -v -i -E 'wb|awb|min|max|mode|manual|unit' "
+          r"|| echo 'no exposure lines in /proc/jz/isp/isp-m0'; "
+          r"if command -v raptorctl >/dev/null 2>&1; then "
+          r"echo '-- raptorctl rvd get-exposure'; "
+          r"raptorctl rvd get-exposure 2>&1; fi")
+
+
+def cmd_ae(args, words):
+    s = pick(args.name)
+    rc, out, _ = guest_run(s, args.timeout, AE_CMD)
+    sys.stdout.write(out if out.endswith("\n") or not out else out + "\n")
+    return rc
+
+
 def cmd_info(args):
     print(describe(pick(args.name, live=False), args.json))
     return 0
@@ -2261,7 +2524,12 @@ def cmd_ls(args):
         state = i.get("state") if s.alive() else "dead"
         net = (f"ssh :{ports['ssh']}  web :{ports['http']}" if i.get("ssh")
                else "no network")
-        print(f"{s.name:<24} {state:<8} {i['machine']:<12} {net}")
+        age = fmt_age(time.time() - i["started"]) if i.get("started") \
+            else "?"
+        flags = session_flags(s)
+        print(f"{s.name:<24} {state:<8} {age:>6} {i['machine']:<12} {net}"
+              + (f"  !! {'; '.join(flags)} (`{PROG} down {s.name}`)"
+                 if flags else ""))
     return 0
 
 
@@ -2356,6 +2624,12 @@ def main(argv=None):
     sp.add_argument("--isp-trace", action="store_true",
                     help="trace the ISP and the image sensor into the "
                     "session, for isp (QEMU ingenic-0.6.23 on)")
+    sp.add_argument("--sensor", metavar="MODEL[,OPT=V...]",
+                    help="wire an image sensor (id=sens) on the SoC's "
+                    "sensor I2C bus (i2c1 on the T40, else i2c0), then "
+                    "fw_setenv sensor MODEL and restart raptor; options "
+                    "after the model go to the device (address=0x36, "
+                    "fps=15, bus=i2c3)")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")
@@ -2364,7 +2638,10 @@ def main(argv=None):
             ("sh", "run a command on the camera", 120,
              "Run CMD in the camera's /bin/sh over the serial console. "
              "Exits with its status; 124 when --timeout runs out, 255 when "
-             "the camera resets under it."),
+             "the camera resets under it. --script FILE copies a local "
+             "script over and runs it (words after -- are its arguments), "
+             "and a lone - runs the script on stdin; the text goes over "
+             "as it is, so $ and quotes need no escaping."),
             ("uboot", "run a U-Boot command", 60,
              "Run CMD at the U-Boot prompt (after up or reboot --uboot) and "
              "exit with its status. 'boot' goes on to Linux and returns at "
@@ -2372,6 +2649,9 @@ def main(argv=None):
         sp = add(name, text, timeout,
                  "%(prog)s [NAME] [--timeout S] -- CMD...", about)
         sp.add_argument("words", nargs="*", metavar="NAME")
+        if name == "sh":
+            sp.add_argument("--script", metavar="FILE",
+                            help="run this local script on the camera")
 
     sp = add("put", "copy a file onto the camera", 300,
              "%(prog)s [NAME] LOCAL REMOTE",
@@ -2496,6 +2776,23 @@ def main(argv=None):
              "to a photoresistor. Lines: channel, sample.")
     sp.add_argument("words", nargs="*", metavar="NAME")
 
+    sp = add("light", "set the image sensor's scene light", None,
+             "%(prog)s [NAME] N | --ramp A B SECONDS",
+             "Set the scene's brightness in percent (100 is a lit room, "
+             "5 is dusk) on the sensor given to up (--sensor, or "
+             "-device image-sensor,id=sens). --ramp moves it from A to B "
+             "percent over SECONDS, in the sensor model, and returns at "
+             "once. Without N, prints the light now.")
+    sp.add_argument("words", nargs="*", metavar="NAME N")
+    sp.add_argument("--ramp", nargs=3, metavar=("A", "B", "SECONDS"))
+
+    sp = add("ae", "show the guest's AE exposure and gain", 60,
+             "%(prog)s [NAME]",
+             "Print the ISP's AE integration time and gain lines from "
+             "/proc/jz/isp/isp-m0 and, where the guest has raptorctl, "
+             "its rvd get-exposure.")
+    sp.add_argument("words", nargs="*", metavar="NAME")
+
     sp = add("monitor", "run a QEMU monitor command", None,
              "%(prog)s [NAME] -- COMMAND",
              "Run a QEMU monitor command, such as info registers, set_link "
@@ -2526,7 +2823,7 @@ def main(argv=None):
         if args.command == "pwm":
             return cmd_pwm(args, tail)
         if args.command in ("sh", "uboot", "send", "monitor", "gpio",
-                            "adc"):
+                            "adc", "light", "ae"):
             # [NAME] -- WORDS, or [NAME] 'WORDS'
             words = args.words
             named = words and os.path.exists(Session(words[0]).dir)

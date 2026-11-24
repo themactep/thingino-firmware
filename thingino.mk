@@ -125,7 +125,7 @@ export SOC_TARGET_ARCH
 # makefile, so guarding only ever protected an environment variable, which
 # nothing sets.
 ifeq ($(KERNEL_VERSION_7),y)
-KERNEL_VERSION := 7.1-rc1
+KERNEL_VERSION := 7.4
 else ifeq ($(KERNEL_VERSION_4),y)
 KERNEL_VERSION := 4.4.94
 endif
@@ -153,7 +153,7 @@ endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 endif
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),7.4)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -535,6 +535,11 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_FLASH_CONTROLLER := $(NAND_FLASH_CONTROLLER)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
+endif
+# Mainline names the NOR after its SPI device; jz_sfc would match no mtd and
+# leave the kernel on the device tree's partitions.
+ifeq ($(KERNEL_VERSION_7)$(UBOOT_FLASH_CONTROLLER),yjz_sfc)
+	UBOOT_FLASH_CONTROLLER := spi0.0
 endif
 export UBOOT_FLASH_CONTROLLER
 

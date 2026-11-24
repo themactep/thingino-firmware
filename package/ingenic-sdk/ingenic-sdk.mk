@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = main
-INGENIC_SDK_VERSION = d9f3a2506ce695bc198cfa1d8daaa91a2d376721
+INGENIC_SDK_VERSION = 33cd9c3ce80bfea57ce39f25f08792c255e5956d
 
 INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -36,9 +36,16 @@ INGENIC_SDK_COMPONENTS = \
 	CONFIG_INGENIC_PWM=$(if $(BR2_INGENIC_SDK_PWM),y,n) \
 	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
 
+# The SDK keeps one tree, 7.x, for every mainline 7 release.
+ifeq ($(KERNEL_VERSION_7),y)
+INGENIC_SDK_KERNEL_VERSION = 7.x
+else
+INGENIC_SDK_KERNEL_VERSION = $(KERNEL_VERSION)
+endif
+
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
-	KERNEL_VERSION=$(KERNEL_VERSION) \
+	KERNEL_VERSION=$(INGENIC_SDK_KERNEL_VERSION) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
 	SENSOR_1_MODEL=$(SENSOR_1_MODEL) \
@@ -49,7 +56,7 @@ INGENIC_SDK_MODULE_MAKE_OPTS = \
 
 ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_3_10
-else
+else ifneq ($(KERNEL_VERSION_7),y)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_4_4_94
 endif
 
@@ -200,6 +207,8 @@ endef
 define GENERATE_MODULE_LOADER
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 
+	$(GENERATE_MODULE_LOADER_7X)
+
 	if [ "$(BR2_THINGINO_AIP)" = "y" ]; then \
 		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/08-aip; \
 	fi
@@ -271,6 +280,24 @@ define GENERATE_MODULE_LOADER
 		echo "sensor_$(SENSOR_2_MODEL)_$(SOC_FAMILY) $(SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor_2; \
 	fi
 endef
+
+# Mainline only: libimp's /dev/rmem and /dev/log_* come from modules that the
+# vendor kernels build in, and the OSD block (plus, off the T31, the encoder)
+# has a module of its own.
+ifeq ($(KERNEL_VERSION_7),y)
+define GENERATE_MODULE_LOADER_7X
+	printf 'rmem\nandroid_logger\n' > $(TARGET_DIR)/etc/modules.d/01-rmem
+
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ]; then \
+			echo "ipu" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		else \
+			echo "soc-vpu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/10-vpu; \
+			echo "ipu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		fi; \
+	fi
+endef
+endif
 
 # The speaker-amp enable line comes from gpio.speaker in the board's
 # thingino.json, in the same short notation as the rest of the gpio section:

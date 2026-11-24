@@ -954,13 +954,14 @@ config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_7
-	bool "Kernel 7.1"
+	bool "Kernel 7.4 (mainline, experimental)"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31"
 endchoice
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
     string
-    default "7.1-rc1" if KERNEL_VERSION_7
+    default "7.4" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice
