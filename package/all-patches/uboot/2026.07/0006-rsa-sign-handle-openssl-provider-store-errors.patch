@@ -1,0 +1,75 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Tue, 24 Nov 2026
+Subject: [PATCH] rsa-sign: handle OpenSSL provider store errors
+
+Follow-up to 0005 (Add support for OpenSSL Provider API). The imported
+patch has three defects in the provider branch of rsa_pem_get_priv_key():
+
+- OSSL_STORE_load() returning NULL only drains the OpenSSL error queue
+  and retries, so a persistent store error spins and a truncated key
+  floods the log with repeated error dumps. Check OSSL_STORE_error()
+  and fail out of the loop.
+- A store that holds no private key leaves private_key NULL and the
+  function returns 0, so the caller proceeds until EVP_PKEY_CTX_new()
+  fails with an unrelated message. Return -EPROTO when no key was read.
+- The FILE opened at the top of the function is closed only on the PEM
+  path; the provider path reads the file again through OSSL_STORE_open()
+  and leaks it. Close it before opening the store.
+
+Also correct the source file name printed by drain_openssl_errors().
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+ lib/rsa/rsa-sign.c | 18 +++++++++++++++---
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/lib/rsa/rsa-sign.c b/lib/rsa/rsa-sign.c
+--- a/lib/rsa/rsa-sign.c
++++ b/lib/rsa/rsa-sign.c
+@@ -50,7 +50,7 @@ static void drain_openssl_errors(int l, int silent)
+ 	if (ERR_peek_error() == 0)
+ 		return;
+ 	if (!silent)
+-		fprintf(stderr, "At main.c:%d:\n", l);
++		fprintf(stderr, "At rsa-sign.c:%d:\n", l);
+ 
+ 	while ((e = ERR_peek_error_line(&file, &line))) {
+ 		ERR_error_string(e, buf);
+@@ -255,6 +255,9 @@ static int rsa_pem_get_priv_key(const char *keydir, const char *name,
+ 	EVP_PKEY *private_key = NULL;
+ 	OSSL_STORE_CTX *store;
+ 
++	/* The store reads the file on its own. */
++	fclose(f);
++
+ 	if (!OSSL_PROVIDER_try_load(NULL, "default", true))
+ 		ERR(1, "OSSL_PROVIDER_try_load(default)");
+ 	/* pkcs11 provider is optional; only needed for pkcs11: URIs */
+@@ -268,7 +271,13 @@ static int rsa_pem_get_priv_key(const char *keydir, const char *name,
+ 		OSSL_STORE_INFO *info = OSSL_STORE_load(store);
+ 
+ 		if (!info) {
+-			drain_openssl_errors(__LINE__, 0);
++			if (OSSL_STORE_error(store)) {
++				OSSL_STORE_close(store);
++				fprintf(stderr, "Failure reading private key: '%s'\n",
++					path);
++				ERR_print_errors_fp(stderr);
++				return -EPROTO;
++			}
+ 			continue;
+ 		}
+ 		if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY) {
+@@ -281,6 +290,11 @@ static int rsa_pem_get_priv_key(const char *keydir, const char *name,
+ 	}
+ 	OSSL_STORE_close(store);
+ 
++	if (!private_key) {
++		fprintf(stderr, "No private key found in '%s'\n", path);
++		return -EPROTO;
++	}
++
+ 	*evpp = private_key;
+ #else
+ 	if (!PEM_read_PrivateKey(f, evpp, NULL, path)) {
