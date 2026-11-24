@@ -8,5 +8,7 @@
   },
   "gps": { "uart": "/dev/ttyS1", "baud": 9600 },
   "gsensor": { "model": "da221", "i2c": 2, "addr": 39 },
-  "ignition": { "park": true, "park_impact_g": 0.5, "off_delay": 1800 }
+  "ignition": { "park": true, "park_impact_g": 0.5, "off_delay": 1800 },
+  "wlan": { "country": "US" },
+  "wlan_ap": { "mode": "button", "timeout": 600, "ssid_prefix": "THINGINO-DASH" }
 }
