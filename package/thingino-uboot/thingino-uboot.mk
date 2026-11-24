@@ -101,6 +101,10 @@ THINGINO_UBOOT_FLASH_CONTROLLER := $(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER
 else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
+# Same mtd-id as thingino.mk's UBOOT_FLASH_CONTROLLER for mainline kernels.
+ifeq ($(KERNEL_VERSION_7)$(THINGINO_UBOOT_FLASH_CONTROLLER),yjz_sfc)
+THINGINO_UBOOT_FLASH_CONTROLLER := spi0.0
+endif
 
 # GNU patch cannot apply binary diffs, so every binary blob shipped inside
 # a version patch comes out empty after patching: the prebuilt SPL images

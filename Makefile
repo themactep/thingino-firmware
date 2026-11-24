@@ -335,7 +335,9 @@ ALIGN_BLOCK := 65536
 # table have to describe the same flash, or mkfs.jffs2, the partition floor
 # below and the kernel disagree about what an erase block is.
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
-JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
+# Mainline's spi-nor erases 64 KiB blocks: the 7.4 configs turn its 4 KiB
+# sectors off, which JFFS2 cannot pack into.
+JFFS2_ERASE_BLOCK := $(shell if [ "$(KERNEL_VERSION)" = "7.4" ] || grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
 # JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data).
@@ -396,7 +398,12 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
+ifeq ($(KERNEL_VERSION),7.4)
+# Mainline with thingino's options is ~2 MB of LZMA uImage: no 1600 KiB fit.
+KERNEL_PARTITION_SIZE := 2359296  # 2304KB
+else
 KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
+endif
 
 # Largest rootfs that still leaves JFFS2_MIN_SIZE for the data partition.
 # Recursive on purpose: FLASH_SIZE and ROOTFS_OFFSET are defined further down.

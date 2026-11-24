@@ -23,6 +23,11 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
 fi
 
+# Mainline's NOR erases in 64 KiB blocks; a 32 KiB erase there fails.
+if grep -q "^KERNEL_VERSION_7=y" "$BR2_CONFIG"; then
+	sed -i 's/ 0x8000$/ 0x10000/' "${TARGET_DIR}/etc/fw_env.config"
+fi
+
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)

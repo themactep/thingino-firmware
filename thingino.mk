@@ -536,6 +536,11 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
+# Mainline names the NOR after its SPI device; jz_sfc would match no mtd and
+# leave the kernel on the device tree's partitions.
+ifeq ($(KERNEL_VERSION_7)$(UBOOT_FLASH_CONTROLLER),yjz_sfc)
+	UBOOT_FLASH_CONTROLLER := spi0.0
+endif
 export UBOOT_FLASH_CONTROLLER
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
