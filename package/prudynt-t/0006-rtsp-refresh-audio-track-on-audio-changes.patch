@@ -1,0 +1,114 @@
+RTSP registers the mic stream once, when it starts, from the live audio
+input: codec, sample rate and AAC config all come from it. Audio changes only
+restart the audio thread, so the SDP goes stale:
+
+- prudynt started with the mic disabled has no audio track, and enabling the
+  mic later never adds one, not even for new sessions;
+- changing mic_format, mic_hq or force_stereo keeps advertising the old
+  stream, so every client decodes the new one with the wrong codec (an AAC
+  track carrying G.711 after switching formats) until prudynt restarts.
+
+Restart RTSP along with the audio thread when the format, rate or channel
+count changes; main brings the audio input up before RTSP, so the track is
+registered from the new input. Enabling the mic restarts RTSP only when no
+audio track is registered, tracked by global_rtsp_audio_registered, so a
+mic toggle (the microphone command, the privacy plugin) keeps connected
+sessions as before.
+
+diff --git a/src/config/JsonAPI.cpp b/src/config/JsonAPI.cpp
+index a7a5283..eda8bdf 100644
+--- a/src/config/JsonAPI.cpp
++++ b/src/config/JsonAPI.cpp
+@@ -544,12 +544,15 @@ void handle_audio(JsonValue *obj, std::string &out, bool &sep) {
+       wrote = true;
+     }
+   };
+-  auto add_strk_a = [&](const char *key, const char *path, bool restart_audio) {
++  auto add_strk_a = [&](const char *key, const char *path, bool rest_rtsp,
++                        bool restart_audio) {
+     if (JsonValue *v = obj_get(obj, key)) {
+       if (v->type == JSON_STRING && v->value.string) {
+         cfg->set<const char *>(path, strdup(v->value.string));
+         if (restart_audio)
+           global_restart_audio = true;
++        if (rest_rtsp)
++          global_restart_rtsp = true;
+       }
+       add_key(out, s2, key);
+       add_str(out, cfg->get<const char *>(path));
+@@ -559,8 +562,16 @@ void handle_audio(JsonValue *obj, std::string &out, bool &sep) {
+ 
+   // Input
+   add_boolk_a("mic_enabled", "audio.mic_enabled", false, true);
+-  add_boolk_a("mic_hq", "audio.mic_hq", false, true);
+-  add_strk_a("mic_format", "audio.mic_format", true);
++  // RTSP registers the mic stream only when it starts. Enabling a mic it
++  // started without needs an RTSP restart for new sessions to get a track.
++  if (JsonValue *v = obj_get(obj, "mic_enabled");
++      v && v->type == JSON_BOOL && v->value.boolean &&
++      !global_rtsp_audio_registered.load(std::memory_order_relaxed))
++    global_restart_rtsp = true;
++  // Format, rate and channel count are advertised in the SDP: restart RTSP
++  // with the audio so new sessions get the stream as it is now encoded.
++  add_boolk_a("mic_hq", "audio.mic_hq", true, true);
++  add_strk_a("mic_format", "audio.mic_format", true, true);
+ 
+   // mic_vol - apply immediately without restart
+   if (JsonValue *v = obj_get(obj, "mic_vol")) {
+@@ -649,7 +660,7 @@ void handle_audio(JsonValue *obj, std::string &out, bool &sep) {
+   add_int("mic_agc_target_level_dbfs", "audio.mic_agc_target_level_dbfs", true);
+   add_int("mic_agc_compression_gain_db", "audio.mic_agc_compression_gain_db",
+           true);
+-  add_boolk_a("force_stereo", "audio.force_stereo", false, true);
++  add_boolk_a("force_stereo", "audio.force_stereo", true, true);
+   // Output
+   add_boolk_a("spk_enabled", "audio.spk_enabled", true, true);
+ 
+diff --git a/src/network/RTSP.cpp b/src/network/RTSP.cpp
+index 13cf36d..08f7232 100644
+--- a/src/network/RTSP.cpp
++++ b/src/network/RTSP.cpp
+@@ -115,6 +115,7 @@ void RTSP::addSubsession(int chnNr, _stream &stream) {
+         }
+         server_->addAudioStream(0, acfg, global_audio[0]);
+         audioConfigured_ = true;
++        global_rtsp_audio_registered.store(true, std::memory_order_relaxed);
+         LOG_INFO("Audio: " << acfg.codec << " " << acfg.sampleRate << "Hz pt="
+                  << static_cast<int>(acfg.payloadType));
+     }
+@@ -126,6 +127,7 @@ void RTSP::start() {
+     // every restart appends another copy of the stream and backchannel lists.
+     server_->resetRegistrations();
+     audioConfigured_ = false;
++    global_rtsp_audio_registered.store(false, std::memory_order_relaxed);
+ 
+     // -- Configure server -----------------------------------------------
+     std::string streamName = std::string(cfg->rtsp.name) + " (" + BUILD_COMMIT + ")";
+diff --git a/src/stream/globals.cpp b/src/stream/globals.cpp
+index 12e5cd5..36feb61 100644
+--- a/src/stream/globals.cpp
++++ b/src/stream/globals.cpp
+@@ -4,6 +4,7 @@ bool global_osd_thread_signal = false;
+ bool global_reload_osd = false;
+ std::array<MP4Recorder, NUM_VIDEO_CHANNELS> global_mp4_recorders;
+ std::atomic<bool> global_force_video_active{false};
++std::atomic<bool> global_rtsp_audio_registered{false};
+ std::atomic<int> global_mp4_active_recorders{0};
+ std::atomic<bool> global_shutdown_requested{false};
+ /* global_daynight_history removed --- photosensing delegated to daynightd */
+diff --git a/src/stream/globals.hpp b/src/stream/globals.hpp
+index 6721555..ca357a7 100644
+--- a/src/stream/globals.hpp
++++ b/src/stream/globals.hpp
+@@ -330,6 +330,11 @@ extern std::atomic<bool> global_shutdown_requested;
+ // external streaming client.
+ extern std::atomic<bool> global_force_video_active;
+ 
++// True while RTSP advertises the mic stream. The RTSP thread sets it when it
++// registers the audio track and clears it when it drops its registrations.
++// A mic enabled while it is false has no track to reach new sessions.
++extern std::atomic<bool> global_rtsp_audio_registered;
++
+ // hasDataCallback must mean "at least one consumer is attached", not "the last
+ // consumer that happened to leave". RTSP players and HTTP fMP4/MJPEG clients
+ // add and remove themselves here, so one client detaching does not idle the

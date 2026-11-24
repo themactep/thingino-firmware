@@ -1,0 +1,24 @@
+The audio input thread deletes its IMPAudio on exit but leaves
+global_audio[0]->imp_audio pointing at it. main decides whether there is an
+audio thread to stop from that pointer, so after the mic is turned off the
+next audio restart (turning it back on) joins a thread that has already been
+joined. That is undefined: on T23 it sometimes returns and sometimes blocks
+main for good, leaving RTSP stopped, the mic input never recreated and
+prudynt unable to stop cleanly ("did not stop, force-killing").
+
+Clear the pointer after the delete, as the T23 shutdown path already does.
+
+diff --git a/src/audio/AudioWorker.cpp b/src/audio/AudioWorker.cpp
+index d6f9f77..6ae27d2 100644
+--- a/src/audio/AudioWorker.cpp
++++ b/src/audio/AudioWorker.cpp
+@@ -527,6 +527,9 @@ void *AudioWorker::thread_entry(void *arg) {
+ 
+   if (global_audio[encChn]->imp_audio) {
+     delete global_audio[encChn]->imp_audio;
++    // main joins the audio thread only while imp_audio is set: a stale
++    // pointer makes the next audio restart join this exited thread again.
++    global_audio[encChn]->imp_audio = nullptr;
+   }
+ 
+   return 0;
