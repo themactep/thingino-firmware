@@ -645,10 +645,17 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_OPTIMISTIC_DAD)
 	$(call KCONFIG_SET_OPT,CONFIG_IPV6_SIT,m)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_NDISC_NODETYPE)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6_ROUTING)
+endef
+# Policy routing, source routing and multicast routing: a camera routes
+# nothing, and on 7.4 they cost 14 KB of the kernel partition.
+ifneq ($(KERNEL_VERSION),7.4)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6_ROUTING
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MULTIPLE_TABLES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_SUBTREES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MROUTE)
 endef
+endif
 define THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/dhcpv6.script $(TARGET_DIR)/usr/lib/netifd/dhcpv6.script
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/odhcp6c $(TARGET_DIR)/etc/network/if-up.d/odhcp6c
