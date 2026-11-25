@@ -199,17 +199,20 @@ config BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
 	select BR2_PACKAGE_INGENIC_LIB_JZDL
 	select BR2_THINGINO_LIBSTDCPP
 	help
-	  Ingenic JZDL neural network inference engine (libjzdl.m.so,
-	  609KB) with raptor-hal's C++ backend (needs libstdc++).
+	  Ingenic's JZDL inference engine (libjzdl.m.so) with
+	  raptor-hal's C++ backend. Adds about 730KB to the image
+	  (libjzdl.m.so 239KB + libstdc++ 488KB, compressed); only
+	  239KB if libstdc++ is already in, e.g. for PersonDet.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_IVS_OJZDL
 	bool "ojzdl (open, no libjzdl or libstdc++)"
 	help
 	  ojzdl, an open runtime for JZDL models built into raptor-hal
-	  (OJZDL=1). Same detections as libjzdl, bit for bit; about
-	  33KB in rvd instead of libjzdl.m.so + libstdc++ (~2.8MB).
-	  MXU2 vector kernels on the T31 (as fast as libjzdl there);
-	  plain C on other SoCs.
+	  (OJZDL=1). Same detections as libjzdl, bit for bit. Adds
+	  about 33KB to rvd (about 15KB compressed); no libjzdl.m.so
+	  or libstdc++. MXU2 vector kernels on the T31, plain C on
+	  other SoCs. On the T31 a YOLOv5 detection takes about as
+	  long as with libjzdl (247 vs 244ms).
 
 endchoice
 
@@ -220,7 +223,8 @@ config BR2_PACKAGE_THINGINO_RAPTOR_IVS_YOLOV5
 	select BR2_PACKAGE_MAGIK_MODELS
 	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
 	help
-	  4-class object detection model for JZDL (870KB).
+	  4-class object detection model for JZDL (870KB, about
+	  434KB compressed in the image).
 
 config BR2_PACKAGE_THINGINO_RAPTOR_IVS_PERSONDET
 	bool "PersonDet algorithm (libpersonDet_inf.so + MXU libs)"
