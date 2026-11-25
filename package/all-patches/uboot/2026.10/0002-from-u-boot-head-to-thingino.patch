@@ -52549,10 +52549,10 @@ index 23219626e3..86f7aa2f66 100644
  obj-$(CONFIG_PINCTRL_MESON)		+= meson/
 diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
 new file mode 100644
-index 0000000000..b8489d7d69
+index 0000000000..d049662716
 --- /dev/null
 +++ b/drivers/pinctrl/pinctrl-ingenic.c
-@@ -0,0 +1,711 @@
+@@ -0,0 +1,712 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic XBurst pin controller + GPIO (XBurst1 T10-T33, XBurst2 A1).
@@ -53143,10 +53143,11 @@ index 0000000000..b8489d7d69
 +	struct ingenic_gpio_priv *priv = dev_get_priv(dev);
 +	u32 bit = BIT(off);
 +
++	/* Level first, so the pin never drives the old one as an output. */
++	writel(bit, priv->regs + (value ? GPIO_PXPAT0S : GPIO_PXPAT0C));
 +	writel(bit, priv->regs + GPIO_PXINTC);
 +	writel(bit, priv->regs + GPIO_PXMSKS);
 +	writel(bit, priv->regs + GPIO_PXPAT1C);
-+	writel(bit, priv->regs + (value ? GPIO_PXPAT0S : GPIO_PXPAT0C));
 +	return 0;
 +}
 +
@@ -53194,11 +53195,11 @@ index 0000000000..b8489d7d69
 +	u32 bit = BIT(off);
 +
 +	if (flags & GPIOD_IS_OUT) {
++		writel(bit, priv->regs + ((flags & GPIOD_IS_OUT_ACTIVE) ?
++					  GPIO_PXPAT0S : GPIO_PXPAT0C));
 +		writel(bit, priv->regs + GPIO_PXINTC);
 +		writel(bit, priv->regs + GPIO_PXMSKS);
 +		writel(bit, priv->regs + GPIO_PXPAT1C);
-+		writel(bit, priv->regs + ((flags & GPIOD_IS_OUT_ACTIVE) ?
-+					  GPIO_PXPAT0S : GPIO_PXPAT0C));
 +	} else if (flags & GPIOD_IS_IN) {
 +		writel(bit, priv->regs + GPIO_PXINTC);
 +		writel(bit, priv->regs + GPIO_PXMSKS);
