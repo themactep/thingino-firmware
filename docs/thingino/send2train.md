@@ -55,6 +55,16 @@ EXIF (including GPS and camera model), XMP, vendor APPn blocks and JPEG
 comments. Frames are de-duplicated by content hash, so the same frame cannot
 be counted twice, and the client's filename is discarded.
 
+Motion frames can contain people and are not blurred. Only enable the target
+where you may lawfully capture and share such footage, and not in a place
+where people have a reasonable expectation of privacy.
+
+Contributed frames are kept indefinitely in the training corpus. Opting out
+stops uploads but does not remove frames that were already sent; keep the
+token if you may need them removed. The
+[training pool policy](train-pool-policy.md) has the license, retention and
+removal process.
+
 Uploads use HTTPS with certificate verification and no redirects to plain
 HTTP. The endpoint defaults to the pool run by the Thingino project; point
 `train.endpoint` at your own collector to keep frames in-house

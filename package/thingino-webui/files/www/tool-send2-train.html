@@ -37,7 +37,7 @@
         <p class="mb-2">
           Thingino is building its own open object-recognition engine. If you turn
           this on, one JPEG frame from each accepted motion event is sent to the
-          Thingino training pool and used only to train those models.
+          Thingino training pool and used to train and evaluate those models.
         </p>
         <p class="mb-2"><strong>What is sent:</strong></p>
         <ul class="mb-2">
@@ -47,11 +47,27 @@
             derived from your hardware.</li>
         </ul>
         <p class="mb-2"><strong>What is never sent:</strong></p>
-        <ul class="mb-0">
+        <ul class="mb-2">
           <li>your camera's hostname, MAC address, serial number or model;</li>
           <li>audio, video clips, other files, or your notification settings;</li>
           <li>your location, account, or any other service credential.</li>
         </ul>
+        <p class="mb-2"><strong>What you agree to:</strong></p>
+        <ul class="mb-2">
+          <li>frames are kept indefinitely in the training corpus and may be used to train and
+            evaluate openly published object-recognition models. Raw frames are never published;</li>
+          <li>motion frames can contain people and are not blurred. Enable this only if you are
+            18 or older or authorized by the camera owner, only where you may lawfully capture
+            and share them, and not in a private area;</li>
+          <li>turning the consent switch off stops uploads, but frames already sent stay in the
+            corpus. To request removal, email
+            <a href="mailto:train@thingino.com">train@thingino.com</a> with the token from
+            <code>/etc/send2-train.token</code>.</li>
+        </ul>
+        <p class="mb-0">
+          <a href="https://github.com/themactep/thingino-firmware/blob/ciao/docs/thingino/train-pool-policy.md"
+            target="_blank" rel="noopener">Read the full contribution and retention terms</a>.
+        </p>
       </div>
 
       <form id="trainForm" class="needs-validation" novalidate autocomplete="off">

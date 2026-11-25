@@ -157,10 +157,12 @@ Watch the JSON access log for `pool_full`, `unit_quota` and `ip_quota` rates:
 a sudden jump in `ip_quota` is a compromised or misconfigured camera network,
 not normal use. The daily counters roll at 00:00 UTC.
 
-Retention is a policy decision, not a code one. Frames are only useful as
-training data, so the recommended posture is: keep the corpus, publish the
-collection policy, and delete the `_state` quota counters after the day they
-describe.
+Retention is a policy decision, not a code one. The public pool follows the
+[training pool policy](../train-pool-policy.md): frames are kept indefinitely,
+quota counters are discarded after the UTC day they describe, and access logs
+are kept for 30 days. Set the host's log rotation to that figure. A
+self-hosted collector can choose a different policy; publish it before inviting
+contributors.
 
 ## Testing
 
