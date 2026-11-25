@@ -1705,7 +1705,7 @@ config RAPTOR_RECORDING_MIN_FREE_MB
 
 config RAPTOR_RECORDING_PREBUFFER_MAX_MB
 	string "prebuffer_max_mb (per-stream pre-buffer ceiling 1-64, default 16)"
-	default "6" if (RAPTOR_ENV_DEV_DASHCAM = "y")
+	default "3" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_SYNC_INTERVAL_MS
@@ -1715,7 +1715,7 @@ config RAPTOR_RECORDING_SYNC_INTERVAL_MS
 
 config RAPTOR_RECORDING_WRITE_BUFFER_KB
 	string "write_buffer_kb (writer thread buffer)"
-	default "4096" if (RAPTOR_ENV_DEV_DASHCAM = "y")
+	default "3072" if (RAPTOR_ENV_DEV_DASHCAM = "y")
 	default ""
 
 config RAPTOR_RECORDING_PREBUFFER_SEC
