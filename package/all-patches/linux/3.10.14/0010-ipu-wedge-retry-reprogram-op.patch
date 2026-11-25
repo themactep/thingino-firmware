@@ -1,0 +1,215 @@
+From: Lu-Fi <lutz@fiebach.de>
+Subject: [PATCH] ipu: re-program the op on the wedge retry
+
+The wedge mitigation (0007) retries a timed-out op after __stop_ipu() +
+__reset_ipu(), but the op registers (bg route/buffer, CSC, OSD routes and
+buffers) were only written once before the retry loop. The reset clears
+them, so the retry fired an empty op: it "completed" within ~35 us,
+logged "recovered after reset+retry", and returned success although
+nothing was blended (OpenIMP pixel probe: no change, #875).
+
+Move the reset + programming into ipu_program_op() and call it again
+before every retry attempt, so a retry really redoes the op. If the
+retry times out too, the op now fails honestly ("op abandoned") instead
+of reporting a false recovery.
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+--- a/drivers/video/jz_ipu/jz_ipu_v13.c
++++ b/drivers/video/jz_ipu/jz_ipu_v13.c
+@@ -723,55 +723,29 @@
+ 	return ret;
+ }
+ 
+-static int ipu_start(struct jz_ipu *ipu, struct ipu_param *ipu_param)
++/*
++ * Reset the engine and program one op (bg route/buffer, CSC, OSD routes
++ * and buffers).  Factored out of ipu_start() so the wedge retry can
++ * re-program the op after its stop/reset: the reset clears the op
++ * registers, and a retry fired without re-programming "completes" in a
++ * few microseconds without blending anything (false "recovered").
++ */
++static int ipu_program_op(struct jz_ipu *ipu, struct ipu_param *ip)
+ {
+ 	int ret = 0;
+-	int attempt = 0;
+-	int max_attempts = 0;
+-	struct ipu_param *ip = ipu_param;
+-
+-	if ((ipu == NULL) || (ipu_param == NULL)) {
+-		dev_err(ipu->dev, "ipu: ipu is NULL or ipu_param is NULL\n");
+-		return -1;
+-	}
+-	if ((0 == (ip->cmd & IPU_CMD_OSD))&((0 == (ip->cmd & IPU_CMD_CSC)))) {
+ 
+-		printk("ipu: error cmd 0x%08x\n", ip->cmd);
+-		ret = -1;
+-		goto err_cmd;
+-	}
+-	IPU_DEBUG("ipu: enter ipu_start %d\n", current->pid);
+-
+-	/*
+-	 * This used to be a bare clk_enable() per op with no matching
+-	 * clk_disable() anywhere in the driver, so the clock framework's
+-	 * enable refcount climbed by one per op (~50/s while streaming;
+-	 * observed at 6.1M and climbing on a live unit) and would
+-	 * eventually wrap.  Keep the long-standing effective behavior -
+-	 * IPU clock permanently on after the first op - but stop the
+-	 * refcount climb.  Actually gating the clock between ops would be
+-	 * brand-new behavior for a datapath that already wedges ~1/500k
+-	 * ops, and does not belong in a stability fix.
+-	 */
+-	if (!ipu->clk_always_on) {
+-		clk_enable(ipu->clk);
+-		ipu->clk_always_on = 1;
+-	}
+-#ifdef CONFIG_SOC_T31
+-	clk_enable(ipu->ahb1_gate);
+-#endif
+ 	__stop_ipu();
+ 	__reset_ipu();
+ 
+ 	ret = _ipu_set_bg_route(ipu, ip);
+ 	if (ret) {
+ 		printk("ipu: error _ipu_set_bg_route %d\n", ret);
+-		goto err_ipu_set_bg_route;
++		return ret;
+ 	}
+ 	ret = _ipu_set_bg_buffer(ipu, ip);
+ 	if (ret) {
+ 		printk("ipu: error _ipu_set_bg_buffer %d\n", ret);
+-		goto err_ipu_set_bg_buffer;
++		return ret;
+ 	}
+ 
+     if (ip->cmd & IPU_CMD_CSC) {
+@@ -791,51 +765,95 @@
+ 		ret = _ipu_set_osd_chx_route(ipu, ip, 0);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osd_ch0_route %d\n", ret);
+-			goto err_ipu_set_osd_chx_route;
++			return ret;
+ 		}
+ 		ret = _ipu_set_osdx_buffer(ipu, ip, 0);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
+-			goto err_ipu_set_osdx_buffer;
++			return ret;
+ 		}
+ 	}
+ 	if (ip->cmd & IPU_CMD_OSD1) {
+ 		ret = _ipu_set_osd_chx_route(ipu, ip, 1);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osd_ch1_route %d\n", ret);
+-			goto err_ipu_set_osd_chx_route;
++			return ret;
+ 		}
+ 		ret = _ipu_set_osdx_buffer(ipu, ip, 1);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
+-			goto err_ipu_set_osdx_buffer;
++			return ret;
+ 		}
+ 	}
+ 	if (ip->cmd & IPU_CMD_OSD2) {
+ 		ret = _ipu_set_osd_chx_route(ipu, ip, 2);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osd_ch2_route %d\n", ret);
+-			goto err_ipu_set_osd_chx_route;
++			return ret;
+ 		}
+ 		ret = _ipu_set_osdx_buffer(ipu, ip, 2);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
+-			goto err_ipu_set_osdx_buffer;
++			return ret;
+ 		}
+ 	}
+ 	if (ip->cmd & IPU_CMD_OSD3) {
+ 		ret = _ipu_set_osd_chx_route(ipu, ip, 3);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osd_ch3_route %d\n", ret);
+-			goto err_ipu_set_osd_chx_route;
++			return ret;
+ 		}
+ 		ret = _ipu_set_osdx_buffer(ipu, ip, 3);
+ 		if (ret) {
+ 			printk("ipu: error _ipu_set_osdx_buffer %d\n", ret);
+-			goto err_ipu_set_osdx_buffer;
++			return ret;
+ 		}
+ 	}
+ 
++	return 0;
++}
++
++static int ipu_start(struct jz_ipu *ipu, struct ipu_param *ipu_param)
++{
++	int ret = 0;
++	int attempt = 0;
++	int max_attempts = 0;
++	struct ipu_param *ip = ipu_param;
++
++	if ((ipu == NULL) || (ipu_param == NULL)) {
++		dev_err(ipu->dev, "ipu: ipu is NULL or ipu_param is NULL\n");
++		return -1;
++	}
++	if ((0 == (ip->cmd & IPU_CMD_OSD))&((0 == (ip->cmd & IPU_CMD_CSC)))) {
++
++		printk("ipu: error cmd 0x%08x\n", ip->cmd);
++		ret = -1;
++		goto err_cmd;
++	}
++	IPU_DEBUG("ipu: enter ipu_start %d\n", current->pid);
++
++	/*
++	 * This used to be a bare clk_enable() per op with no matching
++	 * clk_disable() anywhere in the driver, so the clock framework's
++	 * enable refcount climbed by one per op (~50/s while streaming;
++	 * observed at 6.1M and climbing on a live unit) and would
++	 * eventually wrap.  Keep the long-standing effective behavior -
++	 * IPU clock permanently on after the first op - but stop the
++	 * refcount climb.  Actually gating the clock between ops would be
++	 * brand-new behavior for a datapath that already wedges ~1/500k
++	 * ops, and does not belong in a stability fix.
++	 */
++	if (!ipu->clk_always_on) {
++		clk_enable(ipu->clk);
++		ipu->clk_always_on = 1;
++	}
++#ifdef CONFIG_SOC_T31
++	clk_enable(ipu->ahb1_gate);
++#endif
++	ret = ipu_program_op(ipu, ip);
++	if (ret)
++		goto err_ipu_set_bg_route;
++
+ 	/*
+ 	 * Arm, fire, and wait for OUT_END.  On a wedge (see the
+ 	 * IPU_DONE_TIMEOUT_MS comment block), reset the engine and retry
+@@ -859,6 +877,15 @@
+ 		 */
+ 		INIT_COMPLETION(ipu->done_ipu);
+ 
++		/* the stop/reset after a wedge cleared the op: program it again */
++		if (attempt > 1) {
++			ret = ipu_program_op(ipu, ip);
++			if (ret) {
++				printk("ipu: retry re-program failed %d\n", ret);
++				goto err_ipu_set_bg_route;
++			}
++		}
++
+ 		__clear_ipu_out_end();
+ 		__ipu_enable_irq();
+ 
+@@ -937,9 +964,6 @@
+     return 0;
+ 
+ err_ipu_wait_for_done:
+-err_ipu_set_osdx_buffer:
+-err_ipu_set_bg_buffer:
+-err_ipu_set_osd_chx_route:
+ err_ipu_set_bg_route:
+ #ifdef CONFIG_SOC_T31
+ 	clk_disable(ipu->ahb1_gate);

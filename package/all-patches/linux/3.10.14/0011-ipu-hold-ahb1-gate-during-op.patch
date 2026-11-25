@@ -1,0 +1,83 @@
+From: Lu-Fi <lutz@fiebach.de>
+Subject: [PATCH] ipu: hold the AHB1 gate during an op on every SoC that has it
+
+The IPU masters the bus through the AHB1 clock gate (CLKGR1 bit 6 on
+T21/T30/T31, "helix, radix, lcd, ipu, ldc use" in clk_sources.c). The
+vendor driver enables it in ipu_start() only under CONFIG_SOC_T31. On
+T21 and T30 the gate is switched only by the helix/radix encoder
+(vpu_open/vpu_release), so an IPU op issued while no encoder channel
+holds the VPU (e.g. the first OSD blend of a stream after idle) stalls
+its DMA (IPU_STATUS MSTATUS=3) until the 100 ms wedge timeout.
+
+Device proof on a T21 (#875): after a streamer restart CLKGR1=0x33E3
+(AHB1 gated) and the first stream costs 4 IPU timeouts; with AHB1 forced
+on via devmem before the stream (0x33A3) there are 0 timeouts.
+
+Get the "ahb1" clock on every SoC (NULL where the clock table has no
+such gate: T10/T20/T23) and enable/disable it around each op like the
+vendor T31 path. Also drops the vendor T31 probe check that tested the
+wrong pointer (IS_ERR(ipu->clk) after getting ahb1).
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+--- a/drivers/video/jz_ipu/jz_ipu_v13.c
++++ b/drivers/video/jz_ipu/jz_ipu_v13.c
+@@ -847,9 +847,16 @@
+ 		clk_enable(ipu->clk);
+ 		ipu->clk_always_on = 1;
+ 	}
+-#ifdef CONFIG_SOC_T31
+-	clk_enable(ipu->ahb1_gate);
+-#endif
++	/*
++	 * The IPU masters the bus through the AHB1 gate (CLKGR1 bit 6 on
++	 * T21/T30/T31: "helix, radix, lcd, ipu, ldc use").  The vendor code
++	 * enables it here only on T31; on T21/T30 only the helix/radix
++	 * encoder enables it while a channel holds the VPU, so an op without
++	 * an open encoder stalls its DMA until the 100 ms timeout (#875).
++	 * Hold the gate for the op on every SoC that has it.
++	 */
++	if (ipu->ahb1_gate)
++		clk_enable(ipu->ahb1_gate);
+ 	ret = ipu_program_op(ipu, ip);
+ 	if (ret)
+ 		goto err_ipu_set_bg_route;
+@@ -957,17 +964,15 @@
+ 
+     IPU_DEBUG("ipu: exit ipu_start %d\n", current->pid);
+ 
+-#ifdef CONFIG_SOC_T31
+-	clk_disable(ipu->ahb1_gate);
+-#endif
++	if (ipu->ahb1_gate)
++		clk_disable(ipu->ahb1_gate);
+ 
+     return 0;
+ 
+ err_ipu_wait_for_done:
+ err_ipu_set_bg_route:
+-#ifdef CONFIG_SOC_T31
+-	clk_disable(ipu->ahb1_gate);
+-#endif
++	if (ipu->ahb1_gate)
++		clk_disable(ipu->ahb1_gate);
+ err_cmd:
+ 	return ret;
+ 
+@@ -1185,13 +1190,10 @@
+ 		goto err_get_clk;
+ 	}
+ 
+-#ifdef CONFIG_SOC_T31
++	/* SoCs without an AHB1 gate in their clock table (T10/T20/T23) get NULL */
+ 	ipu->ahb1_gate = clk_get(ipu->dev, "ahb1");
+-	if (IS_ERR(ipu->clk)) {
+-		ret = dev_err(&pdev->dev, "ipu clk get failed!\n");
+-		goto err_get_clk;
+-	}
+-#endif
++	if (IS_ERR(ipu->ahb1_gate))
++		ipu->ahb1_gate = NULL;
+ 
+ 	dev_set_drvdata(&pdev->dev, ipu);
+ 
