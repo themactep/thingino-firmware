@@ -47,7 +47,7 @@ while IFS= read -r day_dir; do
 		continue
 	fi
 
-	relative=${day_dir#"$DATA_DIR"/}
+	relative=${day_dir#"$DATA_DIR/frames/"}
 	if aws s3 sync "$day_dir" "$S3_URI/$relative" --only-show-errors; then
 		rm -rf "$day_dir"
 		echo "synced $relative"
