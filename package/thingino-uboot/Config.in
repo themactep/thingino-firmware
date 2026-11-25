@@ -59,6 +59,10 @@ config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
 
 config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 	bool "Reset PHY after being Configured"
+	depends on BR2_THINGINO_UBOOT_VERSION_2013_07
+	help
+	  2013.07 only. On newer U-Boot the reset line is the PHY node's
+	  reset-gpios; a camera overrides it in its u-boot.dtsi.
 
 config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET
 	int "GPIO to toggle for PHY Reset"

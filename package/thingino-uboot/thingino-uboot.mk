@@ -311,4 +311,18 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_AUDIO_DT
 endif
 endif
 
+# The camera's own U-Boot device-tree overrides, configs/cameras/<camera>/u-boot.dtsi.
+# U-Boot appends CONFIG_DEVICE_TREE_INCLUDES after the .dts, so the file's &label
+# overrides win over the SoC tree and the injections above.
+THINGINO_UBOOT_CAMERA_DTSI = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/u-boot.dtsi
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+ifneq ($(wildcard $(THINGINO_UBOOT_CAMERA_DTSI)),)
+define THINGINO_UBOOT_CAMERA_DT
+	$(call KCONFIG_SET_OPT,CONFIG_DEVICE_TREE_INCLUDES,"$(THINGINO_UBOOT_CAMERA_DTSI)",$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_CAMERA_DT
+endif
+endif
+
 endif
