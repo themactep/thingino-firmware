@@ -60,9 +60,9 @@ else ifeq ($(KERNEL_VERSION),7.4)
 # Mainline lives in gtxaspec/linux: one branch for every supported family.
 KERNEL_SITE := https://github.com/gtxaspec/linux
 
-ifneq ($(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)),)
+ifneq ($(filter t10 t20 t21 t23 t30 t31 t32 t33,$(SOC_FAMILY)),)
 KERNEL_BRANCH := ingenic-7.4
-KERNEL_HASH   := 67e1a16485917eab05344098c74fca30a20c0426
+KERNEL_HASH   := 1ed260d29920f557dce400f1f7d6982d1151fe47
 endif
 
 endif
