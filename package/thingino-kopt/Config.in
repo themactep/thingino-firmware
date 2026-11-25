@@ -303,6 +303,15 @@ config BR2_PACKAGE_THINGINO_KOPT_AF_ALG_HASH
 	  AF_ALG sockets, such as the NEON SHA-512 on ARM, which is several
 	  times faster than portable C on 32-bit cores.
 
+config BR2_PACKAGE_THINGINO_KOPT_ZRAM
+	bool "Compressed swap in RAM (zram)"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Swap, zsmalloc and zram with LZ4, for kernels whose config lacks
+	  them. With BR2_PACKAGE_THINGINO_SYSTEM_ZRAM the camera compresses
+	  idle pages when memory runs short, instead of evicting the code of
+	  running programs and re-reading it from flash.
+
 config BR2_PACKAGE_THINGINO_KOPT_NVT_THERMAL
 	bool "Novatek SoC temperature"
 	depends on BR2_PACKAGE_THINGINO_KOPT
