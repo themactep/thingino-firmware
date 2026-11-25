@@ -15,6 +15,9 @@
       this.sseUrl = "/x/json-heartbeat.cgi";
       this.historyUrl = "/x/json-daynight-history.cgi";
       this.sensorsUrl = "/x/json-daynight-sensors.cgi";
+      /* the history and sensors CGIs come with thingino-daynightd */
+      const uiConfig = window.thinginoUIConfig || {};
+      this.hasDaynightd = !!(uiConfig.device && uiConfig.device.daynight);
       this.maxPoints = 300;
       this.data = {};
       this.chart = null;
@@ -150,6 +153,7 @@
     }
 
     async loadHistory() {
+      if (!this.hasDaynightd) return;
       try {
         const response = await fetch(this.historyUrl);
         if (!response.ok) return;
@@ -185,6 +189,7 @@
     }
 
     async loadThresholds() {
+      if (!this.hasDaynightd) return;
       try {
         /* Read brightness % thresholds directly from config.
            No conversion needed — config is the source of truth. */
