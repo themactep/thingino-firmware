@@ -4,9 +4,13 @@
 # Reads newline-separated repo-relative paths from argv or stdin and fails
 # when any path matches an entry in scripts/do-not-edit.txt.
 #
+# Callers pass modified/copied/renamed paths, not additions: adding a new
+# generated baseline (a U-Boot or kernel version bump) is legitimate, editing
+# an existing one is not.
+#
 # Usage:
 #   scripts/check-do-not-edit.sh [FILE...]
-#   git diff --cached --name-only | scripts/check-do-not-edit.sh
+#   git diff --cached --name-only --diff-filter=MCR | scripts/check-do-not-edit.sh
 
 set -eu
 

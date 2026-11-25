@@ -377,7 +377,7 @@ shellcheck:
 # + tz.json strings
 lint: shellcheck
 	@echo "Checking do-not-edit paths..."
-	@git diff --name-only --diff-filter=ACMR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
+	@git diff --name-only --diff-filter=MCR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
 	@echo "Checking defconfig sort order..."
 	@failed=0; \
 	for f in configs/cameras/*/"*_defconfig"; do \

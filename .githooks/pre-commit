@@ -2,7 +2,9 @@
 
 set -e
 
-do_not_edit_files=$(git diff --cached --name-only --diff-filter=ACMR)
+# Additions are how a generated baseline enters the tree (a U-Boot or
+# kernel version bump adds a new 0001), so only edits are guarded.
+do_not_edit_files=$(git diff --cached --name-only --diff-filter=MCR)
 
 if [ -n "$do_not_edit_files" ]; then
 	printf '%s\n' "$do_not_edit_files" | ./scripts/check-do-not-edit.sh
