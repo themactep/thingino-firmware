@@ -102,7 +102,7 @@ else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
 # Same mtd-id as thingino.mk's UBOOT_FLASH_CONTROLLER for mainline kernels.
-ifeq ($(KERNEL_VERSION_7)$(THINGINO_UBOOT_FLASH_CONTROLLER),yjz_sfc)
+ifneq ($(filter yjz_sfc ysfc0_nor,$(KERNEL_VERSION_7)$(THINGINO_UBOOT_FLASH_CONTROLLER)),)
 THINGINO_UBOOT_FLASH_CONTROLLER := spi0.0
 endif
 
