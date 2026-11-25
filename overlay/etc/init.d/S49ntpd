@@ -21,7 +21,8 @@ stop_daemon() {
 	start-stop-daemon -K -x "$DAEMON"
 }
 
-wlanap_enabled="$(jct /dev/prudynt.json get wlan_ap.enabled 2>/dev/null)"
+wlanap_enabled=false
+[ -f /run/wlan_ap_mode ] && wlanap_enabled=true
 
 start() {
 	echo -c 15 "Starting NTP daemon"
