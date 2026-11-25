@@ -2,7 +2,7 @@
 # shellcheck disable=SC2068
 
 DAEMON="/usr/sbin/ntpd"
-PIDFILE="/run/ntpd.pid"
+PIDFILE="/run/ntpd-daemon.pid"
 NTP_DEFAULT_FILE="/etc/default/ntp.conf"
 NTP_WORKING_FILE="/tmp/ntp.conf"
 
@@ -11,12 +11,11 @@ start_daemon() {
 }
 
 stop_daemon() {
-	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		status=$?
+	if [ -f "$PIDFILE" ] && start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"; then
 		rm -f "$PIDFILE"
-		return $status
+		return 0
 	fi
+	rm -f "$PIDFILE"
 
 	start-stop-daemon -K -x "$DAEMON"
 }
