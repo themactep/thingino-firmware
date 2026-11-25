@@ -562,7 +562,7 @@ UBOOT_BOARDNAME_MISSING := $(if $(filter y,$(UBOOT_BOARDNAME_CHECKABLE)),$(if $(
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# BR2_TARGET_UBOOT_BOARDNAME only selects <name>_config on U-Boot's legacy
-	# build system. The Kconfig build system 2026.07 uses takes
+	# build system. The Kconfig build system 2026.10 uses takes
 	# <name>_defconfig from BR2_TARGET_UBOOT_BOARD_DEFCONFIG instead, so a
 	# camera that names a board has to reach that symbol -- otherwise its board
 	# choice is dropped for the plain SoC defconfig with nothing to show for it
@@ -570,7 +570,7 @@ ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# UBOOT_BOARDNAME is already resolved above (camera name, else SOC_UBOOT).
 	UBOOT_DEFCONFIG := $(UBOOT_BOARDNAME)
 ifeq ($(UBOOT_BOARDNAME_MISSING),y)
-	# Some camera defconfigs still name 2013.07-era boards that the 2026.07
+	# Some camera defconfigs still name 2013.07-era boards that the 2026.10
 	# tree never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
 	# the SoC default the same as before -- but say so, rather than either
 	# failing the U-Boot configure or going quiet about it again.

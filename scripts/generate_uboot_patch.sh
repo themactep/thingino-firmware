@@ -9,7 +9,7 @@
 # diffs the baseline branch against the thingino branch.
 #
 # Two u-boot trees are supported:
-#   xburst2 (T40/T41/A1): base=202604, branch=ingenic-t-series
+#   xburst2 (T40/T41/A1): base=202610, branch=ingenic-t-series
 #   xburst1 (T10-T31):    base=201307, branch=ingenic-xburst1
 #
 # The thingino branch is maintained by merging upstream u-boot into itself, so
@@ -29,7 +29,7 @@
 # Options:
 #   -t, --target {xburst1,xburst2}  which u-boot tree (default: auto-detect from -b)
 #   -f, --firmware-repo DIR         path to thingino-firmware (default: repo root)
-#   -b, --base REF                  base branch (default: 202604)
+#   -b, --base REF                  base branch (default: 202610)
 #   -B, --branch BRANCH             thingino branch (default: per-target)
 #   -n, --dry-run                   show what would happen without doing it
 #   -h, --help                      show this help
@@ -97,7 +97,7 @@ apply_defaults() {
 	if [ -n "$TARGET" ]; then
 		case "$TARGET" in
 			xburst2)
-				BASE="${BASE:-202604}"
+				BASE="${BASE:-202610}"
 				BRANCH="${BRANCH:-ingenic-t-series}"
 				;;
 			xburst1)
@@ -111,7 +111,7 @@ apply_defaults() {
 		esac
 	else
 		if [ -z "$BASE" ]; then
-			BASE="202604"
+			BASE="202610"
 		fi
 		case "$BASE" in
 			20[0-9][0-9][0-9][0-9])

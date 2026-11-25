@@ -2,12 +2,12 @@ menu "Thingino U-Boot integration"
 
 choice
 	prompt "U-Boot version"
-	default BR2_THINGINO_UBOOT_VERSION_2026_07
+	default BR2_THINGINO_UBOOT_VERSION_2026_10
 	help
 	  Select the U-Boot version to build.
 
-config BR2_THINGINO_UBOOT_VERSION_2026_07
-	bool "2026.07 (buildroot)"
+config BR2_THINGINO_UBOOT_VERSION_2026_10
+	bool "2026.10 (buildroot)"
 
 config BR2_THINGINO_UBOOT_VERSION_2013_07
 	bool "2013.07 (ingenic)"
