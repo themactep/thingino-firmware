@@ -71,9 +71,10 @@ HTTP. The endpoint defaults to the pool run by the Thingino project; point
 (see [the collector guide](services/train-collector.md)).
 
 The firmware ships the client and a deployable reference collector
-(`contrib/train-collector`); the public pool host itself has to be provisioned
-separately. Until it is, an opted-in camera fails its uploads and backs off —
-motion detection and every other send2 target keep working.
+(`contrib/train-collector`). The public pool runs at the default endpoint under
+the [training pool policy](train-pool-policy.md). A self-hosted collector can
+choose a different retention policy, but must publish it before inviting
+contributors.
 
 ## Command line
 
