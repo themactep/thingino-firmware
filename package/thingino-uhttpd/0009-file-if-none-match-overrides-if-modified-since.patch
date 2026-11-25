@@ -1,0 +1,35 @@
+file: let If-None-Match override If-Modified-Since
+
+RFC 9110 13.2.2 evaluates If-None-Match before If-Modified-Since, and a
+recipient must ignore If-Modified-Since when the request carries
+If-None-Match. uh_file_data() tests If-Modified-Since first, so a GET
+whose date is at or after the file's mtime gets 304 Not Modified even
+when its entity tag does not match the file.
+
+A browser revalidates with both validators of its cached copy. When that
+copy is newer than the file now served, the date passes and the tag does
+not: after a downgrade to an older image, or when another device served
+the same address before. The browser then keeps the stale file and has
+no way to learn that it changed.
+
+With If-None-Match present, If-Modified-Since is skipped and the entity
+tag decides: a match still gets 304, a mismatch gets 200 and the file.
+A request with only If-Modified-Since is answered as before. A request
+that also carries If-Match, If-Range or If-Unmodified-Since reaches
+those checks now that the date is skipped, so a failed precondition
+answers 412 where the date used to answer 304.
+
+diff --git a/file.c b/file.c
+index 23b7671..f83e50d 100644
+--- a/file.c
++++ b/file.c
+@@ -450,7 +450,8 @@ static int uh_file_if_modified_since(struct client *cl, struct stat *s)
+ 	char *hdr = uh_file_header(cl, HDR_IF_MODIFIED_SINCE);
+ 	time_t t;
+ 
+-	if (!hdr)
++	/* RFC 9110 13.2.2: ignored when If-None-Match is present */
++	if (!hdr || uh_file_header(cl, HDR_IF_NONE_MATCH))
+ 		return true;
+ 
+ 	t = uh_file_date2unix(hdr);
