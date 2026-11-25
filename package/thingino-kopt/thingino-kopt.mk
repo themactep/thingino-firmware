@@ -658,7 +658,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6
 endef
 # Policy routing, source routing and multicast routing: a camera routes
 # nothing, and on 7.4 they cost 14 KB of the kernel partition.
-ifneq ($(KERNEL_VERSION),7.4)
+ifneq ($(KERNEL_VERSION_7),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6_ROUTING
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MULTIPLE_TABLES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_SUBTREES)

@@ -41,7 +41,7 @@ endif
 
 # The 7.4 kernel packs uImage.lzma with xz --format=lzma and MIPS-tuned
 # lc/lp/pb, which buildroot's host-lzma (LZMA Utils 4.32) cannot do.
-ifeq ($(KERNEL_VERSION),7.4)
+ifeq ($(KERNEL_VERSION_7),y)
 LINUX_DEPENDENCIES += host-xz
 LINUX_MAKE_FLAGS += XZ=$(HOST_DIR)/bin/xz
 endif
