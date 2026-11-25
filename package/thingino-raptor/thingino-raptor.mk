@@ -281,6 +281,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/var/www/info-gps.html; \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/info-gps.js \
 			$(TARGET_DIR)/var/www/a/info-gps.js; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-telematics.cgi \
+			$(TARGET_DIR)/var/www/x/json-telematics.cgi; \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-ignition.html \
 			$(TARGET_DIR)/var/www/config-ignition.html; \
 		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/config-ignition.js \

@@ -81,9 +81,14 @@
     }
   }
 
-  async function poll(helper) {
+  // One small CGI straight to rtd, never overlapping: the agent chain
+  // forks about 20 processes per request.
+  const POLL_MS = 2000;
+
+  async function poll() {
     try {
-      const s = await helper.agentRequest("/api/v1/settings/telematics/status", { cache: "no-store" });
+      const r = await fetch("/x/json-telematics.cgi", { cache: "no-store" });
+      const s = r.ok ? await r.json() : null;
       if (s && s.status === "ok") render(s);
       else throw new Error("no status");
     } catch (err) {
@@ -92,22 +97,22 @@
     }
   }
 
+  async function loop() {
+    if (!document.hidden) await poll();
+    setTimeout(loop, POLL_MS);
+  }
+
   async function start() {
     const helper = window.thinginoStreamer;
-    if (!helper || !helper.agentRequest) {
-      el("gpsUnavailable").classList.remove("d-none");
-      return;
+    if (helper && helper.agentRequest) {
+      try {
+        const leaf = await helper.agentRequest("/api/v1/settings/telematics/speed-unit", { cache: "no-store" });
+        if (leaf && leaf.speed_unit) speedUnit = leaf.speed_unit;
+      } catch (err) {
+        /* default km/h */
+      }
     }
-    try {
-      const leaf = await helper.agentRequest("/api/v1/settings/telematics/speed-unit", { cache: "no-store" });
-      if (leaf && leaf.speed_unit) speedUnit = leaf.speed_unit;
-    } catch (err) {
-      /* default km/h */
-    }
-    poll(helper);
-    setInterval(() => {
-      if (!document.hidden) poll(helper);
-    }, 1000);
+    loop();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
