@@ -72,6 +72,8 @@ endif
 endif
 
 ################ MMC #########################
+# 7.4 builds the host into the image from its generic config; nothing to set.
+ifneq ($(KERNEL_VERSION_7),y)
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
 # Which MSC driver this SoC and kernel pair uses:
@@ -237,6 +239,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT
 	$(call KCONFIG_ENABLE_OPT,CONFIG_EXT4_USE_FOR_EXT23)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_LBDAF)
 endef
+endif
 endif
 ################ DWC2 #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2),y)
