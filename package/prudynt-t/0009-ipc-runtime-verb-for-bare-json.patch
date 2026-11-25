@@ -1,0 +1,27 @@
+prudyntctl writes a body that starts with '{' to the socket as is, so the
+RUNTIME verb from 0006 only reaches the server for bodies that do not.
+imp-control and microphone always pass a JSON object, so their requests are
+read as plain JSON and their paths are still staged: the next persist (a
+privacy change with save_state, for instance) writes the LITE throttle and
+any other runtime value into the user layer.
+
+Send the verb whenever the runtime transport is requested. A bare body on
+the plain transport keeps meaning plain JSON.
+
+diff --git a/src/prudyntctl.cpp b/src/prudyntctl.cpp
+index 88589ff..eaeb7f7 100644
+--- a/src/prudyntctl.cpp
++++ b/src/prudyntctl.cpp
+@@ -79,8 +79,10 @@ static int cmd_json(int argc, char **argv, bool runtime) {
+     return 2;
+   }
+ 
+-  // Allow bare JSON body or prefixed with the transport verb
+-  if (!payload.empty() && payload[0] == '{') {
++  // Allow bare JSON body or prefixed with the transport verb. A bare body is
++  // read as plain JSON by the server, so the runtime transport always sends
++  // its verb: imp-control and microphone pass bodies that start with '{'.
++  if (!runtime && !payload.empty() && payload[0] == '{') {
+     // write JSON directly
+     (void)write(fd, payload.c_str(), payload.size());
+   } else {
