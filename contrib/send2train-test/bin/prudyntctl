@@ -1,0 +1,13 @@
+#!/bin/sh
+# Minimal prudyntctl stand-in for the send2train tests: a snapshot is just the
+# fixture frame on stdout, like the real daemon's snapshot command.
+
+case "$1" in
+	snapshot)
+		cat "$FIXTURE_JPEG"
+		;;
+	*)
+		echo "prudyntctl stub: unsupported command: $*" >&2
+		exit 1
+		;;
+esac

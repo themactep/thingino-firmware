@@ -86,6 +86,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "storage": $(get_domain_config storage),
   "ntfy": $(get_domain_config ntfy),
   "gphotos": $(get_domain_config gphotos),
+  "train": $(get_domain_config train),
   "speaker": $(get_domain_config speaker)
 }
 EOF
@@ -208,6 +209,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get gphotos >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
+	elif jct "$temp_json" get train >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	else

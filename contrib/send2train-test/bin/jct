@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""Minimal jct stand-in for the send2train tests.
+
+The firmware's jct prints a JSON value without its quotes, which is what the
+send2 scripts parse. This implements just the `FILE get a.b.c` form they use.
+"""
+
+import json
+import sys
+
+
+def main():
+    path, operation, key = sys.argv[1], sys.argv[2], sys.argv[3]
+    if operation != "get":
+        raise SystemExit(f"unsupported operation: {operation}")
+
+    with open(path, encoding="utf-8") as handle:
+        value = json.load(handle)
+    for part in key.split("."):
+        value = value[part]
+
+    if isinstance(value, bool):
+        print("true" if value else "false")
+    elif value is not None:
+        print(value)
+
+
+if __name__ == "__main__":
+    main()

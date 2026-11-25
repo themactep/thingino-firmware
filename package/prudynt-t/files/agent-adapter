@@ -2095,6 +2095,7 @@ agent_apply_config() {
 	agent_persist_if_present "$source_file" motion.send2pushover
 	agent_persist_if_present "$source_file" motion.send2storage
 	agent_persist_if_present "$source_file" motion.send2telegram
+	agent_persist_if_present "$source_file" motion.send2train
 	agent_persist_if_present "$source_file" motion.send2webhook
 	if agent_has_daynightd; then
 		value=$(agent_json_config_value "$source_file" daynight.enabled)

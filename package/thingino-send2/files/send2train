@@ -1,0 +1,379 @@
+#!/bin/env sh
+# Send to the Thingino training pool.
+#
+# Opt-in contribution of motion-detection frames to the pool the Thingino
+# project uses to train its own open object-recognition models. Nothing leaves
+# the camera unless the user turns it on (/etc/send2.json, train.enabled), and
+# what goes up is deliberately unlinkable to the camera owner:
+#
+#   * a random 128-bit contributor token, generated on this device on first use
+#     and kept in /etc/send2-train.token. No MAC address, serial number, model,
+#     hostname, or any other device identifier is ever sent. The collector
+#     keys its quotas on a hash of the token, so the token is a pseudonym, not
+#     an account;
+#   * one JPEG frame per accepted motion event, with EXIF/XMP/comment segments
+#     stripped by the collector before the frame is stored;
+#   * the upload schema version.
+#
+# Quotas are enforced on both sides. This script caps uploads per UTC day,
+# spaces them out with jitter, and backs off exponentially when the collector
+# refuses. The collector re-checks everything (a client is not trusted) and can
+# clamp a single device with Retry-After.
+#
+# shellcheck disable=SC1091,SC2034
+
+HELPER_DIR="${SEND2TRAIN_HELPER_DIR:-/usr/share}"
+. "$HELPER_DIR/prudynt-helpers"
+. "$HELPER_DIR/send2common"
+
+domain="train"
+config_file="${SEND2TRAIN_CONFIG:-/etc/send2.json}"
+token_file="${SEND2TRAIN_TOKEN_FILE:-/etc/send2-train.token}"
+state_file="${SEND2TRAIN_STATE:-/etc/send2-train.state}"
+lock_dir="${SEND2TRAIN_LOCK:-/tmp/send2train.lock}"
+
+# Must match contrib/train-collector/collector.py. The default points at the
+# pool run by the Thingino project; a user who hosts their own collector can
+# put its URL in the Endpoint field.
+DEFAULT_ENDPOINT="https://train.thingino.com/v1/samples"
+DEFAULT_DAILY_LIMIT=12
+DEFAULT_MIN_INTERVAL=300
+MAX_FRAME_BYTES=1048576
+MAX_BACKOFF=21600
+
+show_help() {
+	echo "Usage: $0 [options]
+Where:
+	-e URL       Collector endpoint (default: $DEFAULT_ENDPOINT)
+	-f file      Upload this file instead of capturing a frame
+	-S           Accepted for compatibility; a frame is all this target sends
+	-n           Dry run, report what would be uploaded
+	-v           Verbose output
+	-h           This help
+
+The target is opt-in: it does nothing unless train.enabled is true in
+$config_file. Per-device limits (daily count, spacing, backoff) are
+tracked in $state_file.
+" >&2
+	exit 0
+}
+
+uint_or_default() {
+	case "$1" in
+		'' | *[!0-9]*) echo "$2" ;;
+		*) echo "$1" ;;
+	esac
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	enabled=$(get_value enabled)
+	endpoint=$(get_value endpoint)
+	daily_limit=$(get_value daily_limit)
+	min_interval=$(get_value min_interval)
+}
+
+load_state() {
+	state_day=0
+	state_count=0
+	state_last=0
+	state_blocked=0
+	state_failures=0
+
+	[ -f "$state_file" ] || return 0
+
+	state_day=$(sed -n 's/^day=//p' "$state_file" 2>/dev/null | head -n 1)
+	state_count=$(sed -n 's/^count=//p' "$state_file" 2>/dev/null | head -n 1)
+	state_last=$(sed -n 's/^last=//p' "$state_file" 2>/dev/null | head -n 1)
+	state_blocked=$(sed -n 's/^blocked_until=//p' "$state_file" 2>/dev/null | head -n 1)
+	state_failures=$(sed -n 's/^failures=//p' "$state_file" 2>/dev/null | head -n 1)
+
+	state_day=$(uint_or_default "$state_day" 0)
+	state_count=$(uint_or_default "$state_count" 0)
+	state_last=$(uint_or_default "$state_last" 0)
+	state_blocked=$(uint_or_default "$state_blocked" 0)
+	state_failures=$(uint_or_default "$state_failures" 0)
+}
+
+save_state() {
+	_state_tmp="$state_file.new.$$"
+	_old_umask=$(umask)
+	umask 077
+
+	# Write-then-rename keeps the counter consistent if the camera loses power
+	# mid-update (jffs2/ubifs on /etc, so the rename is atomic).
+	if ! printf 'day=%s\ncount=%s\nlast=%s\nblocked_until=%s\nfailures=%s\n' \
+		"$state_day" "$state_count" "$state_last" "$state_blocked" \
+		"$state_failures" >"$_state_tmp"; then
+		umask "$_old_umask"
+		rm -f "$_state_tmp"
+		return 1
+	fi
+	mv -f "$_state_tmp" "$state_file"
+	umask "$_old_umask"
+}
+
+load_token() {
+	token=""
+	if [ -f "$token_file" ]; then
+		token=$(sed -n '1p' "$token_file" 2>/dev/null | tr -d ' \t\r\n')
+	fi
+
+	case "$token" in
+		*[!0-9a-f]*) token="" ;;
+	esac
+	[ "${#token}" -eq 32 ] || token=""
+
+	if [ -z "$token" ]; then
+		token=$(od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \t\n')
+		case "$token" in
+			*[!0-9a-f]*) token="" ;;
+		esac
+		[ "${#token}" -eq 32 ] || {
+			echo_error "Cannot generate a contributor token"
+			exit 1
+		}
+		_old_umask=$(umask)
+		umask 077
+		printf '%s\n' "$token" >"$token_file"
+		umask "$_old_umask"
+	fi
+}
+
+acquire_lock() {
+	_i=0
+	while [ "$_i" -lt 3 ]; do
+		if mkdir "$lock_dir" 2>/dev/null; then
+			printf '%s\n' "$$" >"$lock_dir/pid"
+			lock_owned="true"
+			return 0
+		fi
+		_pid=$(sed -n '1p' "$lock_dir/pid" 2>/dev/null)
+		if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+			return 1
+		fi
+		if [ -z "$_pid" ]; then
+			# The owner may still be writing its pid; only a lock that stays
+			# anonymous across retries is treated as abandoned.
+			sleep 1
+			_i=$((_i + 1))
+			continue
+		fi
+		# A lock whose owner is gone is stale (crash, OOM kill); take it over
+		# instead of blocking this camera's contributions forever.
+		rm -rf "$lock_dir"
+		_i=$((_i + 1))
+	done
+	return 1
+}
+
+# Invoked from the EXIT trap below; shellcheck cannot see through the string.
+# shellcheck disable=SC2329
+release_lock() {
+	# Never remove a lock another process holds.
+	[ "true" = "$lock_owned" ] && rm -rf "$lock_dir"
+	return 0
+}
+
+# Jitter keeps a fleet that rebooted together from synchronizing its uploads.
+# The value only needs to be unpredictable, not cryptographic.
+jitter() {
+	_limit=$1
+	[ "$_limit" -gt 0 ] || _limit=1
+	_rand=$(od -An -N2 -tu2 /dev/urandom 2>/dev/null | tr -d ' \n')
+	_rand=$(uint_or_default "$_rand" 0)
+	echo $((_rand % _limit))
+}
+
+skip() {
+	[ "true" = "$verbose" ] && echo_info "Training pool: $1"
+	exit 0
+}
+
+retry_after_seconds() {
+	# Retry-After is either a delta-seconds or an HTTP date. Only the numeric
+	# form is honored; a date falls back to the default backoff.
+	_value=$(sed -n 's/^[Rr]etry-[Aa]fter: *//p' "$1" 2>/dev/null | tr -d '\r' | tail -n 1)
+	case "$_value" in
+		'' | *[!0-9]*) echo "" ;;
+		*) echo "$((_value > MAX_BACKOFF ? MAX_BACKOFF : _value))" ;;
+	esac
+}
+
+upload() {
+	_frame=$1
+	_headers=$(mktemp /tmp/send2train_hdr.XXXXXX) || return 1
+	add_to_garbage "$_headers"
+
+	set -- curl --silent --show-error \
+		--connect-timeout 10 --max-time 60 \
+		--tlsv1.2 \
+		--header 'Expect:' \
+		--header 'X-Thingino-Train: 1' \
+		--header "X-Thingino-Token: $token" \
+		--form "frame=@$_frame;filename=frame.jpg;type=image/jpeg" \
+		--dump-header "$_headers" \
+		--output /dev/null \
+		--write-out '%{http_code}'
+
+	# TLS is mandatory. The override exists so a self-hosted collector on a
+	# lab network can be tested without a certificate; it is never set by the
+	# firmware itself.
+	if [ "1" = "$SEND2TRAIN_ALLOW_HTTP" ]; then
+		[ "true" = "$verbose" ] && echo_warning "TLS check disabled (SEND2TRAIN_ALLOW_HTTP=1)"
+	else
+		set -- "$@" --proto '=https' --proto-redir '=https'
+	fi
+
+	set -- "$@" --url "$endpoint"
+
+	_errors=$(mktemp /tmp/send2train_err.XXXXXX) || return 1
+	add_to_garbage "$_errors"
+
+	[ "true" = "$verbose" ] && echo_info "POST $endpoint ($(stat -c%s "$_frame" 2>/dev/null) bytes)"
+	http_code=$("$@" 2>"$_errors")
+	http_rc=$?
+	http_code=$(printf '%s' "$http_code" | tr -d ' \r\n')
+	[ "true" = "$verbose" ] && [ -s "$_errors" ] && sed 's/^/curl: /' "$_errors" >&2
+}
+
+main() {
+	read_config
+
+	while getopts e:f:nvSh flag; do
+		case "$flag" in
+			e) endpoint=$OPTARG ;;
+			f) frame=$OPTARG ;;
+			n) dry_run="true" ;;
+			v) verbose="true" ;;
+			# Accepted for compatibility with the generic send2 test path
+			# (`send2<service> -S`); a frame is all this target ever sends.
+			S) ;;
+			*) show_help ;;
+		esac
+	done
+
+	enabled=$(printf '%s' "$enabled" | tr -d '"')
+	if [ "true" != "$enabled" ]; then
+		echo_error "Training pool contribution is not enabled"
+		exit 1
+	fi
+
+	[ -n "$endpoint" ] || endpoint=$DEFAULT_ENDPOINT
+	case "$endpoint" in
+		https://*) ;;
+		*)
+			if [ "1" != "$SEND2TRAIN_ALLOW_HTTP" ]; then
+				echo_error "Training pool endpoint must use HTTPS"
+				exit 1
+			fi
+			;;
+	esac
+
+	daily_limit=$(uint_or_default "$daily_limit" "$DEFAULT_DAILY_LIMIT")
+	min_interval=$(uint_or_default "$min_interval" "$DEFAULT_MIN_INTERVAL")
+	[ "$daily_limit" -gt 0 ] || daily_limit=$DEFAULT_DAILY_LIMIT
+
+	load_token
+
+	acquire_lock || skip "another upload is in progress"
+
+	load_state
+	now=$(date +%s 2>/dev/null)
+	now=$(uint_or_default "$now" 0)
+	today=$(date -u +%Y%m%d 2>/dev/null)
+	today=$(uint_or_default "$today" 0)
+
+	# A camera with no synced clock can boot with a time older than its own
+	# state file; drop stale spacing/backoff instead of blocking forever.
+	if [ "$state_last" -gt "$now" ] || [ "$state_blocked" -gt $((now + MAX_BACKOFF)) ]; then
+		state_last=0
+		state_blocked=0
+	fi
+
+	if [ "$state_day" != "$today" ]; then
+		state_day=$today
+		state_count=0
+		save_state
+	fi
+
+	[ "$state_count" -ge "$daily_limit" ] &&
+		skip "daily limit of $daily_limit frames reached"
+
+	[ "$state_blocked" -gt 0 ] && [ "$now" -lt "$state_blocked" ] &&
+		skip "backoff active for $((state_blocked - now))s"
+
+	if [ "$state_last" -gt 0 ]; then
+		_effective=$((min_interval + $(jitter $((min_interval / 4 + 1)))))
+		[ "$now" -lt $((state_last + _effective)) ] &&
+			skip "spacing active for $((state_last + _effective - now))s"
+	fi
+
+	if [ -z "$frame" ]; then
+		frame=$(copy_photo)
+		# copy_photo registered its temporary copy for cleanup; a frame that
+		# came in with -f belongs to the caller and must not be deleted.
+		add_to_garbage "$frame"
+	fi
+
+	if [ -z "$frame" ] || [ ! -f "$frame" ]; then
+		echo_error "No frame to upload"
+		exit 1
+	fi
+
+	_size=$(stat -c%s "$frame" 2>/dev/null)
+	_size=$(uint_or_default "$_size" 0)
+	if [ "$_size" -eq 0 ] || [ "$_size" -gt $MAX_FRAME_BYTES ]; then
+		echo_error "Frame size $_size is outside 1..$MAX_FRAME_BYTES bytes"
+		exit 1
+	fi
+
+	_magic=$(od -An -N2 -tx1 "$frame" 2>/dev/null | tr -d ' \t\n')
+	if [ "ffd8" != "$_magic" ]; then
+		echo_error "Frame is not a JPEG image"
+		exit 1
+	fi
+
+	if [ "true" = "$dry_run" ]; then
+		echo_info "Would upload $_size bytes to $endpoint ($state_count/$daily_limit today)"
+		exit 0
+	fi
+
+	upload "$frame"
+
+	case "$http_code" in
+		2[0-9][0-9])
+			state_count=$((state_count + 1))
+			state_last=$now
+			state_blocked=0
+			state_failures=0
+			save_state
+			[ "true" = "$verbose" ] && echo_info "Frame accepted ($state_count/$daily_limit today)"
+			exit 0
+			;;
+		429)
+			_wait=$(retry_after_seconds "$_headers")
+			[ -n "$_wait" ] || _wait=3600
+			state_blocked=$((now + _wait))
+			save_state
+			[ "true" = "$verbose" ] && echo_info "Collector is rate limiting, retry in ${_wait}s"
+			exit 0
+			;;
+	esac
+
+	state_failures=$(((state_failures > 8 ? 8 : state_failures) + 1))
+	_backoff=$((300 << (state_failures - 1)))
+	[ "$_backoff" -gt $MAX_BACKOFF ] && _backoff=$MAX_BACKOFF
+	state_blocked=$((now + _backoff))
+	save_state
+
+	echo_error "Upload failed (HTTP ${http_code:-none}, curl ${http_rc}), retry in ${_backoff}s"
+	exit 1
+}
+
+trap '_cleanup; release_lock' EXIT
+
+main "$@"
+# shellcheck disable=SC2317  # main() always exits; kept for clarity
+exit 0

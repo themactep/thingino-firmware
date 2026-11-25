@@ -1,0 +1,22 @@
+services:
+  collector:
+    build: .
+    restart: unless-stopped
+    # Terminate TLS in front of this (see deploy/nginx.conf), or give the
+    # collector TRAIN_TLS_CERT/TRAIN_TLS_KEY directly: the cameras refuse a
+    # plain HTTP endpoint.
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      TRAIN_PER_UNIT_DAY: "24"
+      TRAIN_PER_UNIT_INTERVAL: "30"
+      TRAIN_PER_IP_DAY: "96"
+      TRAIN_GLOBAL_DAY: "200000"
+      TRAIN_MAX_BYTES: "1048576"
+      TRAIN_MIN_DIMENSION: "64"
+      # Required: without a stable pepper the client-address hashes change on
+      # every restart. Generate once with: openssl rand -hex 32
+      TRAIN_IP_PEPPER: "${TRAIN_IP_PEPPER:?set TRAIN_IP_PEPPER, e.g. in .env}"
+      TRAIN_ADMIN_TOKEN: "${TRAIN_ADMIN_TOKEN:-}"
+    volumes:
+      - ./data:/data

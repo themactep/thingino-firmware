@@ -1,0 +1,27 @@
+[Unit]
+Description=Thingino training pool collector
+Documentation=https://github.com/themactep/thingino-firmware/blob/master/docs/thingino/services/train-collector.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=train
+Group=train
+WorkingDirectory=/srv/train-collector
+EnvironmentFile=/etc/train-collector.env
+ExecStart=/usr/bin/python3 /srv/train-collector/collector.py
+Restart=on-failure
+RestartSec=5s
+
+# The collector only needs its spool; everything else is read-only.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/train-data
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
