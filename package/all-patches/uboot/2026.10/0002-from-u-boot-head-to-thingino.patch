@@ -373,10 +373,10 @@ index 0000000000..a0184ffcdc
 +            --notes "$notes" \
 +            --prerelease
 diff --git a/.gitignore b/.gitignore
-index 0e09715cc6..8f29a51ea9 100644
+index 5cb135fc58..12d34e4664 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -142,3 +142,6 @@ __pycache__
+@@ -144,3 +144,6 @@ __pycache__
  
  # Clang's compilation database file
  /compile_commands.json
@@ -396,10 +396,10 @@ index c8cfbf5d5d..507095f028 100644
  	help
  	  Define Max stack size that can be used by U-Boot. The UEFI sub-system
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 28d090d3c3..6327c6867c 100644
+index 6edf740a9c..841d64105f 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -1295,6 +1295,17 @@ F:	include/dt-bindings/mscc/
+@@ -1292,6 +1292,17 @@ F:	include/dt-bindings/mscc/
  F:	drivers/pinctrl/mscc/
  F:	drivers/net/mscc_eswitch/
  
@@ -418,10 +418,10 @@ index 28d090d3c3..6327c6867c 100644
  M:	Ezequiel Garcia <ezequiel@collabora.com>
  S:	Maintained
 diff --git a/Makefile b/Makefile
-index 6303a0cca6..6562193f49 100644
+index 02998e1393..b4c3588ad6 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1369,7 +1369,13 @@ quiet_cmd_pad_cat = CAT     $@
+@@ -1359,7 +1359,13 @@ quiet_cmd_pad_cat = CAT     $@
  cmd_pad_cat = $(cmd_objcopy) && $(append) || { rm -f $@; false; }
  
  quiet_cmd_lzma = LZMA    $@
@@ -532,10 +532,10 @@ index 7c4ee8b668..52bf245987 100644
  dtb-$(CONFIG_SOC_JR2) += jr2_pcb110.dtb jr2_pcb111.dtb serval2_pcb112.dtb
 diff --git a/arch/mips/dts/a1-isvp-dfu.dtsi b/arch/mips/dts/a1-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..3e93988e0a
+index 0000000000..197048fb02
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp-dfu.dtsi
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,213 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 USB-boot DFU-loader board body, shared by every A1
@@ -703,12 +703,6 @@ index 0000000000..3e93988e0a
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000c8>;
 +		max-speed = <100>;
-+		/*
-+		 * DP83825I reset: PC18 here and on the vendor CALF board;
-+		 * TUCANA and GORILLA use PC19. A USB-boot power-on leaves
-+		 * the PHY unable to link until it is reset.
-+		 */
-+		ingenic,reset-gpio = <&gpc 18 GPIO_ACTIVE_LOW>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -717,8 +711,16 @@ index 0000000000..3e93988e0a
 +			#address-cells = <1>;
 +			#size-cells = <0>;
 +
++			/*
++			 * DP83825I: reset on PC18 here and on the vendor CALF board;
++			 * TUCANA and GORILLA use PC19. After a USB-boot power-on the
++			 * PHY does not link until it is reset.
++			 */
 +			gmac0_phy: ethernet-phy@0 {
 +				reg = <0>;
++				reset-gpios = <&gpc 18 GPIO_ACTIVE_LOW>;
++				reset-assert-us = <15000>;
++				reset-deassert-us = <80000>;
 +			};
 +		};
 +	};
@@ -749,10 +751,10 @@ index 0000000000..3e93988e0a
 +};
 diff --git a/arch/mips/dts/a1-isvp.dtsi b/arch/mips/dts/a1-isvp.dtsi
 new file mode 100644
-index 0000000000..1a1147bcdc
+index 0000000000..e83dc2af9b
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp.dtsi
-@@ -0,0 +1,278 @@
+@@ -0,0 +1,280 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 board body, shared by every A1 SKU. The per-SKU
@@ -987,12 +989,6 @@ index 0000000000..1a1147bcdc
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000c8>;
 +		max-speed = <100>;
-+		/*
-+		 * DP83825I reset: PC18 here and on the vendor CALF board;
-+		 * TUCANA and GORILLA use PC19. A USB-boot power-on leaves
-+		 * the PHY unable to link until it is reset.
-+		 */
-+		ingenic,reset-gpio = <&gpc 18 GPIO_ACTIVE_LOW>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -1001,8 +997,16 @@ index 0000000000..1a1147bcdc
 +			#address-cells = <1>;
 +			#size-cells = <0>;
 +
++			/*
++			 * DP83825I: reset on PC18 here and on the vendor CALF board;
++			 * TUCANA and GORILLA use PC19. After a USB-boot power-on the
++			 * PHY does not link until it is reset.
++			 */
 +			gmac0_phy: ethernet-phy@0 {
 +				reg = <0>;
++				reset-gpios = <&gpc 18 GPIO_ACTIVE_LOW>;
++				reset-assert-us = <15000>;
++				reset-deassert-us = <80000>;
 +			};
 +		};
 +	};
@@ -1831,7 +1835,7 @@ index 0000000000..26cb3f8843
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10l-isvp-dfu.dts b/arch/mips/dts/t10l-isvp-dfu.dts
 new file mode 100644
-index 0000000000..4fe16cfa79
+index 0000000000..b05f84c949
 --- /dev/null
 +++ b/arch/mips/dts/t10l-isvp-dfu.dts
 @@ -0,0 +1,86 @@
@@ -1916,7 +1920,7 @@ index 0000000000..4fe16cfa79
 + * Ethernet in the DFU loader, like the other XBurst1 loaders: the
 + * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
 + * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
-+ * board DT declares its own ingenic,reset-gpio.
++ * board DT gives its PHY node a reset-gpios property.
 + */
 +&gmac {
 +	status = "okay";
@@ -2033,7 +2037,7 @@ index 0000000000..26cb3f8843
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10n-isvp-dfu.dts b/arch/mips/dts/t10n-isvp-dfu.dts
 new file mode 100644
-index 0000000000..5b544bc57e
+index 0000000000..703e10874f
 --- /dev/null
 +++ b/arch/mips/dts/t10n-isvp-dfu.dts
 @@ -0,0 +1,86 @@
@@ -2118,7 +2122,7 @@ index 0000000000..5b544bc57e
 + * Ethernet in the DFU loader, like the other XBurst1 loaders: the
 + * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
 + * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
-+ * board DT declares its own ingenic,reset-gpio.
++ * board DT gives its PHY node a reset-gpios property.
 + */
 +&gmac {
 +	status = "okay";
@@ -2290,7 +2294,7 @@ index 0000000000..ddaf1feab2
 +&cgu { bootph-pre-ram; bootph-some-ram; };
 diff --git a/arch/mips/dts/t20-isvp-dfu.dtsi b/arch/mips/dts/t20-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..e99285234f
+index 0000000000..4876bb18a8
 --- /dev/null
 +++ b/arch/mips/dts/t20-isvp-dfu.dtsi
 @@ -0,0 +1,69 @@
@@ -2358,7 +2362,7 @@ index 0000000000..e99285234f
 + * Ethernet in the DFU loader, like the other XBurst1 loaders: the
 + * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
 + * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
-+ * board DT declares its own ingenic,reset-gpio.
++ * board DT gives its PHY node a reset-gpios property.
 + */
 +&gmac {
 +	status = "okay";
@@ -4153,10 +4157,10 @@ index 0000000000..67c875cdbc
 +&ddr { bootph-all; };		/* leaf .dts supplies ingenic,sdram-params */
 diff --git a/arch/mips/dts/t23-isvp-dfu.dtsi b/arch/mips/dts/t23-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..71b5d057a8
+index 0000000000..39e5d72b45
 --- /dev/null
 +++ b/arch/mips/dts/t23-isvp-dfu.dtsi
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,86 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T23 shared DFU/USB-boot board body.
@@ -4228,7 +4232,20 @@ index 0000000000..71b5d057a8
 + */
 +&gmac {
 +	status = "okay";
-+	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
++	phy-handle = <&gmac_phy>;
++
++	mdio {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* IP101G; boards with another reset pin override this node. */
++		gmac_phy: ethernet-phy@0 {
++			reg = <0>;
++			reset-gpios = <&gpb 28 GPIO_ACTIVE_LOW>;
++			reset-assert-us = <50000>;
++			reset-deassert-us = <10000>;
++		};
++	};
 +};
 diff --git a/arch/mips/dts/t23-isvp-uboot-common.dtsi b/arch/mips/dts/t23-isvp-uboot-common.dtsi
 new file mode 100644
@@ -4406,10 +4423,10 @@ index 0000000000..ae5bd6f7fb
 +#endif
 diff --git a/arch/mips/dts/t23-isvp.dtsi b/arch/mips/dts/t23-isvp.dtsi
 new file mode 100644
-index 0000000000..ec7aeba99b
+index 0000000000..d64463e7fe
 --- /dev/null
 +++ b/arch/mips/dts/t23-isvp.dtsi
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,89 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T23 shared board body (SFC-NOR, USB host).
@@ -4465,8 +4482,20 @@ index 0000000000..ec7aeba99b
 +
 +&gmac {
 +	status = "okay";
-+	/* PHY reset GPIO; exact pin varies per board, override per device. */
-+	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
++	phy-handle = <&gmac_phy>;
++
++	mdio {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* IP101G; boards with another reset pin override this node. */
++		gmac_phy: ethernet-phy@0 {
++			reg = <0>;
++			reset-gpios = <&gpb 28 GPIO_ACTIVE_LOW>;
++			reset-assert-us = <50000>;
++			reset-deassert-us = <10000>;
++		};
++	};
 +};
 +
 +&otg {
@@ -5608,7 +5637,7 @@ index 0000000000..a86ccb5787
 +&cgu { bootph-pre-ram; bootph-some-ram; };
 diff --git a/arch/mips/dts/t30-isvp-dfu.dtsi b/arch/mips/dts/t30-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..4840dc4967
+index 0000000000..2a9e602139
 --- /dev/null
 +++ b/arch/mips/dts/t30-isvp-dfu.dtsi
 @@ -0,0 +1,70 @@
@@ -5677,7 +5706,7 @@ index 0000000000..4840dc4967
 + * per-variant loader carries its own MPLL plan and the MAC-PHY clock
 + * derives from it via the CGU clk driver. No PHY reset GPIO here: it
 + * is board-specific (PB28 is taken on some T30 boards - EBUSY), so a
-+ * wired-ethernet board DT declares its own ingenic,reset-gpio.
++ * wired-ethernet board DT gives its PHY node a reset-gpios property.
 + */
 +&gmac {
 +	status = "okay";
@@ -5854,10 +5883,10 @@ index 0000000000..26535fcbaf
 +#endif
 diff --git a/arch/mips/dts/t30-isvp.dtsi b/arch/mips/dts/t30-isvp.dtsi
 new file mode 100644
-index 0000000000..488e780988
+index 0000000000..6a7a13e0f1
 --- /dev/null
 +++ b/arch/mips/dts/t30-isvp.dtsi
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,88 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T30 shared board body (SFC-NOR, USB host).
@@ -5912,8 +5941,20 @@ index 0000000000..488e780988
 +
 +&gmac {
 +	status = "okay";
-+	/* PHY reset GPIO; exact pin varies per board, override per device. */
-+	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
++	phy-handle = <&gmac_phy>;
++
++	mdio {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* IP101G; boards with another reset pin override this node. */
++		gmac_phy: ethernet-phy@0 {
++			reg = <0>;
++			reset-gpios = <&gpb 28 GPIO_ACTIVE_LOW>;
++			reset-assert-us = <50000>;
++			reset-deassert-us = <10000>;
++		};
++	};
 +};
 +
 +&otg {
@@ -6678,10 +6719,10 @@ index 0000000000..3cd67916a1
 +&ddr { bootph-all; };		/* leaf .dts supplies ingenic,sdram-params */
 diff --git a/arch/mips/dts/t31-isvp-dfu.dtsi b/arch/mips/dts/t31-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..6fa722b396
+index 0000000000..d4aa6dfc12
 --- /dev/null
 +++ b/arch/mips/dts/t31-isvp-dfu.dtsi
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,85 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T31 shared DFU/USB-boot board body.
@@ -6752,8 +6793,20 @@ index 0000000000..6fa722b396
 + */
 +&gmac {
 +	status = "okay";
-+	/* IP101G PHY reset (ISVP reference default = GPIO PB28). */
-+	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
++	phy-handle = <&gmac_phy>;
++
++	mdio {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* IP101G; boards with another reset pin override this node. */
++		gmac_phy: ethernet-phy@0 {
++			reg = <0>;
++			reset-gpios = <&gpb 28 GPIO_ACTIVE_LOW>;
++			reset-assert-us = <50000>;
++			reset-deassert-us = <10000>;
++		};
++	};
 +};
 diff --git a/arch/mips/dts/t31-isvp-uboot-common.dtsi b/arch/mips/dts/t31-isvp-uboot-common.dtsi
 new file mode 100644
@@ -6929,10 +6982,10 @@ index 0000000000..d28f9794ad
 +#endif
 diff --git a/arch/mips/dts/t31-isvp.dtsi b/arch/mips/dts/t31-isvp.dtsi
 new file mode 100644
-index 0000000000..8c05094449
+index 0000000000..5a9994826b
 --- /dev/null
 +++ b/arch/mips/dts/t31-isvp.dtsi
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,89 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T31 shared board body (SFC-NOR, USB host).
@@ -6988,9 +7041,20 @@ index 0000000000..8c05094449
 +
 +&gmac {
 +	status = "okay";
-+	/* IP101G PHY reset (ISVP reference default = GPIO PB28). The
-+	 * exact pin varies per board; override per device as needed. */
-+	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
++	phy-handle = <&gmac_phy>;
++
++	mdio {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* IP101G; boards with another reset pin override this node. */
++		gmac_phy: ethernet-phy@0 {
++			reg = <0>;
++			reset-gpios = <&gpb 28 GPIO_ACTIVE_LOW>;
++			reset-assert-us = <50000>;
++			reset-deassert-us = <10000>;
++		};
++	};
 +};
 +
 +&otg {
@@ -7929,7 +7993,7 @@ index 0000000000..44af40f462
 +&ddr { bootph-all; };		/* leaf .dts supplies ingenic,sdram-params */
 diff --git a/arch/mips/dts/t32-isvp-dfu.dtsi b/arch/mips/dts/t32-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..ef3c45002c
+index 0000000000..f61ae64a90
 --- /dev/null
 +++ b/arch/mips/dts/t32-isvp-dfu.dtsi
 @@ -0,0 +1,70 @@
@@ -7998,7 +8062,7 @@ index 0000000000..ef3c45002c
 + * Ethernet in the DFU loader, like the other loaders: the MAC-PHY
 + * clock derives from the per-variant MPLL via the CGU clk driver.
 + * No PHY reset GPIO here - board-specific; a wired-ethernet board DT
-+ * declares its own ingenic,reset-gpio.
++ * gives its PHY node a reset-gpios property.
 + */
 +&gmac {
 +	status = "okay";
@@ -8182,10 +8246,10 @@ index 0000000000..7800785b87
 +#endif
 diff --git a/arch/mips/dts/t32-isvp.dtsi b/arch/mips/dts/t32-isvp.dtsi
 new file mode 100644
-index 0000000000..bcbd594bce
+index 0000000000..00373aa48a
 --- /dev/null
 +++ b/arch/mips/dts/t32-isvp.dtsi
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,79 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T32 shared board body (SFC-NOR, USB host).
@@ -8238,9 +8302,11 @@ index 0000000000..bcbd594bce
 +
 +&gmac {
 +	status = "okay";
-+	/* No PHY reset line by default (the driver falls back to an MDIO
-+	 * BMCR soft-reset). Boards that wire one add ingenic,reset-gpio
-+	 * here, like T31 (vendor T32 reference: PB26 active-low). */
++	/*
++	 * No PHY reset line by default (the driver falls back to an MDIO
++	 * BMCR soft-reset). Boards that wire one describe the PHY with
++	 * reset-gpios, like T31 (vendor T32 reference: PB26 active-low).
++	 */
 +};
 +
 +&otg {
@@ -12019,10 +12085,10 @@ index 8b37cc4029..34be3f624e 100644
  
 diff --git a/arch/mips/mach-xburst/Kconfig b/arch/mips/mach-xburst/Kconfig
 new file mode 100644
-index 0000000000..8be9a32bf9
+index 0000000000..2a727c4074
 --- /dev/null
 +++ b/arch/mips/mach-xburst/Kconfig
-@@ -0,0 +1,356 @@
+@@ -0,0 +1,371 @@
 +menu "Ingenic XBurst T-series platforms"
 +	depends on ARCH_XBURST
 +
@@ -12277,6 +12343,21 @@ index 0000000000..8be9a32bf9
 +	  the bootloader and the running system present the same MAC address.
 +	  An unfused part falls back to a random MAC.
 +
++config XBURST2_L2_128K
++	bool "Give the L2 cache 128 KiB of the on-chip SRAM before U-Boot"
++	depends on SOC_T40 || SOC_T41 || SOC_A1
++	default y if SOC_T40 || SOC_T41
++	help
++	  The XBurst2 on-chip SRAM is split between the L2 cache and the
++	  NNA's ORAM. Ingenic's SPL shrinks the L2 to 128 KiB before it
++	  starts U-Boot, and the vendor NNA stack (soc-nna, libvenus)
++	  expects that layout, with the ORAM at 0x12620000. Out of reset
++	  the L2 holds 512 KiB (T40) or 256 KiB (T41), where the NNA
++	  writes into live L2 lines and the kernel crashes or hangs.
++
++	  The SPL writes every cache line back and changes the split
++	  just before it jumps to U-Boot proper.
++
 +choice
 +	prompt "Board select"
 +	default TARGET_ISVP_T31
@@ -12381,10 +12462,10 @@ index 0000000000..8be9a32bf9
 +endmenu
 diff --git a/arch/mips/mach-xburst/Makefile b/arch/mips/mach-xburst/Makefile
 new file mode 100644
-index 0000000000..3708b88e4d
+index 0000000000..03d0fd3f3c
 --- /dev/null
 +++ b/arch/mips/mach-xburst/Makefile
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,47 @@
 +# SPDX-License-Identifier: GPL-2.0+
 +
 +extra-$(CONFIG_XPL_BUILD)	:= start.o
@@ -12408,6 +12489,10 @@ index 0000000000..3708b88e4d
 +# The single-stage T33 SPL reads U-Boot proper off the SD with the same reader.
 +ifeq ($(CONFIG_SPL_T33_MSC_BOOT),y)
 +obj-$(CONFIG_XPL_BUILD)		+= msc-sdhci.o
++endif
++
++ifeq ($(CONFIG_SPL_BUILD),y)
++obj-$(CONFIG_XBURST2_L2_128K)	+= l2.o
 +endif
 +
 +# U-Boot proper only (these hook misc_init_r / board_late_init, not the SPL).
@@ -17118,6 +17203,122 @@ index 0000000000..a4f1d03f3d
 +			   unsigned int bytes);
 +
 +#endif /* __XBURST_TPL_H__ */
+diff --git a/arch/mips/mach-xburst/include/mach/xburst2.h b/arch/mips/mach-xburst/include/mach/xburst2.h
+new file mode 100644
+index 0000000000..5fe9467b38
+--- /dev/null
++++ b/arch/mips/mach-xburst/include/mach/xburst2.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++/*
++ * Helpers shared by the XBurst2 SoCs (T40, T41, A1)
++ */
++
++#ifndef __MACH_XBURST2_H
++#define __MACH_XBURST2_H
++
++#ifdef CONFIG_XBURST2_L2_128K
++void xburst2_set_l2_128k(void);
++#else
++static inline void xburst2_set_l2_128k(void) {}
++#endif
++
++#endif /* __MACH_XBURST2_H */
+diff --git a/arch/mips/mach-xburst/l2.c b/arch/mips/mach-xburst/l2.c
+new file mode 100644
+index 0000000000..2fb34b2fef
+--- /dev/null
++++ b/arch/mips/mach-xburst/l2.c
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * XBurst2 L2 cache / NNA ORAM split
++ *
++ * The on-chip SRAM of the T40, T41 and A1 is shared between the CPU's L2
++ * cache and the NNA's ORAM. CCU MSCR[12:10] sets the L2's share
++ * (n: 128 KiB << (n - 1)); the ORAM is the rest, starting at 0x12600000
++ * plus the L2's share. Ingenic's SPL gives the L2 128 KiB before it starts
++ * U-Boot, and the vendor NNA stack is built for that layout: soc-nna maps
++ * the ORAM at 0x12620000 only. Out of reset the L2 holds 512 KiB (T40) or
++ * 256 KiB (T41), so the NNA would DMA into live L2 lines.
++ */
++
++#include <asm/cacheops.h>
++#include <asm/io.h>
++#include <asm/mipsregs.h>
++#include <linux/bitfield.h>
++#include <linux/bitops.h>
++#include <mach/xburst2.h>
++
++#define CCU_MSCR		0xb2200060	/* same CCU address on all XBurst2 */
++#define CCU_MSCR_L2_SHARE	GENMASK(12, 10)
++#define L2_SHARE_128K		1
++
++static void cache_blast(int op, unsigned long size, unsigned long line)
++{
++	unsigned long addr;
++
++	for (addr = CKSEG0; addr < CKSEG0 + size; addr += line)
++		mips_cache(op, (void *)addr);
++}
++
++/*
++ * Write every L1 D and L2 line back and drop them, as the vendor SPL does
++ * before it changes the split. The SPL runs from cache lines the bootrom
++ * locked; DRAM is up by now, so this also lands the SPL itself in DRAM at
++ * its KSEG0 address, where it keeps running from once the lines are gone.
++ */
++static void flush_all_caches(void)
++{
++	u32 c1 = read_c0_config1();
++	u32 c2 = read_c0_config2();
++	unsigned long line, size;
++
++	line = 2UL << ((c1 >> MIPS_CONF1_IL_SHF) & 7);
++	size = (64UL << ((c1 >> MIPS_CONF1_IS_SHF) & 7)) * line *
++	       (((c1 >> MIPS_CONF1_IA_SHF) & 7) + 1);
++	cache_blast(INDEX_INVALIDATE_I, size, line);
++
++	line = 2UL << ((c1 >> MIPS_CONF1_DL_SHF) & 7);
++	size = (64UL << ((c1 >> MIPS_CONF1_DS_SHF) & 7)) * line *
++	       (((c1 >> MIPS_CONF1_DA_SHF) & 7) + 1);
++	cache_blast(INDEX_WRITEBACK_INV_D, size, line);
++	__asm__ __volatile__("sync" : : : "memory");
++
++	if (FIELD_GET(MIPS_CONF2_SL, c2)) {
++		line = 2UL << FIELD_GET(MIPS_CONF2_SL, c2);
++		size = (64UL << FIELD_GET(MIPS_CONF2_SS, c2)) * line *
++		       (FIELD_GET(MIPS_CONF2_SA, c2) + 1);
++		cache_blast(INDEX_WRITEBACK_INV_SD, size, line);
++	}
++}
++
++/* Order the CCU write against everything before it, then wait for it. */
++static void drain(void)
++{
++	__asm__ __volatile__("sync" : : : "memory");
++	(void)readl((void __iomem *)CKSEG1);
++}
++
++void xburst2_set_l2_128k(void)
++{
++	u32 mscr = readl((void __iomem *)CCU_MSCR);
++
++	if (FIELD_GET(CCU_MSCR_L2_SHARE, mscr) == L2_SHARE_128K)
++		return;
++
++	flush_all_caches();
++	drain();
++	writel((mscr & ~CCU_MSCR_L2_SHARE) |
++	       FIELD_PREP(CCU_MSCR_L2_SHARE, L2_SHARE_128K),
++	       (void __iomem *)CCU_MSCR);
++	drain();
++}
++
++void spl_board_prepare_for_boot(void)
++{
++	xburst2_set_l2_128k();
++}
 diff --git a/arch/mips/mach-xburst/msc-sdhci.c b/arch/mips/mach-xburst/msc-sdhci.c
 new file mode 100644
 index 0000000000..67151dabbe
@@ -24367,10 +24568,10 @@ index 0000000000..019de15eed
 +}
 diff --git a/arch/mips/mach-xburst/t40/sfc_nand.c b/arch/mips/mach-xburst/t40/sfc_nand.c
 new file mode 100644
-index 0000000000..822d94c908
+index 0000000000..c268d10f56
 --- /dev/null
 +++ b/arch/mips/mach-xburst/t40/sfc_nand.c
-@@ -0,0 +1,659 @@
+@@ -0,0 +1,662 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T40 SPL SFC SPI-NAND loader: read U-Boot proper from SPI-NAND
@@ -24394,6 +24595,7 @@ index 0000000000..822d94c908
 +#include <mach/t40.h>
 +#include <mach/t31-sfc.h>
 +#include <mach/t40-sfc-nand.h>
++#include <mach/xburst2.h>
 +
 +DECLARE_GLOBAL_DATA_PTR;
 +
@@ -24939,6 +25141,8 @@ index 0000000000..822d94c908
 +static void __noreturn t40_jump_to_uboot(unsigned long target)
 +{
 +	unsigned long kseg1 = (target & 0x1fffffff) | 0xa0000000;
++
++	xburst2_set_l2_128k();
 +
 +	asm volatile(
 +		".set push\n"
@@ -25639,10 +25843,10 @@ index 0000000000..58b8942d93
 +}
 diff --git a/arch/mips/mach-xburst/t41/sfc_nand.c b/arch/mips/mach-xburst/t41/sfc_nand.c
 new file mode 100644
-index 0000000000..d3bc3ab94a
+index 0000000000..ef895af7ab
 --- /dev/null
 +++ b/arch/mips/mach-xburst/t41/sfc_nand.c
-@@ -0,0 +1,664 @@
+@@ -0,0 +1,667 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T41 SPL SFC SPI-NAND loader: read U-Boot proper from SPI-NAND
@@ -25666,6 +25870,7 @@ index 0000000000..d3bc3ab94a
 +#include <mach/t41.h>
 +#include <mach/t31-sfc.h>
 +#include <mach/t40-sfc-nand.h>
++#include <mach/xburst2.h>
 +
 +DECLARE_GLOBAL_DATA_PTR;
 +
@@ -26216,6 +26421,8 @@ index 0000000000..d3bc3ab94a
 +static void __noreturn t41_jump_to_uboot(unsigned long target)
 +{
 +	unsigned long kseg1 = (target & 0x1fffffff) | 0xa0000000;
++
++	xburst2_set_l2_128k();
 +
 +	asm volatile(
 +		".set push\n"
@@ -50821,10 +51028,10 @@ index 8d2249ce35..8a1274a935 100644
  
  extern const struct flash_info spi_nor_ids[];
 diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
-index 937d79af64..18c4a1d3e8 100644
+index 7bc889c962..15178dabe9 100644
 --- a/drivers/mtd/spi/spi-nor-core.c
 +++ b/drivers/mtd/spi/spi-nor-core.c
-@@ -4397,13 +4397,34 @@ static int spi_nor_init(struct spi_nor *nor)
+@@ -4403,13 +4403,34 @@ static int spi_nor_init(struct spi_nor *nor)
  		 * NOR stack so make sure it is disabled, otherwise the
  		 * SPI NOR may appear locked for no obvious reason.
  		 */
@@ -50861,7 +51068,7 @@ index 937d79af64..18c4a1d3e8 100644
  		err = write_disable(nor);
  		if (err)
 diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
-index 90aa102517..dde32da0d2 100644
+index fce22300b6..5d0d6f22fa 100644
 --- a/drivers/mtd/spi/spi-nor-ids.c
 +++ b/drivers/mtd/spi/spi-nor-ids.c
 @@ -77,6 +77,16 @@ const struct flash_info spi_nor_ids[] = {
@@ -50881,7 +51088,7 @@ index 90aa102517..dde32da0d2 100644
  #ifdef CONFIG_SPI_FLASH_DOSILICON
  	/* Dosilicon Co., Ltd */
  	{ INFO("ds25m4cb", 0xe5401a, 0, 64 * 1024, 1024,
-@@ -94,9 +104,30 @@ const struct flash_info spi_nor_ids[] = {
+@@ -96,9 +106,30 @@ const struct flash_info spi_nor_ids[] = {
  	{ INFO("en25q32b",   0x1c3016, 0, 64 * 1024,   64, 0) },
  	{ INFO("en25q64",    0x1c3017, 0, 64 * 1024,  128, SECT_4K) },
  	{ INFO("en25q128b",  0x1c3018, 0, 64 * 1024,  256, 0) },
@@ -50912,7 +51119,7 @@ index 90aa102517..dde32da0d2 100644
  #ifdef CONFIG_SPI_FRAM_FUJITSU
  	/* Fujitsu MB85RS256TY */
  	{
-@@ -110,6 +141,21 @@ const struct flash_info spi_nor_ids[] = {
+@@ -112,6 +143,21 @@ const struct flash_info spi_nor_ids[] = {
  		.addr_width = 2,
  	},
  #endif
@@ -50934,7 +51141,7 @@ index 90aa102517..dde32da0d2 100644
  #ifdef CONFIG_SPI_FLASH_GIGADEVICE	/* GIGADEVICE */
  	/* GigaDevice */
  	{
-@@ -386,6 +432,10 @@ const struct flash_info spi_nor_ids[] = {
+@@ -389,6 +435,10 @@ const struct flash_info spi_nor_ids[] = {
  	{ INFO
  	 ("p25q128h", 0x856018, 0, 64 * 1024, 256,
  	  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
@@ -50945,7 +51152,7 @@ index 90aa102517..dde32da0d2 100644
  	{ INFO
  	 ("py25f512hb", 0x85231a, 0, 64 * 1024, 1024,
  	  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
-@@ -672,8 +722,10 @@ const struct flash_info spi_nor_ids[] = {
+@@ -676,8 +726,10 @@ const struct flash_info spi_nor_ids[] = {
  	/* XMC (Wuhan Xinxin Semiconductor Manufacturing Corp.) */
  	{ INFO("XM25QH64A", 0x207017, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
  	{ INFO("XM25QH64C", 0x204017, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
@@ -50956,7 +51163,7 @@ index 90aa102517..dde32da0d2 100644
  	{ INFO("XM25QU128C", 0x204118, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
  	{ INFO("XM25QH256C", 0x204019, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
  	{ INFO("XM25QU256C", 0x204119, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
-@@ -723,8 +775,11 @@ const struct flash_info spi_nor_ids[] = {
+@@ -727,8 +779,11 @@ const struct flash_info spi_nor_ids[] = {
  #endif
  #ifdef CONFIG_SPI_FLASH_ZBIT
  	/* Zbit Semiconductor Inc. */
@@ -50970,10 +51177,10 @@ index 90aa102517..dde32da0d2 100644
  	{ },
  };
 diff --git a/drivers/net/Kconfig b/drivers/net/Kconfig
-index 797c8c24d5..fa867b2c31 100644
+index 72b7706463..ffc137dc32 100644
 --- a/drivers/net/Kconfig
 +++ b/drivers/net/Kconfig
-@@ -201,6 +201,15 @@ config DWC_ETH_XGMAC_SOCFPGA
+@@ -208,6 +208,15 @@ config DWC_ETH_XGMAC_SOCFPGA
  	  The Synopsys Designware Ethernet XGMAC IP block with specific
  	  configuration used in Intel SoC FPGA chip.
  
@@ -50989,7 +51196,7 @@ index 797c8c24d5..fa867b2c31 100644
  config DRIVER_DM9000
  	bool "Davicom DM9000 controller driver"
  	help
-@@ -427,6 +436,16 @@ config ETH_DESIGNWARE_THEAD
+@@ -434,6 +443,16 @@ config ETH_DESIGNWARE_THEAD
  	  This provides glue layer to use Synopsys Designware Ethernet MAC
  	  present on T-Head SoCs.
  
@@ -51007,7 +51214,7 @@ index 797c8c24d5..fa867b2c31 100644
  	bool "Designware Ethernet MAC uses alternate (enhanced) descriptors"
  	depends on ETH_DESIGNWARE
 diff --git a/drivers/net/Makefile b/drivers/net/Makefile
-index 6a351018a8..5d1b50823f 100644
+index b4076206e3..37725ea080 100644
 --- a/drivers/net/Makefile
 +++ b/drivers/net/Makefile
 @@ -29,6 +29,7 @@ obj-$(CONFIG_DWC_ETH_QOS_SPACEMIT) += dwc_eth_qos_spacemit.o
@@ -51027,10 +51234,10 @@ index 6a351018a8..5d1b50823f 100644
  obj-$(CONFIG_ETH_SANDBOX_RAW) += sandbox-raw-bus.o
  obj-$(CONFIG_ETH_SANDBOX_RAW) += sandbox-raw.o
 diff --git a/drivers/net/designware.c b/drivers/net/designware.c
-index 2ca21c373d..4de1215cfb 100644
+index 08cd19bea7..e20ba9edbe 100644
 --- a/drivers/net/designware.c
 +++ b/drivers/net/designware.c
-@@ -367,20 +367,93 @@ static int dw_bb_mdio_init(const char *name, struct udevice *dev)
+@@ -377,20 +377,93 @@ static int dw_bb_mdio_init(const char *name, struct udevice *dev)
  }
  #endif
  
@@ -51129,7 +51336,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  #if defined(CONFIG_DW_ALTDESCRIPTOR)
  		desc_p->txrx_status &= ~(DESC_TXSTS_TXINT | DESC_TXSTS_TXLAST |
-@@ -398,14 +471,14 @@ static void tx_descs_init(struct dw_eth_dev *priv)
+@@ -408,14 +481,14 @@ static void tx_descs_init(struct dw_eth_dev *priv)
  	}
  
  	/* Correcting the last pointer of the chain */
@@ -51149,7 +51356,7 @@ index 2ca21c373d..4de1215cfb 100644
  			&dma_p->txdesclistaddr);
  	priv->tx_currdescnum = 0;
  }
-@@ -413,7 +486,7 @@ static void tx_descs_init(struct dw_eth_dev *priv)
+@@ -423,7 +496,7 @@ static void tx_descs_init(struct dw_eth_dev *priv)
  static void rx_descs_init(struct dw_eth_dev *priv)
  {
  	struct eth_dma_regs *dma_p = priv->dma_regs_p;
@@ -51158,7 +51365,7 @@ index 2ca21c373d..4de1215cfb 100644
  	char *rxbuffs = &priv->rxbuffs[0];
  	struct dmamacdescr *desc_p;
  	u32 idx;
-@@ -426,12 +499,16 @@ static void rx_descs_init(struct dw_eth_dev *priv)
+@@ -436,12 +509,16 @@ static void rx_descs_init(struct dw_eth_dev *priv)
  	 * GMAC data will be corrupted. */
  	flush_dcache_range((ulong)rxbuffs, (ulong)rxbuffs + RX_TOTAL_BUFSIZE);
  
@@ -51179,7 +51386,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  		desc_p->dmamac_cntl =
  			(MAC_MAX_FRAME_SZ & DESC_RXCTRL_SIZE1MASK) |
-@@ -441,14 +518,14 @@ static void rx_descs_init(struct dw_eth_dev *priv)
+@@ -451,14 +528,14 @@ static void rx_descs_init(struct dw_eth_dev *priv)
  	}
  
  	/* Correcting the last pointer of the chain */
@@ -51199,7 +51406,7 @@ index 2ca21c373d..4de1215cfb 100644
  			&dma_p->rxdesclistaddr);
  	priv->rx_currdescnum = 0;
  }
-@@ -521,9 +598,13 @@ static int dw_adjust_link(struct dw_eth_dev *priv, struct eth_mac_regs *mac_p,
+@@ -548,9 +625,13 @@ static int dw_adjust_link(struct dw_eth_dev *priv, struct eth_mac_regs *mac_p,
  			mdelay(1);
  		};
  	}
@@ -51215,7 +51422,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  	return 0;
  }
-@@ -576,7 +657,11 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
+@@ -603,7 +684,11 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
  	rx_descs_init(priv);
  	tx_descs_init(priv);
  
@@ -51228,7 +51435,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  #ifndef CONFIG_DW_MAC_FORCE_THRESHOLD_MODE
  	writel(readl(&dma_p->opmode) | FLUSHTXFIFO | STOREFORWARD,
-@@ -625,11 +710,11 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
+@@ -652,11 +737,11 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
  {
  	struct eth_dma_regs *dma_p = priv->dma_regs_p;
  	u32 desc_num = priv->tx_currdescnum;
@@ -51242,7 +51449,7 @@ index 2ca21c373d..4de1215cfb 100644
  	ulong data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
  	/*
  	 * Strictly we only need to invalidate the "txrx_status" field
-@@ -639,7 +724,7 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
+@@ -666,7 +751,7 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
  	 * individual descriptors in the array are each aligned to
  	 * ARCH_DMA_MINALIGN and padded appropriately.
  	 */
@@ -51251,7 +51458,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  	/* Check if the descriptor is owned by CPU */
  	if (desc_p->txrx_status & DESC_TXSTS_OWNBYDMA) {
-@@ -674,7 +759,7 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
+@@ -701,7 +786,7 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
  #endif
  
  	/* Flush modified buffer descriptor */
@@ -51260,7 +51467,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  	/* Test the wrap-around condition. */
  	if (++desc_num >= CFG_TX_DESCR_NUM)
-@@ -691,16 +776,16 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
+@@ -718,16 +803,16 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
  static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
  {
  	u32 status, desc_num = priv->rx_currdescnum;
@@ -51280,7 +51487,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  	status = desc_p->txrx_status;
  
-@@ -713,7 +798,7 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
+@@ -740,7 +825,7 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
  		/* Invalidate received data */
  		data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
  		invalidate_dcache_range(data_start, data_end);
@@ -51289,7 +51496,7 @@ index 2ca21c373d..4de1215cfb 100644
  				desc_p->dmamac_addr);
  	}
  
-@@ -723,11 +808,11 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
+@@ -750,11 +835,11 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
  static int _dw_free_pkt(struct dw_eth_dev *priv)
  {
  	u32 desc_num = priv->rx_currdescnum;
@@ -51303,7 +51510,7 @@ index 2ca21c373d..4de1215cfb 100644
  	ulong data_end = data_start + roundup(CFG_ETH_BUFSIZE, ARCH_DMA_MINALIGN);
  
  	/* Invalidate the descriptor buffer data */
-@@ -740,7 +825,7 @@ static int _dw_free_pkt(struct dw_eth_dev *priv)
+@@ -767,7 +852,7 @@ static int _dw_free_pkt(struct dw_eth_dev *priv)
  	desc_p->txrx_status |= DESC_RXSTS_OWNBYDMA;
  
  	/* Flush only status field - others weren't changed */
@@ -51312,7 +51519,7 @@ index 2ca21c373d..4de1215cfb 100644
  
  	/* Test the wrap-around condition. */
  	if (++desc_num >= CFG_RX_DESCR_NUM)
-@@ -949,7 +1034,15 @@ int designware_eth_probe(struct udevice *dev)
+@@ -978,7 +1063,15 @@ int designware_eth_probe(struct udevice *dev)
  	}
  
  	debug("%s, iobase=%pa, priv=%p\n", __func__, &iobase, priv);
@@ -51330,7 +51537,7 @@ index 2ca21c373d..4de1215cfb 100644
  	priv->dma_regs_p = (struct eth_dma_regs *)(ioaddr + DW_DMA_BASE_OFFSET);
  	priv->interface = pdata->phy_interface;
 diff --git a/drivers/net/designware.h b/drivers/net/designware.h
-index 3618300f4c..15b6b5dbd1 100644
+index 072e97ff89..dc4ce7f546 100644
 --- a/drivers/net/designware.h
 +++ b/drivers/net/designware.h
 @@ -94,6 +94,7 @@ struct eth_dma_regs {
@@ -51496,10 +51703,10 @@ index 90c2e22997..e906f145fa 100644
 +extern struct xgmac_config xgmac_a1_config;
 diff --git a/drivers/net/dwc_eth_xgmac_ingenic.c b/drivers/net/dwc_eth_xgmac_ingenic.c
 new file mode 100644
-index 0000000000..9ade765c66
+index 0000000000..4059b27f89
 --- /dev/null
 +++ b/drivers/net/dwc_eth_xgmac_ingenic.c
-@@ -0,0 +1,229 @@
+@@ -0,0 +1,210 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic A1 glue for the Synopsys DWC_ether_xgmac driver.
@@ -51519,6 +51726,7 @@ index 0000000000..9ade765c66
 +#include <errno.h>
 +#include <log.h>
 +#include <net.h>
++#include <phy.h>
 +#include <reset.h>
 +#include <asm/gpio.h>
 +#include <asm/io.h>
@@ -51613,27 +51821,7 @@ index 0000000000..9ade765c66
 + */
 +static int xgmac_reset_phy_a1(struct udevice *dev)
 +{
-+	struct gpio_desc phy_reset;
-+	int ret;
-+
-+	ret = gpio_request_by_name(dev, "ingenic,reset-gpio", 0, &phy_reset,
-+				   GPIOD_IS_OUT);
-+	if (ret == -ENOENT)
-+		return 0;	/* no PHY reset wired on this board */
-+	if (ret) {
-+		dev_err(dev, "request reset gpio failed: %d\n", ret);
-+		return ret;
-+	}
-+
-+	/* DT carries the line polarity, so 1 = held in reset. */
-+	dm_gpio_set_value(&phy_reset, 1);
-+	mdelay(15);
-+	dm_gpio_set_value(&phy_reset, 0);
-+	mdelay(80);
-+
-+	dm_gpio_free(dev, &phy_reset);
-+
-+	return 0;
++	return phy_gpio_reset(dev);
 +}
 +
 +static int xgmac_start_clks_a1(struct udevice *dev)
@@ -51731,10 +51919,10 @@ index 0000000000..9ade765c66
 +};
 diff --git a/drivers/net/dwmac_ingenic.c b/drivers/net/dwmac_ingenic.c
 new file mode 100644
-index 0000000000..56fa40d361
+index 0000000000..f48331a653
 --- /dev/null
 +++ b/drivers/net/dwmac_ingenic.c
-@@ -0,0 +1,464 @@
+@@ -0,0 +1,441 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic XBurst1 T-series GMAC glue for the DesignWare MAC.
@@ -51835,7 +52023,6 @@ index 0000000000..56fa40d361
 +	unsigned int max_speed;
 +	void __iomem *cpm_phyc_reg;
 +	void __iomem *mac_base;
-+	struct gpio_desc reset_gpio;
 +};
 +
 +static int dwmac_ingenic_of_to_plat(struct udevice *dev)
@@ -51935,30 +52122,8 @@ index 0000000000..56fa40d361
 +
 +static int t31_gmac_setphy(struct udevice *dev)
 +{
-+	struct dwmac_ingenic_plat *pdata = dev_get_plat(dev);
-+	int ret;
-+
-+	ret = gpio_request_by_name(dev, "ingenic,reset-gpio", 0,
-+				   &pdata->reset_gpio, GPIOD_IS_OUT);
-+	if (ret == -ENOENT)
-+		return 0;	/* no PHY reset wired on this board */
-+	if (ret) {
-+		dev_err(dev, "request reset gpio failed: %d\n", ret);
-+		return ret;
-+	}
-+
-+	/*
-+	 * Vendor IP101G reset: deassert, then assert for 50 ms, then
-+	 * deassert and wait 10 ms. DT carries the line polarity, so
-+	 * value 1 = asserted (in reset), 0 = released.
-+	 */
-+	dm_gpio_set_value(&pdata->reset_gpio, 0);
-+	mdelay(10);
-+	dm_gpio_set_value(&pdata->reset_gpio, 1);
-+	mdelay(50);
-+	dm_gpio_set_value(&pdata->reset_gpio, 0);
-+	mdelay(10);
-+	return 0;
++	/* Pulse the PHY node's reset-gpios, if the board describes one. */
++	return phy_gpio_reset(dev);
 +}
 +
 +/*
@@ -52351,10 +52516,10 @@ index e1630e1c22..e21ab21fe5 100644
  	.name          = "YT8511 Gigabit Ethernet",
  	.uid           = PHY_ID_YT8511,
 diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
-index fd30aaeeaa..3fb460fff7 100644
+index 04785a927f..9cff18f19d 100644
 --- a/drivers/pinctrl/Kconfig
 +++ b/drivers/pinctrl/Kconfig
-@@ -446,4 +446,15 @@ source "drivers/pinctrl/tegra/Kconfig"
+@@ -453,4 +453,15 @@ source "drivers/pinctrl/tegra/Kconfig"
  source "drivers/pinctrl/uniphier/Kconfig"
  source "drivers/pinctrl/starfive/Kconfig"
  
@@ -52371,7 +52536,7 @@ index fd30aaeeaa..3fb460fff7 100644
 +
  endmenu
 diff --git a/drivers/pinctrl/Makefile b/drivers/pinctrl/Makefile
-index 91149796bb..57f804f8c9 100644
+index 23219626e3..86f7aa2f66 100644
 --- a/drivers/pinctrl/Makefile
 +++ b/drivers/pinctrl/Makefile
 @@ -20,6 +20,7 @@ obj-$(CONFIG_PINCTRL_APPLE)		+= pinctrl-apple.o
@@ -52384,10 +52549,10 @@ index 91149796bb..57f804f8c9 100644
  obj-$(CONFIG_PINCTRL_MESON)		+= meson/
 diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
 new file mode 100644
-index 0000000000..1e063d1500
+index 0000000000..b8489d7d69
 --- /dev/null
 +++ b/drivers/pinctrl/pinctrl-ingenic.c
-@@ -0,0 +1,649 @@
+@@ -0,0 +1,711 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic XBurst pin controller + GPIO (XBurst1 T10-T33, XBurst2 A1).
@@ -52643,6 +52808,32 @@ index 0000000000..1e063d1500
 +};
 +
 +/*
++ * Package balls that carry two GPIO lines: both lines drive the ball, so
++ * the datasheet requires the one a board does not use to be a GPIO input.
++ * Only some packages of a SoC share them; chip_info.shared_balls tells.
++ */
++struct ingenic_shared_pin {
++	u8 pin;		/* the board's GPIO line */
++	u8 partner;	/* the SFC line released in its favour */
++};
++
++/* T31ZX/ZL package pin 60 = PB15 + PA26, pin 61 = PB16 + PA25. */
++static const struct ingenic_shared_pin t31_shared_pins[] = {
++	{ .pin = 0x2f, .partner = 0x1a },
++	{ .pin = 0x30, .partner = 0x19 },
++};
++
++/* eFUSE SoC sub-type, upper half: 0x5555 = T31ZL, 0x6666 = T31ZX. */
++#define T31_SUBTYPE_REG		0xb3540238
++
++static bool t31_shared_balls(void)
++{
++	u32 type = readl((void __iomem *)T31_SUBTYPE_REG) >> 16;
++
++	return type == 0x5555 || type == 0x6666;
++}
++
++/*
 + * Per-SoC chip info, selected from the of_match .data. Identical SoCs share
 + * a chip_info; the classic XBurst1 parts share txx_classic_*, differing only
 + * in bank stride (T10/T20) and pull layout.
@@ -52654,6 +52845,9 @@ index 0000000000..1e063d1500
 +	unsigned int			 nfunctions;
 +	u32				 bank_stride;
 +	enum ingenic_pull		 pull;
++	const struct ingenic_shared_pin	*shared;
++	unsigned int			 nshared;
++	bool				(*shared_balls)(void);
 +};
 +
 +static const struct ingenic_chip_info t10_chip_info = {		/* T10/T20 */
@@ -52668,11 +52862,19 @@ index 0000000000..1e063d1500
 +	.nfunctions = ARRAY_SIZE(txx_classic_functions),
 +	.bank_stride = BANK_STRIDE, .pull = INGENIC_PULL_FIELD,
 +};
-+static const struct ingenic_chip_info t31_chip_info = {		/* T23/T31 */
++static const struct ingenic_chip_info t23_chip_info = {		/* T23 */
 +	.groups = txx_classic_groups, .ngroups = ARRAY_SIZE(txx_classic_groups),
 +	.functions = txx_classic_functions,
 +	.nfunctions = ARRAY_SIZE(txx_classic_functions),
 +	.bank_stride = BANK_STRIDE, .pull = INGENIC_PULL_SPLIT,
++};
++static const struct ingenic_chip_info t31_chip_info = {		/* T31 */
++	.groups = txx_classic_groups, .ngroups = ARRAY_SIZE(txx_classic_groups),
++	.functions = txx_classic_functions,
++	.nfunctions = ARRAY_SIZE(txx_classic_functions),
++	.bank_stride = BANK_STRIDE, .pull = INGENIC_PULL_SPLIT,
++	.shared = t31_shared_pins, .nshared = ARRAY_SIZE(t31_shared_pins),
++	.shared_balls = t31_shared_balls,
 +};
 +static const struct ingenic_chip_info t32_chip_info = {		/* T32/T33 */
 +	.groups = t32_groups, .ngroups = ARRAY_SIZE(t32_groups),
@@ -52778,6 +52980,18 @@ index 0000000000..1e063d1500
 +	ingenic_pull_up_off(r, p->pull, pin % PINS_PER_BANK);
 +}
 +
++/* GPIO input with the pulls off. */
++static void ingenic_release_pin(struct ingenic_pinctrl_priv *p, int pin)
++{
++	void __iomem *r = p->base + (pin / PINS_PER_BANK) * p->bank_stride;
++	u32 bit = BIT(pin % PINS_PER_BANK);
++
++	writel(bit, r + GPIO_PXINTC);
++	writel(bit, r + GPIO_PXMSKS);
++	writel(bit, r + GPIO_PXPAT1S);
++	ingenic_set_bias(r, p->pull, pin % PINS_PER_BANK, INGENIC_BIAS_DISABLE);
++}
++
 +static int ingenic_pinmux_group_set(struct udevice *dev, unsigned int group,
 +				    unsigned int func)
 +{
@@ -52863,6 +53077,19 @@ index 0000000000..1e063d1500
 +	p->bank_stride	= c->bank_stride;
 +	p->pull		= c->pull;
 +
++	/*
++	 * The bootrom leaves the SFC side of a shared ball in its SFC
++	 * function, which holds the ball against the board's GPIO. The SPL
++	 * and U-Boot drive the SFC 4-wire and never need it; Linux re-muxes
++	 * it if it runs the flash wider.
++	 */
++	if (c->shared_balls && c->shared_balls()) {
++		unsigned int i;
++
++		for (i = 0; i < c->nshared; i++)
++			ingenic_release_pin(p, c->shared[i].partner);
++	}
++
 +	return 0;
 +}
 +
@@ -52871,7 +53098,7 @@ index 0000000000..1e063d1500
 +	{ .compatible = "ingenic,t20-pinctrl", .data = (ulong)&t10_chip_info },
 +	{ .compatible = "ingenic,t21-pinctrl", .data = (ulong)&t21_chip_info },
 +	{ .compatible = "ingenic,t30-pinctrl", .data = (ulong)&t21_chip_info },
-+	{ .compatible = "ingenic,t23-pinctrl", .data = (ulong)&t31_chip_info },
++	{ .compatible = "ingenic,t23-pinctrl", .data = (ulong)&t23_chip_info },
 +	{ .compatible = "ingenic,t31-pinctrl", .data = (ulong)&t31_chip_info },
 +	{ .compatible = "ingenic,t32-pinctrl", .data = (ulong)&t32_chip_info },
 +	{ .compatible = "ingenic,t33-pinctrl", .data = (ulong)&t32_chip_info },
@@ -57427,7 +57654,7 @@ index 0000000000..1e6c7ac747
 +
 +#endif /* _DRIVERS_RAM_INGENIC_DDR_T32_H */
 diff --git a/drivers/serial/ns16550.c b/drivers/serial/ns16550.c
-index 10271f46aa..ea8a40fe40 100644
+index 217a7cf723..0fe5115079 100644
 --- a/drivers/serial/ns16550.c
 +++ b/drivers/serial/ns16550.c
 @@ -237,6 +237,26 @@ void ns16550_init(struct ns16550 *com_port, int baud_divisor)
@@ -60544,7 +60771,7 @@ index 0000000000..dc74e2b7f9
 +
 +#endif /* _SPI_INGENIC_SFC_H */
 diff --git a/drivers/usb/common/dwc2_core.c b/drivers/usb/common/dwc2_core.c
-index 37007134e5..4af235d3c8 100644
+index 31ecd100f9..81b6c13efb 100644
 --- a/drivers/usb/common/dwc2_core.c
 +++ b/drivers/usb/common/dwc2_core.c
 @@ -16,8 +16,16 @@ int dwc2_core_reset(struct dwc2_core_regs *regs)
@@ -60609,7 +60836,7 @@ index e42d5a4369..d9ce386d41 100644
  
  config USB_GADGET_OS_DESCRIPTORS
 diff --git a/drivers/usb/gadget/dwc2_udc_otg.c b/drivers/usb/gadget/dwc2_udc_otg.c
-index 570fed347c..f04e68f9af 100644
+index 4dc049d64b..14466bc937 100644
 --- a/drivers/usb/gadget/dwc2_udc_otg.c
 +++ b/drivers/usb/gadget/dwc2_udc_otg.c
 @@ -42,7 +42,9 @@
@@ -61113,10 +61340,10 @@ index 5a7f50ebaa..edd8eca621 100644
  
  	return 0;
 diff --git a/drivers/usb/gadget/f_dfu.c b/drivers/usb/gadget/f_dfu.c
-index ca8b36e077..854e9847c1 100644
+index b1bdb865d3..2f36d2352e 100644
 --- a/drivers/usb/gadget/f_dfu.c
 +++ b/drivers/usb/gadget/f_dfu.c
-@@ -311,6 +311,25 @@ static int state_app_detach(struct f_dfu *f_dfu,
+@@ -313,6 +313,25 @@ static int state_app_detach(struct f_dfu *f_dfu,
  	return value;
  }
  
@@ -61142,7 +61369,7 @@ index ca8b36e077..854e9847c1 100644
  static int state_dfu_idle(struct f_dfu *f_dfu,
  			  const struct usb_ctrlrequest *ctrl,
  			  struct usb_gadget *gadget,
-@@ -345,6 +364,7 @@ static int state_dfu_idle(struct f_dfu *f_dfu,
+@@ -347,6 +366,7 @@ static int state_dfu_idle(struct f_dfu *f_dfu,
  		}
  		break;
  	case USB_REQ_DFU_ABORT:
@@ -61150,7 +61377,7 @@ index ca8b36e077..854e9847c1 100644
  		/* no zlp? */
  		value = RET_ZLP;
  		break;
-@@ -443,6 +463,7 @@ static int state_dfu_dnload_idle(struct f_dfu *f_dfu,
+@@ -445,6 +465,7 @@ static int state_dfu_dnload_idle(struct f_dfu *f_dfu,
  		break;
  	case USB_REQ_DFU_ABORT:
  		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
@@ -61158,7 +61385,7 @@ index ca8b36e077..854e9847c1 100644
  		value = RET_ZLP;
  		break;
  	case USB_REQ_DFU_GETSTATUS:
-@@ -496,6 +517,20 @@ static int state_dfu_manifest(struct f_dfu *f_dfu,
+@@ -498,6 +519,20 @@ static int state_dfu_manifest(struct f_dfu *f_dfu,
  
  	switch (ctrl->bRequest) {
  	case USB_REQ_DFU_GETSTATUS:
@@ -61179,7 +61406,7 @@ index ca8b36e077..854e9847c1 100644
  		/* We're MainfestationTolerant */
  		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
  		value = handle_getstatus(req);
-@@ -536,6 +571,7 @@ static int state_dfu_upload_idle(struct f_dfu *f_dfu,
+@@ -538,6 +573,7 @@ static int state_dfu_upload_idle(struct f_dfu *f_dfu,
  		break;
  	case USB_REQ_DFU_ABORT:
  		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
@@ -61187,7 +61414,7 @@ index ca8b36e077..854e9847c1 100644
  		/* no zlp? */
  		value = RET_ZLP;
  		break;
-@@ -571,6 +607,7 @@ static int state_dfu_error(struct f_dfu *f_dfu,
+@@ -573,6 +609,7 @@ static int state_dfu_error(struct f_dfu *f_dfu,
  	case USB_REQ_DFU_CLRSTATUS:
  		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
  		f_dfu->dfu_status = DFU_STATUS_OK;
@@ -61195,7 +61422,7 @@ index ca8b36e077..854e9847c1 100644
  		/* no zlp? */
  		value = RET_ZLP;
  		break;
-@@ -789,6 +826,13 @@ static int dfu_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
+@@ -791,6 +828,13 @@ static int dfu_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
  
  	debug("%s: intf:%d alt:%d\n", __func__, intf, alt);
  
@@ -61358,7 +61585,7 @@ index 16f21fa908..83fc6a9c6b 100644
  	*actual_len = xfer_len;
  
 diff --git a/drivers/watchdog/Kconfig b/drivers/watchdog/Kconfig
-index 3c56c54150..04a8ee0962 100644
+index 225e23ce24..929c3ad3dd 100644
 --- a/drivers/watchdog/Kconfig
 +++ b/drivers/watchdog/Kconfig
 @@ -214,6 +214,15 @@ config SPL_WDT_GPIO
@@ -61378,7 +61605,7 @@ index 3c56c54150..04a8ee0962 100644
  	bool "MAX6370 watchdog timer support"
  	depends on WDT
 diff --git a/drivers/watchdog/Makefile b/drivers/watchdog/Makefile
-index 84faefdb4c..48e570d9a0 100644
+index cfe3f3dac5..a61021164c 100644
 --- a/drivers/watchdog/Makefile
 +++ b/drivers/watchdog/Makefile
 @@ -28,6 +28,7 @@ obj-$(CONFIG_WDT_BCM6345) += bcm6345_wdt.o
@@ -62896,7 +63123,7 @@ index 4fd32a4ad6..35765a2618 100644
  				if (param_len_1 + sizeof(u16) > option_len) {
  					debug("Invalid BOOTFILE_PARAM param_len_1. Skipping\n");
 diff --git a/scripts/Makefile.xpl b/scripts/Makefile.xpl
-index a3fd3e1375..be6222f571 100644
+index 77746ec07c..3d0d8c1dca 100644
 --- a/scripts/Makefile.xpl
 +++ b/scripts/Makefile.xpl
 @@ -310,6 +310,22 @@ cmd_cat = cat $(filter-out $(PHONY), $^) > $@
