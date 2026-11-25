@@ -178,7 +178,7 @@ Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
+Buildroot provides the base U-Boot version (`2013.07` by default; `2026.10`,
 and `custom-fork` are also available via config fragments).
 Thingino applies a single large per-version patch (e.g.
 `package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)

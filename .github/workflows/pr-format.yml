@@ -52,6 +52,10 @@ jobs:
             # files this PR changes - independent of how stale the recorded
             # base.sha is or what else landed on the base branch meanwhile.
             git diff --name-only --diff-filter=ACMR HEAD^1 HEAD > /tmp/changed-files.txt
+            # Additions are how a generated baseline enters the tree (a
+            # U-Boot or kernel version bump adds a new 0001); only edits are
+            # handed to the do-not-edit guard.
+            git diff --name-only --diff-filter=MCR HEAD^1 HEAD > /tmp/changed-files-guard.txt
           else
             # Conflicted PR: no merge ref, HEAD is the head commit. Fall back
             # to diffing the recorded base against the head commit (may
@@ -63,6 +67,7 @@ jobs:
               exit 0
             fi
             git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
+            git diff --name-only --diff-filter=MCR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files-guard.txt
           fi
           # Formatting checks must never touch patch files (generated/vendored
           # artifacts, e.g. U-Boot and per-camera patches). They stay in the
@@ -74,9 +79,10 @@ jobs:
 
       - name: Check do-not-edit paths
         run: |
-          # Full list (including .patch files): the manifest protects them.
-          if [ -s /tmp/changed-files.txt ]; then
-            scripts/check-do-not-edit.sh < /tmp/changed-files.txt
+          # Edits to existing patch files (including additions excluded):
+          # the manifest protects them.
+          if [ -s /tmp/changed-files-guard.txt ]; then
+            scripts/check-do-not-edit.sh < /tmp/changed-files-guard.txt
           fi
 
       - name: Install shfmt
