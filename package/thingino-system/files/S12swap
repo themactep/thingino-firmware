@@ -15,13 +15,27 @@ start() {
 		return 0
 	fi
 
-	if ! modprobe zram 2>/dev/null || [ ! -b "$DEV" ]; then
+	[ -b "$DEV" ] || modprobe zram 2>/dev/null
+	if [ ! -b "$DEV" ]; then
 		echo -c 160 -e "No zram in this kernel"
 		return 0
 	fi
 
+	mem_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo)
+	default_mb=$((mem_mb / 2))
 	size=$(jct /etc/thingino.json get zram.size_mb 2>/dev/null)
-	[ -n "$size" ] || size=$(awk '/^MemTotal:/ { print int($2 / 2048) }' /proc/meminfo)
+	if [ -z "$size" ]; then
+		size=$default_mb
+	else
+		case "$size" in
+			*[!0-9]* | ???????*) size=0 ;;
+		esac
+		if [ "$size" -lt 1 ] || [ "$size" -gt $((mem_mb * 2)) ]; then
+			echo -c 160 -e "Invalid zram.size_mb, using $default_mb"
+			size=$default_mb
+		fi
+	fi
+	[ "$size" -ge 1 ] || size=1
 
 	if ! echo "${size}M" > "$SYS/disksize" || ! mkswap "$DEV" > /dev/null || ! swapon -p 100 "$DEV"; then
 		echo -c 160 -e "Failed"
