@@ -179,7 +179,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env THINGINO_UBOOT_NETCONSOLE='$(THINGINO_UBOOT_NETCONSOLE)' THINGINO_UBOOT_NETCONSOLE_USB='$(THINGINO_UBOOT_NETCONSOLE_USB)' IP='$(strip $(IP))' sh -c 'if [ "$$THINGINO_UBOOT_NETCONSOLE" = "y" ]; then if [ "$$THINGINO_UBOOT_NETCONSOLE_USB" = "y" ]; then NC_PREBOOT="usb start;setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; else NC_PREBOOT="setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; fi; if echo "$$IP" | grep -Eq "^[0-9]{1,3}(\.[0-9]{1,3}){3}$$"; then NC_IPADDR="$$IP"; else NC_IPADDR=192.168.1.10; fi; grep -q "^preboot=" $(THINGINO_UENV_TXT) || echo "preboot=$$NC_PREBOOT" >> $(THINGINO_UENV_TXT); grep -q "^bootdelay=" $(THINGINO_UENV_TXT) || echo "bootdelay=5" >> $(THINGINO_UENV_TXT); grep -q "^ipaddr=" $(THINGINO_UENV_TXT) || echo "ipaddr=$$NC_IPADDR" >> $(THINGINO_UENV_TXT); fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
 	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && [ $(ISP_NMEM_MB) -ne 0 ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
-	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
+	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\}$(if $(filter y,$(KERNEL_VERSION_7)), rmem.ispmem=$$\{ispmem\} tx_isp_$(SOC_FAMILY).ispmem=$$\{ispmem\}) |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
