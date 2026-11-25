@@ -80,10 +80,20 @@ jobs:
             out="$3"
             mapfile -t bins < <(git -C uboot diff --no-renames --numstat "$from" "$to" \
                                 | awk '$1=="-" || $2=="-" { print $3 }')
+            # Paths git archive leaves out at both ends (export-ignore, e.g. the
+            # lwip subtree's .github/) are absent from the release tarball
+            # buildroot patches; a hunk for one fails with "No file to patch".
+            mapfile -t ign < <(comm -23 \
+                <(git -C uboot diff --no-renames --name-only "$from" "$to" | sort) \
+                <(sort -u <(git -C uboot archive "$from" | tar -t) \
+                          <(git -C uboot archive "$to" | tar -t)))
             excludes=()
-            for f in "${bins[@]}"; do excludes+=(":(exclude)$f"); done
+            for f in "${bins[@]}" "${ign[@]}"; do excludes+=(":(exclude)$f"); done
             if [ "${#bins[@]}" -gt 0 ]; then
               printf 'Excluding binary file: %s\n' "${bins[@]}"
+            fi
+            if [ "${#ign[@]}" -gt 0 ]; then
+              printf 'Excluding export-ignore file: %s\n' "${ign[@]}"
             fi
             # --no-renames so renames become delete+add full hunks (GNU patch has no
             # rename support); default a/ b/ prefixes => applied with -p1.
