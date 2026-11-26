@@ -357,7 +357,20 @@ JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CON
 export JFFS2_ERASE_BLOCK
 
 # JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
-JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
+ifeq ($(KERNEL_VERSION),7.4)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else ifeq ($(KERNEL_VERSION),3.10.14)
+ifneq ($(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)),)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+export JFFS2_NOR_ERASE_BLOCK
+
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_NOR_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
