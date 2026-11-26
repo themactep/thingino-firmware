@@ -63,6 +63,24 @@ agent_config_bool() {
 	esac
 }
 
+# From the file the setters write: a daemon's own copy is not reloaded after a write.
+agent_config_file_value() {
+	awk -v s="[$1]" -v k="$2" '
+		{ line = $0; sub(/#.*/, "", line); gsub(/[ \t\r"]/, "", line) }
+		substr(line, 1, 1) == "[" { in_s = (line == s); next }
+		in_s && index(line, k "=") == 1 { v = substr(line, length(k) + 2) }
+		END { print v }' "$AGENT_CONFIG" 2>/dev/null
+}
+
+agent_config_file_bool() {
+	value=$(agent_config_file_value "$1" "$2" | tr 'A-Z' 'a-z')
+	case "$value" in
+		1 | true | yes | on) printf 'true' ;;
+		0 | false | no | off) printf 'false' ;;
+		*) printf '%s' "${3:-false}" ;;
+	esac
+}
+
 agent_config_set() {
 	section=$1
 	key=$2
@@ -1776,12 +1794,22 @@ agent_set_storage_setting() {
 		storage/autostart)
 			value=$(agent_setting_value "$body_file" autostart) || return 1
 			agent_validate_bool "$value" || return 1
+			was=$(agent_config_file_bool recording enabled false)
 			agent_config_set recording enabled "$value" || return 1
 			agent_config_save
 			if [ "$value" = true ]; then
-				agent_ctl rmr enable >/dev/null 2>&1 || true
+				agent_rmr_arm "$was" || {
+					echo "failed to arm rmr recording" >&2
+					return 1
+				}
 			else
 				agent_ctl rmr disable >/dev/null 2>&1 || true
+				if [ "$(agent_config_file_bool timelapse enabled false)" != true ]; then
+					agent_stop_rmr || {
+						echo "failed to stop rmr" >&2
+						return 1
+					}
+				fi
 			fi
 			agent_print_setting_update "$path" autostart "$value"
 			;;
@@ -2538,6 +2566,45 @@ agent_ensure_rmr() {
 	pidof rmr >/dev/null 2>&1
 }
 
+agent_wait_rmr_gone() {
+	i=0
+	while pidof rmr >/dev/null 2>&1; do
+		[ "$i" -lt "$1" ] || return 1
+		sleep 0.1 2>/dev/null || usleep 100000 2>/dev/null || sleep 1
+		i=$((i + 1))
+	done
+	return 0
+}
+
+# 3 s before SIGKILL, as stop_daemon in raptor's S31raptor; non-zero if rmr survives
+agent_stop_rmr() {
+	pidof rmr >/dev/null 2>&1 || return 0
+	# shellcheck disable=SC2046
+	kill $(pidof rmr) 2>/dev/null
+	agent_wait_rmr_gone 30 && return 0
+	# shellcheck disable=SC2046
+	kill -9 $(pidof rmr) 2>/dev/null
+	agent_wait_rmr_gone 10
+}
+
+# motion and both: "enable" also starts a clip, so restart rmr to arm it from the config
+agent_rmr_arm() {
+	pidof rmr >/dev/null 2>&1 || {
+		agent_ensure_rmr
+		return
+	}
+	[ "$1" = true ] && return 0
+	case "$(agent_config_file_value recording mode | tr 'A-Z' 'a-z')" in
+		"" | continuous)
+			agent_ctl rmr enable >/dev/null 2>&1
+			;;
+		*)
+			agent_stop_rmr || return 1
+			agent_ensure_rmr
+			;;
+	esac
+}
+
 agent_record() {
 	# Usage:
 	#   record stop [channel]
@@ -2556,6 +2623,12 @@ agent_record() {
 			agent_ctl rmr disable >/dev/null 2>&1 || true
 			agent_config_set recording enabled false || true
 			agent_config_save
+			if [ "$(agent_config_file_bool timelapse enabled false)" != true ]; then
+				agent_stop_rmr || {
+					echo "failed to stop rmr" >&2
+					return 1
+				}
+			fi
 			printf '{"status":"accepted","action":"stop","stream_id":%s}\n' \
 				"$(agent_json_value_or "$channel" 0)"
 			return 0
