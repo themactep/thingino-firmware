@@ -3,6 +3,14 @@ config BR2_PACKAGE_THINGINO_SYSTEM
 	help
 	  Various utilities related to thingino system operations
 
+# formatsd makes dashcam cards ext4 and automount checks and fixes them
+config BR2_PACKAGE_THINGINO_SYSTEM_DASHCAM_CARD
+	bool
+	default y if BR2_THINGINO_DEV_DASHCAM
+	depends on BR2_PACKAGE_THINGINO_SYSTEM
+	select BR2_PACKAGE_E2FSPROGS
+	select BR2_PACKAGE_E2FSPROGS_FSCK
+
 config BR2_PACKAGE_THINGINO_SYSTEM_INGENIC
 	default y
 	bool "Ingenic platform utilities"
