@@ -1,7 +1,7 @@
 WIFI_ATBM6162U_SITE_METHOD = git
 WIFI_ATBM6162U_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_ATBM6162U_SITE_BRANCH = atbm-606x-c
-WIFI_ATBM6162U_VERSION = 7f1ba356acbd8ae7d3caca371d45d96c42a3ad13
+WIFI_ATBM6162U_VERSION = 028a0d02766cabcee24447867303d20701da6e69
 
 WIFI_ATBM6162U_LICENSE = GPL-2.0
 
@@ -38,9 +38,22 @@ define WIFI_ATBM6162U_LINUX_CONFIG_FIXUPS
 	# mac80211. The kernel's 4.4.94 cfg80211/mac80211 MUST be off: linking them
 	# against the driver's newer bundled headers is an ABI mismatch that
 	# corrupts kernel memory. See CPTCFG_CFG80211 help: "<5.7 -> open".
+	$(WIFI_ATBM6162U_CFG80211_FIXUPS)
+endef
+
+ifeq ($(KERNEL_VERSION_7),y)
+# 7.x keeps net_device.ieee80211_ptr only with its own cfg80211, which the
+# bundled backport cannot stand in for: build against the kernel's there.
+define WIFI_ATBM6162U_CFG80211_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
+endef
+else
+define WIFI_ATBM6162U_CFG80211_FIXUPS
 	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
+endif
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
@@ -63,6 +76,7 @@ define WIFI_ATBM6162U_COPY_CONFIG
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_CPTCFG_CFG80211 is not set/CONFIG_CPTCFG_CFG80211=y\nCONFIG_CPTCFG_CFG80211_WEXT=y/' \
 		$(@D)/.config
+	$(if $(filter y,$(KERNEL_VERSION_7)),$(SED) '/^CONFIG_CPTCFG_CFG80211/d' $(@D)/.config)
 endef
 
 WIFI_ATBM6162U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6162U_COPY_CONFIG
