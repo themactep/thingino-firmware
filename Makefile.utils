@@ -188,6 +188,10 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 		$(RED) "  JFFS2 data needs $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_NOR_ERASE_BLOCK)): shrink the rootfs by $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
 		exit 1; \
 	fi
+	@if [ -n "$(ROOTFS_PARTITION_KB)" ] && [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then \
+		$(RED) "ROOTFS TOO LARGE FOR ITS FIXED PARTITION: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_SIZE) bytes (ROOTFS_PARTITION_KB=$(ROOTFS_PARTITION_KB))"; \
+		exit 1; \
+	fi
 	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
 		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2: $(DATA_PARTITION_SIZE) < $(JFFS2_MIN_SIZE) bytes"; \
 		$(RED) "  JFFS2 needs 5 erase blocks of $(JFFS2_ERASE_BLOCK) bytes"; \

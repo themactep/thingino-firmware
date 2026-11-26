@@ -436,8 +436,13 @@ ROOTFS_PARTITION_MAX = $(shell v=$$(( $(FLASH_SIZE) - $(ROOTFS_OFFSET) - $(JFFS2
 # boots with a read-only overlay. Cap the rootfs at ROOTFS_PARTITION_MAX and
 # let the data image recipe fail loudly when the squashfs no longer fits under
 # the cap, rather than emit an image that cannot mount its own data partition.
+# A profile may fix the rootfs partition (ROOTFS_PARTITION_KB, set beside
+# FLASH_SIZE_MB): the layout then stays the same from build to build, so a
+# rootfs-only upgrade keeps fitting and the data partition never moves.
 ROOTFS_PARTITION_SIZE = $(shell \
-	if [ $(ROOTFS_BIN_SIZE_ALIGNED) -gt $(ROOTFS_PARTITION_MAX) ]; then \
+	if [ -n "$(ROOTFS_PARTITION_KB)" ]; then \
+		echo $$(( $(ROOTFS_PARTITION_KB) * 1024 )); \
+	elif [ $(ROOTFS_BIN_SIZE_ALIGNED) -gt $(ROOTFS_PARTITION_MAX) ]; then \
 		echo $(ROOTFS_PARTITION_MAX); \
 	else \
 		echo $(ROOTFS_BIN_SIZE_ALIGNED); \
@@ -482,6 +487,7 @@ ROOTFS_OFFSET :=
 DATA_OFFSET :=
 endif
 export FLASH_SIZE_MB
+export ROOTFS_PARTITION_KB
 export U_BOOT_SIZE_KB
 export UB_ENV_SIZE_KB
 export BACKUP_SIZE_KB
