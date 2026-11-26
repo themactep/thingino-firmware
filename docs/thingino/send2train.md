@@ -55,15 +55,26 @@ EXIF (including GPS and camera model), XMP, vendor APPn blocks and JPEG
 comments. Frames are de-duplicated by content hash, so the same frame cannot
 be counted twice, and the client's filename is discarded.
 
+Motion frames can contain people and are not blurred. Only enable the target
+where you may lawfully capture and share such footage, and not in a place
+where people have a reasonable expectation of privacy.
+
+Contributed frames are kept indefinitely in the training corpus. Opting out
+stops uploads but does not remove frames that were already sent; keep the
+token if you may need them removed. The
+[training pool policy](train-pool-policy.md) has the license, retention and
+removal process.
+
 Uploads use HTTPS with certificate verification and no redirects to plain
 HTTP. The endpoint defaults to the pool run by the Thingino project; point
 `train.endpoint` at your own collector to keep frames in-house
 (see [the collector guide](services/train-collector.md)).
 
 The firmware ships the client and a deployable reference collector
-(`contrib/train-collector`); the public pool host itself has to be provisioned
-separately. Until it is, an opted-in camera fails its uploads and backs off —
-motion detection and every other send2 target keep working.
+(`contrib/train-collector`). The public pool runs at the default endpoint under
+the [training pool policy](train-pool-policy.md). A self-hosted collector can
+choose a different retention policy, but must publish it before inviting
+contributors.
 
 ## Command line
 
