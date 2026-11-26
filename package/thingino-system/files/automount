@@ -64,6 +64,24 @@ do_fsck() {
 	fi
 }
 
+# e2fsprogs 1.47 makes ext4 with orphan_file, which kernels before 5.15 do
+# not know: once a crash leaves orphans in it they mount the card
+# read-only. Drop the feature from a checked card while it is unmounted.
+do_ext4_compat() {
+	command -v tune2fs >/dev/null || return 0
+	tune2fs -l "$device_node" 2>/dev/null | grep -q "^Filesystem features:.* orphan_file" || return 0
+	kver=$(uname -r)
+	kmaj=${kver%%.*}
+	kmin=${kver#*.}
+	kmin=${kmin%%.*}
+	[ "$kmaj" -gt 5 ] || { [ "$kmaj" -eq 5 ] && [ "$kmin" -ge 15 ]; } && return 0
+	if tune2fs -O ^orphan_file "$device_node" >/dev/null 2>&1; then
+		echo -c 240 -e "- Removed orphan_file from $device_node (kernel $kver)"
+	else
+		echo -c 142 -e "$device_node has orphan_file, which kernel $kver mounts read-only after a crash" >&2
+	fi
+}
+
 do_autoupdate_done() {
 	[ "$(fw_printenv -n au_applied 2>/dev/null)" = 1 ] || return 0
 	[ -f "$mount_point/autoupdate-full.bin" ] &&
@@ -84,6 +102,7 @@ do_mount() {
 		echo -c 142 -e "Failed to fsck $device_node" >&2
 		return 1
 	fi
+	do_ext4_compat
 
 	if mount -t auto -o "$mount_options" "$device_node" "$mount_point"; then
 		echo -c 240 -e "- Mounted $device_node to $mount_point"
