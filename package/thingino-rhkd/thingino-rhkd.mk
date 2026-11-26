@@ -6,8 +6,8 @@
 
 THINGINO_RHKD_SITE_METHOD = git
 THINGINO_RHKD_SITE = https://github.com/Small6oy/thingino-homekit
-# v0.9.10; builds against faac >= 3.0
-THINGINO_RHKD_VERSION = 21930ef42fce37814821c16a429ce70f5e2f9ba3
+# v0.10.0 (one motion sensor per detection class); builds against faac >= 3.0
+THINGINO_RHKD_VERSION = 3f4b9f1451d8f41d4385ad3e4f5d511b85a0e319
 THINGINO_RHKD_LICENSE = GPL-3.0-or-later (rhkd, raptor-ipc), Apache-2.0 (HomeKitADK, mbedTLS, parts of rhkd)
 # The extra downloads are unpacked into src/ at extract time (below), so their licenses reach legal-info.
 THINGINO_RHKD_LICENSE_FILES = LICENSE src/HomeKitADK/LICENSE.md src/mbedtls/LICENSE src/raptor-ipc/LICENSE
