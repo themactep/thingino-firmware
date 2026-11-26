@@ -86,6 +86,22 @@ config BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
 	  Automatically redirect HTTP requests on port 80 to HTTPS
 	  on port 443 for enhanced security.
 
+config BR2_PACKAGE_THINGINO_UHTTPD_GZIP_STATIC
+	bool "Serve pre-compressed web UI assets"
+	depends on BR2_PACKAGE_THINGINO_WEBUI
+	help
+	  Store a gzip copy of each web UI text asset (js, css, html,
+	  svg, json; 1 KiB or larger) next to the original, and start
+	  uhttpd with -z so it sends the .gz to clients that accept gzip.
+
+	  The web UI transfers about 75% fewer bytes on a first visit
+	  or after a firmware upgrade, which helps on slow Wi-Fi.
+	  Repeat visits are already served from the browser cache.
+
+	  The .gz copies are already compressed, so squashfs cannot
+	  shrink them: they add about 300 KiB to the rootfs. Only
+	  enable this on cameras with flash to spare (16 MiB or more).
+
 config BR2_PACKAGE_THINGINO_UHTTPD_LUA
 	bool "Enable Lua support"
 	depends on BR2_PACKAGE_LUA
