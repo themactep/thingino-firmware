@@ -87,4 +87,18 @@ config BR2_SENSOR_2_IQ_FILE
 	help
 	  Same as BR2_SENSOR_1_IQ_FILE but for the second sensor.
 
+config BR2_SENSOR_1_IQ_NAME
+	string "ingenic-sdk IQ bin for Sensor 1"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 1
+	help
+	  Name (without .bin) of an IQ bin in ingenic-sdk's
+	  sensor-iq/<soc>/ to use instead of the sensor's own, e.g. a
+	  board's stock tuning. Empty uses the sensor's default bin.
+
+config BR2_SENSOR_2_IQ_NAME
+	string "ingenic-sdk IQ bin for Sensor 2"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 2
+	help
+	  Same as BR2_SENSOR_1_IQ_NAME but for the second sensor.
+
 endmenu

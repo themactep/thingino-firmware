@@ -103,6 +103,15 @@ ifneq ($(SENSOR_1_MODEL),)
 	endif
 endif
 
+# A board can name another sensor-iq bin, e.g. its stock tuning; it keeps the
+# file name libimp looks for.
+ifneq ($(call qstrip,$(BR2_SENSOR_1_IQ_NAME)),)
+	SENSOR_1_BIN_NAME := $(call qstrip,$(BR2_SENSOR_1_IQ_NAME))
+endif
+ifneq ($(call qstrip,$(BR2_SENSOR_2_IQ_NAME)),)
+	SENSOR_2_BIN_NAME := $(call qstrip,$(BR2_SENSOR_2_IQ_NAME))
+endif
+
 LINUX_CONFIG_LOCALVERSION = \
 	$(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
@@ -165,9 +174,10 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	fi
 endef
 
-# $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path)
+# $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path, iq_name)
 # A dual-sensor model with its own bin in sensor-iq (e.g. sc2336ps1.bin) gets
-# that bin under its own name instead of a link to the shared bin_name one.
+# that bin under its own name instead of a link to the shared bin_name one,
+# unless the board named a bin (iq_name).
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ] && [ "$(1)" != "none" ]; then \
 		own=0; \
@@ -193,7 +203,7 @@ define INSTALL_SENSOR_BIN
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
 				iqdir=$$iqdir/$(SENSOR_ISP_FW); \
 			fi; \
-			if [ "$(1)" != "$(2)" ] && [ -f $$iqdir/$(1).bin ]; then \
+			if [ -z "$(5)" ] && [ "$(1)" != "$(2)" ] && [ -f $$iqdir/$(1).bin ]; then \
 				own=1; \
 				$(INSTALL) -D -m 0644 $$iqdir/$(1).bin \
 					$(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
@@ -206,7 +216,7 @@ define INSTALL_SENSOR_BIN
 				fi; \
 			fi; \
 		fi; \
-		if [ "$(1)" != "$(2)" ] && [ $$own -eq 0 ]; then \
+		if [ "$(1)" != "$(2)" ] && [ $$own -eq 0 ] && [ "$(3)" != "$(1)-$(SOC_FAMILY).bin" ]; then \
 			ln -sf $(3) $(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
 		fi; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
@@ -363,8 +373,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	done
 
 	if [ -n "$(SENSOR_1_MODEL)" ]; then \
-		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME),$(SENSOR_1_IQ_OVERRIDE)); \
-		$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_2_BIN_NAME),$(SENSOR_2_CONFIG_NAME),$(SENSOR_2_IQ_OVERRIDE)); \
+		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME),$(SENSOR_1_IQ_OVERRIDE),$(call qstrip,$(BR2_SENSOR_1_IQ_NAME))); \
+		$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_2_BIN_NAME),$(SENSOR_2_CONFIG_NAME),$(SENSOR_2_IQ_OVERRIDE),$(call qstrip,$(BR2_SENSOR_2_IQ_NAME))); \
 	fi
 
 	$(GENERATE_MODULE_LOADER)
