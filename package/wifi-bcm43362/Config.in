@@ -1,0 +1,8 @@
+config BR2_PACKAGE_WIFI_BCM43362
+	bool "Broadcom 43362 (AP6181), kernel brcmfmac"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_LINUX_FIRMWARE
+	help
+	  SDIO Wi-Fi BCM43362 (Ampak AP6181) with the mainline kernel's
+	  brcmfmac driver (mainline kernels only). Installs the Cypress
+	  firmware and a 26 MHz BCM43362 nvram from linux-firmware.

@@ -64,6 +64,7 @@ endmenu
 
 menu "Other"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atk9/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcm43362/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcm43438/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcmdhd-ap6214a/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-hi3881/Config.in"
