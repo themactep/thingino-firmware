@@ -32,7 +32,10 @@
 #                   than one supply pin) is not a single regulator and is left
 #                   alone. A regulator the generic board already declares as
 #                   the &vmmc label is retargeted instead of duplicated, so
-#                   two regulators never claim the same gpio.
+#                   two regulators never claim the same gpio. It is named
+#                   "sd-power", never "vmmc": a host without a vmmc-supply
+#                   (the SDIO Wi-Fi on MSC1) would otherwise find it by name
+#                   and switch the SD slot as its own supply.
 #   gpio.mmc_cd   - the SD card detect, active low with the pull-up on the pin,
 #                   closed to ground by a card, like the U-Boot one: it
 #                   replaces broken-cd and any detect the generic board has.
@@ -240,10 +243,10 @@ if isinstance(pin, int) and not isinstance(pin, bool) and pin >= 0:
         # without enable-active-high the gpio core treats the pin as active low
         eah = "" if al else "\n\tenable-active-high;"
         if re.search(r"^\s*vmmc\s*:", tree, re.M):
-            out.append("&vmmc {\t/* MMC slot supply, board gpio.mmc_power=%d */\n\t%s%s\n};\n" % (pin, gpio, eah or "\n\t/delete-property/ enable-active-high;"))
+            out.append("&vmmc {\t/* MMC slot supply, board gpio.mmc_power=%d */\n\tregulator-name = \"sd-power\";\n\t%s%s\n};\n" % (pin, gpio, eah or "\n\t/delete-property/ enable-active-high;"))
         else:
             out.append("/ {\n\tvmmc: regulator-vmmc {\t/* MMC slot supply, board gpio.mmc_power=%d */\n"
-                       "\t\tcompatible = \"regulator-fixed\";\n\t\tregulator-name = \"vmmc\";\n"
+                       "\t\tcompatible = \"regulator-fixed\";\n\t\tregulator-name = \"sd-power\";\n"
                        "\t\tregulator-min-microvolt = <3300000>;\n\t\tregulator-max-microvolt = <3300000>;\n"
                        "\t\t%s%s\n\t\tstartup-delay-us = <100000>;\n\t};\n};\n" % (pin, gpio, eah.replace("\n\t", "\n\t\t")))
         out.append("&msc0 {\n\tvmmc-supply = <&vmmc>;\n};\n")
