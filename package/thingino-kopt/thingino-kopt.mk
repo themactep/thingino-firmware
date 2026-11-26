@@ -389,7 +389,14 @@ endif
 
 ################ SADC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_ADC),y)
-ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(KERNEL_VERSION_7),y)
+# The SADC is the ingenic-sadc IIO driver; ingenic-sdk's adc-aux module puts
+# the vendor /dev/jz_adc_aux_N (ingenic_adc_aux_N) on it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC
+	$(call KCONFIG_ENABLE_OPT,CONFIG_IIO)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_SADC)
+endef
+else ifeq ($(KERNEL_VERSION_4),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_INGENIC_SADC_V13)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_INGENIC_SADC_AUX)

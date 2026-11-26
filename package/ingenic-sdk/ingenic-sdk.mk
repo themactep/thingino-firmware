@@ -34,7 +34,8 @@ INGENIC_SDK_COMPONENTS = \
 	CONFIG_INGENIC_JZ_AES=$(if $(BR2_INGENIC_SDK_JZ_AES),y,n) \
 	CONFIG_INGENIC_TCU_ALLOC=$(if $(BR2_INGENIC_SDK_TCU_ALLOC),y,n) \
 	CONFIG_INGENIC_PWM=$(if $(BR2_INGENIC_SDK_PWM),y,n) \
-	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
+	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n) \
+	CONFIG_INGENIC_ADC_AUX=$(if $(BR2_PACKAGE_THINGINO_KOPT_ADC),y,n)
 
 # The SDK keeps one tree, 7.x, for every mainline 7 release.
 ifeq ($(KERNEL_VERSION_7),y)
@@ -308,6 +309,10 @@ endef
 ifeq ($(KERNEL_VERSION_7),y)
 define GENERATE_MODULE_LOADER_7X
 	printf 'rmem\nandroid_logger\n' > $(TARGET_DIR)/etc/modules.d/01-rmem
+
+	if [ "$(BR2_PACKAGE_THINGINO_KOPT_ADC)" = "y" ]; then \
+		echo "adc-aux" > $(TARGET_DIR)/etc/modules.d/03-adc-aux; \
+	fi
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
 		if [ "$(SOC_FAMILY)" = "t31" ]; then \
