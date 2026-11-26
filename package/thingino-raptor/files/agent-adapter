@@ -128,12 +128,16 @@ agent_config_bool() {
 }
 
 # From the file the setters write: a daemon's own copy is not reloaded after a write.
-agent_config_file_bool() {
-	value=$(awk -v s="[$1]" -v k="$2" '
+agent_config_file_value() {
+	awk -v s="[$1]" -v k="$2" '
 		{ line = $0; sub(/#.*/, "", line); gsub(/[ \t\r"]/, "", line) }
 		substr(line, 1, 1) == "[" { in_s = (line == s); next }
 		in_s && index(line, k "=") == 1 { v = substr(line, length(k) + 2) }
-		END { print v }' "$AGENT_CONFIG" 2>/dev/null | tr 'A-Z' 'a-z')
+		END { print v }' "$AGENT_CONFIG" 2>/dev/null
+}
+
+agent_config_file_bool() {
+	value=$(agent_config_file_value "$1" "$2" | tr 'A-Z' 'a-z')
 	case "$value" in
 		1 | true | yes | on) printf 'true' ;;
 		0 | false | no | off) printf 'false' ;;
@@ -2537,7 +2541,12 @@ agent_set_storage_setting() {
 				}
 			else
 				agent_ctl rmr disable >/dev/null 2>&1 || true
-				[ "$(agent_config_bool timelapse enabled false)" = true ] || agent_stop_rmr || true
+				if [ "$(agent_config_file_bool timelapse enabled false)" != true ]; then
+					agent_stop_rmr || {
+						echo "failed to stop rmr" >&2
+						return 1
+					}
+				fi
 			fi
 			agent_print_setting_update "$path" autostart "$value"
 			;;
@@ -3530,7 +3539,7 @@ agent_rmr_arm() {
 		return
 	}
 	[ "$1" = true ] && return 0
-	case "$(agent_config_get recording mode)" in
+	case "$(agent_config_file_value recording mode | tr 'A-Z' 'a-z')" in
 		"" | continuous)
 			agent_ctl rmr enable >/dev/null 2>&1
 			;;
@@ -3559,7 +3568,12 @@ agent_record() {
 			agent_ctl rmr disable >/dev/null 2>&1 || true
 			agent_config_set recording enabled false || true
 			agent_config_save
-			[ "$(agent_config_bool timelapse enabled false)" = true ] || agent_stop_rmr || true
+			if [ "$(agent_config_file_bool timelapse enabled false)" != true ]; then
+				agent_stop_rmr || {
+					echo "failed to stop rmr" >&2
+					return 1
+				}
+			fi
 			printf '{"status":"accepted","action":"stop","stream_id":%s}\n' \
 				"$(agent_json_value_or "$channel" 0)"
 			return 0
