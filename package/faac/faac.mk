@@ -1,4 +1,4 @@
-FAAC_VERSION = 3.0
+FAAC_VERSION = 3.0.1
 FAAC_SITE = $(call github,FreewareAdvancedAudio,faac,faac-$(FAAC_VERSION))
 
 FAAC_LICENSE = LGPL-2.1+
