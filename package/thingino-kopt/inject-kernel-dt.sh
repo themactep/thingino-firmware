@@ -36,6 +36,11 @@
 #   gpio.mmc_cd   - the SD card detect, active low with the pull-up on the pin,
 #                   closed to ground by a card, like the U-Boot one: it
 #                   replaces broken-cd and any detect the generic board has.
+#   gpio.sensor_switch - the MIPI switch pad of a two- or three-sensor T23
+#                   (7 = PA7, 54 = PB22, 62 = PB30): the ISP node gets a
+#                   "mipi-switch" pin state with the generic board's
+#                   pins_cim_mipi_switch on that pad, which the ISP module
+#                   selects when the VIC takes the pad over.
 #   bus-width     - how many SD data lines the board routes, passed in (the
 #                   same BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT fact U-Boot gets).
 #   dmic          - "1" when the profile has a digital microphone
@@ -266,6 +271,24 @@ if busw in ("1", "4", "8"):
     msc0.append("bus-width = <%s>;" % busw)
 if msc0:
     out.append("&msc0 {\t/* the card slot */\n" + "".join("\t%s\n" % p for p in msc0) + "};\n")
+
+# ---- gpio.sensor_switch: the VIC's MIPI switch pad --------------------------
+sw = g.get("sensor_switch")
+sw_groups = {7: "cim-mipi-switch-a7", 54: "cim-mipi-switch-b22", 62: "cim-mipi-switch-b30"}
+if isinstance(sw, int) and not isinstance(sw, bool):
+    blk = re.search(r"^&isp\s*\{(.*?)^\};", tree, re.M | re.S)
+    m = re.search(r"pinctrl-0\s*=\s*<([^>]*)>", blk.group(1)) if blk else None
+    if sw not in sw_groups:
+        say("gpio.sensor_switch %d is not a VIC switch pad (7, 54, 62), skipped" % sw)
+    elif not re.search(r"^\s*pins_cim_mipi_switch\s*:", tree, re.M) or not m:
+        say("no pins_cim_mipi_switch or no pinctrl-0 on &isp in the generic board, "
+            "gpio.sensor_switch skipped")
+    else:
+        out.append("&pins_cim_mipi_switch {\n\tgroups = \"%s\";\n};\n" % sw_groups[sw])
+        out.append("&isp {\t/* the VIC's MIPI switch, board gpio.sensor_switch=%d */\n"
+                   "\tpinctrl-names = \"default\", \"mipi-switch\";\n"
+                   "\tpinctrl-1 = <%s>, <&pins_cim_mipi_switch>;\n};\n" % (sw, m.group(1).strip()))
+        say("gpio.sensor_switch %d" % sw)
 
 # ---- the DMIC: only on a profile that has one ------------------------------
 if dmic == "1":
