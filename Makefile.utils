@@ -181,8 +181,15 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/root/opt/; \
 	done
 	# pack the data partition image
+	# --no-cleanmarkers: the padded empty blocks must stay all-0xFF. The
+	# 3.10 jz_sfc NOR driver reports 64 KiB erase blocks, so a 32 KiB image
+	# leaves a cleanmarker in the middle of every empty 64 KiB block; jffs2
+	# then treats the block as clean, writes over the stray marker and the
+	# node reads back with a Data CRC error (EIO). All-0xFF blocks are erased
+	# by jffs2 itself at the first mount with the kernel's real erase size.
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \
-		--eraseblock=$(JFFS2_ERASE_BLOCK) --pad=$(DATA_PARTITION_SIZE)
+		--eraseblock=$(JFFS2_ERASE_BLOCK) --pad=$(DATA_PARTITION_SIZE) --no-cleanmarkers
+	$(SCRIPTS_DIR)/check-jffs2-cleanmarkers.sh $@
 
 # rebuild kernel
 $(KERNEL_BIN):
