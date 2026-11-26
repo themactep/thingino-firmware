@@ -1,0 +1,180 @@
+A hot video restart (restart_thread 2, or any key that restarts video, such
+as motion.enabled) breaks on T23 in two ways:
+
+- It hangs. main stops the streams one after the other, so one channel is
+  destroyed while the other may still be encoding. If that one has a
+  client, its encoder gets stuck: IMP_FrameSource_DisableChn() waits about
+  6 s for its pool ("VBMFlushFrame pool_idx=N deadlocked") and
+  IMP_Encoder_DestroyGroup() never returns. Which channel hangs depends on
+  which one is being watched; reversing the stop order just moves the hang.
+- It crashes once a snapshot has been taken. The JPEG channel is registered
+  in the stream0 group, but main stops the JPEG workers after the video
+  ones, so the JPEG worker touches a channel whose group is gone and
+  faults in libimp (SIGSEGV in jpeg0, read at 0x4).
+
+On T23, stop the encoders in two phases: every running video and JPEG
+worker stops its encoder (StopRecvPic) and waits; once all of them have
+stopped, main lets the JPEG workers tear down first and then the video
+ones, in the usual order. Shutdown keeps the old path.
+
+Other platforms keep the sequential teardown. A T31 (WUUK Y0510) does not
+hang or crash there, and stopping a JPEG channel while its video group
+still runs can block in IMP_Encoder_StopRecvPic on that SoC.
+
+diff --git a/src/core/main.cpp b/src/core/main.cpp
+index 041e4bb..f00cc82 100644
+--- a/src/core/main.cpp
++++ b/src/core/main.cpp
+@@ -693,6 +693,69 @@ int main(int argc, const char *argv[]) {
+         LOG_DEBUG_OR_ERROR(ret, "join osd thread");
+       }
+ 
++#if defined(PLATFORM_T23)
++      // Stop the encoders in two phases. On T23, destroying one channel
++      // while another still encodes leaves the survivor's encoder stuck
++      // (DisableChn times out, DestroyGroup never returns), so every encoder,
++      // video and JPEG, stops taking pictures before any channel is torn
++      // down. Shutdown keeps the old path.
++      bool stopping[NUM_VIDEO_CHANNELS] = {};
++      bool held[NUM_VIDEO_CHANNELS] = {};
++      bool jpeg_held[NUM_JPEG_CHANNELS] = {};
++      for (int chn = 0; chn < NUM_VIDEO_CHANNELS; ++chn) {
++        if (!global_video[chn]->imp_encoder)
++          continue;
++        stopping[chn] = true;
++        // Only a worker inside its run loop reaches the hand-off.
++        if (shutting_down || !global_video[chn]->running)
++          continue;
++        held[chn] = true;
++        global_video[chn]->hold_teardown = true;
++        global_video[chn]->running = false;
++        global_video[chn]->should_grab_frames.notify_one();
++      }
++      for (int j = 0; j < NUM_JPEG_CHANNELS; ++j) {
++        if (shutting_down || !global_jpeg[j]->imp_encoder ||
++            !global_jpeg[j]->running)
++          continue;
++        jpeg_held[j] = true;
++        global_jpeg[j]->hold_teardown = true;
++        global_jpeg[j]->running = false;
++        global_jpeg[j]->should_grab_frames.notify_one();
++      }
++      for (int chn = 0; chn < NUM_VIDEO_CHANNELS; ++chn) {
++        if (held[chn])
++          global_video[chn]->recv_stopped.acquire();
++      }
++      for (int j = 0; j < NUM_JPEG_CHANNELS; ++j) {
++        if (jpeg_held[j])
++          global_jpeg[j]->recv_stopped.acquire();
++      }
++      // JPEG channels are registered in the video groups: destroy them
++      // before their group goes, or the JPEG worker faults in libimp.
++      for (int j = 0; j < NUM_JPEG_CHANNELS; ++j) {
++        if (!jpeg_held[j])
++          continue;
++        global_jpeg[j]->hold_teardown = false;
++        global_jpeg[j]->teardown_go.release();
++        int ret = pthread_join(global_jpeg[j]->thread, NULL);
++        LOG_DEBUG("join jpeg[" << j << "] done, ret=" << ret);
++      }
++      for (int chn = 0; chn < NUM_VIDEO_CHANNELS; ++chn) {
++        if (!stopping[chn])
++          continue;
++        if (held[chn]) {
++          global_video[chn]->hold_teardown = false;
++          global_video[chn]->teardown_go.release();
++        } else {
++          global_video[chn]->running = false;
++          global_video[chn]->should_grab_frames.notify_one();
++        }
++        LOG_DEBUG("waiting for stream" << chn << " thread to exit...");
++        int ret = pthread_join(global_video[chn]->thread, NULL);
++        LOG_DEBUG("join stream" << chn << " done, ret=" << ret);
++      }
++#else
+       // stop stream0
+       if (global_video[0]->imp_encoder) {
+         global_video[0]->running = false;
+@@ -710,6 +773,7 @@ int main(int argc, const char *argv[]) {
+         int ret = pthread_join(global_video[1]->thread, NULL);
+         LOG_DEBUG("join stream1 done, ret=" << ret);
+       }
++#endif
+ 
+       // stop jpeg (after video --- safe to disable framesource now)
+       if (global_jpeg[0]->imp_encoder) {
+diff --git a/src/stream/globals.hpp b/src/stream/globals.hpp
+index 6721555..53f2a42 100644
+--- a/src/stream/globals.hpp
++++ b/src/stream/globals.hpp
+@@ -115,6 +115,10 @@ struct jpeg_stream {
+   std::atomic<bool> running; // set to false to make jpeg_grabber thread exit
+   std::atomic<bool> active{false};
+   bool encoder_paused = false; // encoder idled while no jpeg requests
++  // Two-phase hot restart, as in video_stream.
++  std::atomic<bool> hold_teardown{false};
++  binary_semaphore_compat recv_stopped{0};
++  binary_semaphore_compat teardown_go{0};
+   pthread_t thread;
+   IMPEncoder *imp_encoder;
+   std::condition_variable should_grab_frames;
+@@ -210,6 +214,12 @@ struct video_stream {
+   std::function<void(void)> onDataCallback;
+   bool run_for_jpeg; // see comment in audio_stream
+   bool encoder_paused = false; // encoder idled while no subscribers
++  // Two-phase hot restart: with hold_teardown set, the worker posts
++  // recv_stopped once its encoder takes no more pictures and waits for
++  // teardown_go before destroying anything.
++  std::atomic<bool> hold_teardown{false};
++  binary_semaphore_compat recv_stopped{0};
++  binary_semaphore_compat teardown_go{0};
+   std::atomic<bool> bootstrap_requested{false};
+   std::atomic<bool> hasDataCallback; // see comment in audio_stream
+   std::atomic<int> consumers{0};
+diff --git a/src/video/JPEGWorker.cpp b/src/video/JPEGWorker.cpp
+index 7ab6255..35c13fc 100644
+--- a/src/video/JPEGWorker.cpp
++++ b/src/video/JPEGWorker.cpp
+@@ -420,6 +420,12 @@ void *JPEGWorker::thread_entry(void *arg) {
+   JPEGWorker worker(jpgChn, impEncChn);
+   worker.run();
+ 
++  if (global_jpeg[jpgChn]->hold_teardown.load()) {
++    IMP_Encoder_StopRecvPic(global_jpeg[jpgChn]->encChn);
++    global_jpeg[jpgChn]->recv_stopped.release();
++    global_jpeg[jpgChn]->teardown_go.acquire();
++  }
++
+   if (global_jpeg[jpgChn]->imp_encoder) {
+     global_jpeg[jpgChn]->imp_encoder->deinit();
+ 
+diff --git a/src/video/VideoWorker.cpp b/src/video/VideoWorker.cpp
+index dd8c1c2..51c1d32 100644
+--- a/src/video/VideoWorker.cpp
++++ b/src/video/VideoWorker.cpp
+@@ -1484,8 +1484,12 @@ void *VideoWorker::thread_entry(void *arg) {
+ 
+   LOG_DEBUG("VideoWorker ch" << encChn << " run loop exited, cleaning up...");
+ 
++  const bool held = global_video[encChn]->hold_teardown.load();
++
+ #if defined(PLATFORM_T23)
+-  if (global_shutdown_requested.load(std::memory_order_relaxed)) {
++  // A held worker is part of a hot restart: main waits for it, so it must
++  // reach the hand-off below even if a shutdown came in meanwhile.
++  if (!held && global_shutdown_requested.load(std::memory_order_relaxed)) {
+     LOG_WARN("T23 shutdown: skipping video teardown for channel " << encChn);
+     return 0;
+   }
+@@ -1494,6 +1498,11 @@ void *VideoWorker::thread_entry(void *arg) {
+   ret = IMP_Encoder_StopRecvPic(encChn);
+   LOG_DEBUG("IMP_Encoder_StopRecvPic(" << encChn << ") = " << ret);
+ 
++  if (held) {
++    global_video[encChn]->recv_stopped.release();
++    global_video[encChn]->teardown_go.acquire();
++  }
++
+   if (global_video[encChn]->imp_framesource) {
+     global_video[encChn]->imp_framesource->disable();
+ 

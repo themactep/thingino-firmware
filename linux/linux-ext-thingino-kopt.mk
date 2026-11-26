@@ -38,3 +38,24 @@ define THINGINO_KOPT_USB_DT
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_USB_DT
 endif
+
+# The mainline kernel's device tree is one generic board per SoC, so the board's
+# MMC and Wi-Fi nodes come from its thingino.json the way U-Boot's do
+# (package/thingino-uboot/inject-uboot-*-dt.sh). Runs after the sync above so a
+# profile's own .dts is covered; self-skips what the json does not describe.
+ifeq ($(KERNEL_VERSION_7),y)
+define THINGINO_KOPT_BOARD_DT
+	sh $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-kopt/inject-kernel-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(LINUX_DIR) "$(if $(BR2_PACKAGE_WIFI),$(WIFI_INTERFACE))" \
+		"$(if $(BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT),1)"
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_BOARD_DT
+endif
+
+# The 7.4 kernel packs uImage.lzma with xz --format=lzma and MIPS-tuned
+# lc/lp/pb, which buildroot's host-lzma (LZMA Utils 4.32) cannot do.
+ifeq ($(KERNEL_VERSION_7),y)
+LINUX_DEPENDENCIES += host-xz
+LINUX_MAKE_FLAGS += XZ=$(HOST_DIR)/bin/xz
+endif

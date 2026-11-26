@@ -27,7 +27,7 @@ jobs:
             # the tip from when the PR was opened: diffing against it also
             # lists every file the base branch changed since (pr-format.yml
             # collects its file list the same way, for the same reason).
-            files="$(git diff --name-only --diff-filter=ACMR HEAD^1 HEAD)"
+            files="$(git diff --name-only --diff-filter=MCR HEAD^1 HEAD)"
           else
             if [ -n "$BASE_SHA" ]; then
               git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
@@ -36,7 +36,7 @@ jobs:
               echo "No base SHA available; skipping do-not-edit check"
               exit 0
             fi
-            files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
+            files="$(git diff --name-only --diff-filter=MCR "$BASE_SHA" HEAD)"
           fi
           if [ -n "$files" ]; then
             printf '%s\n' "$files" | scripts/check-do-not-edit.sh

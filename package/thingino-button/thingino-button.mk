@@ -28,14 +28,22 @@ define THINGINO_BUTTON_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_DISABLE_OPT,CONFIG_KEYBOARD_ATKBD)
 endef
 
-# 3.10 gets its keys from ingenic-sdk's gpio-userkeys module; 4.4 describes
-# them in the device tree instead.
+# 3.10 gets its keys from ingenic-sdk's gpio-userkeys module; 4.4 and the
+# mainline kernel describe them in the device tree instead.
 ifeq ($(BR2_PACKAGE_THINGINO_BUTTON)$(KERNEL_VERSION),y4.4.94)
 define THINGINO_BUTTON_LINUX_DT_KEYS
 	$(THINGINO_BUTTON_PKGDIR)/inject-button-dt.sh \
 		$(THINGINO_BUTTON_CAMERA_JSON) $(LINUX_DIR)
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_BUTTON_LINUX_DT_KEYS
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_BUTTON)$(KERNEL_VERSION_7),yy)
+define THINGINO_BUTTON_LINUX_DT_KEYS_MAINLINE
+	$(THINGINO_BUTTON_PKGDIR)/inject-button-dt-mainline.sh \
+		$(THINGINO_BUTTON_CAMERA_JSON) $(LINUX_DIR)
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_BUTTON_LINUX_DT_KEYS_MAINLINE
 endif
 
 define CHECK_MULTIPLE_GPIO_BUTTONS

@@ -6,6 +6,8 @@ Jooan (Lenovo)
 
 | FCC         | Model             | SOC    | CMOS   | RES  | SPI    | WIFI       | Link                                                  |
 |-------------|-------------------|--------|--------|------|--------|------------|-------------------------------------------------------|
+|             | Jooan A12         | T23N   | SC2336 | 2MP  | 25QH64 | ATBM6132BU |                                                       |
+|             | Jooan A12         | T23N   | CV2005 | 2MP  |        | SV6160LITE |                                                       |
 |             | Jooan A6M         | T23N   | SC1A4T | 720p | 25Q64  | ATBM6012BX | https://www.aliexpress.com/item/1005006533845459.html |
 |             | Jooan A6M         | T23N   | SC1A4T | 720p | 25Q64  | SV6355     | https://www.aliexpress.com/item/1005006533845459.html |
 |             | Jooan C9TS        | T23N   | SC233P |      | 25Q64  | ATBM6132BU | https://www.aliexpress.com/item/33024400486.html      |
