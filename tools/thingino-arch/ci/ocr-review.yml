@@ -1,0 +1,50 @@
+name: ocr-architecture-review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+      base_ref:
+        description: Base branch name
+        required: true
+      head_sha:
+        description: Pull request head SHA
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Open Code Review
+        uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
+        with:
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          ocr_version: "1.13.3"
+          pr_number: ${{ inputs.pr_number }}
+          base_ref: ${{ inputs.base_ref }}
+          head_sha: ${{ inputs.head_sha }}
+          rule: tools/thingino-arch/rules/thingino-review.json
+          background: |
+            This is a structural review of the Thingino firmware tree.
+            Read tools/thingino-arch/architecture/thingino.md before reviewing.
+            Check integration points, cross-file consistency, SoC-family impact,
+            camera-profile completeness, package wiring, init ordering, and
+            WebUI plugin contracts. Do not report formatting, shellcheck, shfmt,
+            Prettier, or defconfig sort findings; CI already covers those.
+            Report only high-confidence structural issues with evidence.
+          effort: medium
+          max_tokens_budget: "300000"
+          sticky_summary: true
+          incremental: true
+          checkpoint_range: true
+          route_severity_below: low
+          upload_artifacts: true
