@@ -166,8 +166,11 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 endef
 
 # $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path)
+# A dual-sensor model with its own bin in sensor-iq (e.g. sc2336ps1.bin) gets
+# that bin under its own name instead of a link to the shared bin_name one.
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ] && [ "$(1)" != "none" ]; then \
+		own=0; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
 		if [ -n "$(4)" ] && [ -f "$(4)" ]; then \
 			$(INSTALL) -D -m 0644 $(4) \
@@ -190,14 +193,20 @@ define INSTALL_SENSOR_BIN
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
 				iqdir=$$iqdir/$(SENSOR_ISP_FW); \
 			fi; \
-			$(INSTALL) -D -m 0644 $$iqdir/$(2).bin \
-				$(TARGET_DIR)/usr/share/sensor/$(3); \
-			if [ -f $$iqdir/$(2)-cust.bin ]; then \
-				$(INSTALL) -D -m 0644 $$iqdir/$(2)-cust.bin \
-					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
+			if [ "$(1)" != "$(2)" ] && [ -f $$iqdir/$(1).bin ]; then \
+				own=1; \
+				$(INSTALL) -D -m 0644 $$iqdir/$(1).bin \
+					$(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
+			else \
+				$(INSTALL) -D -m 0644 $$iqdir/$(2).bin \
+					$(TARGET_DIR)/usr/share/sensor/$(3); \
+				if [ -f $$iqdir/$(2)-cust.bin ]; then \
+					$(INSTALL) -D -m 0644 $$iqdir/$(2)-cust.bin \
+						$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
+				fi; \
 			fi; \
 		fi; \
-		if [ "$(1)" != "$(2)" ]; then \
+		if [ "$(1)" != "$(2)" ] && [ $$own -eq 0 ]; then \
 			ln -sf $(3) $(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
 		fi; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
