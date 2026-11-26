@@ -4,7 +4,7 @@ WIFI_BCMDHD_AP6181_SITE = $(WIFI_BCMDHD_AP6181_PKGDIR)/files
 WIFI_BCMDHD_AP6181_SITE_METHOD = local
 
 BCMDHD_AP6181_MODULE_NAME = bcmdhd
-BCMDHD_AP6181_MODULE_OPTS = "gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2"
+BCMDHD_AP6181_MODULE_OPTS = gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2
 
 define WIFI_BCMDHD_AP6181_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
