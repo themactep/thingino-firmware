@@ -19,7 +19,7 @@
   const formatConfirmBtn = $("#formatConfirmBtn");
   const formatConfirmCancelBtn = $("#formatConfirmCancel");
   let formatConfirmModalInstance = null;
-  let pendingFilesystem = "exfat";
+  let pendingFilesystem = "";
 
   const buttonDefault = formatSubmit.innerHTML;
   let lastState = null;
@@ -150,7 +150,7 @@
   }
 
   function showFormatConfirmModal(fs) {
-    const targetFs = (fs || "exfat").toLowerCase();
+    const targetFs = (fs || "").toLowerCase();
     pendingFilesystem = targetFs;
     if (formatConfirmFilesystem) {
       formatConfirmFilesystem.textContent = targetFs.toUpperCase();
@@ -199,7 +199,7 @@
   }
 
   async function executeFormat(filesystem) {
-    const fs = (filesystem || "exfat").toLowerCase();
+    const fs = (filesystem || "").toLowerCase();
     setFormBusy(true);
     showBusy("Formatting SD card. Please wait...");
     const body = new URLSearchParams({ action: "format", fstype: fs });
@@ -484,7 +484,7 @@
       );
       return;
     }
-    const filesystem = getSelectedFs() || "exfat";
+    const filesystem = getSelectedFs() || "";
     showFormatConfirmModal(filesystem);
   });
 

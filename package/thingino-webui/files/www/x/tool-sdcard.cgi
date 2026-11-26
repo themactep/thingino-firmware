@@ -208,10 +208,7 @@ build_state_payload() {
   "format": {
     "last_output_b64": "$(json_escape "$format_last_output_b64")"
   },
-  "filesystems": [
-    {"id":"exfat","label":"ExFAT","description":"Best for large files and modern OS support.","recommended":true},
-    {"id":"fat32","label":"FAT32","description":"Maximum compatibility with legacy devices."}
-  ],
+  "filesystems": [$(filesystems_json)],
   "messages": {
     "format_warning": "Formatting erases every file on the SD card.",
     "not_present": "Insert or reseat the SD card to manage it here."
@@ -223,6 +220,23 @@ build_state_payload() {
   }
 }
 EOF
+}
+
+# What formatsd can make on this camera; its default is the recommended one
+filesystems_json() {
+	local def fs sep="" label desc
+	def=$(formatsd --default 2>/dev/null)
+	for fs in $(formatsd --filesystems 2>/dev/null); do
+		case "$fs" in
+			exfat) label="ExFAT" desc="Large files; read by modern computers and phones." ;;
+			fat32) label="FAT32" desc="Read by nearly every device." ;;
+			ext4) label="ext4" desc="Journaled: no long check after a power cut, steady on a full card. Not read by Windows or macOS." ;;
+			*) continue ;;
+		esac
+		printf '%s{"id":"%s","label":"%s","description":"%s","recommended":%s}' \
+			"$sep" "$fs" "$label" "$desc" "$([ "$fs" = "$def" ] && echo true || echo false)"
+		sep=","
+	done
 }
 
 send_state_response() {
@@ -239,13 +253,9 @@ send_state_response() {
 format_sdcard() {
 	detect_sdcard
 	[ "$sd_present" = "true" ] || json_error 404 "No SD card detected." "404 Not Found"
-	local fs="${POST_fstype:-exfat}"
+	local fs="${POST_fstype:-$(formatsd --default)}"
 	fs=$(printf '%s' "$fs" | tr 'A-Z' 'a-z')
-	case "$fs" in
-		exfat | fat32) : ;;
-		"") fs="exfat" ;;
-		*) json_error 422 "Filesystem '$fs' is not supported." ;;
-	esac
+	formatsd --filesystems | grep -qx "$fs" || json_error 422 "Filesystem '$fs' is not supported."
 	if ! LAST_FORMAT_OUTPUT=$(formatsd "$fs" 2>&1); then
 		json_error 500 "Formatting failed: $LAST_FORMAT_OUTPUT" "500 Internal Server Error"
 	fi

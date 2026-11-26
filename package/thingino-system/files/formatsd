@@ -1,6 +1,31 @@
 #!/bin/sh
 # shellcheck disable=SC2086,SC2154,SC3037,SC3043
 # Formats SD card
+#
+# formatsd [exfat|fat32|ext4]   format with that filesystem
+# formatsd --filesystems        the filesystems this camera can format
+# formatsd --default            the one it formats when none is given
+
+# dashcam: a 64 MB FAT partition for firmware updates, then recordings
+LAYOUT=single
+DEFAULT_FS=exfat
+
+filesystems() {
+	command -v mkfs.exfat >/dev/null && echo exfat
+	command -v mkfs.vfat >/dev/null && echo fat32
+	command -v mkfs.ext4 >/dev/null && echo ext4
+}
+
+case "$1" in
+	--filesystems)
+		filesystems
+		exit 0
+		;;
+	--default)
+		echo "$DEFAULT_FS"
+		exit 0
+		;;
+esac
 
 singleton() {
 	if [ -z "$1" ]; then
@@ -23,8 +48,8 @@ singleton "$0"
 format_partition() {
 	unmount_partition $1
 	echo -c 240 -e "- Format partition"
-	if ! $MKFS -n thingino $1 2>&1; then
-		echo -c 160 -e "Cannot format $1 to $POST_fstype" >&2
+	if ! $MKFS $1 2>&1; then
+		echo -c 160 -e "Cannot format $1" >&2
 		exit 1
 	fi
 }
@@ -38,6 +63,29 @@ mount_partitions() {
 		echo -c 160 -e "Cannot re-mount SD card" >&2
 		exit 1
 	fi
+}
+
+# The recorder writes to the card: a lazy unmount under it leaves the old
+# file system alive while mkfs runs. Stop recording until the card is back.
+rec_was_on=false
+pause_recorder() {
+	pidof rmr >/dev/null || return 0
+	raptorctl rmr status 2>/dev/null | grep -q '"recording":true' && rec_was_on=true
+	echo -c 240 -e "- Pause recording"
+	raptorctl rmr disable >/dev/null 2>&1
+	local limit=20 pid
+	pid=$(pidof rmr)
+	while ls -l /proc/$pid/fd 2>/dev/null | grep -q " /mnt/${device_name}p"; do
+		[ "$limit" -le 0 ] && break
+		sleep 0.25
+		limit=$((limit - 1))
+	done
+}
+
+resume_recorder() {
+	[ "$rec_was_on" = true ] || return 0
+	echo -c 240 -e "- Resume recording"
+	raptorctl rmr enable >/dev/null 2>&1
 }
 
 unmount_partition() {
@@ -59,30 +107,65 @@ reinsert_sdcard() {
 	if [ -w /proc/sys/kernel/hotplug ]; then
 		echo "" >/proc/sys/kernel/hotplug
 	fi
-	mmc 0 -r
-	sleep 1
-	mmc 0
-	sleep 1
+	if command -v mmc >/dev/null; then
+		mmc 0 -r
+		sleep 1
+		mmc 0
+		sleep 1
+	else
+		partprobe "/dev/$device_name" 2>/dev/null
+		sleep 1
+	fi
+	# The new partitions' nodes, without mdev's rules mounting them half made
+	local p n
+	for p in /sys/class/block/${device_name}p*; do
+		n="/dev/${p##*/}"
+		[ -b "$n" ] || mknod "$n" b $(tr : ' ' <"$p/dev")
+	done
 }
 
+# Sector units (u): in cylinders busybox fdisk ends a partition near
+# 16 GB on large cards
 repartition_sdcard() {
 	echo -c 240 -e "- Repartition card"
-	if ! echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1; then
+	local last=$(($(cat /sys/block/${1#/dev/}/size) - 1)) cmds
+	if [ "$LAYOUT" = dashcam ]; then
+		cmds="o\nu\nn\np\n1\n2048\n133119\nt\nc\nn\np\n2\n133120\n$last\nt\n2\n$FSTYPE\nw"
+	else
+		cmds="o\nu\nn\np\n1\n2048\n$last\nt\n$FSTYPE\nw"
+	fi
+	if ! echo -e "$cmds" | fdisk $1 2>&1; then
 		echo -c 160 -e "Cannot create a partition on $1" >&2
 		exit 1
 	fi
 }
 
-case "$1" in
+fs="${1:-$DEFAULT_FS}"
+case "$fs" in
 	fat32)
-		MKFS="mkfs.vfat"
-		FSTYPE="b"
+		MKFS="mkfs.vfat -F 32 -n thingino"
+		FSTYPE="c"
 		;;
-	exfat | *)
-		MKFS="mkfs.exfat"
+	ext4)
+		# One inode a MB suits segment files; no lazy init writing behind
+		# the recorder; no orphan_file, which kernels before 5.15 mount
+		# read-only once it is in use.
+		MKFS="mkfs.ext4 -F -q -T largefile -m 0 -O ^orphan_file -E lazy_itable_init=0,lazy_journal_init=0 -L thingino"
+		FSTYPE="83"
+		;;
+	exfat)
+		MKFS="mkfs.exfat -n thingino"
 		FSTYPE="7"
 		;;
+	*)
+		echo -c 160 -e "Unknown filesystem $fs" >&2
+		exit 1
+		;;
 esac
+if ! filesystems | grep -qx "$fs"; then
+	echo -c 160 -e "Cannot format $fs on this camera" >&2
+	exit 1
+fi
 
 device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
 if [ -z "$device_name" ]; then
@@ -90,10 +173,21 @@ if [ -z "$device_name" ]; then
 	exit 1
 fi
 
+pause_recorder
+trap resume_recorder EXIT
 unmount_partition "/mnt/${device_name}p1"
+[ "$LAYOUT" = dashcam ] && unmount_partition "/mnt/${device_name}p2"
 repartition_sdcard "/dev/${device_name}"
 reinsert_sdcard
-format_partition "/dev/${device_name}p1"
+if [ "$LAYOUT" = dashcam ]; then
+	rec_mkfs=$MKFS
+	MKFS="mkfs.vfat -n THINGINO"
+	format_partition "/dev/${device_name}p1"
+	MKFS=$rec_mkfs
+	format_partition "/dev/${device_name}p2"
+else
+	format_partition "/dev/${device_name}p1"
+fi
 mount_partitions
 
 exit 0

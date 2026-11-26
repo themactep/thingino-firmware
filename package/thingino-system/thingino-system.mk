@@ -63,9 +63,15 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S30mdev; \
 	fi
 
-	if [ "$(BR2_THINGINO_SDCARD)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_SDCARD)" = "y" ] || [ "$(BR2_THINGINO_DEV_DASHCAM)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/formatsd \
 			$(TARGET_DIR)/usr/sbin/formatsd; \
+	fi
+	if [ "$(BR2_THINGINO_DEV_DASHCAM)" = "y" ]; then \
+		sed -i 's/^LAYOUT=single$$/LAYOUT=dashcam/; s/^DEFAULT_FS=exfat$$/DEFAULT_FS=ext4/' \
+			$(TARGET_DIR)/usr/sbin/formatsd; \
+	fi
+	if [ "$(BR2_THINGINO_SDCARD)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/envfromcard \
 			$(TARGET_DIR)/usr/sbin/envfromcard; \
 	fi
