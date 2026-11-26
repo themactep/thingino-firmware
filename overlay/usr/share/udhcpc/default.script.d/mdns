@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Reload on both events: bound adds or refreshes mac=, deconfig drops it
+# when the interface is gone and keeps it when only the lease is lost.
+case "$1" in
+	bound | deconfig)
+		[ -x /etc/init.d/S50mdnsd ] && /etc/init.d/S50mdnsd reload >/dev/null 2>&1
+		;;
+esac
+
+exit 0

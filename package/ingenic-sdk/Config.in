@@ -1,10 +1,9 @@
 config BR2_PACKAGE_INGENIC_SDK
 	bool "Ingenic SDK"
-	default y if !KERNEL_VERSION_7
-	# Builds Ingenic kernel modules. Without this the default above turns the
-	# package on for every vendor, since it keys off the kernel version alone.
+	default y
+	# Builds Ingenic kernel modules. Without this the unconditional default
+	# above would turn the package on for every vendor.
 	depends on BR2_SOC_VENDOR_INGENIC
-	depends on !KERNEL_VERSION_7
 	select BR2_LINUX_KERNEL
 	help
 	  Code from Ingenic SDK
@@ -33,7 +32,8 @@ config BR2_INGENIC_SDK_HAS_NNA
 
 config BR2_INGENIC_SDK_HAS_MPSYS
 	bool
-	default y if BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	# The 7.x tree has no mpsys: libimp only warns about the missing node.
+	default y if (BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41") && !KERNEL_VERSION_7
 
 config BR2_INGENIC_SDK_K310
 	bool
@@ -73,7 +73,7 @@ config BR2_INGENIC_SDK_MPSYS
 	default y if BR2_INGENIC_SDK_HAS_MPSYS
 	help
 	  Multi-processor system driver and the jz-dtrng hardware random
-	  number generator. Present on T40 and T41 only.
+	  number generator. The TRNG is T40/T41 only; the T33 gets MPSYS alone.
 
 config BR2_INGENIC_SDK_GPIO_USERKEYS
 	bool "GPIO user keys (physical buttons)"

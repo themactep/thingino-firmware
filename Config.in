@@ -89,6 +89,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_MOTORS if BR2_THINGINO_MOTORS
 	select BR2_PACKAGE_THINGINO_SOUNDS if BR2_THINGINO_AUDIO
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD && !KERNEL_VERSION_7
+	select BR2_PACKAGE_THINGINO_MMC if BR2_THINGINO_SDCARD && KERNEL_VERSION_7
 	# virtual packages
 	select BR2_PACKAGE_THINGINO_SSL
 	select BR2_PACKAGE_THINGINO_VPN
@@ -154,6 +155,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-odhcp6c/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-provision/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-prusa-connect/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rhkd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-secureboop/Config.in"

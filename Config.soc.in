@@ -2,27 +2,23 @@ menu "Core Device Configuration"
 
 menu "SOC Configuration"
 
-choice
-	prompt "SoC vendor"
-	default BR2_SOC_VENDOR_INGENIC
-	help
-	  Silicon vendor of this camera's SoC. Selects which board support
-	  layer applies and which SoC model space is offered below.
-
+# The vendor is whichever vendor's SoC model is set below, so a defconfig
+# names its model and nothing else. Ingenic is the fallback: a build that
+# names no model, a toolchain one for instance, is an Ingenic build.
 config BR2_SOC_VENDOR_INGENIC
-	bool "Ingenic"
+	bool
+	default y if !BR2_SOC_VENDOR_SIGMASTAR && !BR2_SOC_VENDOR_NOVATEK
 
 config BR2_SOC_VENDOR_SIGMASTAR
-	bool "SigmaStar"
+	bool
+	default y if BR2_SIGMASTAR_SOC_MODEL != ""
 
 config BR2_SOC_VENDOR_NOVATEK
-	bool "Novatek"
-
-endchoice
+	bool
+	default y if BR2_NOVATEK_SOC_MODEL != ""
 
 config BR2_INGENIC_SOC_MODEL
-	string "SoC Model"
-	depends on BR2_SOC_VENDOR_INGENIC
+	string "Ingenic SoC model"
 	default ""
 	help
 	  Enter the Ingenic SoC model name for your device (e.g., t31x, t40n, t41nq).
@@ -40,20 +36,19 @@ config BR2_INGENIC_SOC_MODEL
 	  Leave empty to use legacy BR2_SOC_INGENIC_* variables (for backward compatibility).
 
 config BR2_SIGMASTAR_SOC_MODEL
-	string "SoC Model"
-	depends on BR2_SOC_VENDOR_SIGMASTAR
+	string "SigmaStar SoC model"
 	default ""
 	help
 	  Enter the SigmaStar SoC model name for your device (e.g., ssc30kq).
 	  This value is used to automatically derive the SoC family.
 
-	  Supported models: ssc30kq
+	  Supported models: ssc30kq, ssc377, ssc377d, ssc377de, ssc377qe,
+	  ssc378de, ssc378qe
 
 	  Note: Model name is case-insensitive.
 
 config BR2_NOVATEK_SOC_MODEL
-	string "SoC Model"
-	depends on BR2_SOC_VENDOR_NOVATEK
+	string "Novatek SoC model"
 	default ""
 	help
 	  Enter the Novatek SoC model name for your device (e.g., nt98529).
@@ -76,9 +71,11 @@ config BR2_SOC_FAMILY
 	default "t40" if BR2_INGENIC_SOC_MODEL = "t40n" || BR2_INGENIC_SOC_MODEL = "t40nn" || BR2_INGENIC_SOC_MODEL = "t40xp" || BR2_INGENIC_SOC_MODEL = "t40a"
 	default "t41" if BR2_INGENIC_SOC_MODEL = "t41lq" || BR2_INGENIC_SOC_MODEL = "t41nq" || BR2_INGENIC_SOC_MODEL = "t41zl" || BR2_INGENIC_SOC_MODEL = "t41zn" || BR2_INGENIC_SOC_MODEL = "t41zx" || BR2_INGENIC_SOC_MODEL = "t41a"
 	default "a1" if BR2_INGENIC_SOC_MODEL = "a1n" || BR2_INGENIC_SOC_MODEL = "a1nt" || BR2_INGENIC_SOC_MODEL = "a1x" || BR2_INGENIC_SOC_MODEL = "a1l" || BR2_INGENIC_SOC_MODEL = "a1a"
-	# Only one vendor's model symbol is ever non-empty, so the two halves of
-	# this chain cannot both match and their order does not matter.
+	# A camera sets one vendor's model (thingino.mk stops when two are set),
+	# so the two halves of this chain cannot both match and their order does
+	# not matter.
 	default "infinity6e" if BR2_SIGMASTAR_SOC_MODEL = "ssc30kq"
+	default "infinity6c" if BR2_SIGMASTAR_SOC_MODEL = "ssc377" || BR2_SIGMASTAR_SOC_MODEL = "ssc377d" || BR2_SIGMASTAR_SOC_MODEL = "ssc377de" || BR2_SIGMASTAR_SOC_MODEL = "ssc377qe" || BR2_SIGMASTAR_SOC_MODEL = "ssc378de" || BR2_SIGMASTAR_SOC_MODEL = "ssc378qe"
 	default "na51055" if BR2_NOVATEK_SOC_MODEL = "nt98528" || BR2_NOVATEK_SOC_MODEL = "nt98529"
 
 config BR2_SOC_RAM_MB
@@ -180,9 +177,9 @@ endchoice
 
 choice
 	prompt "ISP Clock Source"
-	default BR2_ISP_CLK_MPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLK_MPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLK_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP. (clk_name)
 
@@ -201,7 +198,7 @@ endchoice
 
 choice
 	prompt "ISP Clock Speed"
-	default BR2_ISP_CLK_225MHZ if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLK_225MHZ if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	default BR2_ISP_CLK_90MHZ
@@ -216,35 +213,35 @@ config BR2_ISP_CLK_125MHZ
 	bool "125 MHz"
 config BR2_ISP_CLK_150MHZ
 	bool "150 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100"
 config BR2_ISP_CLK_175MHZ
 	bool "175 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_200MHZ
 	bool "200 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_220MHZ
 	bool "220 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_225MHZ
 	bool "225 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_250MHZ
 	bool "250 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_300MHZ
 	bool "300 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_350MHZ
 	bool "350 MHz"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 endchoice
 
 choice
 	prompt "ISP Scaler Clock Source"
-	default BR2_ISP_CLKS_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKS_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKS_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP scaler. (clks_name)
 
@@ -264,7 +261,7 @@ endchoice
 choice
 	prompt "ISP Scaler Clock Speed"
 	default BR2_ISP_CLKS_400MHZ
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's scaler clock speed from the predefined options.
 
@@ -288,9 +285,9 @@ endchoice
 
 choice
 	prompt "ISP AXI Bus Clock Source"
-	default BR2_ISP_CLKA_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKA_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKA_INTERNAL
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the clock source for the ISP's AXI bus. (clka_name)
 
@@ -307,7 +304,7 @@ endchoice
 choice
 	prompt "ISP AXI Bus Clock Speed"
 	default BR2_ISP_CLKA_400MHZ
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's AXI bus clock speed from the predefined options.
 
@@ -331,9 +328,9 @@ endchoice
 
 choice
 	prompt "ISP Video (IVDC) Clock Source"
-	default BR2_ISP_CLKV_VPLL if BR2_SOC_FAMILY = "t32"
+	default BR2_ISP_CLKV_VPLL if BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default BR2_ISP_CLKV_INTERNAL
-	depends on BR2_SOC_FAMILY = "t32"
+	depends on BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	help
 	  Select the parent clock for the ISP video/IVDC path. (clkv_name)
 
@@ -353,7 +350,7 @@ endchoice
 choice
 	prompt "ISP Video (IVDC) Clock Speed"
 	default BR2_ISP_CLKV_400MHZ
-	depends on BR2_SOC_FAMILY = "t32"
+	depends on BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	help
 	  Choose the ISP's video/IVDC clock speed from the predefined options.
 
@@ -547,9 +544,12 @@ config BR2_ISP_MIPI_SWITCH_GPIO
 
 choice
 	prompt "ISP Direct Mode"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || \
+		   BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Configure non-direct mode, direct mode, and semi-direct mode.
+	  On T32/T33 the value is the number of sensors whose main
+	  channel goes straight to the encoder (IVDC); raptor follows it.
 	  (direct_mode)
 
 config BR2_ISP_DIRECT_MODE_0
@@ -570,7 +570,8 @@ config BR2_ISP_DIRECT_MODE_2
 endchoice
 
 menuconfig BR2_ISP_IVDC_MEM_LINE
-	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on ((BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1) || \
+		   BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	bool "ISP IVDC Mem Line"
 	help
 	  Enable the IVDC mem line configuration.
@@ -587,7 +588,8 @@ config BR2_ISP_IVDC_MEM_LINE_VALUE
 	  (ivdc_mem_line)
 
 menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
-	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on ((BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1) || \
+		   BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	bool "ISP Threshold Line"
 	help
 	  Enable the IVDC threshold line configuration.
@@ -916,6 +918,36 @@ config FLASH_SIZE_MB
 	default 8
 	depends on BR2_THINGINO_FLASH_NOR || BR2_THINGINO_FLASH_NAND
 
+config BR2_THINGINO_FLASH_CAP_8M
+	bool "Cap flash layout at 8 MB"
+	depends on BR2_THINGINO_FLASH_NOR
+	depends on FLASH_SIZE_MB > 8
+	help
+	  Build the partition table and image for an 8 MB flash even when
+	  the chip is larger. The remaining space stays unused and the data
+	  partition shrinks with it. Keeps the full image small enough to
+	  stage in RAM for an OTA update on devices with 64 MB.
+
+	  Takes precedence over the 16 MB cap.
+
+config BR2_THINGINO_FLASH_CAP_16M
+	bool "Cap flash layout at 16 MB"
+	depends on BR2_THINGINO_FLASH_NOR
+	depends on FLASH_SIZE_MB > 16
+	help
+	  Build the partition table and image for a 16 MB flash even when
+	  the chip is larger. The remaining space stays unused and the data
+	  partition shrinks with it. Keeps the full image small enough to
+	  stage in RAM for an OTA update on devices with 128 MB.
+
+	  Ignored when the 8 MB cap is also enabled.
+
+config FLASH_LAYOUT_MB
+	int
+	default 8 if BR2_THINGINO_FLASH_CAP_8M
+	default 16 if BR2_THINGINO_FLASH_CAP_16M
+	default FLASH_SIZE_MB
+
 config BR2_THINGINO_ALIGN_SIZE_KB
 	int "Flash Alignment Size, KB"
 	default 32
@@ -934,22 +966,23 @@ choice
 	prompt "Kernel version"
 	help
 	  Select the desired  kernel version
-	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
-	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
+	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32"
+	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t33"
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
-	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
-	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_7
-	bool "Kernel 7.1"
+	bool "Kernel 7.4 (mainline, experimental)"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 endchoice
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
     string
-    default "7.1-rc1" if KERNEL_VERSION_7
+    default "7.4" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

@@ -6,32 +6,25 @@
     [4000, "4x"],
   ];
 
+  var select = document.getElementById("webrtc-zoom");
   var current = null;
   var busy = false;
-  var bar = null;
-  var errorEl = null;
 
-  function render() {
-    if (!bar) return;
-    bar.querySelectorAll("button").forEach(function (b) {
-      var f = Number(b.getAttribute("data-factor"));
-      b.disabled = busy;
-      b.className =
-        "btn btn-sm " + (f === current ? "btn-primary" : "btn-outline-primary");
-    });
+  function setBusy(state) {
+    busy = state;
+    if (select) select.disabled = state;
   }
 
   function showError(msg) {
-    if (!errorEl) return;
-    errorEl.textContent = msg;
-    errorEl.style.display = msg ? "block" : "none";
+    if (!select) return;
+    select.classList.toggle("is-invalid", !!msg);
+    select.title = msg || "Select digital zoom";
   }
 
   function setZoom(f) {
     if (busy || f === current) return;
-    busy = true;
+    setBusy(true);
     showError("");
-    render();
     fetch("/x/zoom.cgi?f=" + f, { cache: "no-store" })
       .then(function (r) {
         return r.json();
@@ -41,9 +34,8 @@
           throw new Error((d && d.reason) || "zoom failed");
         }
         if (d.mode === "none") {
-          busy = false;
           current = d.factor;
-          render();
+          setBusy(false);
           return;
         }
         setTimeout(
@@ -54,52 +46,30 @@
         );
       })
       .catch(function (e) {
-        busy = false;
-        render();
+        setBusy(false);
+        if (select) select.value = String(current);
         showError(e.message || "zoom failed");
       });
   }
 
-  function addButton(lv) {
-    var b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn btn-outline-primary btn-sm";
-    b.setAttribute("data-factor", lv[0]);
-    b.textContent = lv[1];
-    b.addEventListener("click", function () {
-      setZoom(lv[0]);
-    });
-    bar.appendChild(b);
-  }
-
   function mount(d) {
-    if (!d || d.status !== "ok" || !d.supported) return;
-    var anchor =
-      document.getElementById("raptor-webrtc-video") ||
-      document.getElementById("preview") ||
-      document.getElementById("frame");
-    if (!anchor) return;
-    current = d.factor;
-    bar = document.createElement("div");
-    bar.id = "zoom-buttons";
-    bar.className = "btn-group my-2 d-flex justify-content-center";
-    bar.setAttribute("role", "group");
-    bar.setAttribute("aria-label", "Zoom");
-    levels.forEach(addButton);
-    errorEl = document.createElement("div");
-    errorEl.id = "zoom-error";
-    errorEl.className = "text-danger small text-center";
-    errorEl.style.display = "none";
-    // Sit above the fixed-aspect, overflow-hidden video wrapper, not inside it.
-    var wrap = anchor.closest ? anchor.closest(".raptor-video-wrap") : null;
-    var target = wrap || anchor;
-    target.insertAdjacentElement("beforebegin", bar);
-    bar.insertAdjacentElement("afterend", errorEl);
-    render();
+    if (!d || d.status !== "ok" || !d.supported || !select) return;
+    current = Number(d.factor) || 1000;
+    levels.forEach(function (lv) {
+      var opt = document.createElement("option");
+      opt.value = String(lv[0]);
+      opt.textContent = lv[1];
+      select.appendChild(opt);
+    });
+    select.value = String(current);
+    select.style.display = "";
+    select.addEventListener("change", function () {
+      setZoom(Number(select.value));
+    });
   }
 
   function init() {
-    if (document.getElementById("zoom-buttons")) return;
+    if (!select || select.options.length) return;
     fetch("/x/zoom.cgi?info=1", { cache: "no-store" })
       .then(function (r) {
         return r.json();

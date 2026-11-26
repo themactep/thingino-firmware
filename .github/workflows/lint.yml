@@ -21,14 +21,23 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -eu
-          if [ -n "$BASE_SHA" ]; then
-            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
+            # HEAD is the PR merge ref. Its first parent is the base-branch
+            # tip, so this diff is exactly what the PR changes. base.sha is
+            # the tip from when the PR was opened: diffing against it also
+            # lists every file the base branch changed since (pr-format.yml
+            # collects its file list the same way, for the same reason).
+            files="$(git diff --name-only --diff-filter=MCR HEAD^1 HEAD)"
+          else
+            if [ -n "$BASE_SHA" ]; then
+              git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+            fi
+            if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+              echo "No base SHA available; skipping do-not-edit check"
+              exit 0
+            fi
+            files="$(git diff --name-only --diff-filter=MCR "$BASE_SHA" HEAD)"
           fi
-          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            echo "No base SHA available; skipping do-not-edit check"
-            exit 0
-          fi
-          files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
           if [ -n "$files" ]; then
             printf '%s\n' "$files" | scripts/check-do-not-edit.sh
           fi

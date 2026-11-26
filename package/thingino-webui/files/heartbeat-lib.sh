@@ -499,3 +499,60 @@ thingino_heartbeat_payload() {
 		thingino_heartbeat_native_payload
 	fi
 }
+
+# Every open WebUI tab runs its own SSE heartbeat loop, and a payload costs
+# about 0.5 s of shell work on a loaded SoC. Share one payload for
+# HEARTBEAT_SHARED_TTL seconds, so N tabs cost the same as one. agentctl
+# moves AGENT_CHANGE_STAMP on every settings write, which retires the copy.
+THINGINO_HEARTBEAT_SHARED="${THINGINO_HEARTBEAT_SHARED:-/tmp/heartbeat.json}"
+
+thingino_heartbeat_shared_valid() {
+	[ -s "$_hbs_f" ] || return 1
+	_hbs_stamp=${AGENT_CHANGE_STAMP:-/run/agent/changed}
+	if [ -e "$_hbs_stamp" ] && ! [ "$_hbs_f" -nt "$_hbs_stamp" ]; then
+		return 1
+	fi
+	_hbs_age=$(($(date +%s) - $(stat -c %Y "$_hbs_f" 2>/dev/null || echo 0)))
+	[ "$_hbs_age" -ge 0 ] && [ "$_hbs_age" -lt "${HEARTBEAT_SHARED_TTL:-4}" ]
+}
+
+thingino_heartbeat_payload_shared() {
+	_hbs_f=$THINGINO_HEARTBEAT_SHARED
+	_hbs_lock="$_hbs_f.lock"
+	# cat fails if the file was replaced away after the check; build then.
+	if thingino_heartbeat_shared_valid && cat "$_hbs_f" 2>/dev/null; then
+		return 0
+	fi
+	if ! mkdir "$_hbs_lock" 2>/dev/null; then
+		_hbs_lage=$(($(date +%s) - $(stat -c %Y "$_hbs_lock" 2>/dev/null || date +%s)))
+		if [ "$_hbs_lage" -le 30 ]; then
+			# Another request is building it: wait up to 3 s and share it.
+			_hbs_end=$(($(date +%s) + 3))
+			while [ -d "$_hbs_lock" ] && [ "$(date +%s)" -lt "$_hbs_end" ]; do
+				sleep 0.2
+			done
+			if thingino_heartbeat_shared_valid && cat "$_hbs_f" 2>/dev/null; then
+				return 0
+			fi
+			thingino_heartbeat_payload
+			return 0
+		fi
+		# Left by a killed builder.
+		rmdir "$_hbs_lock" 2>/dev/null
+		mkdir "$_hbs_lock" 2>/dev/null || {
+			thingino_heartbeat_payload
+			return 0
+		}
+	fi
+	_hbs_tmp="$_hbs_f.$$"
+	# A subshell keeps the builders off this function's variables.
+	(thingino_heartbeat_payload) >"$_hbs_tmp" 2>/dev/null
+	if [ -s "$_hbs_tmp" ]; then
+		cat "$_hbs_tmp"
+		mv -f "$_hbs_tmp" "$_hbs_f"
+	else
+		rm -f "$_hbs_tmp"
+	fi
+	rmdir "$_hbs_lock" 2>/dev/null
+	return 0
+}

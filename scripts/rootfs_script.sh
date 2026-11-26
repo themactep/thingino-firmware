@@ -14,13 +14,22 @@ BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAM
 IMAGE_ID=${CAMERA}
 IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
-echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
+echo "$HOSTNAME" >${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 
 # NAND keeps the U-Boot env in the UBI "uboot-env" volume, so fw_printenv/setenv
 # must target that volume instead of a raw MTD offset (the NOR default).
 if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
-	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
+elif grep -q "^BR2_THINGINO_FLASH_NOR=y" "$BR2_CONFIG" &&
+	grep -q "^BR2_THINGINO_UBOOT_VERSION_2026_10=y" "$BR2_CONFIG" &&
+	! grep -q "^BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT=y" "$BR2_CONFIG"; then
+	printf '/dev/mtd1 0x0 0x10000\n' >"${TARGET_DIR}/etc/fw_env.config"
+fi
+
+# Mainline's NOR erases in 64 KiB blocks; a 32 KiB erase there fails.
+if grep -q "^KERNEL_VERSION_7=y" "$BR2_CONFIG"; then
+	sed -i 's/ 0x8000$/ 0x10000/' "${TARGET_DIR}/etc/fw_env.config"
 fi
 
 # Both locations above are Ingenic layouts. Elsewhere mtd1 holds something else
@@ -96,7 +105,7 @@ FILE=${TARGET_DIR}/usr/lib/os-release
 tmpfile=$(mktemp)
 
 # Prefix exiting buildroot entries
-sed 's/^/BUILDROOT_/' $FILE > $tmpfile
+sed 's/^/BUILDROOT_/' $FILE >$tmpfile
 
 # Add Thingino entries
 echo "NAME=Thingino
@@ -140,7 +149,7 @@ fi
 # Toolchain specific fixes
 rm -f ${TARGET_DIR}/usr/bin/ldd
 echo '#!/bin/sh
-LD_TRACE_LOADED_OBJECTS=1 exec "$@"' > ${TARGET_DIR}/usr/bin/ldd && chmod +x ${TARGET_DIR}/usr/bin/ldd
+LD_TRACE_LOADED_OBJECTS=1 exec "$@"' >${TARGET_DIR}/usr/bin/ldd && chmod +x ${TARGET_DIR}/usr/bin/ldd
 
 # Resolve the real on-disk lib directory: with merged-usr rootfs, /lib is a
 # symlink to /usr/lib. Operate on /usr/lib directly so we never accidentally

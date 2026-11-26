@@ -83,14 +83,37 @@ determine_mode() {
 
 credentials_from_card() {
 	# shellcheck disable=SC3043 # busybox ash supports local
-	local envfile ssid password
+	local envfile ssid password bom src
 
 	envfile="/mnt/mmcblk0p1/uenv.txt"
-	[ -f $envfile ] || return 0
+	[ -f "$envfile" ] || return 0
 
-	ssid="$(grep '^wlan_ssid=' $envfile | cut -d= -f2-)"
-	password="$(grep '^wlan_pass=' $envfile | cut -d= -f2-)"
-	wlan configure "$ssid" "$password"
+	# Windows editors love saving text as UTF-16; every second byte is 0
+	# so the keys never match and the card looks credential-less.
+	bom=$(dd if="$envfile" bs=2 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')
+	case "$bom" in
+		fffe | feff)
+			# Logged and skipped: the boot continues into portal mode so the
+			# user can provision over the air instead.
+			echo "Error: $envfile is UTF-16 encoded; save it as plain UTF-8." >&2
+			logger -t wlan "SD provisioning skipped: $envfile is UTF-16 encoded (BOM ff fe or fe ff); re-save the file as UTF-8 without BOM"
+			return 0
+			;;
+		efbb)
+			# strip a leading UTF-8 BOM so the first line still matches;
+			# parse from a stream, never rewrite the user's card
+			src="tail -c +4 $envfile"
+			;;
+		*)
+			src="cat $envfile"
+			;;
+	esac
+
+	# Values may carry a trailing carriage return from Windows line endings
+	ssid=$($src | grep '^wlan_ssid=' | cut -d= -f2- | tr -d '\r')
+	password=$($src | grep '^wlan_pass=' | cut -d= -f2- | tr -d '\r')
+	wlan configure "$ssid" "$password" ||
+		logger -t wlan "SD provisioning failed: wlan configure rejected the credentials from $envfile"
 }
 
 timeout() {

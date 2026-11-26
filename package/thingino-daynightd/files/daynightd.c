@@ -44,7 +44,14 @@
 #define DEFAULT_TRANSITION_DELAY_S 5
 #define DEFAULT_HYSTERESIS_FACTOR  0.15f
 
-/* EV log2 thresholds — for /proc/jz/isp/isp-m0 on T31/T23.
+/* EV log2 thresholds - for /proc/jz/isp/isp-m0 on T31/T23 (line "ISP EV value
+ * log2:") and T41 (line "EVLog2 :").  Both values are the same quantity with
+ * the same encoding: 65536*log2(integration_lines x total_gain_multiplier).
+ * Verified against live samples -
+ *   T31 gc2053: 65536*log2(104.43) = 439858 ~ "ISP EV value log2: 439854"
+ *   T41 gc4023: 65536*log2(1065.35 x 1024/1024) = 659070 = "EVLog2 : 659070"
+ * Common sensors run 22-30us line times, so equal exposures yield equal
+ * values on both platforms and the default thresholds transfer unchanged.
  * Day scenes: ~200K-500K, Night scenes: ~600K-2M+.
  * Default: switch to night > 550000, switch to day < 350000 */
 #define DEFAULT_EV_NIGHT_THRESHOLD  550000
@@ -53,10 +60,14 @@
 #define DEFAULT_NIGHT_COUNT         6
 #define DEFAULT_DAY_COUNT           4
 
-/* Thingino paths */
+/* Thingino paths (ifndef-guarded so host tests can redirect them) */
 #define THINGINO_DAYNIGHT_SCRIPT   "/sbin/daynight"
-#define ISP_M0_PATH                "/proc/jz/isp/isp-m0"   /* T31/T23/T21/T30 */
+#ifndef ISP_M0_PATH
+#define ISP_M0_PATH                "/proc/jz/isp/isp-m0"   /* T31/T23/T21/T30/T41 */
+#endif
+#ifndef ISP_INFO_PATH
 #define ISP_INFO_PATH              "/proc/jz/isp/isp_info" /* T20 */
+#endif
 
 /* Run dir */
 #define RUN_DIR                    "/run/thingino"
@@ -85,7 +96,7 @@ typedef enum {
     MODE_UNKNOWN = -1
 } daynight_mode_t;
 
-/* Raw sensor sample — platform-agnostic, fields parsed if available.
+/* Raw sensor sample - platform-agnostic, fields parsed if available.
  * T31/T23: /proc/jz/isp/isp-m0
  * T20:     /proc/jz/isp/isp_info */
 typedef struct {
@@ -127,7 +138,7 @@ typedef struct {
     char     pid_file[MAX_PATH_LEN];
     char     script_path[MAX_PATH_LEN];
 
-    /* Algorithm thresholds — EV log2 based (T31/T23/T20) */
+    /* Algorithm thresholds - EV log2 based (T31/T23/T20) */
     int      ev_night_threshold;
     int      ev_day_threshold;
     /* Brightness-% thresholds (system-facing, override raw if > 0) */
@@ -145,8 +156,9 @@ typedef struct {
     bool     schedule_enabled;
     char     schedule_start_at[8];
     char     schedule_stop_at[8];
+    char     schedule_outside[8];  /* outside the window: "keep", "day" or "night" */
 
-    /* Controls — which hardware to toggle on mode change */
+    /* Controls - which hardware to toggle on mode change */
     bool     controls_color;
     bool     controls_ircut;
     bool     controls_ir850;
@@ -161,7 +173,7 @@ typedef struct {
 
     /* Force mode */
     char     force_mode[16];    /* "day", "night", or "" for auto */
-    /* Initial mode — apply at boot before first sensor read */
+    /* Initial mode - apply at boot before first sensor read */
     char     initial_mode[16];  /* "day", "night", or "" for auto-detect */
 } daynight_config_t;
 
@@ -355,6 +367,7 @@ static void set_config_defaults(void) {
     g_config.schedule_enabled = false;
     g_config.schedule_start_at[0] = '\0';
     g_config.schedule_stop_at[0]  = '\0';
+    strcpy(g_config.schedule_outside, "keep");
 
     g_config.controls_color = true;
     g_config.controls_ircut = true;
@@ -369,6 +382,34 @@ static void set_config_defaults(void) {
 
     g_config.force_mode[0] = '\0';
     g_config.initial_mode[0] = '\0';
+}
+
+/* The schedule, for the first read and for every reload. */
+static void read_schedule_config(JsonValue *root) {
+    JsonValue *v;
+
+    v = get_nested_item(root, "daynight.schedule.enabled");
+    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    v = get_nested_item(root, "daynight.schedule.start_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_start_at, v->value.string,
+                sizeof(g_config.schedule_start_at) - 1);
+        g_config.schedule_start_at[sizeof(g_config.schedule_start_at) - 1] = '\0';
+    }
+    v = get_nested_item(root, "daynight.schedule.stop_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_stop_at, v->value.string,
+                sizeof(g_config.schedule_stop_at) - 1);
+        g_config.schedule_stop_at[sizeof(g_config.schedule_stop_at) - 1] = '\0';
+    }
+    /* What holds outside the window; anything but "day" or "night" keeps
+     * the mode the camera has, as before this setting existed. */
+    v = get_nested_item(root, "daynight.schedule.outside");
+    if (v && v->type == JSON_STRING && v->value.string &&
+        (strcmp(v->value.string, "day") == 0 || strcmp(v->value.string, "night") == 0))
+        strcpy(g_config.schedule_outside, v->value.string);
+    else
+        strcpy(g_config.schedule_outside, "keep");
 }
 
 static int read_config(const char *config_file) {
@@ -447,19 +488,7 @@ static int read_config(const char *config_file) {
     v = get_nested_item(root, "daynight.controls.white");
     if (v && v->type == JSON_BOOL) g_config.controls_white = v->value.boolean;
 
-    /* Schedule */
-    v = get_nested_item(root, "daynight.schedule.enabled");
-    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
-    v = get_nested_item(root, "daynight.schedule.start_at");
-    if (v && v->type == JSON_STRING && v->value.string) {
-        strncpy(g_config.schedule_start_at, v->value.string,
-                sizeof(g_config.schedule_start_at) - 1);
-    }
-    v = get_nested_item(root, "daynight.schedule.stop_at");
-    if (v && v->type == JSON_STRING && v->value.string) {
-        strncpy(g_config.schedule_stop_at, v->value.string,
-                sizeof(g_config.schedule_stop_at) - 1);
-    }
+    read_schedule_config(root);
 
     /* Force mode */
     v = get_nested_item(root, "daynight.force_mode");
@@ -468,7 +497,7 @@ static int read_config(const char *config_file) {
         g_config.force_mode[sizeof(g_config.force_mode) - 1] = '\0';
     }
 
-    /* Initial mode — apply at boot, before first sensor read */
+    /* Initial mode - apply at boot, before first sensor read */
     v = get_nested_item(root, "daynight.initial_mode");
     if (v && v->type == JSON_STRING && v->value.string) {
         strncpy(g_config.initial_mode, v->value.string, sizeof(g_config.initial_mode) - 1);
@@ -540,9 +569,9 @@ static int reload_config(void) {
         g_config.force_mode[0] = '\0';
     }
 
-    /* Schedule */
-    v = get_nested_item(root, "daynight.schedule.enabled");
-    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    /* The whole schedule, not only its switch: the web UI saves the times and
+     * sends SIGHUP, and they have to hold from then on. */
+    read_schedule_config(root);
 
     /* Master enable */
     v = get_nested_item(root, "daynight.enabled");
@@ -608,7 +637,7 @@ static int reload_config(void) {
 }
 
 /* =========================================================================
- * ISP data parsing — platform-specific
+ * ISP data parsing - platform-specific
  * ========================================================================= */
 
 static void init_sample(sensor_sample_t *s) {
@@ -636,45 +665,138 @@ static void init_sample(sensor_sample_t *s) {
     s->platform[0] = '\0';
 }
 
-/* Parse /proc/jz/isp/isp-m0 — T31, T23, T21, T30 */
+/* Parse /proc/jz/isp/isp-m0 - T31, T23, T21, T30 (legacy field set) and
+ * T41 (EVLog2 / Ae* field set) */
 static int parse_isp_m0(sensor_sample_t *s) {
     FILE *fp = fopen(ISP_M0_PATH, "r");
     if (!fp) return -1;
 
+    /* T41 ISP dumps use a different field set (AeIntegrationTime in lines,
+     * AeAGain/AeIspDGain in 1024 = 1.0x units, AeMax* carries the maximum, EVLog2 fixed-point).
+     * The T41 EVLog2 scale is identical to T31 "ISP EV value log2" (see
+     * comment above the EV threshold defines), so no conversion is applied. */
+    bool is_t41 = false;
+    int unparsed = 0;
     char line[MAX_LINE_LEN];
     strncpy(s->platform, "t31", sizeof(s->platform) - 1);
 
     while (fgets(line, sizeof(line), fp)) {
-        if (strstr(line, "ISP Runing Mode :"))
-            sscanf(line, "ISP Runing Mode : %31s", s->isp_mode);
-        else if (strstr(line, "SENSOR Integration Time :"))
-            sscanf(line, "SENSOR Integration Time : %d lines", &s->integration_time);
-        else if (strstr(line, "SENSOR Max Integration Time :"))
-            sscanf(line, "SENSOR Max Integration Time : %d lines", &s->max_integration_time);
-        else if (strstr(line, "MAX SENSOR analog gain :"))
-            sscanf(line, "MAX SENSOR analog gain : %d", &s->max_analog_gain);
-        else if (strstr(line, "SENSOR analog gain :"))
-            sscanf(line, "SENSOR analog gain : %d", &s->analog_gain);
-        else if (strstr(line, "SENSOR digital gain :"))
-            sscanf(line, "SENSOR digital gain : %d", &s->digital_gain);
-        else if (strstr(line, "MAX ISP digital gain :"))
-            sscanf(line, "MAX ISP digital gain : %d", &s->max_isp_digital_gain);
-        else if (strstr(line, "ISP digital gain :"))
-            sscanf(line, "ISP digital gain : %d", &s->isp_digital_gain);
-        else if (strstr(line, "ISP EV value log2:"))
-            sscanf(line, "ISP EV value log2: %d", &s->ev_log2);
-        else if (strstr(line, "ISP EV value us:"))
-            sscanf(line, "ISP EV value us: %d", &s->ev_us);
-        else if (strstr(line, "ISP EV value:"))
-            sscanf(line, "ISP EV value: %d", &s->ev);
-        else if (strstr(line, "ISP WB weighted rgain:"))
-            sscanf(line, "ISP WB weighted rgain: %d", &s->wb_rgain);
-        else if (strstr(line, "ISP WB weighted bgain:"))
-            sscanf(line, "ISP WB weighted bgain: %d", &s->wb_bgain);
-        else if (strstr(line, "ISP WB color temperature:"))
-            sscanf(line, "ISP WB color temperature: %d", &s->wb_color_temp);
+        if (strstr(line, "ISP Runing Mode :")) {
+            if (sscanf(line, "ISP Runing Mode : %31s", s->isp_mode) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "SENSOR Integration Time :")) {
+            if (sscanf(line, "SENSOR Integration Time : %d lines", &s->integration_time) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "SENSOR Max Integration Time :")) {
+            if (sscanf(line, "SENSOR Max Integration Time : %d lines", &s->max_integration_time) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "MAX SENSOR analog gain :")) {
+            if (sscanf(line, "MAX SENSOR analog gain : %d", &s->max_analog_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "SENSOR analog gain :")) {
+            if (sscanf(line, "SENSOR analog gain : %d", &s->analog_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "SENSOR digital gain :")) {
+            if (sscanf(line, "SENSOR digital gain : %d", &s->digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "MAX ISP digital gain :")) {
+            if (sscanf(line, "MAX ISP digital gain : %d", &s->max_isp_digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP digital gain :")) {
+            if (sscanf(line, "ISP digital gain : %d", &s->isp_digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP EV value log2:")) {
+            if (sscanf(line, "ISP EV value log2: %d", &s->ev_log2) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP EV value us:")) {
+            if (sscanf(line, "ISP EV value us: %d", &s->ev_us) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP EV value:")) {
+            if (sscanf(line, "ISP EV value: %d", &s->ev) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP WB weighted rgain:")) {
+            if (sscanf(line, "ISP WB weighted rgain: %d", &s->wb_rgain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP WB weighted bgain:")) {
+            if (sscanf(line, "ISP WB weighted bgain: %d", &s->wb_bgain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "ISP WB color temperature:")) {
+            if (sscanf(line, "ISP WB color temperature: %d", &s->wb_color_temp) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "EVLog2 :")) {
+            if (sscanf(line, "EVLog2 : %d", &s->ev_log2) == 1)
+                is_t41 = true;
+            else
+                unparsed++;
+        }
+        else if (strstr(line, "AeIntegrationTime :")) {
+            if (sscanf(line, "AeIntegrationTime : %d", &s->integration_time) == 1)
+                is_t41 = true;
+            else
+                unparsed++;
+        }
+        else if (strstr(line, "AeMaxIntegrationTime :")) {
+            if (sscanf(line, "AeMaxIntegrationTime : %d", &s->max_integration_time) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AeAGain :")) {
+            if (sscanf(line, "AeAGain : %d", &s->analog_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AeMaxAGain :")) {
+            if (sscanf(line, "AeMaxAGain : %d", &s->max_analog_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AeDGain :")) {
+            if (sscanf(line, "AeDGain : %d", &s->digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AeIspDGain :")) {
+            if (sscanf(line, "AeIspDGain : %d", &s->isp_digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AeMaxIspDGain :")) {
+            if (sscanf(line, "AeMaxIspDGain : %d", &s->max_isp_digital_gain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AWBWeighted R/G:")) {
+            /* Colour ratios, not the AWBWeightedRgain/Bgain multipliers;
+             * recorded for the sensors, not used by the mode decision. */
+            if (sscanf(line, "AWBWeighted R/G: %d", &s->wb_rgain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AWBWeighted B/G:")) {
+            if (sscanf(line, "AWBWeighted B/G: %d", &s->wb_bgain) != 1)
+                unparsed++;
+        }
+        else if (strstr(line, "AWBColorTemperature:")) {
+            if (sscanf(line, "AWBColorTemperature: %d", &s->wb_color_temp) == 1)
+                is_t41 = true;
+            else
+                unparsed++;
+        }
     }
     fclose(fp);
+
+    if (is_t41)
+        strncpy(s->platform, "t41", sizeof(s->platform) - 1);
+    if (unparsed)
+        log_message(LOG_WARNING,
+                    "isp-m0: %d matched line(s) failed to parse a value", unparsed);
 
     /* T31 does not expose ISP total gain; approximate from available gains.
      * Use EV log2 as the primary decision signal. */
@@ -686,7 +808,7 @@ static int parse_isp_m0(sensor_sample_t *s) {
     return 0;
 }
 
-/* Parse /proc/jz/isp/isp_info — T20 */
+/* Parse /proc/jz/isp/isp_info - T20 */
 static int parse_isp_info(sensor_sample_t *s) {
     FILE *fp = fopen(ISP_INFO_PATH, "r");
     if (!fp) return -1;
@@ -739,7 +861,7 @@ static int parse_isp(sensor_sample_t *s) {
     init_sample(s);
 
     if (parse_isp_m0(s) == 0) {
-        log_message(LOG_DEBUG, "Parsed isp-m0 (T31)");
+        log_message(LOG_DEBUG, "Parsed isp-m0 (%s)", s->platform);
         return 0;
     }
 
@@ -758,7 +880,7 @@ static int parse_isp(sensor_sample_t *s) {
 
 static int compute_brightness_pct(const sensor_sample_t *s) {
     /* Use ev_log2 for both T20 (exposure_log2_id) and T31 (ISP EV value log2).
-     * Both are log2 of total exposure (integration × gain) and map the same way. */
+     * Both are log2 of total exposure (integration x gain) and map the same way. */
     if (s->ev_log2 > 0) {
         double lo = 200000.0;   /* bright: 100% */
         double hi = 2000000.0;  /* dark: 0% */
@@ -1103,7 +1225,7 @@ static int main_loop(void) {
     /* Apply initial mode (if configured) before first sensor read.
        This immediately sets up IRCUT/IR LEDs so the camera isn't in
        an undefined state during the first sensor sampling cycles.
-       Normal hysteresis then takes over — the initial mode will
+       Normal hysteresis then takes over - the initial mode will
        "linger" if sensor readings stay in the hysteresis zone. */
     if (g_config.initial_mode[0] != '\0') {
         daynight_mode_t init_mode = MODE_UNKNOWN;
@@ -1210,6 +1332,29 @@ static int main_loop(void) {
 
         bool within_schedule = is_within_schedule();
 
+        /* --- Outside the schedule's window: hold a mode, if one is set ---
+         * Without it the mode the camera has is kept, whatever the light
+         * does, until the window opens again. */
+        if (!within_schedule && g_config.enabled && g_config.force_mode[0] == '\0') {
+            daynight_mode_t held = MODE_UNKNOWN;
+            if (strcmp(g_config.schedule_outside, "day") == 0)
+                held = MODE_DAY;
+            else if (strcmp(g_config.schedule_outside, "night") == 0)
+                held = MODE_NIGHT;
+
+            if (held != MODE_UNKNOWN) {
+                if (held != g_state.current_mode) {
+                    log_message(LOG_INFO, "Outside schedule: holding %s",
+                                (held == MODE_DAY) ? "DAY" : "NIGHT");
+                    apply_mode(held);
+                    g_state.current_mode = held;
+                    gettimeofday(&g_state.last_transition, NULL);
+                }
+                /* The held mode stands in for the start-up detection. */
+                g_state.initial_mode_set = true;
+            }
+        }
+
         /* --- Initial mode detection --- */
         if (!g_state.initial_mode_set) {
             daynight_mode_t initial = MODE_UNKNOWN;
@@ -1300,7 +1445,7 @@ static int main_loop(void) {
                 g_state.anti_flap_cooldown = anti_flap_iterations / 2;
             }
         } else if (was_forced && !now_forced) {
-            /* Force mode cleared — re-enter photosensing */
+            /* Force mode cleared - re-enter photosensing */
             log_message(LOG_INFO, "Force mode cleared, resuming photosensing");
             g_state.initial_mode_set = false;
             g_state.night_count = 0;

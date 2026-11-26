@@ -382,10 +382,13 @@ async function refreshThemeFromServer() {
   }
 }
 
+// A browser keeps its own theme until its user changes it. The camera's
+// default is asked for once, by a browser that has none stored.
 (function initThemeBridge() {
   const cachedTheme = safeStorageGet(ThemeState.activeKey);
   if (cachedTheme) {
     applyThemeAttribute(cachedTheme);
+    return;
   }
   refreshThemeFromServer();
 })();
@@ -537,6 +540,15 @@ function updateRecordingState(state) {
   updateRecordingIcons();
 }
 
+function reportRecordingFailure(action, channel) {
+  const message = `Failed to ${action} recording on channel ${channel}`;
+  if (typeof showAlert === "function") {
+    showAlert("danger", message);
+  } else {
+    alert(message);
+  }
+}
+
 function toggleRecording(channel) {
   const button = $(`#recorder-ch${channel}`);
   const isRecording = recordingState[`ch${channel}`];
@@ -564,18 +576,12 @@ function toggleRecording(channel) {
         return;
       }
       if (button) button.classList.remove("pending");
-      showAlert(
-        "danger",
-        `Failed to ${action} recording on channel ${channel}`,
-      );
+      reportRecordingFailure(action, channel);
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      showAlert(
-        "danger",
-        `Failed to ${action} recording on channel ${channel}`,
-      );
+      reportRecordingFailure(action, channel);
     });
 }
 
@@ -737,7 +743,8 @@ function toggleTheme() {
   const currentTheme = htmlEl.getAttribute("data-bs-theme");
   const newTheme = currentTheme === "dark" ? "light" : "dark";
 
-  htmlEl.setAttribute("data-bs-theme", newTheme);
+  // This browser's choice: stored here, written nowhere else.
+  rememberThemeState(newTheme);
 
   const themeBtn = $("#theme-toggle");
   if (themeBtn) {

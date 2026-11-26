@@ -1,7 +1,7 @@
 INGENIC_LIB_SITE_METHOD = git
 INGENIC_LIB_SITE = https://github.com/gtxaspec/ingenic-lib
 INGENIC_LIB_SITE_BRANCH = master
-INGENIC_LIB_VERSION = ea62f3da40cdca2bbf7bdb89b663f89952f850c0
+INGENIC_LIB_VERSION = b35564164fcf44b058a2f6fa2575a8bcf6f4639c
 INGENIC_LIB_INSTALL_STAGING = YES
 
 INGENIC_LIB_LICENSE = GPL-2.0
@@ -50,6 +50,14 @@ else ifeq ($(SOC_FAMILY),t31)
 	endif
 else ifeq ($(SOC_FAMILY),t32)
 	SDK_VERSION := 2.2.0
+else ifeq ($(SOC_FAMILY),t33)
+	# The ISP firmware the 7.x modules carry (isp_20260706a) does not create
+	# the device nodes 2.0.0 opens.
+	ifeq ($(KERNEL_VERSION_7),y)
+		SDK_VERSION := 2.0.2.1
+	else
+		SDK_VERSION := 2.0.0
+	endif
 else ifeq ($(SOC_FAMILY),t40)
 	SDK_VERSION := 1.3.1
 else ifeq ($(SOC_FAMILY),t41)
@@ -57,6 +65,10 @@ else ifeq ($(SOC_FAMILY),t41)
 endif
 
 SDK_LIB_DIR = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)
+# T33 libs sit directly under <libc>/, with no gcc version directory
+ifeq ($(SOC_FAMILY),t33)
+SDK_LIB_DIR = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)
+endif
 
 ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
 	LIBALOG_FILE = $(SDK_LIB_DIR)/libalog.so

@@ -5,12 +5,13 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # SOC
 #
 
-# The else branch is a fallback, not just the Kconfig default: this file is
-# parsed before .config exists on some paths, and every existing defconfig sets
-# no vendor symbol at all.
-ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
+# The vendor is whichever vendor's model symbol the defconfig set; nothing
+# declares it separately. The else branch is a fallback, not just the Kconfig
+# default: this file is parsed before .config exists on some paths, and on
+# others no model is named at all.
+ifneq ($(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)),)
 SOC_VENDOR := sigmastar
-else ifeq ($(BR2_SOC_VENDOR_NOVATEK),y)
+else ifneq ($(call qstrip,$(BR2_NOVATEK_SOC_MODEL)),)
 SOC_VENDOR := novatek
 else
 SOC_VENDOR := ingenic
@@ -26,17 +27,21 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
-# The SoC model, from whichever vendor's symbol carries it. Kconfig keeps them
-# mutually exclusive -- each depends on its vendor and the vendor is a choice --
-# so at most one is ever set and the order below is not a precedence. Testing
-# after qstrip rather than before is what makes an empty BR2_..._SOC_MODEL=""
-# fall through, since "" is two characters to make and not an empty string.
+# The SoC model, from whichever vendor's symbol carries it. Nothing in Kconfig
+# keeps a defconfig from setting two, so that stops here rather than letting one
+# win. Testing after qstrip rather than before is what makes an empty
+# BR2_..._SOC_MODEL="" fall through, since "" is two characters to make and
+# not an empty string.
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifeq ($(SOC_MODEL_INPUT),)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
+else ifneq ($(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)),)
+$(error BR2_INGENIC_SOC_MODEL and BR2_SIGMASTAR_SOC_MODEL are both set in $(CAMERA)'s defconfig: a camera has one SoC)
 endif
 ifeq ($(SOC_MODEL_INPUT),)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_NOVATEK_SOC_MODEL))
+else ifneq ($(call qstrip,$(BR2_NOVATEK_SOC_MODEL)),)
+$(error BR2_NOVATEK_SOC_MODEL and another vendor's SoC model are both set in $(CAMERA)'s defconfig: a camera has one SoC)
 endif
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
@@ -92,6 +97,8 @@ CAMERA_DTS_DEST = goat
 else
 CAMERA_DTS_NO_TREE = the t32 3.10.14 kernel is board-file based and has no dts tree
 endif
+else ifeq ($(SOC_FAMILY),t33)
+CAMERA_DTS_DEST = goat_prj008
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif
@@ -130,7 +137,7 @@ export SOC_TARGET_ARCH
 # makefile, so guarding only ever protected an environment variable, which
 # nothing sets.
 ifeq ($(KERNEL_VERSION_7),y)
-KERNEL_VERSION := 7.1-rc1
+KERNEL_VERSION := 7.4
 else ifeq ($(KERNEL_VERSION_4),y)
 KERNEL_VERSION := 4.4.94
 endif
@@ -158,7 +165,7 @@ endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 endif
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),7.4)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -461,6 +468,26 @@ ifeq ($(FLASH_SIZE_MB),)
 endif
 export FLASH_SIZE_MB
 
+# Effective layout size. FLASH_SIZE_MB stays the physical chip size; a cap
+# makes the partition table and the image end at 8 or 16 MB so the OTA payload
+# fits in RAM on 64 or 128 MB devices. The flags may come from the camera
+# defconfig, a config fragment, or a user fragment, so resolve them like the
+# U-Boot version, last assignment wins. When both caps are on, the 8 MB cap
+# wins, matching the FLASH_LAYOUT_MB default.
+FLASH_CAP_MB := $(shell awk '\
+	/^BR2_THINGINO_FLASH_CAP_8M=y$$/ { cap8=1 } \
+	/^# BR2_THINGINO_FLASH_CAP_8M is not set$$/ { cap8=0 } \
+	/^BR2_THINGINO_FLASH_CAP_16M=y$$/ { cap16=1 } \
+	/^# BR2_THINGINO_FLASH_CAP_16M is not set$$/ { cap16=0 } \
+	END { if (cap8) print 8; else if (cap16) print 16 }' \
+	$(or $(EARLY_TOOLCHAIN_INPUT_FILES),/dev/null) 2>/dev/null)
+ifeq ($(FLASH_CAP_MB),)
+	FLASH_LAYOUT_MB := $(FLASH_SIZE_MB)
+else
+	FLASH_LAYOUT_MB := $(shell echo $$(( $(FLASH_SIZE_MB) > $(FLASH_CAP_MB) ? $(FLASH_CAP_MB) : $(FLASH_SIZE_MB) )))
+endif
+export FLASH_LAYOUT_MB
+
 #
 # U-BOOT
 #
@@ -521,6 +548,11 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
+# Mainline names the NOR after its SPI device; jz_sfc and sfc0_nor would match no mtd and
+# leave the kernel on the device tree's partitions.
+ifneq ($(filter yjz_sfc ysfc0_nor,$(KERNEL_VERSION_7)$(UBOOT_FLASH_CONTROLLER)),)
+	UBOOT_FLASH_CONTROLLER := spi0.0
+endif
 export UBOOT_FLASH_CONTROLLER
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
@@ -542,7 +574,7 @@ UBOOT_BOARDNAME_MISSING := $(if $(filter y,$(UBOOT_BOARDNAME_CHECKABLE)),$(if $(
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# BR2_TARGET_UBOOT_BOARDNAME only selects <name>_config on U-Boot's legacy
-	# build system. The Kconfig build system 2026.07 uses takes
+	# build system. The Kconfig build system 2026.10 uses takes
 	# <name>_defconfig from BR2_TARGET_UBOOT_BOARD_DEFCONFIG instead, so a
 	# camera that names a board has to reach that symbol -- otherwise its board
 	# choice is dropped for the plain SoC defconfig with nothing to show for it
@@ -550,7 +582,7 @@ ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# UBOOT_BOARDNAME is already resolved above (camera name, else SOC_UBOOT).
 	UBOOT_DEFCONFIG := $(UBOOT_BOARDNAME)
 ifeq ($(UBOOT_BOARDNAME_MISSING),y)
-	# Some camera defconfigs still name 2013.07-era boards that the 2026.07
+	# Some camera defconfigs still name 2013.07-era boards that the 2026.10
 	# tree never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
 	# the SoC default the same as before -- but say so, rather than either
 	# failing the U-Boot configure or going quiet about it again.

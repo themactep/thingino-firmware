@@ -101,6 +101,10 @@ THINGINO_UBOOT_FLASH_CONTROLLER := $(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER
 else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
+# Same mtd-id as thingino.mk's UBOOT_FLASH_CONTROLLER for mainline kernels.
+ifneq ($(filter yjz_sfc ysfc0_nor,$(KERNEL_VERSION_7)$(THINGINO_UBOOT_FLASH_CONTROLLER)),)
+THINGINO_UBOOT_FLASH_CONTROLLER := spi0.0
+endif
 
 # GNU patch cannot apply binary diffs, so every binary blob shipped inside
 # a version patch comes out empty after patching: the prebuilt SPL images
@@ -115,8 +119,8 @@ endif
 # https://github.com/themactep/thingino-firmware/issues/1299
 ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 THINGINO_UBOOT_BINARIES_VERSION := 2013.07
-else ifeq ($(BR2_THINGINO_UBOOT_VERSION_2026_07),y)
-THINGINO_UBOOT_BINARIES_VERSION := 2026.07
+else ifeq ($(BR2_THINGINO_UBOOT_VERSION_2026_10),y)
+THINGINO_UBOOT_BINARIES_VERSION := 2026.10
 else ifeq ($(BR2_THINGINO_UBOOT_VERSION_CUSTOM_FORK),y)
 THINGINO_UBOOT_BINARIES_VERSION := custom-fork
 endif
@@ -175,7 +179,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env THINGINO_UBOOT_NETCONSOLE='$(THINGINO_UBOOT_NETCONSOLE)' THINGINO_UBOOT_NETCONSOLE_USB='$(THINGINO_UBOOT_NETCONSOLE_USB)' IP='$(strip $(IP))' sh -c 'if [ "$$THINGINO_UBOOT_NETCONSOLE" = "y" ]; then if [ "$$THINGINO_UBOOT_NETCONSOLE_USB" = "y" ]; then NC_PREBOOT="usb start;setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; else NC_PREBOOT="setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc"; fi; if echo "$$IP" | grep -Eq "^[0-9]{1,3}(\.[0-9]{1,3}){3}$$"; then NC_IPADDR="$$IP"; else NC_IPADDR=192.168.1.10; fi; grep -q "^preboot=" $(THINGINO_UENV_TXT) || echo "preboot=$$NC_PREBOOT" >> $(THINGINO_UENV_TXT); grep -q "^bootdelay=" $(THINGINO_UENV_TXT) || echo "bootdelay=5" >> $(THINGINO_UENV_TXT); grep -q "^ipaddr=" $(THINGINO_UENV_TXT) || echo "ipaddr=$$NC_IPADDR" >> $(THINGINO_UENV_TXT); fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
 	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && [ $(ISP_NMEM_MB) -ne 0 ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
-	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
+	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\}$(if $(filter y,$(KERNEL_VERSION_7)), rmem.ispmem=$$\{ispmem\} tx_isp_$(SOC_FAMILY).ispmem=$$\{ispmem\}) |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
@@ -187,7 +191,7 @@ define THINGINO_PATCH_DEV_ENV
 		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
 		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $(KERNEL_PARTITION_SIZE) )); \
 		ROOTFS_OFFSET_KB=$$(( $$ROOTFS_OFFSET / 1024 )); \
-		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
+		FLASH_SIZE_KB=$$(( $(or $(FLASH_LAYOUT_MB),$(FLASH_SIZE_MB)) * 1024 )); \
 		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
 		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
 		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
@@ -304,6 +308,20 @@ define THINGINO_UBOOT_INJECT_AUDIO_DT
 		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_AUDIO_DT
+endif
+endif
+
+# The camera's own U-Boot device-tree overrides, configs/cameras/<camera>/u-boot.dtsi.
+# U-Boot appends CONFIG_DEVICE_TREE_INCLUDES after the .dts, so the file's &label
+# overrides win over the SoC tree and the injections above.
+THINGINO_UBOOT_CAMERA_DTSI = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/u-boot.dtsi
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+ifneq ($(wildcard $(THINGINO_UBOOT_CAMERA_DTSI)),)
+define THINGINO_UBOOT_CAMERA_DT
+	$(call KCONFIG_SET_OPT,CONFIG_DEVICE_TREE_INCLUDES,"$(THINGINO_UBOOT_CAMERA_DTSI)",$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_CAMERA_DT
 endif
 endif
 

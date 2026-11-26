@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = main
-INGENIC_SDK_VERSION = d93ddb926b838a05a60240cf6276466ee78daea4
+INGENIC_SDK_VERSION = cd3dc25d196f3627a80516c27c670e6f144cf5ea
 
 INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -29,16 +29,23 @@ INGENIC_SDK_COMPONENTS = \
 	CONFIG_INGENIC_AVPU=$(if $(BR2_INGENIC_SDK_AVPU),y,n) \
 	CONFIG_INGENIC_SOC_NNA=$(if $(BR2_INGENIC_SDK_SOC_NNA),y,n) \
 	CONFIG_INGENIC_MPSYS=$(if $(BR2_INGENIC_SDK_MPSYS),y,n) \
-	CONFIG_INGENIC_JZ_DTRNG=$(if $(BR2_INGENIC_SDK_MPSYS),y,n) \
+	CONFIG_INGENIC_JZ_DTRNG=$(if $(filter-out t33,$(SOC_FAMILY)),$(if $(BR2_INGENIC_SDK_MPSYS),y,n),n) \
 	CONFIG_INGENIC_GPIO_USERKEYS=$(if $(BR2_INGENIC_SDK_GPIO_USERKEYS),y,n) \
 	CONFIG_INGENIC_JZ_AES=$(if $(BR2_INGENIC_SDK_JZ_AES),y,n) \
 	CONFIG_INGENIC_TCU_ALLOC=$(if $(BR2_INGENIC_SDK_TCU_ALLOC),y,n) \
 	CONFIG_INGENIC_PWM=$(if $(BR2_INGENIC_SDK_PWM),y,n) \
 	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
 
+# The SDK keeps one tree, 7.x, for every mainline 7 release.
+ifeq ($(KERNEL_VERSION_7),y)
+INGENIC_SDK_KERNEL_VERSION = 7.x
+else
+INGENIC_SDK_KERNEL_VERSION = $(KERNEL_VERSION)
+endif
+
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
-	KERNEL_VERSION=$(KERNEL_VERSION) \
+	KERNEL_VERSION=$(INGENIC_SDK_KERNEL_VERSION) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
 	SENSOR_1_MODEL=$(SENSOR_1_MODEL) \
@@ -49,7 +56,7 @@ INGENIC_SDK_MODULE_MAKE_OPTS = \
 
 ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_3_10
-else
+else ifneq ($(KERNEL_VERSION_7),y)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_4_4_94
 endif
 
@@ -165,16 +172,17 @@ define INSTALL_SENSOR_BIN
 		if [ -n "$(4)" ] && [ -f "$(4)" ]; then \
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
-		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+		elif [ "$(SOC_FAMILY)" = "t32" ] || [ "$(SOC_FAMILY)" = "t33" ]; then \
+			prj=PRJ007; [ "$(SOC_FAMILY)" = "t33" ] && prj=PRJ008; \
 			found=0; \
-			for b in $(@D)/sensor-iq/t32/$(2)-PRJ007-*.bin; do \
+			for b in $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-$$prj-*.bin; do \
 				[ -f "$$b" ] || continue; \
 				$(INSTALL) -D -m 0644 "$$b" \
 					$(TARGET_DIR)/usr/share/sensor/$$(basename "$$b"); \
 				found=1; \
 			done; \
 			if [ $$found -eq 0 ]; then \
-				echo "ERROR: no IQ bin for $(2) in sensor-iq/t32/ (want $(2)-PRJ007-day.bin)"; \
+				echo "ERROR: no IQ bin for $(2) in sensor-iq/$(SOC_FAMILY)/ (want $(2)-$$prj-day.bin)"; \
 				exit 1; \
 			fi; \
 		else \
@@ -198,6 +206,8 @@ endef
 
 define GENERATE_MODULE_LOADER
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+
+	$(GENERATE_MODULE_LOADER_7X)
 
 	if [ "$(BR2_THINGINO_AIP)" = "y" ]; then \
 		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/08-aip; \
@@ -230,8 +240,8 @@ define GENERATE_MODULE_LOADER
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
-		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_CLKV_CLK_SRC) $(ISP_CLKV_CLK) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+		elif [ "$(SOC_FAMILY)" = "t32" ] || [ "$(SOC_FAMILY)" = "t33" ]; then \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_CLKV_CLK_SRC) $(ISP_CLKV_CLK) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		else \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		fi \
@@ -246,7 +256,7 @@ define GENERATE_MODULE_LOADER
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
-	if [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+	if [ "$(SOC_FAMILY)" = "t33" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
 	fi
 
@@ -270,6 +280,24 @@ define GENERATE_MODULE_LOADER
 		echo "sensor_$(SENSOR_2_MODEL)_$(SOC_FAMILY) $(SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor_2; \
 	fi
 endef
+
+# Mainline only: libimp's /dev/rmem and /dev/log_* come from modules that the
+# vendor kernels build in, and the OSD block (plus, off the T31, the encoder)
+# has a module of its own.
+ifeq ($(KERNEL_VERSION_7),y)
+define GENERATE_MODULE_LOADER_7X
+	printf 'rmem\nandroid_logger\n' > $(TARGET_DIR)/etc/modules.d/01-rmem
+
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ]; then \
+			echo "ipu" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		else \
+			echo "soc-vpu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/10-vpu; \
+			echo "ipu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		fi; \
+	fi
+endef
+endif
 
 # The speaker-amp enable line comes from gpio.speaker in the board's
 # thingino.json, in the same short notation as the rest of the gpio section:

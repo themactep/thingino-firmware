@@ -14,7 +14,7 @@ On every `git commit`, the hook processes **staged** files only:
 
 | Staged files | Action | Tool |
 |---|---|---|
-| any changed file matching `scripts/do-not-edit.txt` | reject | `scripts/check-do-not-edit.sh` |
+| any modified file matching `scripts/do-not-edit.txt` (additions are allowed) | reject | `scripts/check-do-not-edit.sh` |
 | `package/thingino-webui/files/www/a/*.js` | reformat | Prettier (via `npx`) |
 | `configs/cameras*/…defconfig…` | sort entries | `scripts/sort_defconfig.py` |
 | any file starting with `#!/bin/sh` | reformat | `shfmt -w -i 0 -ci` |

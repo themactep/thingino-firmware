@@ -11,6 +11,8 @@ tf=$(sed -n 's/^[[:space:]]*http\.token_file[[:space:]]*=[[:space:]]*"\{0,1\}\([
 [ -n "$tf" ] && TOKEN_FILE="$tf"
 port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
 [ -z "$port" ] && port=8880
+pchn=$(sed -n 's/^[[:space:]]*http\.preview_chn[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
+[ "$pchn" = 1 ] || pchn=0
 https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1 | tr '[:upper:]' '[:lower:]')
 case "$https" in
 	1 | true | yes | on)
@@ -36,7 +38,7 @@ token=""
 [ -r "$TOKEN_FILE" ] && token=$(head -n1 "$TOKEN_FILE" 2>/dev/null | tr -cd '0-9A-Za-z')
 
 if [ -n "$token" ]; then
-	printf '{"token":"%s","port":%s,"tls":%s,"scheme":"%s"}\n' "$token" "$port" "$tls" "$scheme"
+	printf '{"token":"%s","port":%s,"tls":%s,"scheme":"%s","preview_chn":%s}\n' "$token" "$port" "$tls" "$scheme" "$pchn"
 else
-	printf '{"error":"no token available","port":%s,"tls":%s,"scheme":"%s"}\n' "$port" "$tls" "$scheme"
+	printf '{"error":"no token available","port":%s,"tls":%s,"scheme":"%s","preview_chn":%s}\n' "$port" "$tls" "$scheme" "$pchn"
 fi

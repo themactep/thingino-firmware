@@ -338,6 +338,14 @@ start() {
 		sleep 0.1
 	done
 	@else@
+	WIFI_BUS=@WIFI_MODULE_IS_HOST_ENUMERATED@ # 1 = usb/pcie: nothing creates the netdev unless this script loads the module
+	if [ "$WIFI_BUS" = "1" ]; then
+		m=300 # limit to 30 seconds, covers bus enumeration plus firmware download to the radio
+	else
+		m=50 # limit to 5 seconds
+	fi
+	wait_s=$((m / 10))
+
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
@@ -348,15 +356,24 @@ start() {
 				;;
 		esac
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
-		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
+		if ! modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS; then
+			if [ "$WIFI_BUS" = "1" ]; then
+				echo "Failed to load $WLAN_MODULE_NAME module" >&2
+				exit 1
+			fi
+		fi
 	fi
 
-	m=50 # limit to 5 seconds
 	while [ "$m" -gt 0 ]; do
 		ip link show dev "$IFACE" >/dev/null 2>&1 && break
 		m=$((m - 1))
 		sleep 0.1
 	done
+
+	if [ "$WIFI_BUS" = "1" ] && ! ip link show dev "$IFACE" >/dev/null 2>&1; then
+		echo "$WLAN_MODULE_NAME did not register $IFACE within ${wait_s}s" >&2
+		exit 1
+	fi
 	@endif@
 
 	@if !WIFI_IS_HI3881@

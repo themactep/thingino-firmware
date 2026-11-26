@@ -17,6 +17,8 @@
     focus_timeout: 0,
     auth_bypass_ips: "",
   };
+  // The camera's theme as the form last loaded it.
+  let loadedTheme = null;
 
   function toggleBusy(state, label) {
     submitButton.disabled = state;
@@ -96,6 +98,7 @@
       const normalized = normalizeConfig(data);
       usernameInput.value = normalized.username;
       themeSelect.value = normalized.theme;
+      loadedTheme = normalized.theme;
       paranoidSwitch.checked = normalized.paranoid;
       trackFocusSwitch.checked = normalized.track_focus;
       focusTimeoutInput.value = normalized.focus_timeout;
@@ -130,6 +133,15 @@
       showAlert("", "");
       showOverlayMessage("Web UI settings saved.", "success");
       resetPasswordField();
+      // A changed default applies in the browser that saved it. A save that
+      // left the theme alone leaves this browser's own choice alone too.
+      if (
+        payload.theme !== loadedTheme &&
+        window.thinginoTheme &&
+        typeof window.thinginoTheme.remember === "function"
+      ) {
+        window.thinginoTheme.remember(payload.theme, payload.theme);
+      }
       await loadConfig({ preserveBusy: true });
       // Reload preview focus settings if the function is available
       if (

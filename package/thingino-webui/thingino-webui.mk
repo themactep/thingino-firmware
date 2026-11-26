@@ -363,9 +363,10 @@ endef
 # per-package finalize hook) so it runs AFTER the finalize hooks of streamer
 # packages (timps, raptor) that install their own HTML overlays.  Plugin
 # assembly (ASSEMBLE_PLUGINS) has also already run by this point.
+# A leftover external asset fails the build.
 define THINGINO_WEBUI_PARANOID_REWRITE
 	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
-		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
+		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www"; \
 	fi
 endef
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
