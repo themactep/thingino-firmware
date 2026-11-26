@@ -335,6 +335,12 @@ endif
 # level is moot). The same key is what package/thingino-uboot/
 # inject-uboot-audio-dt.sh puts in the U-Boot device tree as
 # ingenic,spk-gpio.
+# The 7.x audio module registers its DMIC host only with dmic_enable=1; the
+# DMIC node itself is enabled by thingino-kopt's device-tree injector.
+ifeq ($(KERNEL_VERSION_7)$(BR2_THINGINO_AUDIO_DMIC),yy)
+INGENIC_SDK_AUDIO_DMIC = dmic_enable=1
+endif
+
 define INSTALL_AUDIO_SUPPORT
 	spk_gpio=-1; \
 	spk_level=1; \
@@ -357,7 +363,7 @@ define INSTALL_AUDIO_SUPPORT
 				;; \
 		esac; \
 	fi; \
-	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(INGENIC_SDK_AUDIO_DMIC) $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
 
 	[ -f $(@D)/config/webrtc_profile.ini ] && $(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
 
