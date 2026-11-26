@@ -44,6 +44,12 @@
 #                   "mipi-switch" pin state with the generic board's
 #                   pins_cim_mipi_switch on that pad, which the ISP module
 #                   selects when the VIC takes the pad over.
+#   gpio.speaker  - the speaker amp enable line, in the same short notation:
+#                   a bare int is an active-high pin, {pin, active_low} states
+#                   the polarity. It becomes the codec's spk-gpios. Without
+#                   the key the generic board's spk-gpios is deleted, so a
+#                   board without an amp line never has another board's pin
+#                   driven (the U-Boot injector does the same).
 #   amplifier     - a top-level object for an I2C speaker amplifier:
 #                   {"compatible": "awinic,aw87xxx_pa", "i2c": 3,
 #                   "address": "0x58", "reset": 63}. It becomes a child of
@@ -312,6 +318,27 @@ if dmic == "1":
         say("DMIC enabled")
     else:
         say("no dmic node in the generic board, DMIC left alone")
+
+# ---- gpio.speaker: the codec's speaker amp enable line --------------------
+if re.search(r"^\s*codec\s*:", tree, re.M):
+    sp = g.get("speaker")
+    if isinstance(sp, dict):
+        pin, al = sp.get("pin"), is_true(sp.get("active_low"))
+    else:
+        pin, al = sp, False
+    if isinstance(pin, str) and pin.isdigit():
+        pin = int(pin)
+    if sp is None:
+        out.append("&codec {\t/* no gpio.speaker: no amp enable line */\n"
+                   "\t/delete-property/ spk-gpios;\n};\n")
+    elif isinstance(pin, bool) or not isinstance(pin, int) or pin < 0:
+        say("gpio.speaker is not a pin, skipped")
+    elif bank(pin) is None:
+        say("gpio.speaker pin %d has no gpio bank label, skipped" % pin)
+    else:
+        out.append("&codec {\t/* speaker amp, board gpio.speaker=%d */\n"
+                   "\tspk-gpios = <&%s %d %d>;\n};\n" % (pin, bank(pin), pin % 32, 1 if al else 0))
+        say("gpio.speaker %d (%s)" % (pin, "active low" if al else "active high"))
 
 # ---- amplifier: an I2C speaker amp on one of the board's I2C buses ----------
 amp = root.get("amplifier")
