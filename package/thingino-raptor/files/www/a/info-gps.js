@@ -5,6 +5,7 @@
   const KN_TO_MPH = 1.15078;
   const IMPACT_SCALE_G = 2; // full bar
   let speedUnit = "kmh";
+  let lastStatus = null;
 
   const el = (id) => document.getElementById(id);
   const set = (id, text) => {
@@ -89,7 +90,10 @@
     try {
       const r = await fetch("/x/json-telematics.cgi", { cache: "no-store" });
       const s = r.ok ? await r.json() : null;
-      if (s && s.status === "ok") render(s);
+      if (s && s.status === "ok") {
+        lastStatus = s;
+        render(s);
+      }
       else throw new Error("no status");
     } catch (err) {
       el("gpsUnavailable").classList.remove("d-none");
@@ -102,17 +106,20 @@
     setTimeout(loop, POLL_MS);
   }
 
-  async function start() {
+  function start() {
+    loop();
+    // The unit setting takes the agent a second or more; the GPS figures
+    // don't wait for it (km/h until it answers)
     const helper = window.thinginoStreamer;
     if (helper && helper.agentRequest) {
-      try {
-        const leaf = await helper.agentRequest("/api/v1/settings/telematics/speed-unit", { cache: "no-store" });
-        if (leaf && leaf.speed_unit) speedUnit = leaf.speed_unit;
-      } catch (err) {
-        /* default km/h */
-      }
+      helper
+        .agentRequest("/api/v1/settings/telematics/speed-unit", { cache: "no-store" })
+        .then((leaf) => {
+          if (leaf && leaf.speed_unit) speedUnit = leaf.speed_unit;
+          if (lastStatus) render(lastStatus);
+        })
+        .catch(() => {});
     }
-    loop();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
