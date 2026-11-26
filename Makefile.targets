@@ -271,7 +271,8 @@ else
 	done
 	# add kernel-specific headers based on SOC requirements
 	# @if [ "$(SOC_FAMILY)" = "t23" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ] || [ "$(SOC_FAMILY)" = "a1" ]; then
-	@if [ "$(KERNEL_VERSION_4)" = "y" ]; then \
+	# The XBurst2 toolchain carries 4.4 headers whatever kernel the board runs.
+	@if [ "$(KERNEL_VERSION_4)" = "y" ] || [ "$(SOC_ARCH)" = "xburst2" ]; then \
 		echo "** add kernel headers: 4.4 (SOC: $(SOC_FAMILY))"; \
 		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y" >>$(OUTPUT_DIR)/.config; \
 		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y" >>$(OUTPUT_DIR)/.config; \
