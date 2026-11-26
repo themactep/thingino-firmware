@@ -16,7 +16,9 @@ esac
 # raptor build answers get-zoom; older builds have no such command.
 case "$QUERY_STRING" in
 	*info=1*)
-		if raptorctl rvd get-zoom 2>/dev/null | grep -q '"enable"'; then
+		# Without the sensor's geometry (no /proc/jz/sensor, as on SigmaStar)
+		# rvd answers get-zoom with a zero window and refuses set-zoom.
+		if raptorctl rvd get-zoom 2>/dev/null | grep -Eq '"width"[[:space:]]*:[[:space:]]*[1-9]'; then
 			supported=true
 		else
 			supported=false
