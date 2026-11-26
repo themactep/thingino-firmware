@@ -17,6 +17,7 @@ SOC_UBOOT     := isvp_t30n_sfcnor
 else ifeq ($(SOC_MODEL),t30x)
 SOC_RAM_MB    := 128
 SOC_UBOOT     := isvp_t30x_sfcnor
+SOC_UBOOT_VARIANT := t30x
 else
 SOC_RAM_MB    := 128
 SOC_UBOOT     := isvp_t30a_sfcnor
