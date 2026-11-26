@@ -20,6 +20,9 @@ define WIFI_RTL8192FS_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	# 7.x hides WIRELESS_EXT behind drivers that select it; cfg80211's
+	# compatibility layer is what keeps wext (iwconfig) there.
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
 	# Full-MAC driver: it imports nothing from the kernel's mac80211, so keep
 	# that out of the image.
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
