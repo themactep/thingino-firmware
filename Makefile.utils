@@ -185,7 +185,7 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	# Fail before writing an image instead of letting the camera find out.
 	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_MAX) ]; then \
 		$(RED) "ROOTFS TOO LARGE FOR THE LAYOUT: $(ROOTFS_BIN_SIZE) > $(ROOTFS_PARTITION_MAX) bytes"; \
-		$(RED) "  JFFS2 data needs $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_ERASE_BLOCK)): shrink the rootfs by $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
+		$(RED) "  JFFS2 data needs $(JFFS2_MIN_SIZE) bytes (5 x $(JFFS2_NOR_ERASE_BLOCK)): shrink the rootfs by $$(($(ROOTFS_BIN_SIZE) - $(ROOTFS_PARTITION_MAX))) bytes"; \
 		exit 1; \
 	fi
 	@if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
