@@ -334,16 +334,37 @@ ALIGN_BLOCK := 65536
 # Kconfig symbol never reaches the driver, so the fragment line and the chip
 # table have to describe the same flash, or mkfs.jffs2, the partition floor
 # below and the kernel disagree about what an erase block is.
+#
+# Today no 3.10 jz_sfc config selects CONFIG_ERASE_SIZE_64K while the chip
+# tables use 64 KiB (T10/T20/T21/T23/T30/T31), so the image is built without
+# cleanmarkers: a 32 KiB cleanmarker in the middle of an empty 64 KiB block
+# makes jffs2 write over it (see Makefile.utils,
+# scripts/check-jffs2-cleanmarkers.sh).
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
 # Mainline's spi-nor erases 64 KiB blocks: the 7.4 configs turn its 4 KiB
 # sectors off, which JFFS2 cannot pack into.
 JFFS2_ERASE_BLOCK := $(shell if [ "$(KERNEL_VERSION)" = "7.4" ] || grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
-# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data).
-# That is a block count, not a byte count: the floor follows the erase block
-# the kernel actually uses, so it doubles on a 64 KiB kernel.
-JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
+# The kernel's NOR driver block size, as opposed to the mkfs packing size
+# above: on the 3.10 jz_sfc the chip tables use 64 KiB for T10/T20/T21/T23/
+# T30/T31 while mkfs packs 32 KiB nodes; T32's 3.10 config is the 32 KiB one.
+ifeq ($(KERNEL_VERSION),7.4)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else ifeq ($(KERNEL_VERSION),3.10.14)
+ifneq ($(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)),)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+export JFFS2_NOR_ERASE_BLOCK
+
+# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
+# of the kernel's real block size, not of the packing size.
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_NOR_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
