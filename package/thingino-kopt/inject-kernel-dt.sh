@@ -44,6 +44,12 @@
 #                   "mipi-switch" pin state with the generic board's
 #                   pins_cim_mipi_switch on that pad, which the ISP module
 #                   selects when the VIC takes the pad over.
+#   amplifier     - a top-level object for an I2C speaker amplifier:
+#                   {"compatible": "awinic,aw87xxx_pa", "i2c": 3,
+#                   "address": "0x58", "reset": 63}. It becomes a child of
+#                   that &i2cN; "reset" (optional) takes the gpio.mmc_power
+#                   short notation: a bare int is a pin high while the amp
+#                   runs, an object {pin, active_low} states the polarity.
 #   bus-width     - how many SD data lines the board routes, passed in (the
 #                   same BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT fact U-Boot gets).
 #   dmic          - "1" when the profile has a digital microphone
@@ -306,6 +312,37 @@ if dmic == "1":
         say("DMIC enabled")
     else:
         say("no dmic node in the generic board, DMIC left alone")
+
+# ---- amplifier: an I2C speaker amp on one of the board's I2C buses ----------
+amp = root.get("amplifier")
+if isinstance(amp, dict):
+    comp, bus, addr = amp.get("compatible"), amp.get("i2c"), amp.get("address")
+    if isinstance(addr, str):
+        try:
+            addr = int(addr, 0)
+        except ValueError:
+            addr = None
+    rst = amp.get("reset")
+    if isinstance(rst, dict):
+        rpin, ral = rst.get("pin"), is_true(rst.get("active_low"))
+    else:
+        rpin, ral = rst, False
+    if not isinstance(comp, str) or isinstance(bus, bool) or not isinstance(bus, int) \
+            or isinstance(addr, bool) or not isinstance(addr, int) or not 0 < addr < 0x80:
+        say("amplifier needs compatible, i2c and address, skipped")
+    elif not re.search(r"^&i2c%d\s*\{" % bus, tree, re.M):
+        say("no &i2c%d in the generic board, amplifier skipped" % bus)
+    else:
+        props = ["compatible = \"%s\";" % comp, "reg = <0x%02x>;" % addr]
+        if isinstance(rpin, int) and not isinstance(rpin, bool) and rpin >= 0:
+            b = bank(rpin)
+            if b is None:
+                say("amplifier reset pin %d has no gpio bank label, left out" % rpin)
+            else:
+                props.append("reset-gpio = <&%s %d %d>;" % (b, rpin % 32, 1 if ral else 0))
+        out.append("&i2c%d {\n\tamplifier@%x {\t/* board amplifier */\n%s\t};\n};\n"
+                   % (bus, addr, "".join("\t\t%s\n" % p for p in props)))
+        say("amplifier %s on i2c%d 0x%02x" % (comp, bus, addr))
 
 # ---- the on-chip MAC: off on a profile without wired Ethernet ---------------
 if eth == "0":
