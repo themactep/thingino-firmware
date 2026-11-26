@@ -1,6 +1,7 @@
 {
   "gpio": {
     "mmc_cd": 59,
+    "speaker": 63,
     "wlan": 20
   }
 }
