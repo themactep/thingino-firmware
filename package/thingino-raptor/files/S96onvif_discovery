@@ -115,6 +115,14 @@ configure_raptor_onvif_profiles() {
 	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
 	jct "$tmpfile" set audio.backchannel.uri "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
 
+	# The profiles' sizes are what ONVIF clients are told the streams are.
+	for s in 0 1; do
+		width=$(raptor_conf_get "stream$s" width)
+		height=$(raptor_conf_get "stream$s" height)
+		[ -n "$width" ] && jct "$tmpfile" set "profiles.stream$s.width" "$width"
+		[ -n "$height" ] && jct "$tmpfile" set "profiles.stream$s.height" "$height"
+	done
+
 	if [ "$(raptor_webrtc_enabled)" = "true" ]; then
 		webrtc_scheme=$(raptor_webrtc_scheme)
 		webrtc_port=$(raptor_webrtc_port)
