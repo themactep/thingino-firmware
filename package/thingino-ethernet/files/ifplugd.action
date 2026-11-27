@@ -1,0 +1,21 @@
+#!/bin/sh
+# Called by ifplugd on link state changes: ifplugd.action <iface> <up|down>
+# Without this script every ifplugd exec fails and the daemon exits on
+# its first link probe, so cable plug/unplug goes unhandled.
+
+case "$2" in
+	up)
+		ifup "$1"
+		;;
+	down)
+		ifdown "$1"
+		;;
+esac
+
+# Let the gateway script decide whether this link changes the WLAN state for
+# any wired uplink, not only the one whose ifplugd event fired.
+if [ -x /etc/init.d/S40wired-gateway ]; then
+	/etc/init.d/S40wired-gateway recheck "$2"
+fi
+
+exit 0
