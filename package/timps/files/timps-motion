@@ -1,6 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC2086
 
+THINGINO_JSON="${THINGINO_JSON:-/etc/thingino.json}"
 PRUDYNT_JSON=/etc/prudynt.json
 SEND2_JSON=/etc/send2.json
 CHAN=0
@@ -13,7 +14,19 @@ BASE="http://127.0.0.1:$port"
 SERVICES="email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook"
 MOTOR_ACTIVE_FLAG="/run/motors-active"
 
-get_motion() { jct "$PRUDYNT_JSON" get "motion.$1" 2>/dev/null; }
+get_motion() {
+	key=$1
+	val=
+	if command -v jct >/dev/null 2>&1; then
+		if [ -f "$THINGINO_JSON" ]; then
+			val=$(jct "$THINGINO_JSON" get "motion.$key" 2>/dev/null)
+		fi
+		if [ -z "$val" ] && [ -f "$PRUDYNT_JSON" ]; then
+			val=$(jct "$PRUDYNT_JSON" get "motion.$key" 2>/dev/null)
+		fi
+	fi
+	printf '%s' "$val"
+}
 
 run() {
 	[ -f "$MOTOR_ACTIVE_FLAG" ] && return 0
