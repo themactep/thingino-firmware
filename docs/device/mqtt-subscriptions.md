@@ -37,7 +37,7 @@ anywhere in a topic string:
 |---------------|------------------------------------------------------|
 | `%hostname`   | Camera hostname (e.g. `ing-wyze-cam3-592e`)          |
 | `%ip`         | Camera IP address (e.g. `192.168.1.42`)              |
-| `%id`         | Camera hostname (e.g. `ing-wyze-cam3-2937`) |
+| `%id`         | Canonical camera ID (same as native `GET /api/v1/device`, typically MAC without separators, e.g. `0203823f5533`) |
 
 Example: `cameras/%id/cmd` subscribes to
 `cameras/ing-wyze-cam3-2937/cmd` at runtime.
@@ -163,6 +163,26 @@ registration refresh, Telegram command routing, and agent bootstrap pairing.
 Important: keep the action exactly as shown above, including the inner quotes
 around `$MQTT_PAYLOAD`. The payload is JSON, and `telegram-cam-agent` expects
 to receive it as a single shell argument.
+
+The hub may push pairing over MQTT with command `install-agent-bootstrap`.
+Arguments are:
+
+| Arg | Meaning |
+|-----|---------|
+| `args.0` | Agent bearer token (required) |
+| `args.1` | Optional MQTT broker host |
+| `args.2` | Optional MQTT broker port (default `1883`) |
+| `args.3` | Optional MQTT username |
+| `args.4` | Optional MQTT password |
+
+That path writes `/etc/agent-bootstrap.json` via
+`thingino-agent-bootstrap`, ensures the hub cmd subscription above exists,
+replies on MQTT, then restarts `S95agent` (and `S91mqttsub` when broker
+settings changed). The agent init script imports the bootstrap once and
+renames it to `.applied` so it is not re-applied on every boot.
+
+If MQTT is not yet available, the camera Web UI **Services → Hub Pairing**
+page can install the same bootstrap locally.
 
 
 ---

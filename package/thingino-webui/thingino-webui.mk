@@ -135,6 +135,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-send2-gotify.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-mqtt.html \
 		$(TARGET_DIR)/var/www/tool-send2-mqtt.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-agent-pair.html \
+		$(TARGET_DIR)/var/www/tool-agent-pair.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-ntfy.html \
 		$(TARGET_DIR)/var/www/tool-send2-ntfy.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-pushover.html \
@@ -217,6 +219,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-send2-gotify.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-mqtt.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-mqtt.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-agent-pair.js \
+		$(TARGET_DIR)/var/www/a/tool-agent-pair.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-ntfy.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-ntfy.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-pushover.js \
@@ -290,6 +294,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-config-webui.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-agent-token.cgi \
 		$(TARGET_DIR)/var/www/x/json-agent-token.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-agent-pair.cgi \
+		$(TARGET_DIR)/var/www/x/json-agent-pair.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-gphotos-token.cgi \
 		$(TARGET_DIR)/var/www/x/json-gphotos-token.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-heartbeat.cgi \

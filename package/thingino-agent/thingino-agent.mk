@@ -30,6 +30,10 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/libexec/agent/tls-proxy
 	$(INSTALL) -D -m 0755 $(@D)/agentctl \
 		$(TARGET_DIR)/usr/sbin/agentctl
+	$(INSTALL) -D -m 0755 $(@D)/thingino-camera-id \
+		$(TARGET_DIR)/usr/sbin/thingino-camera-id
+	$(INSTALL) -D -m 0755 $(@D)/thingino-agent-bootstrap \
+		$(TARGET_DIR)/usr/sbin/thingino-agent-bootstrap
 	$(INSTALL) -D -m 0644 $(@D)/agent-lib \
 		$(TARGET_DIR)/usr/libexec/agent/lib.sh
 	# Install the null adapter as the build-time fallback. The chosen streamer
