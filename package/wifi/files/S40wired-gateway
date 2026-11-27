@@ -2,6 +2,10 @@
 # shellcheck disable=SC3043
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
+# Set while the gateway has the radio down for a wired uplink, so a link
+# that later has no usable route can bring the wireless back instead of
+# leaving the camera with no network at all.
+STOPPED_FLAG="/run/wired_gateway_stopped"
 
 # Wired uplinks are the on-board and USB Ethernet ports. The WLAN and an AP
 # interface are not candidates, and neither is a loopback.
@@ -76,10 +80,12 @@ stop_wireless() {
 	@endif@
 	@endif@
 	@endif@
+	touch "$STOPPED_FLAG"
 	start_web_server
 }
 
 start_wireless() {
+	rm -f "$STOPPED_FLAG"
 	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless start
 	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant start
 	# With no stored credentials S38 only records the pending decision;
@@ -127,14 +133,16 @@ recheck() {
 				attempt=$((attempt + 1))
 				sleep 1
 			done
-			# Link is up but no usable route; keep WLAN off so the
-			# wired port remains the only uplink.
-			stop_wireless
+			# A link with no usable route is not an uplink: leave a
+			# running wireless alone, and bring it back only if the
+			# gateway stopped it for a wired uplink that has since
+			# lost its route.
+			[ -f "$STOPPED_FLAG" ] && start_wireless
 			;;
 		down)
 			# Another wired interface may still be the uplink.
 			has_any_wired_uplink && return 0
-			start_wireless
+			[ -f "$STOPPED_FLAG" ] && start_wireless
 			;;
 	esac
 }
