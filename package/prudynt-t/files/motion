@@ -153,6 +153,25 @@ start() {
 		fi
 	fi
 
+	# The continuous recorder (S98recorder -> record) loop-records
+	# recorder.channel. Prudynt resolves a START against a busy channel
+	# by stopping the busy recorder first, so a motion clip on that
+	# channel must never be attempted while the recorder is armed - the
+	# .active check above cannot see the gap between the recorder's own
+	# segments. Gate on the same config the recorder uses; photo-only
+	# events are unaffected.
+	recorder_channel=$(jct /run/prudynt.json get recorder.channel 2>/dev/null)
+	[ -n "$recorder_channel" ] || recorder_channel=0
+	recorder_armed="false"
+	[ "true" = "$(jct /run/prudynt.json get recorder.autostart 2>/dev/null)" ] && recorder_armed=true
+	if [ "$need_video" = "true" ] && [ "$recorder_armed" = "true" ] &&
+		[ "$recorder_channel" = "$MOTION_VIDEO_CHANNEL" ]; then
+		echo_info "Recorder is armed on channel ${MOTION_VIDEO_CHANNEL}; skipping motion video"
+		need_video=false
+		unset MOTION_VIDEO_FILE
+		SEND2_SKIP_VIDEO=true
+	fi
+
 	# When storage is the only video consumer, record onto the mount
 	# itself (send2storage renames into place). A rejected START would
 	# wedge the wait below, so the mount must prove itself first.
@@ -173,6 +192,11 @@ start() {
 				MOTION_VIDEO_FILE="$sd_mount/.motion_${MOTION_TIMESTAMP}.mp4"
 				use_sd=true
 				echo_info "Recording to the storage mount instead of /tmp: $sd_mount/.motion_${MOTION_TIMESTAMP}.mp4"
+			else
+				# Channel busy at decision time: no clip from this event.
+				need_video=false
+				unset MOTION_VIDEO_FILE
+				SEND2_SKIP_VIDEO=true
 			fi
 		fi
 	fi
@@ -195,6 +219,8 @@ start() {
 			# recorder wins a check→START race and must be left alone.
 			if grep -qx "path=$MOTION_VIDEO_FILE" "$active_flag" 2>/dev/null; then
 				printf 'STOP ch=%s\n' "$MOTION_VIDEO_CHANNEL" >/run/prudynt/mp4ctl
+				# We stopped our own dead start; no clip will exist.
+				SEND2_SKIP_VIDEO=true
 			elif [ "$use_sd" = "true" ] && [ ! -f "$active_flag" ]; then
 				# Mount refused the recording and the channel stayed free;
 				# degrade to the /tmp path. A busy channel is terminal:
