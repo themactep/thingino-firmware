@@ -144,10 +144,18 @@ recheck() {
 			# decide. Fall back to the wireless if it has no uplink.
 			if has_any_wired_link && ! has_any_wired_uplink; then
 				stop_wireless
-				# ifup -a is what records the interface in /run/ifstate;
-				# a named ifup does not, and the next ifdown then cannot
-				# remove the address.
+				# Drop the wired address first: ifup -a does not touch an
+				# interface that is already configured, and a named ifup
+				# leaves no /run/ifstate entry for the next ifdown.
+				for iface in $(wired_ifaces); do
+					ip addr flush dev "$iface" 2>/dev/null
+				done
 				ifup -a 2>/dev/null
+				# ifup -a does not record an interface that was already
+				# configured, so record it here for the next ifdown.
+				for iface in $(wired_ifaces); do
+					grep -q "^$iface=" /run/ifstate 2>/dev/null || echo "$iface=$iface" >>/run/ifstate
+				done
 				has_any_wired_uplink && return 0
 				[ -f "$STOPPED_FLAG" ] && start_wireless
 				return 0
