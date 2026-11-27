@@ -14,7 +14,7 @@ message_looks_like_json() {
 	local trimmed
 	trimmed=$(printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 	case "$trimmed" in
-		\{*\}|\[*\])
+		\{*\} | \[*\])
 			return 0
 			;;
 		*)
@@ -70,7 +70,11 @@ while getopts h:m:p:t:u:vP:SV flag; do
 		P) password=$OPTARG ;;
 		# sending a file from the command line disables sending photo
 		# and video defined in config unless explicitly set so (-S/-V)
-		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
+		f)
+			file=$OPTARG
+			send_photo="false"
+			send_video="false"
+			;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
 		*) show_help ;;
@@ -79,8 +83,8 @@ done
 
 # use config settings only if not set from command line
 if [ -z "$send_photo$send_video" ]; then
-        send_photo=$(get_value send_photo)
-        send_video=$(get_value send_video)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 fi
 
 if [ -z "$host" ]; then
@@ -166,15 +170,15 @@ fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	if [ -z "$video" ]; then
-		echo_error "Failed to get video"
-		failed=1
-	else
+	if [ -n "$video" ] && [ -f "$video" ]; then
 		[ "true" = "$verbose" ] && echo_command "publish $video to $topic_video"
 		if ! mqtt_pub -t "$topic_video" -f "$video"; then
 			echo_error "Failed to send video via MQTT"
 			failed=1
 		fi
+	else
+		# Video unavailable (busy channel); the photo/text message still goes out.
+		echo_error "Video not available; skipping video publish"
 	fi
 fi
 
