@@ -68,6 +68,15 @@ config BR2_INGENIC_SDK_SOC_NNA
 	help
 	  Neural network accelerator. Present on T40, T41 and A1 only.
 
+config BR2_INGENIC_SDK_TNPU
+	bool "TNPU neural accelerator"
+	default y if (BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33") && KERNEL_VERSION_7
+	depends on (BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33") && KERNEL_VERSION_7
+	help
+	  The T32/T33 TNPU (tnpu.ko, /dev/ingenic-npu) for the Magik
+	  uranus libraries. Its memory pool is the nmem= region
+	  (BR2_THINGINO_NMEM_MB).
+
 config BR2_INGENIC_SDK_MPSYS
 	bool "MPSYS + hardware TRNG"
 	default y if BR2_INGENIC_SDK_HAS_MPSYS

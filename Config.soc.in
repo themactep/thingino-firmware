@@ -375,10 +375,12 @@ config BR2_THINGINO_ISPMEM_MB
 
 config BR2_THINGINO_NMEM_MB
 	int "Neural Network Reserved RAM (nmem), MB"
-	depends on BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || \
+		((BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33") && KERNEL_VERSION_7)
 	default 0
 	help
-	  Specify reserved memory for the Neural Network module in MB.
+	  Specify reserved memory for the Neural Network module in MB
+	  (the T40/T41 NNA, the T32/T33 TNPU's memory pool on 7.x kernels).
 	  0 leaves nmem off the kernel command line.
 
 

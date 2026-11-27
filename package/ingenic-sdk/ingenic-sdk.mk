@@ -28,6 +28,7 @@ INGENIC_SDK_COMPONENTS = \
 	CONFIG_INGENIC_AUDIO=$(if $(BR2_THINGINO_AUDIO),y,n) \
 	CONFIG_INGENIC_AVPU=$(if $(BR2_INGENIC_SDK_AVPU),y,n) \
 	CONFIG_INGENIC_SOC_NNA=$(if $(BR2_INGENIC_SDK_SOC_NNA),y,n) \
+	CONFIG_INGENIC_TNPU=$(if $(BR2_INGENIC_SDK_TNPU),y,n) \
 	CONFIG_INGENIC_MPSYS=$(if $(BR2_INGENIC_SDK_MPSYS),y,n) \
 	CONFIG_INGENIC_JZ_DTRNG=$(if $(filter-out t33,$(SOC_FAMILY)),$(if $(BR2_INGENIC_SDK_MPSYS),y,n),n) \
 	CONFIG_INGENIC_GPIO_USERKEYS=$(if $(BR2_INGENIC_SDK_GPIO_USERKEYS),y,n) \
@@ -321,6 +322,10 @@ define GENERATE_MODULE_LOADER_7X
 		elif [ "$(SOC_FAMILY)" = "t40" ]; then \
 			echo "bscaler" > $(TARGET_DIR)/etc/modules.d/08-bscaler; \
 		fi; \
+	fi
+
+	if [ "$(BR2_INGENIC_SDK_TNPU)" = "y" ]; then \
+		echo "tnpu" > $(TARGET_DIR)/etc/modules.d/07-tnpu; \
 	fi
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
