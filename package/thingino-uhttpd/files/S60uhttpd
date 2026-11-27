@@ -201,7 +201,10 @@ stop() {
 	local i=0
 	while pgrep -x uhttpd >/dev/null 2>&1; do
 		i=$((i + 1))
-		[ "$i" -eq 5 ] && { echo "uhttpd ignoring TERM, sending KILL"; pkill -9 -x uhttpd 2>/dev/null; }
+		[ "$i" -eq 5 ] && {
+			echo "uhttpd ignoring TERM, sending KILL"
+			pkill -9 -x uhttpd 2>/dev/null
+		}
 		if [ "$i" -ge 8 ]; then
 			echo "WARNING: uhttpd would not exit"
 			return 1
