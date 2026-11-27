@@ -75,7 +75,10 @@
         throw new Error(message);
       }
       showAlert("", "");
-      showOverlayMessage("Remote logging settings saved.", "success");
+      showOverlayMessage(
+        (result && result.message) || "Remote logging settings saved.",
+        "success",
+      );
       await loadConfig({ preserveBusy: true });
     } catch (err) {
       showAlert(
