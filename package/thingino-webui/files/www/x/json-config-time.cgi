@@ -136,6 +136,17 @@ handle_get() {
 EOF
 }
 
+# ntpd reads its server list only at start, so a changed list is applied by
+# restarting it. /tmp/ntp.conf is what the save and the reset write; compare it
+# before and after. The time zone needs nothing: daemons re-read /etc/TZ.
+# 0: restarted, 1: unchanged or no init script, 2: restart failed
+restart_ntpd_if_changed() {
+	[ "$1" = "$(cat "$NTP_WORKING_FILE" 2>/dev/null)" ] && return 1
+	[ -x /etc/init.d/S49ntpd ] || return 1
+	/etc/init.d/S49ntpd restart >/dev/null 2>&1 || return 2
+	return 0
+}
+
 handle_post() {
 	read_body
 
@@ -144,7 +155,13 @@ handle_post() {
 	case "$action" in
 		reset)
 			if [ -f "/rom$NTP_DEFAULT_FILE" ]; then
+				ntp_before=$(cat "$NTP_WORKING_FILE" 2>/dev/null)
 				cp -f "/rom$NTP_DEFAULT_FILE" "$NTP_WORKING_FILE"
+				restart_ntpd_if_changed "$ntp_before"
+				case $? in
+					0) send_json '{"status":"ok","message":"NTP servers reset to defaults; the NTP client restarted to use them"}' ;;
+					2) json_error 500 "NTP configuration reset to defaults, but the NTP client failed to restart" "500 Internal Server Error" ;;
+				esac
 				send_json '{"status":"ok","message":"NTP configuration reset to defaults"}'
 			else
 				json_error 404 "Default NTP configuration not found" "404 Not Found"
@@ -181,7 +198,13 @@ handle_post() {
 				json_error 422 "Timezone value cannot be empty" "422 Unprocessable Entity"
 			fi
 
+			ntp_before=$(cat "$NTP_WORKING_FILE" 2>/dev/null)
 			write_config
+			restart_ntpd_if_changed "$ntp_before"
+			case $? in
+				0) send_json '{"status":"ok","message":"Time configuration updated; the NTP client restarted with the new servers"}' ;;
+				2) json_error 500 "Time configuration saved, but the NTP client failed to restart" "500 Internal Server Error" ;;
+			esac
 			send_json '{"status":"ok","message":"Time configuration updated"}'
 			;;
 

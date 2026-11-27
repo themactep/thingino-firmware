@@ -87,6 +87,20 @@ write_config() {
 	jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
 }
 
+# The effective settings S01syslogd turns into arguments, with the same
+# defaults it uses. Compare these, not the stored JSON: key order or a first
+# save with default values must not restart the daemon.
+domain_signature() {
+	ensure_config
+	local sig_enabled sig_host sig_port sig_file
+	sig_enabled=$(normalize_bool "$(jct "$CONFIG_FILE" get "$DOMAIN.enabled" 2>/dev/null)") || sig_enabled=false
+	sig_host=$(strip_json_string "$(jct "$CONFIG_FILE" get "$DOMAIN.host" 2>/dev/null)")
+	sig_port=$(strip_json_string "$(jct "$CONFIG_FILE" get "$DOMAIN.port" 2>/dev/null)")
+	[ -n "$sig_port" ] || sig_port=514
+	sig_file=$(normalize_bool "$(jct "$CONFIG_FILE" get "$DOMAIN.file" 2>/dev/null)") || sig_file=false
+	printf '%s\n%s\n%s\n%s' "$sig_enabled" "$sig_host" "$sig_port" "$sig_file"
+}
+
 read_body() {
 	REQ_FILE=$(mktemp /tmp/${DOMAIN}-req.XXXXXX)
 	if [ -n "$CONTENT_LENGTH" ]; then
@@ -133,9 +147,19 @@ handle_post() {
 		json_error 422 "Remote host cannot be empty when enabled" "422 Unprocessable Entity"
 	fi
 
+	before=$(domain_signature)
 	write_config
 
-	send_json '{"status":"ok"}'
+	# syslogd takes its remote target from its command line (S01syslogd), so a
+	# changed target applies only when it restarts - which also clears the
+	# in-memory log (logread). Restart only when the effective settings changed.
+	if [ "$before" != "$(domain_signature)" ] && [ -x /etc/init.d/S01syslogd ]; then
+		if ! /etc/init.d/S01syslogd restart >/dev/null 2>&1; then
+			json_error 500 "Remote logging settings saved, but syslogd failed to restart" "500 Internal Server Error"
+		fi
+		send_json '{"status":"ok","message":"Remote logging settings saved and applied. syslogd restarted, so the in-memory log starts over."}'
+	fi
+	send_json '{"status":"ok","message":"Remote logging settings saved."}'
 }
 
 case "$REQUEST_METHOD" in
