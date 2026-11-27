@@ -41,6 +41,12 @@ define WIFI_ATBM6031_COPY_CONFIG
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE is not set/CONFIG_ATBM_FUNC_P2P_ENABLE=y/' \
 		$(@D)/.config
+	@if [ "$(BR2_PACKAGE_WIFI_ATBM6031_SW_RATE_CTRL)" = "y" ]; then \
+		$(SED) '/CONFIG_ATBM_FUNC_NOTXCONFIRM/d' $(@D)/.config; \
+		echo '# CONFIG_ATBM_FUNC_NOTXCONFIRM is not set' >> $(@D)/.config; \
+		$(SED) '/CONFIG_ATBM_SW_RATE_CTRL/d' $(@D)/.config; \
+		echo 'CONFIG_ATBM_SW_RATE_CTRL=y' >> $(@D)/.config; \
+	fi
 endef
 
 WIFI_ATBM6031_PRE_CONFIGURE_HOOKS += WIFI_ATBM6031_COPY_CONFIG
