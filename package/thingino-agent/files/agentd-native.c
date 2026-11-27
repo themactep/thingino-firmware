@@ -980,7 +980,7 @@ int main(int argc, char **argv)
     const char *listen_addr = "127.0.0.1";
     struct sockaddr_in addr;
     int index;
-    int max_children = 3;
+    int max_children = 10;
     int active = 0;
     pid_t child;
 
