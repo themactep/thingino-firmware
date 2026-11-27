@@ -28,8 +28,7 @@ config BR2_INGENIC_SDK_HAS_AVPU
 
 config BR2_INGENIC_SDK_HAS_NNA
 	bool
-	# The 7.x tree has no NNA module.
-	default y if (BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1") && !KERNEL_VERSION_7
+	default y if BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
 
 config BR2_INGENIC_SDK_HAS_MPSYS
 	bool

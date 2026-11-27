@@ -314,6 +314,15 @@ define GENERATE_MODULE_LOADER_7X
 		echo "adc-aux" > $(TARGET_DIR)/etc/modules.d/03-adc-aux; \
 	fi
 
+	if [ "$(BR2_INGENIC_SDK_SOC_NNA)" = "y" ]; then \
+		echo "soc-nna" > $(TARGET_DIR)/etc/modules.d/07-nna; \
+		if [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/08-aip; \
+		elif [ "$(SOC_FAMILY)" = "t40" ]; then \
+			echo "bscaler" > $(TARGET_DIR)/etc/modules.d/08-bscaler; \
+		fi; \
+	fi
+
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
 		if [ "$(SOC_FAMILY)" = "t31" ]; then \
 			echo "ipu" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
