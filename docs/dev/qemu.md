@@ -34,6 +34,7 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `images` | the built images under the output root, with their SoCs |
 | `up CAMERA\|IMAGE` | boot an image; returns at a root shell (about a minute), or with `--console` attaches you from power-on |
 | `sh [NAME] -- CMD` | run `CMD` on the camera; exits with its status |
+| `sh [NAME] --script FILE [-- ARG...]`, `sh [NAME] -` | copy a local script (or the script on stdin) onto the camera and run it, text unchanged |
 | `put [NAME] LOCAL REMOTE` | copy a file onto the camera (`REMOTE` may be a directory) |
 | `get [NAME] REMOTE LOCAL` | copy a file off it |
 | `log [NAME]` | the console output: `-n N` lines, `--boot` for all of the current boot, `-f` to follow |
@@ -47,8 +48,10 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `isp [NAME]` | the ISP trace of a session booted with `up --isp-trace`: each frame's changes, `--at` a point's registers, `--diff` another session's, `--serve` a live page; see Video |
 | `pwm [NAME]` | the PWM outputs: each change with its frequency and duty, `--vcd FILE` every edge, `--serve` a live page; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
+| `light [NAME] N`, `light [NAME] --ramp A B SECONDS` | the image sensor's scene light in percent, set or ramped; see Video |
+| `ae [NAME]` | the guest's AE exposure and gain: the ISP's lines and `raptorctl rvd get-exposure`; see Video |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
-| `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
+| `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list (with each age, and a flag on stuck or orphaned ones) and stop sessions |
 
 `NAME` can be left out while only one session runs. `images`, `ls`, `info`
 and `up` print JSON with `--json`. `scripts/qemu-dev <command> --help`
@@ -208,6 +211,12 @@ and run by the camera's `/bin/sh`, so quote what the camera should see.
 It exits with the command's status, 124 when `--timeout` (120 s by
 default) runs out, and 255 when the camera resets under the command.
 
+A script goes over untouched, so nothing in it needs escaping for the
+host shell: `sh --script fix.sh -- ARG...` copies the file onto the camera
+and runs it with the words after `--` as its arguments, and
+`sh - <<'EOF' ... EOF` runs the script on stdin. A script that starts with
+`#!` runs under that interpreter, else under `sh`.
+
 Reboot with `reboot`, which waits until the camera is back at a shell.
 When the camera resets on its own, from a crash, a watchdog or a `reboot`
 run through `sh`, the next command waits for the new boot and logs in
@@ -351,6 +360,20 @@ give it `address=0x36`. Give it the sensor even when video is not the
 point: without one, the vendor ISP driver can oops as the streamer
 starts and hold up the boot. The sensor sees colour bars that a white
 stripe crosses every two seconds.
+
+`up --sensor MODEL` does the wiring: it adds `-device image-sensor,
+model=MODEL,id=sens` on the SoC's sensor bus (`i2c1` on the T40, `i2c0`
+elsewhere; options after the model, as in `--sensor imx327,address=0x36`,
+go to the device), and once the shell is up runs `fw_setenv sensor MODEL`
+and restarts raptor when the image has it. `light` then changes the scene
+as the sensor sees it, and `ae` shows what the guest's AE made of it:
+
+```bash
+scripts/qemu-dev up qemu_t31x --sensor gc2053
+scripts/qemu-dev light 20                  # dusk
+scripts/qemu-dev light --ramp 100 5 60     # a minute of sunset, in the model
+scripts/qemu-dev ae
+```
 
 A camera with two sensors takes both, the second with `input=1`, which
 mirrors its scene so that a stream shows which sensor sent it. The eufy
@@ -572,6 +595,13 @@ runs two of the same. With more than one session up, give the name first:
 `scripts/qemu-dev sh qemu_t31x_eth -- uptime`. One command at a time uses
 a session's console and another waits its turn; SSH copies run alongside.
 `down` stops a session and deletes its files.
+
+`ls` gives each session's age and state, and flags the ones that are not
+what they seem: a QEMU that has gone, an `up` that exited (or ran past its
+`--timeout`) before the camera reached a shell, and a QEMU binary built
+for another architecture than the host, which runs under binfmt emulation
+at a fraction of the speed. `up` refuses such a binary outright; pass
+`--qemu` with one for this host.
 
 ## Limits
 

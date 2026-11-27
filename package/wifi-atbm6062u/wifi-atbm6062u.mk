@@ -1,7 +1,7 @@
 WIFI_ATBM6062U_SITE_METHOD = git
 WIFI_ATBM6062U_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_ATBM6062U_SITE_BRANCH = atbm-606x
-WIFI_ATBM6062U_VERSION = 3de8e9e8a32a912c8e26f40f47110199643b2417
+WIFI_ATBM6062U_VERSION = 97a1572bf2588de4a0edbda80e5b238faf0994e5
 
 WIFI_ATBM6062U_LICENSE = GPL-2.0
 
@@ -11,7 +11,15 @@ ATBM6062U_MODULE_OPTS = atbm_printk_mask=0
 WIFI_ATBM6062U_MODULE_MAKE_OPTS = \
 	KERDIR=$(LINUX_DIR)
 
-ifeq ($(KERNEL_VERSION),4.4.94)
+ifeq ($(KERNEL_VERSION_7),y)
+# 7.x: struct net_device has ieee80211_ptr only with the kernel's cfg80211,
+# which the bundled backport cannot replace; the driver builds against the
+# kernel's (its .config loses CPTCFG_CFG80211) and keeps its own mac80211.
+define WIFI_ATBM6062U_CFG80211_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
+endef
+else ifeq ($(KERNEL_VERSION),4.4.94)
 # 4.4: driver builds its own backported cfg80211 (kernel's is layout-
 # incompatible with the driver headers); keep kernel cfg80211/mac80211 off
 define WIFI_ATBM6062U_CFG80211_FIXUPS
@@ -38,6 +46,7 @@ define WIFI_ATBM6062U_LINUX_CONFIG_FIXUPS
 endef
 
 ifneq ($(KERNEL_VERSION),4.4.94)
+ifneq ($(KERNEL_VERSION_7),y)
 define WIFI_ATBM6062U_MAC80211_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
@@ -45,6 +54,7 @@ define WIFI_ATBM6062U_MAC80211_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
+endif
 endif
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
@@ -68,6 +78,7 @@ define WIFI_ATBM6062U_COPY_CONFIG
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6 is not set/CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6=y/' \
 		$(@D)/.config
+	$(if $(filter y,$(KERNEL_VERSION_7)),$(SED) '/^CONFIG_CPTCFG_CFG80211/d' $(@D)/.config)
 endef
 
 WIFI_ATBM6062U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6062U_COPY_CONFIG

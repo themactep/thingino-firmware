@@ -1,0 +1,256 @@
+From: Lu-Fi <lutz@fiebach.de>
+Date: Tue, 24 Nov 2026 01:00:00 +0100
+Subject: [PATCH] verify held keys and use a monotonic clock for hold times
+
+A key whose release event is lost (seen on a 3.10 T23: the gpio both
+edge emulation missed the release edge of a fast second press) stayed
+"held" until the next press.  After 20 s the next release ran the
+longest TIMED action, firstboot -f, i.e. a factory reset from a short
+press.
+
+- Track a verified hold per key: set by the press event, cleared by the
+  release event.  While a key is held, poll every 100 ms and compare
+  with the kernel key state (EVIOCGKEY); if the kernel reports the key
+  released for 200 ms with no event pending, drop the hold and cancel
+  its TIMED_FIRE countdowns.  A release without a verified hold runs no
+  TIMED command.  TIMED_FIRE only fires while the hold is verified.
+- Measure hold times with CLOCK_MONOTONIC: an NTP step between press
+  and release no longer makes a multi-year hold.
+- Ignore SIGCHLD also in the foreground (-s) mode so commands run
+  under start-stop-daemon -b are reaped.
+
+Idle wakeups stay at zero; the 100 ms tick only runs while a key is
+held.
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+
+--- a/thingino-button.c
++++ b/thingino-button.c
+@@ -12,6 +12,8 @@
+ #include <sys/stat.h>
+ #include <ctype.h>
+ #include <poll.h>
++#include <time.h>
++#include <sys/ioctl.h>
+ 
+ #define CONFIG_FILE "/etc/thingino-button.conf"
+ #define DEFAULT_DEVICE "/dev/input/event0"
+@@ -21,6 +23,15 @@
+ #define ACTION_TIMED "TIMED"
+ #define ACTION_TIMED_FIRE "TIMED_FIRE"
+ #define EV_KEY 0x01
++#define EV_SYN 0x00
++#define SYN_DROPPED 3
++/* EVIOCGKEY from <linux/input.h>, which clashes with the local struct */
++#define KEY_BITS_LEN (0x2ff / 8 + 1)
++#define EVIOCGKEY_LEN(len) _IOC(_IOC_READ, 'E', 0x18, len)
++/* Poll interval while a key is held, to verify the hold is real */
++#define HOLD_CHECK_MS 100
++/* Reads "released" this long without a release event = stale hold */
++#define HOLD_STALE_SEC 0.2
+ 
+ typedef struct {
+ 	int key_code;
+@@ -313,11 +324,58 @@
+ 	}
+ }
+ 
++/*
++ * Hold times use the monotonic clock: a wall clock step (NTP sync after
++ * boot) between press and release must not turn a short press into a
++ * multi-year hold that selects the longest TIMED action (factory reset).
++ */
++static void mono_time(struct timeval *tv) {
++	struct timespec ts;
++
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	tv->tv_sec = ts.tv_sec;
++	tv->tv_usec = ts.tv_nsec / 1000;
++}
++
++/*
++ * Kernel view of a key (EVIOCGKEY): 1 down, 0 up, -1 unknown.
++ */
++static int key_is_down(int fd, int code) {
++	unsigned char bits[KEY_BITS_LEN];
++
++	memset(bits, 0, sizeof(bits));
++	if (ioctl(fd, EVIOCGKEY_LEN(sizeof(bits)), bits) < 0) {
++		return -1;
++	}
++	return !!(bits[code / 8] & (1 << (code % 8)));
++}
++
++static int events_pending(int fd) {
++	struct pollfd p = { .fd = fd, .events = POLLIN };
++
++	return poll(&p, 1, 0) > 0;
++}
++
++static void cancel_timed_fires(int code) {
++	for (int i = 0; i < timed_fires[code].count; i++) {
++		timed_fires[code].entries[i].active = 0;
++	}
++	timed_fires[code].count = 0;
++}
++
+ void process_events(int fd) {
+ 	struct input_event ev;
+ 	struct timeval press_times[256] = {{0, 0}};
+ 	struct pollfd pfd;
+ 	int poll_timeout = -1;
++	/*
++	 * A key counts as held only between a press event and its release
++	 * event and only while the kernel still reports it down.  A lost
++	 * release (driver bug, SYN_DROPPED) drops the hold instead of letting
++	 * the next release run the longest TIMED action.
++	 */
++	static unsigned char key_held[256];
++	static struct timeval key_up_since[256];
+ 
+ 	while (1) {
+ 		// Block until an input event arrives instead of busy-polling.
+@@ -342,25 +400,32 @@
+ 			ev.code = *(uint16_t *)(buf + 10);
+ 			ev.value = *(int32_t *)(buf + 12);
+ 
+-			if (ev.type == EV_KEY) {
++			if (ev.type == EV_SYN && ev.code == SYN_DROPPED) {
++				log_message("Input events dropped, re-checking held keys\n");
++			}
++
++			if (ev.type == EV_KEY && ev.code < 256) {
+ 				// log_message("Key event: code %d, value %d\n", ev.code, ev.value);
+ 				if (ev.value == 1) { // Key press
+ 					log_message("Detected keycode %d\n", ev.code);
+-					gettimeofday(&press_times[ev.code], NULL);
++					mono_time(&press_times[ev.code]);
++					key_held[ev.code] = 1;
++					key_up_since[ev.code].tv_sec = 0;
++					cancel_timed_fires(ev.code);
+ 					for (int i = 0; i < config_count; i++) {
+ 						Config *config = &configs[i];
+ 						if (ev.code == config->key_code && strcmp(config->action, ACTION_PRESS) == 0) {
+ 							log_message("PRESS command for key %d: %s\n", ev.code, config->command);
+ 							execute_command(config->command);
+ 						} else if (ev.code == config->key_code && strcmp(config->action, ACTION_TIMED) == 0) {
+-							gettimeofday(&press_times[ev.code], NULL);
++							mono_time(&press_times[ev.code]);
+ 							// log_message("Press time recorded for key code %d\n", ev.code);
+ 						} else if (ev.code == config->key_code && strcmp(config->action, ACTION_TIMED_FIRE) == 0) {
+ 							if (timed_fires[ev.code].count >= MAX_CONFIGS) {
+ 								continue;
+ 							}
+ 							TimedFireEntry entry = {0};
+-							gettimeofday(&entry.press_time, NULL);
++							mono_time(&entry.press_time);
+ 							entry.config = config;
+ 							entry.active = 1;
+ 							timed_fires[ev.code].entries[timed_fires[ev.code].count++] = entry;
+@@ -369,7 +434,10 @@
+ 					}
+ 				} else if (ev.value == 0) { // Key release
+ 					struct timeval release_time;
+-					gettimeofday(&release_time, NULL);
++					int was_held = key_held[ev.code];
++
++					key_held[ev.code] = 0;
++					mono_time(&release_time);
+ 					double hold_time = (release_time.tv_sec - press_times[ev.code].tv_sec) +
+ 									(release_time.tv_usec - press_times[ev.code].tv_usec) / 1000000.0;
+ 					// log_message("Key %d held for %f seconds\n", ev.code, hold_time);
+@@ -385,7 +453,9 @@
+ 							}
+ 						}
+ 					}
+-					if (selected_config) {
++					if (selected_config && !was_held) {
++						log_message("Key %d release without a verified hold, TIMED command skipped\n", ev.code);
++					} else if (selected_config) {
+ 						log_message("TIMED command for key %d: %s (held for %f seconds)\n", ev.code, selected_config->command, hold_time);
+ 						execute_command(selected_config->command);
+ 					}
+@@ -400,10 +470,7 @@
+ 					}
+ 
+ 					// Deactivate all TIMED_FIRE entries for the key
+-					for (int i = 0; i < timed_fires[ev.code].count; i++) {
+-						timed_fires[ev.code].entries[i].active = 0;
+-					}
+-					timed_fires[ev.code].count = 0;
++					cancel_timed_fires(ev.code);
+ 				}
+ 			}
+ 		} else if (n == -1 && errno != EAGAIN) {
+@@ -411,9 +478,34 @@
+ 			break;
+ 		}
+ 
+-		// Check for timed fire events
++		// Verify every held key against the kernel key state
+ 		struct timeval now;
+-		gettimeofday(&now, NULL);
++		mono_time(&now);
++		int keys_held = 0;
++		for (int i = 0; i < 256; i++) {
++			if (!key_held[i]) {
++				continue;
++			}
++			keys_held = 1;
++			if (key_is_down(fd, i) != 0 || events_pending(fd)) {
++				key_up_since[i].tv_sec = 0;
++				continue;
++			}
++			if (key_up_since[i].tv_sec == 0) {
++				key_up_since[i] = now;
++				continue;
++			}
++			double up = (now.tv_sec - key_up_since[i].tv_sec) +
++						(now.tv_usec - key_up_since[i].tv_usec) / 1000000.0;
++			if (up < HOLD_STALE_SEC) {
++				continue;
++			}
++			log_message("Key %d reads released without a release event, dropping the stale hold\n", i);
++			key_held[i] = 0;
++			cancel_timed_fires(i);
++		}
++
++		// Check for timed fire events
+ 		int pending_fires = 0;
+ 		for (int i = 0; i < 256; i++) {
+ 			for (int j = 0; j < timed_fires[i].count; j++) {
+@@ -423,7 +515,11 @@
+ 				}
+ 				double elapsed = (now.tv_sec - entry->press_time.tv_sec) +
+ 								(now.tv_usec - entry->press_time.tv_usec) / 1000000.0;
+-				if (elapsed >= entry->config->time) {
++				if (elapsed >= entry->config->time && !key_held[i]) {
++					entry->active = 0; // Hold no longer verified
++				} else if (elapsed >= entry->config->time && key_is_down(fd, i) == 0) {
++					pending_fires = 1; // Kernel says up: wait for the event or the stale drop
++				} else if (elapsed >= entry->config->time) {
+ 					log_message("TIMED_FIRE command for key %d: %s (elapsed %f seconds)\n", i, entry->config->command, elapsed);
+ 					execute_command(entry->config->command);
+ 					entry->active = 0; // Deactivate the entry after execution
+@@ -433,8 +529,9 @@
+ 			}
+ 		}
+ 
+-		// Tick at 10ms only while TIMED_FIRE countdowns are pending
+-		poll_timeout = pending_fires ? 10 : -1;
++		// Tick at 10ms while TIMED_FIRE countdowns are pending and at
++		// HOLD_CHECK_MS while a key is held; sleep in poll() otherwise
++		poll_timeout = pending_fires ? 10 : keys_held ? HOLD_CHECK_MS : -1;
+ 	}
+ }
+ 
+@@ -540,6 +637,9 @@
+ 
+ 	// Register signal handlers
+ 	signal(SIGTERM, handle_signal);
++	// Commands are never waited for: let the kernel reap them also when
++	// running in the foreground (-s under start-stop-daemon -b)
++	signal(SIGCHLD, SIG_IGN);
+ 
+ 	int fd = -1;
+ 	int retries = 0;

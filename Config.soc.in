@@ -528,9 +528,12 @@ config BR2_ISP_MIPI_SWITCH_GPIO
 
 choice
 	prompt "ISP Direct Mode"
-	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t32" || \
+		   BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t41"
 	help
 	  Configure non-direct mode, direct mode, and semi-direct mode.
+	  On T32/T33 the value is the number of sensors whose main
+	  channel goes straight to the encoder (IVDC); raptor follows it.
 	  (direct_mode)
 
 config BR2_ISP_DIRECT_MODE_0
@@ -551,7 +554,8 @@ config BR2_ISP_DIRECT_MODE_2
 endchoice
 
 menuconfig BR2_ISP_IVDC_MEM_LINE
-	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on ((BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1) || \
+		   BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	bool "ISP IVDC Mem Line"
 	help
 	  Enable the IVDC mem line configuration.
@@ -568,7 +572,8 @@ config BR2_ISP_IVDC_MEM_LINE_VALUE
 	  (ivdc_mem_line)
 
 menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
-	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on ((BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1) || \
+		   BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	bool "ISP Threshold Line"
 	help
 	  Enable the IVDC threshold line configuration.
@@ -954,13 +959,14 @@ config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_7
-	bool "Kernel 7.1"
+	bool "Kernel 7.4 (mainline, experimental)"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40"
 endchoice
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
     string
-    default "7.1-rc1" if KERNEL_VERSION_7
+    default "7.4" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

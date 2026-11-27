@@ -72,6 +72,8 @@ endif
 endif
 
 ################ MMC #########################
+# 7.4 builds the host into the image from its generic config; nothing to set.
+ifneq ($(KERNEL_VERSION_7),y)
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
 # Which MSC driver this SoC and kernel pair uses:
@@ -238,6 +240,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT
 	$(call KCONFIG_ENABLE_OPT,CONFIG_LBDAF)
 endef
 endif
+endif
 ################ DWC2 #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2
@@ -386,7 +389,14 @@ endif
 
 ################ SADC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_ADC),y)
-ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(KERNEL_VERSION_7),y)
+# The SADC is the ingenic-sadc IIO driver; ingenic-sdk's adc-aux module puts
+# the vendor /dev/jz_adc_aux_N (ingenic_adc_aux_N) on it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC
+	$(call KCONFIG_ENABLE_OPT,CONFIG_IIO)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_SADC)
+endef
+else ifeq ($(KERNEL_VERSION_4),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_INGENIC_SADC_V13)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_INGENIC_SADC_AUX)
@@ -467,6 +477,15 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_CIFS),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_CIFS)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_CIFS_SMB2)
+endef
+endif
+
+################ COMPACTION #########################
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_COMPACTION),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_COMPACTION
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MIGRATION)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_COMPACTION)
 endef
 endif
 
@@ -645,10 +664,17 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_OPTIMISTIC_DAD)
 	$(call KCONFIG_SET_OPT,CONFIG_IPV6_SIT,m)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_NDISC_NODETYPE)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6_ROUTING)
+endef
+# Policy routing, source routing and multicast routing: a camera routes
+# nothing, and on 7.4 they cost 14 KB of the kernel partition.
+ifneq ($(KERNEL_VERSION_7),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6_ROUTING
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MULTIPLE_TABLES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_SUBTREES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MROUTE)
 endef
+endif
 define THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/dhcpv6.script $(TARGET_DIR)/usr/lib/netifd/dhcpv6.script
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/odhcp6c $(TARGET_DIR)/etc/network/if-up.d/odhcp6c
@@ -751,6 +777,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLIP)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LEDS)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_COMPACTION)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_SERIAL)

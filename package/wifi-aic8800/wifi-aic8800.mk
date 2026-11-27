@@ -6,7 +6,14 @@ WIFI_AIC8800_VERSION = a870f7f15170a5899bf0b98769896fd1a7d4bf1e
 WIFI_AIC8800_LICENSE = GPL-2.0
 
 AIC8800_MODULE_NAME = aic8800_fdrv
-AIC8800_MODULE_OPTS =
+# Power-save on by default (ps_on=Y) with WMM U-APSD enabled (uapsd_queues=1)
+# lets the firmware sleep through traffic windows and stop ACKing management
+# frames for seconds at a time. Against hostapd-based APs this shows up as
+# "excessive missing ACKs" -> inactivity deauth, and some APs then blackball
+# the client on its next auth attempts, leaving the camera offline for minutes.
+# ps_on=N alone is not enough: it only disables the legacy PS-Poll doze path,
+# while U-APSD stays active and still produces ACK gaps. Disable both.
+AIC8800_MODULE_OPTS = ps_on=N uapsd_queues=0
 
 WIFI_AIC8800_MODULE_MAKE_OPTS = \
 	CONFIG_USE_WIRELESS_EXT=n \

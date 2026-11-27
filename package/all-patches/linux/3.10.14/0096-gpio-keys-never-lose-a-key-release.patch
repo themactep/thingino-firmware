@@ -1,0 +1,437 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lutz@fiebach.de>
+Date: Tue, 24 Nov 2026 00:30:00 +0100
+Subject: [PATCH] MIPS: xburst: gpio: re-arm both-edge emulation until stable;
+ gpio-keys: recheck a pressed key
+
+The XBurst1 GPIO controller (T10/T15/T20/T21/T23/T30/T31) has no dual
+edge trigger.  IRQ_TYPE_EDGE_BOTH, which gpio-keys requests, is emulated
+in gpio_mask_and_ack_irq() with the level trigger opposite to the
+current pin level: sample the level, write PAT0, then clear the flag.
+When the pin moves between the sample and the flag clear (a fast second
+press, contact bounce), the trigger is left armed for the level the pin
+already has and the flag of that edge has just been cleared.  The next
+edge is then never seen: on a T23 a short reset-key press stayed "down"
+in evdev until the next press (one press held 4.8 s, one > 20 s, which
+let thingino-button arm the 20 s factory-reset action).
+
+- gpio: sample, arm, clear the flag and sample again; re-arm (bounded)
+  until both samples agree, so every edge after the last sample raises
+  a new flag.
+- gpio-keys: while a GPIO key reads as pressed, re-read its level every
+  50 ms from the existing timer/work.  The input core drops repeated
+  identical states, so this only emits an event when a release was
+  lost.  Idle cost is zero; the timer is torn down on disable/remove.
+
+Signed-off-by: Lu-Fi <lutz@fiebach.de>
+---
+diff --git a/arch/mips/xburst/soc-t10/common/gpio.c b/arch/mips/xburst/soc-t10/common/gpio.c
+--- a/arch/mips/xburst/soc-t10/common/gpio.c
++++ b/arch/mips/xburst/soc-t10/common/gpio.c
+@@ -447,18 +447,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t15/common/gpio.c b/arch/mips/xburst/soc-t15/common/gpio.c
+--- a/arch/mips/xburst/soc-t15/common/gpio.c
++++ b/arch/mips/xburst/soc-t15/common/gpio.c
+@@ -444,18 +444,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t20/common/gpio.c b/arch/mips/xburst/soc-t20/common/gpio.c
+--- a/arch/mips/xburst/soc-t20/common/gpio.c
++++ b/arch/mips/xburst/soc-t20/common/gpio.c
+@@ -447,18 +447,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t21/common/gpio.c b/arch/mips/xburst/soc-t21/common/gpio.c
+--- a/arch/mips/xburst/soc-t21/common/gpio.c
++++ b/arch/mips/xburst/soc-t21/common/gpio.c
+@@ -452,18 +452,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t23/common/gpio.c b/arch/mips/xburst/soc-t23/common/gpio.c
+--- a/arch/mips/xburst/soc-t23/common/gpio.c
++++ b/arch/mips/xburst/soc-t23/common/gpio.c
+@@ -559,18 +559,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t30/common/gpio.c b/arch/mips/xburst/soc-t30/common/gpio.c
+--- a/arch/mips/xburst/soc-t30/common/gpio.c
++++ b/arch/mips/xburst/soc-t30/common/gpio.c
+@@ -452,18 +452,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/arch/mips/xburst/soc-t31/common/gpio.c b/arch/mips/xburst/soc-t31/common/gpio.c
+--- a/arch/mips/xburst/soc-t31/common/gpio.c
++++ b/arch/mips/xburst/soc-t31/common/gpio.c
+@@ -574,18 +574,33 @@
+ 	struct jzgpio_chip *jz = irqdata2jz(data);
+ 	int pin  = data->irq - jz->irq_base;
+ 
+-	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH)
+-		goto end;
++	int level, tries = 0;
+ 
+-	/* emulate double edge trigger interrupt */
+-	if (gpio_pin_level(jz, pin))
+-		writel(BIT(pin), jz->reg + PXPAT0C);
+-	else
+-		writel(BIT(pin), jz->reg + PXPAT0S);
+-
+-end:
+ 	writel(BIT(pin), jz->reg + PXMSKS);
+-	writel(BIT(pin), jz->reg + PXFLGC);
++
++	if (irqd_get_trigger_type(data) != IRQ_TYPE_EDGE_BOTH) {
++		writel(BIT(pin), jz->reg + PXFLGC);
++		return;
++	}
++
++	/*
++	 * Emulate a double edge trigger with the level trigger opposite to
++	 * the current pin level.  The level is sampled before the trigger is
++	 * re-armed and the flag cleared; if the pin moves in that window
++	 * (a fast second press, contact bounce), the trigger ends up armed
++	 * for the level the pin already has and the flag of that edge has
++	 * just been cleared, so the next edge (the key release) is lost.
++	 * Sample again after the flag clear and re-arm until both samples
++	 * agree; any edge after the last sample then raises a new flag.
++	 */
++	do {
++		level = gpio_pin_level(jz, pin);
++		if (level)
++			writel(BIT(pin), jz->reg + PXPAT0C);
++		else
++			writel(BIT(pin), jz->reg + PXPAT0S);
++		writel(BIT(pin), jz->reg + PXFLGC);
++	} while (gpio_pin_level(jz, pin) != level && ++tries < 8);
+ }
+ 
+ static int gpio_set_type(struct irq_data *data, unsigned int flow_type)
+diff --git a/drivers/input/keyboard/gpio_keys.c b/drivers/input/keyboard/gpio_keys.c
+--- a/drivers/input/keyboard/gpio_keys.c
++++ b/drivers/input/keyboard/gpio_keys.c
+@@ -30,6 +30,13 @@
+ #include <linux/of_gpio.h>
+ #include <linux/spinlock.h>
+ 
++/*
++ * While a GPIO key reads as pressed, its level is re-read at this interval
++ * so a lost release edge cannot leave the key stuck down (a stuck key turns
++ * a short press into a long hold for userspace, e.g. a factory reset).
++ */
++#define GPIO_KEYS_PRESSED_RECHECK_MS	50
++
+ struct gpio_button_data {
+ 	const struct gpio_keys_button *button;
+ 	struct input_dev *input;
+@@ -117,10 +124,13 @@
+ 		 * Disable IRQ and possible debouncing timer.
+ 		 */
+ 		disable_irq(bdata->irq);
+-		if (bdata->timer_debounce)
+-			del_timer_sync(&bdata->timer);
+-
+ 		bdata->disabled = true;
++		del_timer_sync(&bdata->timer);
++		if (gpio_is_valid(bdata->button->gpio)) {
++			/* the work may re-arm the pressed-key recheck timer */
++			cancel_work_sync(&bdata->work);
++			del_timer_sync(&bdata->timer);
++		}
+ 	}
+ }
+ 
+@@ -322,7 +332,7 @@
+ 	.attrs = gpio_keys_attrs,
+ };
+ 
+-static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
++static int gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
+ {
+ 	const struct gpio_keys_button *button = bdata->button;
+ 	struct input_dev *input = bdata->input;
+@@ -336,6 +346,8 @@
+ 		input_event(input, type, button->code, !!state);
+ 	}
+ 	input_sync(input);
++
++	return state;
+ }
+ 
+ static void gpio_keys_gpio_work_func(struct work_struct *work)
+@@ -343,7 +355,13 @@
+ 	struct gpio_button_data *bdata =
+ 		container_of(work, struct gpio_button_data, work);
+ 
+-	gpio_keys_gpio_report_event(bdata);
++	/*
++	 * The input core drops repeated identical states, so the recheck only
++	 * emits an event when the level really changed without an interrupt.
++	 */
++	if (gpio_keys_gpio_report_event(bdata) && !bdata->disabled)
++		mod_timer(&bdata->timer, jiffies +
++			  msecs_to_jiffies(GPIO_KEYS_PRESSED_RECHECK_MS));
+ 
+ 	if (bdata->button->wakeup)
+ 		pm_relax(bdata->input->dev.parent);
+@@ -676,9 +694,11 @@
+ static void gpio_remove_key(struct gpio_button_data *bdata)
+ {
+ 	free_irq(bdata->irq, bdata);
+-	if (bdata->timer_debounce)
+-		del_timer_sync(&bdata->timer);
++	bdata->disabled = true;
++	del_timer_sync(&bdata->timer);
+ 	cancel_work_sync(&bdata->work);
++	/* the work may have re-armed the pressed-key recheck timer */
++	del_timer_sync(&bdata->timer);
+ 	if (gpio_is_valid(bdata->button->gpio))
+ 		gpio_free(bdata->button->gpio);
+ }

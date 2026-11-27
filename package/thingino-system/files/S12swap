@@ -1,0 +1,75 @@
+#!/bin/sh
+
+DEV=/dev/zram0
+SYS=/sys/block/zram0
+
+start() {
+	echo -c 15 "Starting zram swap"
+
+	if [ "$(jct /etc/thingino.json get zram.enabled 2>/dev/null)" = "false" ]; then
+		echo -c 160 -e "Disabled"
+		return 0
+	fi
+
+	if grep -q "^$DEV " /proc/swaps; then
+		return 0
+	fi
+
+	[ -b "$DEV" ] || modprobe zram 2>/dev/null
+	if [ ! -b "$DEV" ]; then
+		echo -c 160 -e "No zram in this kernel"
+		return 0
+	fi
+
+	mem_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo)
+	default_mb=$((mem_mb / 2))
+	size=$(jct /etc/thingino.json get zram.size_mb 2>/dev/null)
+	if [ -z "$size" ]; then
+		size=$default_mb
+	else
+		case "$size" in
+			*[!0-9]* | ???????*) size=0 ;;
+		esac
+		if [ "$size" -lt 1 ] || [ "$size" -gt $((mem_mb * 2)) ]; then
+			echo -c 160 -e "Invalid zram.size_mb, using $default_mb"
+			size=$default_mb
+		fi
+	fi
+	[ "$size" -ge 1 ] || size=1
+
+	if ! echo "${size}M" > "$SYS/disksize" || ! mkswap "$DEV" > /dev/null || ! swapon -p 100 "$DEV"; then
+		echo -c 160 -e "Failed"
+		echo 1 > "$SYS/reset" 2>/dev/null
+		return 1
+	fi
+
+	echo 100 > /proc/sys/vm/swappiness
+	echo "${size} MiB, $(cat "$SYS/comp_algorithm" | sed 's/.*\[\(.*\)\].*/\1/')"
+}
+
+stop() {
+	echo -c 15 "Stopping zram swap"
+
+	if grep -q "^$DEV " /proc/swaps; then
+		swapoff "$DEV"
+	fi
+	[ -e "$SYS/reset" ] && echo 1 > "$SYS/reset"
+	return 0
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

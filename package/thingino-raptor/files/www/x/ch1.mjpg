@@ -11,6 +11,11 @@ require_auth
 CHANNEL=1
 BOUNDARY="raptorframe"
 
+# rvd numbers JPEG channels over the streams that have one: with the main's
+# JPEG off, the sub's is channel 0 and there is no channel 1. Serve channel 0
+# then, so "Ch1" previews whatever JPEG there is instead of failing.
+[ -e /dev/shm/rss_ring_jpeg1 ] || CHANNEL=0
+
 if ! pidof rhd >/dev/null 2>&1; then
 	printf 'Status: 503 Service Unavailable\r\n\r\n'
 	exit 0

@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = main
-INGENIC_SDK_VERSION = d9f3a2506ce695bc198cfa1d8daaa91a2d376721
+INGENIC_SDK_VERSION = 5e3f879e6b572be55c527fa5af4a59babbe579dd
 
 INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -34,11 +34,19 @@ INGENIC_SDK_COMPONENTS = \
 	CONFIG_INGENIC_JZ_AES=$(if $(BR2_INGENIC_SDK_JZ_AES),y,n) \
 	CONFIG_INGENIC_TCU_ALLOC=$(if $(BR2_INGENIC_SDK_TCU_ALLOC),y,n) \
 	CONFIG_INGENIC_PWM=$(if $(BR2_INGENIC_SDK_PWM),y,n) \
-	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
+	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n) \
+	CONFIG_INGENIC_ADC_AUX=$(if $(BR2_PACKAGE_THINGINO_KOPT_ADC),y,n)
+
+# The SDK keeps one tree, 7.x, for every mainline 7 release.
+ifeq ($(KERNEL_VERSION_7),y)
+INGENIC_SDK_KERNEL_VERSION = 7.x
+else
+INGENIC_SDK_KERNEL_VERSION = $(KERNEL_VERSION)
+endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
-	KERNEL_VERSION=$(KERNEL_VERSION) \
+	KERNEL_VERSION=$(INGENIC_SDK_KERNEL_VERSION) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
 	SENSOR_1_MODEL=$(SENSOR_1_MODEL) \
@@ -49,7 +57,7 @@ INGENIC_SDK_MODULE_MAKE_OPTS = \
 
 ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_3_10
-else
+else ifneq ($(KERNEL_VERSION_7),y)
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_4_4_94
 endif
 
@@ -94,6 +102,15 @@ ifneq ($(SENSOR_1_MODEL),)
 		MULTI_SENSOR_ENABLED =
 		SENSOR_1_BIN_NAME = $(SENSOR_1_MODEL)
 	endif
+endif
+
+# A board can name another sensor-iq bin, e.g. its stock tuning; it keeps the
+# file name libimp looks for.
+ifneq ($(call qstrip,$(BR2_SENSOR_1_IQ_NAME)),)
+	SENSOR_1_BIN_NAME := $(call qstrip,$(BR2_SENSOR_1_IQ_NAME))
+endif
+ifneq ($(call qstrip,$(BR2_SENSOR_2_IQ_NAME)),)
+	SENSOR_2_BIN_NAME := $(call qstrip,$(BR2_SENSOR_2_IQ_NAME))
 endif
 
 LINUX_CONFIG_LOCALVERSION = \
@@ -158,9 +175,13 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	fi
 endef
 
-# $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path)
+# $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path, iq_name)
+# A dual-sensor model with its own bin in sensor-iq (e.g. sc2336ps1.bin) gets
+# that bin under its own name instead of a link to the shared bin_name one,
+# unless the board named a bin (iq_name).
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ] && [ "$(1)" != "none" ]; then \
+		own=0; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
 		if [ -n "$(4)" ] && [ -f "$(4)" ]; then \
 			$(INSTALL) -D -m 0644 $(4) \
@@ -183,14 +204,20 @@ define INSTALL_SENSOR_BIN
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
 				iqdir=$$iqdir/$(SENSOR_ISP_FW); \
 			fi; \
-			$(INSTALL) -D -m 0644 $$iqdir/$(2).bin \
-				$(TARGET_DIR)/usr/share/sensor/$(3); \
-			if [ -f $$iqdir/$(2)-cust.bin ]; then \
-				$(INSTALL) -D -m 0644 $$iqdir/$(2)-cust.bin \
-					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
+			if [ -z "$(5)" ] && [ "$(1)" != "$(2)" ] && [ -f $$iqdir/$(1).bin ]; then \
+				own=1; \
+				$(INSTALL) -D -m 0644 $$iqdir/$(1).bin \
+					$(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
+			else \
+				$(INSTALL) -D -m 0644 $$iqdir/$(2).bin \
+					$(TARGET_DIR)/usr/share/sensor/$(3); \
+				if [ -f $$iqdir/$(2)-cust.bin ]; then \
+					$(INSTALL) -D -m 0644 $$iqdir/$(2)-cust.bin \
+						$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
+				fi; \
 			fi; \
 		fi; \
-		if [ "$(1)" != "$(2)" ]; then \
+		if [ "$(1)" != "$(2)" ] && [ $$own -eq 0 ] && [ "$(3)" != "$(1)-$(SOC_FAMILY).bin" ]; then \
 			ln -sf $(3) $(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
 		fi; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
@@ -199,6 +226,8 @@ endef
 
 define GENERATE_MODULE_LOADER
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+
+	$(GENERATE_MODULE_LOADER_7X)
 
 	if [ "$(BR2_THINGINO_AIP)" = "y" ]; then \
 		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/08-aip; \
@@ -232,7 +261,7 @@ define GENERATE_MODULE_LOADER
 		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t32" ] || [ "$(SOC_FAMILY)" = "t33" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_CLKV_CLK_SRC) $(ISP_CLKV_CLK) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_CLKV_CLK_SRC) $(ISP_CLKV_CLK) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		else \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		fi \
@@ -247,12 +276,13 @@ define GENERATE_MODULE_LOADER
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
-	if [ "$(SOC_FAMILY)" = "t33" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
-	fi
-
-	if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/07-nna; \
+	if [ "$(KERNEL_VERSION_7)" != "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t33" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
+		fi; \
+		if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/07-nna; \
+		fi; \
 	fi
 
 	if [ "$(BR2_INGENIC_SDK_JZ_AES)" = "y" ]; then \
@@ -272,6 +302,31 @@ define GENERATE_MODULE_LOADER
 	fi
 endef
 
+# Mainline only: libimp's /dev/rmem and /dev/log_* come from modules that the
+# vendor kernels build in, and the OSD block (plus, off the T31, the encoder)
+# has a module of its own. The T40 and T41 encode on the AVPU and have no IPU
+# module.
+ifeq ($(KERNEL_VERSION_7),y)
+define GENERATE_MODULE_LOADER_7X
+	printf 'rmem\nandroid_logger\n' > $(TARGET_DIR)/etc/modules.d/01-rmem
+
+	if [ "$(BR2_PACKAGE_THINGINO_KOPT_ADC)" = "y" ]; then \
+		echo "adc-aux" > $(TARGET_DIR)/etc/modules.d/03-adc-aux; \
+	fi
+
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ]; then \
+			echo "ipu" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		elif [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+			:; \
+		else \
+			echo "soc-vpu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/10-vpu; \
+			echo "ipu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
+		fi; \
+	fi
+endef
+endif
+
 # The speaker-amp enable line comes from gpio.speaker in the board's
 # thingino.json, in the same short notation as the rest of the gpio section:
 # a bare int is an active-high pin, {"pin": N, "active_low": true} an
@@ -280,6 +335,12 @@ endef
 # level is moot). The same key is what package/thingino-uboot/
 # inject-uboot-audio-dt.sh puts in the U-Boot device tree as
 # ingenic,spk-gpio.
+# The 7.x audio module registers its DMIC host only with dmic_enable=1; the
+# DMIC node itself is enabled by thingino-kopt's device-tree injector.
+ifeq ($(KERNEL_VERSION_7)$(BR2_THINGINO_AUDIO_DMIC),yy)
+INGENIC_SDK_AUDIO_DMIC = dmic_enable=1
+endif
+
 define INSTALL_AUDIO_SUPPORT
 	spk_gpio=-1; \
 	spk_level=1; \
@@ -302,7 +363,7 @@ define INSTALL_AUDIO_SUPPORT
 				;; \
 		esac; \
 	fi; \
-	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(INGENIC_SDK_AUDIO_DMIC) $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
 
 	[ -f $(@D)/config/webrtc_profile.ini ] && $(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
 
@@ -323,8 +384,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	done
 
 	if [ -n "$(SENSOR_1_MODEL)" ]; then \
-		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME),$(SENSOR_1_IQ_OVERRIDE)); \
-		$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_2_BIN_NAME),$(SENSOR_2_CONFIG_NAME),$(SENSOR_2_IQ_OVERRIDE)); \
+		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME),$(SENSOR_1_IQ_OVERRIDE),$(call qstrip,$(BR2_SENSOR_1_IQ_NAME))); \
+		$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_2_BIN_NAME),$(SENSOR_2_CONFIG_NAME),$(SENSOR_2_IQ_OVERRIDE),$(call qstrip,$(BR2_SENSOR_2_IQ_NAME))); \
 	fi
 
 	$(GENERATE_MODULE_LOADER)

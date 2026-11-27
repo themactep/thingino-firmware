@@ -1,0 +1,610 @@
+From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
+From: WLTB Gino <gino@wltb.local>
+Date: Sat, 22 Nov 2026 04:52:00 +0000
+Subject: [PATCH] ingenic-sdk: gc4023 t41: add the real 30fps mode
+
+The t41 port's win_sizes[0] claims "2560x1440 @max 30fps" but points at
+the 25fps register table (VTS 0x0753 = 1875). Every T41 board with this
+sensor therefore boots at 25fps no matter what the caps advertise, and
+SENSOR_SUPPORT_30FPS_SCLK is computed from the never-shipped 30fps
+table (2025*1200*2*25), so runtime fps requests derive garbage VTS
+values from the bogus constant.
+
+Port the true 30fps table from the t32 sibling (mipi 864Mbps/lane, PLL
+0x0a36=0x60, 0x061d/e=0x22/0x78, VTS 0x05dc=1500), aim win_sizes[0] at
+it, and restore the OTP/BLC/DPC init tail plus the 0x0709/0x0719 and
+0x0704/06/16/08/18 MIPI tuning registers every other t41 mode keeps.
+t32 runs the same two register groups from gc4023_stream_on_mipi
+instead; t41 stream-on is empty, so the init table is the only place
+they can run.
+
+SCLK handling differs from t32: the t41 set_fps doubles HTS
+(((hts << 8) + tmp) << 1) before dividing, t32 does not. With hts=1200
+the effective divisor is 2400, so the runtime clocks are:
+
+- 108e6 = 0x960 * 0x8ca * 20 (doubled HTS 2400 x 20fps VTS 2250),
+  shared by case 0 (30fps boot, vts 1500), case 2 (20fps) and case 3
+  (15fps, vts 3000).
+- 121.5e6 = 0x960 * 0x7e9 * 25 (doubled HTS 2400 x 25fps VTS 2025)
+  for case 1 (25fps_24Mmipi), which gets its own constant and its own
+  set_fps case.
+
+The mipi bus struct is split per window: sensor_mipi_linear moves from
+702 to 864 for win_sizes[0], and the new sensor_mipi_25fps_linear keeps
+702 for the 704Mbps/lane 25fps_24Mmipi window (win_sizes[1]). Boot
+attributes are corrected per window: one_line_expr_in_us 22us for the
+27MHz-mclk modes, 20us for the 24MHz-mclk 25fps mode (line time
+19.75us); total_height/max-integration 1500, 2250, 3000 and 2025 to
+match each table; boot exposure 0x5a0 (1440) fits the new 30fps
+VTS-1500 maximum. sensor_set_fps now also updates the sensor
+max-exposure registers 0x0259/0x025a = vts-32, matching the t32 driver.
+
+The now-unused 25fps_mipi table is removed and the stale /*vts =
+1500*/ comment on 25fps_24Mmipi corrected (registers say 2025).
+
+The 3.10.14 and 4.4.94 copies of t41 gc4023.c are not byte-identical:
+they differ by 49 lines (2019 vs 2032: 31 added + 18 removed of
+pre-existing formatting/comment drift: indentation of struct
+regval_list fields, define ordering, a soc/gpio.h include only the
+4.4.94 copy has, blank lines around comments). The register
+tables themselves and every line this patch touches are identical in
+both copies, and each patched file differs from its pre-patch state by
+exactly the same 138 change lines (83 added + 55 removed).
+
+T41NQ boards with GC4023 (Noorio T110) now boot at 30fps and honor fps
+changes.
+
+Signed-off-by: WLTB Gino <gino@wltb.local>
+---
+diff --git a/3.10.14/sensor-src/t41/gc4023.c b/3.10.14/sensor-src/t41/gc4023.c
+index 93c82245..d139e6d0 100644
+--- a/3.10.14/sensor-src/t41/gc4023.c
++++ b/3.10.14/sensor-src/t41/gc4023.c
+@@ -40,8 +40,9 @@
+ // ============================================================================
+ // TIMING AND PERFORMANCE
+ // ============================================================================
+-#define SENSOR_SUPPORT_30FPS_SCLK (0x7e9 * 0x4b0 * 2 * 25)
+-#define SENSOR_SUPPORT_20FPS_SCLK 108*1000*1000
++#define SENSOR_SUPPORT_30FPS_SCLK (0x960 * 0x5dc * 30)
++#define SENSOR_SUPPORT_20FPS_SCLK (0x960 * 0x8ca * 20)
++#define SENSOR_SUPPORT_25FPS_SCLK (0x960 * 0x7e9 * 25)
+ #define SENSOR_OUTPUT_MIN_FPS 5
+ 
+ #define CAMERA_PROC_NAME "camera"
+@@ -168,6 +169,36 @@ unsigned int sensor_alloc_dgain(unsigned int isp_gain, unsigned char shift, unsi
+ }
+ 
+ struct tx_isp_mipi_bus sensor_mipi_linear = {
++	.mode = SENSOR_MIPI_OTHER_MODE,
++	.clk = 864,
++	.lans = 2,
++	.settle_time_apative_en = 0,
++	.mipi_sc.sensor_csi_fmt = TX_SENSOR_RAW10,
++	.mipi_sc.hcrop_diff_en = 0,
++	.mipi_sc.mipi_vcomp_en = 0,
++	.mipi_sc.mipi_hcomp_en = 0,
++	.image_twidth = 2560,
++	.image_theight = 1440,
++	.mipi_sc.mipi_crop_start0x = 0,
++	.mipi_sc.mipi_crop_start0y = 0,
++	.mipi_sc.mipi_crop_start1x = 0,
++	.mipi_sc.mipi_crop_start1y = 0,
++	.mipi_sc.mipi_crop_start2x = 0,
++	.mipi_sc.mipi_crop_start2y = 0,
++	.mipi_sc.mipi_crop_start3x = 0,
++	.mipi_sc.mipi_crop_start3y = 0,
++	.mipi_sc.line_sync_mode = 0,
++	.mipi_sc.work_start_flag = 0,
++	.mipi_sc.data_type_en = 0,
++	.mipi_sc.data_type_value = RAW10,
++	.mipi_sc.del_start = 0,
++	.mipi_sc.sensor_frame_mode = TX_SENSOR_DEFAULT_FRAME_MODE,
++	.mipi_sc.sensor_fid_mode = 0,
++	.mipi_sc.sensor_mode = TX_SENSOR_DEFAULT_MODE,
++};
++
++/* 25fps_24Mmipi window (win_sizes[1]) keeps its 704Mbps/lane PHY config */
++struct tx_isp_mipi_bus sensor_mipi_25fps_linear = {
+ 	.mode = SENSOR_MIPI_OTHER_MODE,
+ 	.clk = 702,
+ 	.lans = 2,
+@@ -307,32 +338,24 @@ struct tx_isp_sensor_attribute sensor_attr = {
+ };
+ 
+ 
+-static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+-	/*version 1.2*/
+-	/*mclk 27Mhz*/
+-	/*mipi 702Mbps/lane*/
+-	/*vts = 1800*/
+-	/*window 2560 1440*/
+-	/*row time=26.666us*/
+-	/*bayer order  rggb*/
+-	//row time=26.66us
+-	//bayer order  rggb
+-	/*SYSTEM*/
++
++static struct regval_list sensor_init_regs_2560_1440_30fps_mipi[] = {
++	/*2560x1440 30fps linear, mclk 27MHz, wpclk 216MHz, mipi 864Mbps/lane, vts 1500*/
+ 	{0x03fe, 0xf0},
+ 	{0x03fe, 0x00},
+ 	{0x03fe, 0x10},
+ 	{0x03fe, 0x00},
+ 	{0x0a38, 0x00},
+ 	{0x0a38, 0x01},
+-	{0x0a20, 0x17},
++	{0x0a20, 0x07},
+ 	{0x061c, 0x50},
+-	{0x061d, 0x21},
+-	{0x061e, 0x50},
++	{0x061d, 0x22},
++	{0x061e, 0x78},
+ 	{0x061f, 0x06},
+ 	{0x0a21, 0x10},
+ 	{0x0a34, 0x40},
+ 	{0x0a35, 0x01},
+-	{0x0a36, 0x42},
++	{0x0a36, 0x60},
+ 	{0x0a37, 0x06},
+ 	{0x0314, 0x50},
+ 	{0x0315, 0x00},
+@@ -342,8 +365,8 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x0343, 0xb0},
+ 	{0x0259, 0x05},
+ 	{0x025a, 0xa0},
+-	{0x0340, 0x07},
+-	{0x0341, 0x53},
++	{0x0340, 0x05},
++	{0x0341, 0xdc},
+ 	{0x0347, 0x02},
+ 	{0x0348, 0x0a},
+ 	{0x0349, 0x08},
+@@ -372,13 +395,13 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x072a, 0x18},
+ 	{0x0724, 0x0a},
+ 	{0x0727, 0x0a},
+-	{0x072a, 0x1c},
+-	{0x072b, 0x0a},
++	{0x072a, 0x18},
++	{0x072b, 0x08},
+ 	{0x1466, 0x10},
+-	{0x1468, 0x18},
+-	{0x1467, 0x18},
++	{0x1468, 0x0f},
++	{0x1467, 0x07},
+ 	{0x1469, 0x80},
+-	{0x146a, 0xe8},
++	{0x146a, 0xbc},
+ 	{0x0707, 0x07},
+ 	{0x0737, 0x0f},
+ 	{0x0704, 0x01},
+@@ -392,27 +415,27 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x1408, 0x16},
+ 	{0x1409, 0x03},
+ 	{0x146d, 0x0e},
+-	{0x146e, 0x42},
+-	{0x146f, 0x43},
+-	{0x1470, 0x3c},
+-	{0x1471, 0x3d},
++	{0x146e, 0x32},
++	{0x146f, 0x33},
++	{0x1470, 0x2c},
++	{0x1471, 0x2d},
+ 	{0x1472, 0x3a},
+ 	{0x1473, 0x3a},
+ 	{0x1474, 0x40},
+-	{0x1475, 0x46},
++	{0x1475, 0x36},
+ 	{0x1420, 0x14},
+ 	{0x1464, 0x15},
+ 	{0x146c, 0x40},
+ 	{0x146d, 0x40},
+ 	{0x1423, 0x08},
+ 	{0x1428, 0x10},
+-	{0x1462, 0x18},
++	{0x1462, 0x08},
+ 	{0x02ce, 0x04},
+-	{0x143a, 0x0f},
++	{0x143a, 0x0b},
+ 	{0x142b, 0x88},
+ 	{0x0245, 0xc9},
+ 	{0x023a, 0x08},
+-	{0x02cd, 0x92},
++	{0x02cd, 0x88},
+ 	{0x0612, 0x02},
+ 	{0x0613, 0xc7},
+ 	{0x0243, 0x03},
+@@ -421,7 +444,7 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x0040, 0xa3},
+ 	{0x0075, 0x64},
+ 	{0x0004, 0x0f},
+-	{0x0002, 0xab},
++	{0x0002, 0xa9},
+ 	{0x0053, 0x0a},
+ 	{0x0205, 0x0c},
+ 	{0x0202, 0x06},
+@@ -482,9 +505,9 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
+ 	/*version 1.2*/
+ 	/*mclk 24Mhz*/
+ 	/*mipi 704Mbps/lane*/
+-	/*vts = 1500*/
++	/*vts = 2025*/
+ 	/*window 2560 1440*/
+-	/*row time=22.22us*/
++	/*row time=19.75us*/
+ 	/*bayer order  rggb*/
+ 
+ 
+@@ -1169,7 +1192,7 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
+ 		.fps = 30 << 16 | 1,
+ 		.mbus_code = TISP_VI_FMT_SRGGB10_1X10,
+ 		.colorspace = TISP_COLORSPACE_SRGB,
+-		.regs = sensor_init_regs_2560_1440_25fps_mipi,
++		.regs = sensor_init_regs_2560_1440_30fps_mipi,
+ 	},
+ 	{
+ 		.width = 2560,
+@@ -1516,10 +1539,13 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	/* return 0; */
+ 	switch (sensor->info.default_boot) {
+ 		case 0:
+-		case 1:
+ 			wpclk = SENSOR_SUPPORT_30FPS_SCLK;
+ 			sensor_max_fps = TX_SENSOR_MAX_FPS_30;
+ 			break;
++		case 1:
++			wpclk = SENSOR_SUPPORT_25FPS_SCLK;
++			sensor_max_fps = TX_SENSOR_MAX_FPS_25;
++			break;
+ 		case 2:
+ 			wpclk = SENSOR_SUPPORT_20FPS_SCLK;
+ 			sensor_max_fps = TX_SENSOR_MAX_FPS_20;
+@@ -1553,6 +1579,8 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	vts = wpclk * (fps & 0xffff) / hts / ((fps & 0xffff0000) >> 16);
+ 	ret = sensor_write(sd, 0x0340, (unsigned char) ((vts & 0x3f00) >> 8));
+ 	ret += sensor_write(sd, 0x0341, (unsigned char) (vts & 0xff));
++	ret += sensor_write(sd, 0x0259, (unsigned char) (((vts - 32) >> 8) & 0x3f));
++	ret += sensor_write(sd, 0x025a, (unsigned char) ((vts - 32) & 0xff));
+ 	if (ret < 0)
+ 		return -1;
+ 
+@@ -1648,31 +1676,31 @@ static int sensor_attr_check(struct tx_isp_subdev *sd) {
+ 			sensor_attr.integration_time_limit = 1500 - 8;
+ 			sensor_attr.max_integration_time = 1500 - 8;
+ 			sensor_attr.again = 0;
+-			sensor_attr.integration_time = 0x627;
++			sensor_attr.integration_time = 0x5a0;
+ 			break;
+ 		case 1:
+ 			wsize = &sensor_win_sizes[1];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+-			memcpy(&sensor_attr.mipi, &sensor_mipi_linear, sizeof(sensor_mipi_linear));
+-			sensor_attr.one_line_expr_in_us = 22;
++			memcpy(&sensor_attr.mipi, &sensor_mipi_25fps_linear, sizeof(sensor_mipi_25fps_linear));
++			sensor_attr.one_line_expr_in_us = 20;
+ 			sensor_attr.total_width = 3840;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 2025;
++			sensor_attr.max_integration_time_native = 2025 - 8;
++			sensor_attr.integration_time_limit = 2025 - 8;
++			sensor_attr.max_integration_time = 2025 - 8;
+ 			sensor_attr.again = 0;
+-			sensor_attr.integration_time = 0x627;
++			sensor_attr.integration_time = 0x5a0;
+ 			break;
+ 		case 2:
+ 			wsize = &sensor_win_sizes[2];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+ 			memcpy(&sensor_attr.mipi, &sensor_mipi_20fps_linear, sizeof(sensor_mipi_20fps_linear));
+-			sensor_attr.one_line_expr_in_us = 33;
++			sensor_attr.one_line_expr_in_us = 22;
+ 			sensor_attr.total_width = 2400;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 2250;
++			sensor_attr.max_integration_time_native = 2250 - 8;
++			sensor_attr.integration_time_limit = 2250 - 8;
++			sensor_attr.max_integration_time = 2250 - 8;
+ 			sensor_attr.again = 0;
+ 			sensor_attr.integration_time = 0x627;
+ 			break;
+@@ -1680,12 +1708,12 @@ static int sensor_attr_check(struct tx_isp_subdev *sd) {
+ 			wsize = &sensor_win_sizes[3];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+ 			memcpy(&sensor_attr.mipi, &sensor_mipi_15fps_linear, sizeof(sensor_mipi_15fps_linear));
+-			sensor_attr.one_line_expr_in_us = 44;
++			sensor_attr.one_line_expr_in_us = 22;
+ 			sensor_attr.total_width = 2400;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 3000;
++			sensor_attr.max_integration_time_native = 3000 - 8;
++			sensor_attr.integration_time_limit = 3000 - 8;
++			sensor_attr.max_integration_time = 3000 - 8;
+ 			sensor_attr.again = 0;
+ 			sensor_attr.integration_time = 0x627;
+ 			break;
+diff --git a/4.4.94/sensor-src/t41/gc4023.c b/4.4.94/sensor-src/t41/gc4023.c
+index be6106cc..25391572 100644
+--- a/4.4.94/sensor-src/t41/gc4023.c
++++ b/4.4.94/sensor-src/t41/gc4023.c
+@@ -32,8 +32,9 @@
+ #define SENSOR_REG_END 0xffff
+ #define SENSOR_REG_DELAY 0x0000
+ #define SENSOR_REG_DELAY 0x0000
+-#define SENSOR_SUPPORT_30FPS_SCLK (0x7e9 * 0x4b0 * 2 * 25)
+-#define SENSOR_SUPPORT_20FPS_SCLK 108*1000*1000
++#define SENSOR_SUPPORT_30FPS_SCLK (0x960 * 0x5dc * 30)
++#define SENSOR_SUPPORT_20FPS_SCLK (0x960 * 0x8ca * 20)
++#define SENSOR_SUPPORT_25FPS_SCLK (0x960 * 0x7e9 * 25)
+ #define SENSOR_OUTPUT_MIN_FPS 5
+ #define SENSOR_VERSION "H20230720"
+ #define SENSOR_HIGH_TEMP    "highTemp"
+@@ -158,6 +159,36 @@ unsigned int sensor_alloc_dgain(unsigned int isp_gain, unsigned char shift, unsi
+ }
+ 
+ struct tx_isp_mipi_bus sensor_mipi_linear = {
++	.mode = SENSOR_MIPI_OTHER_MODE,
++	.clk = 864,
++	.lans = 2,
++	.settle_time_apative_en = 0,
++	.mipi_sc.sensor_csi_fmt = TX_SENSOR_RAW10,
++	.mipi_sc.hcrop_diff_en = 0,
++	.mipi_sc.mipi_vcomp_en = 0,
++	.mipi_sc.mipi_hcomp_en = 0,
++	.image_twidth = 2560,
++	.image_theight = 1440,
++	.mipi_sc.mipi_crop_start0x = 0,
++	.mipi_sc.mipi_crop_start0y = 0,
++	.mipi_sc.mipi_crop_start1x = 0,
++	.mipi_sc.mipi_crop_start1y = 0,
++	.mipi_sc.mipi_crop_start2x = 0,
++	.mipi_sc.mipi_crop_start2y = 0,
++	.mipi_sc.mipi_crop_start3x = 0,
++	.mipi_sc.mipi_crop_start3y = 0,
++	.mipi_sc.line_sync_mode = 0,
++	.mipi_sc.work_start_flag = 0,
++	.mipi_sc.data_type_en = 0,
++	.mipi_sc.data_type_value = RAW10,
++	.mipi_sc.del_start = 0,
++	.mipi_sc.sensor_frame_mode = TX_SENSOR_DEFAULT_FRAME_MODE,
++	.mipi_sc.sensor_fid_mode = 0,
++	.mipi_sc.sensor_mode = TX_SENSOR_DEFAULT_MODE,
++};
++
++/* 25fps_24Mmipi window (win_sizes[1]) keeps its 704Mbps/lane PHY config */
++struct tx_isp_mipi_bus sensor_mipi_25fps_linear = {
+ 	.mode = SENSOR_MIPI_OTHER_MODE,
+ 	.clk = 702,
+ 	.lans = 2,
+@@ -295,32 +326,24 @@ struct tx_isp_sensor_attribute sensor_attr = {
+ 	//      void priv; /* point to struct tx_isp_sensor_board_info */
+ };
+ 
+-static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+-	/*version 1.2*/
+-	/*mclk 27Mhz*/
+-	/*mipi 702Mbps/lane*/
+-	/*vts = 1800*/
+-	/*window 2560 1440*/
+-	/*row time=26.666us*/
+-	/*bayer order  rggb*/
+-	//row time=26.66us
+-	//bayer order  rggb
+-	/*SYSTEM*/
++
++static struct regval_list sensor_init_regs_2560_1440_30fps_mipi[] = {
++	/*2560x1440 30fps linear, mclk 27MHz, wpclk 216MHz, mipi 864Mbps/lane, vts 1500*/
+ 	{0x03fe, 0xf0},
+ 	{0x03fe, 0x00},
+ 	{0x03fe, 0x10},
+ 	{0x03fe, 0x00},
+ 	{0x0a38, 0x00},
+ 	{0x0a38, 0x01},
+-	{0x0a20, 0x17},
++	{0x0a20, 0x07},
+ 	{0x061c, 0x50},
+-	{0x061d, 0x21},
+-	{0x061e, 0x50},
++	{0x061d, 0x22},
++	{0x061e, 0x78},
+ 	{0x061f, 0x06},
+ 	{0x0a21, 0x10},
+ 	{0x0a34, 0x40},
+ 	{0x0a35, 0x01},
+-	{0x0a36, 0x42},
++	{0x0a36, 0x60},
+ 	{0x0a37, 0x06},
+ 	{0x0314, 0x50},
+ 	{0x0315, 0x00},
+@@ -330,8 +353,8 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x0343, 0xb0},
+ 	{0x0259, 0x05},
+ 	{0x025a, 0xa0},
+-	{0x0340, 0x07},
+-	{0x0341, 0x53},
++	{0x0340, 0x05},
++	{0x0341, 0xdc},
+ 	{0x0347, 0x02},
+ 	{0x0348, 0x0a},
+ 	{0x0349, 0x08},
+@@ -360,13 +383,13 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x072a, 0x18},
+ 	{0x0724, 0x0a},
+ 	{0x0727, 0x0a},
+-	{0x072a, 0x1c},
+-	{0x072b, 0x0a},
++	{0x072a, 0x18},
++	{0x072b, 0x08},
+ 	{0x1466, 0x10},
+-	{0x1468, 0x18},
+-	{0x1467, 0x18},
++	{0x1468, 0x0f},
++	{0x1467, 0x07},
+ 	{0x1469, 0x80},
+-	{0x146a, 0xe8},
++	{0x146a, 0xbc},
+ 	{0x0707, 0x07},
+ 	{0x0737, 0x0f},
+ 	{0x0704, 0x01},
+@@ -380,27 +403,27 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x1408, 0x16},
+ 	{0x1409, 0x03},
+ 	{0x146d, 0x0e},
+-	{0x146e, 0x42},
+-	{0x146f, 0x43},
+-	{0x1470, 0x3c},
+-	{0x1471, 0x3d},
++	{0x146e, 0x32},
++	{0x146f, 0x33},
++	{0x1470, 0x2c},
++	{0x1471, 0x2d},
+ 	{0x1472, 0x3a},
+ 	{0x1473, 0x3a},
+ 	{0x1474, 0x40},
+-	{0x1475, 0x46},
++	{0x1475, 0x36},
+ 	{0x1420, 0x14},
+ 	{0x1464, 0x15},
+ 	{0x146c, 0x40},
+ 	{0x146d, 0x40},
+ 	{0x1423, 0x08},
+ 	{0x1428, 0x10},
+-	{0x1462, 0x18},
++	{0x1462, 0x08},
+ 	{0x02ce, 0x04},
+-	{0x143a, 0x0f},
++	{0x143a, 0x0b},
+ 	{0x142b, 0x88},
+ 	{0x0245, 0xc9},
+ 	{0x023a, 0x08},
+-	{0x02cd, 0x92},
++	{0x02cd, 0x88},
+ 	{0x0612, 0x02},
+ 	{0x0613, 0xc7},
+ 	{0x0243, 0x03},
+@@ -409,7 +432,7 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_mipi[] = {
+ 	{0x0040, 0xa3},
+ 	{0x0075, 0x64},
+ 	{0x0004, 0x0f},
+-	{0x0002, 0xab},
++	{0x0002, 0xa9},
+ 	{0x0053, 0x0a},
+ 	{0x0205, 0x0c},
+ 	{0x0202, 0x06},
+@@ -470,9 +493,9 @@ static struct regval_list sensor_init_regs_2560_1440_25fps_24Mmipi[] = {
+ 	/*version 1.2*/
+ 	/*mclk 24Mhz*/
+ 	/*mipi 704Mbps/lane*/
+-	/*vts = 1500*/
++	/*vts = 2025*/
+ 	/*window 2560 1440*/
+-	/*row time=22.22us*/
++	/*row time=19.75us*/
+ 	/*bayer order  rggb*/
+ 
+ 	{0x03fe, 0xf0},
+@@ -1154,7 +1177,7 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
+ 		.fps = 30 << 16 | 1,
+ 		.mbus_code = TISP_VI_FMT_SRGGB10_1X10,
+ 		.colorspace = TISP_COLORSPACE_SRGB,
+-		.regs = sensor_init_regs_2560_1440_25fps_mipi,
++		.regs = sensor_init_regs_2560_1440_30fps_mipi,
+ 	},
+ 	{
+ 		.width = 2560,
+@@ -1499,10 +1522,13 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	/* return 0; */
+ 	switch (sensor->info.default_boot) {
+ 		case 0:
+-		case 1:
+ 			wpclk = SENSOR_SUPPORT_30FPS_SCLK;
+ 			sensor_max_fps = TX_SENSOR_MAX_FPS_30;
+ 			break;
++		case 1:
++			wpclk = SENSOR_SUPPORT_25FPS_SCLK;
++			sensor_max_fps = TX_SENSOR_MAX_FPS_25;
++			break;
+ 		case 2:
+ 			wpclk = SENSOR_SUPPORT_20FPS_SCLK;
+ 			sensor_max_fps = TX_SENSOR_MAX_FPS_20;
+@@ -1536,6 +1562,8 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	vts = wpclk * (fps & 0xffff) / hts / ((fps & 0xffff0000) >> 16);
+ 	ret = sensor_write(sd, 0x0340, (unsigned char) ((vts & 0x3f00) >> 8));
+ 	ret += sensor_write(sd, 0x0341, (unsigned char) (vts & 0xff));
++	ret += sensor_write(sd, 0x0259, (unsigned char) (((vts - 32) >> 8) & 0x3f));
++	ret += sensor_write(sd, 0x025a, (unsigned char) ((vts - 32) & 0xff));
+ 	if (ret < 0)
+ 		return -1;
+ 
+@@ -1635,31 +1663,31 @@ static int sensor_attr_check(struct tx_isp_subdev *sd) {
+ 			sensor_attr.integration_time_limit = 1500 - 8;
+ 			sensor_attr.max_integration_time = 1500 - 8;
+ 			sensor_attr.again = 0;
+-			sensor_attr.integration_time = 0x627;
++			sensor_attr.integration_time = 0x5a0;
+ 			break;
+ 		case 1:
+ 			wsize = &sensor_win_sizes[1];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+-			memcpy(&sensor_attr.mipi, &sensor_mipi_linear, sizeof(sensor_mipi_linear));
+-			sensor_attr.one_line_expr_in_us = 22;
++			memcpy(&sensor_attr.mipi, &sensor_mipi_25fps_linear, sizeof(sensor_mipi_25fps_linear));
++			sensor_attr.one_line_expr_in_us = 20;
+ 			sensor_attr.total_width = 3840;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 2025;
++			sensor_attr.max_integration_time_native = 2025 - 8;
++			sensor_attr.integration_time_limit = 2025 - 8;
++			sensor_attr.max_integration_time = 2025 - 8;
+ 			sensor_attr.again = 0;
+-			sensor_attr.integration_time = 0x627;
++			sensor_attr.integration_time = 0x5a0;
+ 			break;
+ 		case 2:
+ 			wsize = &sensor_win_sizes[2];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+ 			memcpy(&sensor_attr.mipi, &sensor_mipi_20fps_linear, sizeof(sensor_mipi_20fps_linear));
+-			sensor_attr.one_line_expr_in_us = 33;
++			sensor_attr.one_line_expr_in_us = 22;
+ 			sensor_attr.total_width = 2400;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 2250;
++			sensor_attr.max_integration_time_native = 2250 - 8;
++			sensor_attr.integration_time_limit = 2250 - 8;
++			sensor_attr.max_integration_time = 2250 - 8;
+ 			sensor_attr.again = 0;
+ 			sensor_attr.integration_time = 0x627;
+ 			break;
+@@ -1667,12 +1695,12 @@ static int sensor_attr_check(struct tx_isp_subdev *sd) {
+ 			wsize = &sensor_win_sizes[3];
+ 			sensor_attr.data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+ 			memcpy(&sensor_attr.mipi, &sensor_mipi_15fps_linear, sizeof(sensor_mipi_15fps_linear));
+-			sensor_attr.one_line_expr_in_us = 44;
++			sensor_attr.one_line_expr_in_us = 22;
+ 			sensor_attr.total_width = 2400;
+-			sensor_attr.total_height = 1500;
+-			sensor_attr.max_integration_time_native = 1500 - 8;
+-			sensor_attr.integration_time_limit = 1500 - 8;
+-			sensor_attr.max_integration_time = 1500 - 8;
++			sensor_attr.total_height = 3000;
++			sensor_attr.max_integration_time_native = 3000 - 8;
++			sensor_attr.integration_time_limit = 3000 - 8;
++			sensor_attr.max_integration_time = 3000 - 8;
+ 			sensor_attr.again = 0;
+ 			sensor_attr.integration_time = 0x627;
+ 			break;

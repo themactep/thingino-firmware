@@ -1,6 +1,18 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC2086
 
+# When memory runs out the kernel should take the web UI's helpers, never the
+# video daemons: everything started from here inherits this score.
+echo 800 >/proc/self/oom_score_adj 2>/dev/null
+
+# Small boards get the tight handler cap; the daemon default is for boards
+# with more RAM. An explicit AGENT_MAX_REQUESTS wins.
+if [ -z "${AGENT_MAX_REQUESTS:-}" ] &&
+	[ "$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)" -lt 65536 ]; then
+	AGENT_MAX_REQUESTS=3
+	export AGENT_MAX_REQUESTS
+fi
+
 DAEMON="agentd"
 PIDFILE="/run/agentd.pid"
 BOOTSTRAP_CONFIG="/etc/agent-bootstrap.json"

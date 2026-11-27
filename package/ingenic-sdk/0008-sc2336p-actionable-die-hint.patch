@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000008 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 27 Nov 2026 00:53:59 +0000
+Subject: [PATCH] media: sc2336p: name the likely SC2337P when the die does not match
+
+Boards in this family ship either the SC2336P or the SC2337P, and the PT2
+profile exists for both. The sc2336p driver rejects the SC2337P die with
+only "chip found ... is not an sc2336p chip", so the user gets a dead
+streamer and no hint. Add the chip id and the image to flash.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+diff --git a/3.10.14/sensor-src/t23/sc2336p.c b/3.10.14/sensor-src/t23/sc2336p.c
+--- a/3.10.14/sensor-src/t23/sc2336p.c
++++ b/3.10.14/sensor-src/t23/sc2336p.c
+@@ -1299,6 +1299,9 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd, struct tx_isp_chip_ident *chip)
+ 	ret = sensor_detect(sd, &ident);
+ 	if (ret) {
+-		ISP_ERROR("chip found @ 0x%x (%s) is not an %s chip.\n",
+-			  client->addr, client->adapter->name, SENSOR_NAME);
++		ISP_ERROR("chip found @ 0x%x (%s) is not an %s chip (chip id 0x%04x).\n",
++			  client->addr, client->adapter->name, SENSOR_NAME, ident);
++		if (ident == 0x9b3a) {
++			ISP_ERROR("this looks like an SC2337P; flash the sc2337p image for this board.\n");
++		}
+ 		return ret;
+ 	}
