@@ -78,46 +78,45 @@ start() {
 	fi
 
 	if [ "$need_video" = "true" ] &&
-		command -v thingino_send2_raptor_ensure_rmr >/dev/null 2>&1; then
-		if thingino_send2_raptor_ensure_rmr; then
-			status=$(raptorctl rmr status 2>/dev/null || true)
-			mode=$(printf '%s' "$status" |
-				sed -n 's/.*"mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-			# RMD already writing a clip (motion.record): wait for it and copy
-			# that clip instead of starting and stopping our own. Continuous
-			# mode also reports recording=true but writes no clips.
-			already=no
-			if printf '%s' "$status" | grep -q '"clip"[[:space:]]*:[[:space:]]*true'; then
-				already=yes
-			elif [ "$mode" = motion ] &&
-				printf '%s' "$status" | grep -q '"recording"[[:space:]]*:[[:space:]]*true'; then
-				already=yes
-			fi
-			if [ "$already" = "yes" ]; then
-				before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
-				sleep "$CLIP_SECS"
-				clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
-				if [ -n "$clip" ] && [ "$clip" != "$before" ] &&
-					thingino_send2_wait_stable_file "$clip" 15; then
-					MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
-					if [ -n "$MOTION_VIDEO_FILE" ]; then
-						cp "$clip" "$MOTION_VIDEO_FILE" || {
-							rm -f "$MOTION_VIDEO_FILE"
-							MOTION_VIDEO_FILE=""
-						}
-					fi
-				fi
-			fi
-			# Continuous mode, no live clip, or no writable storage: capture
-			# once here with the same helper send2 uses, so every service gets
-			# the shared clip instead of capturing one each.
-			if [ -z "$MOTION_VIDEO_FILE" ]; then
+		command -v thingino_send2_raptor_capture >/dev/null 2>&1; then
+		status=$(raptorctl rmr status 2>/dev/null || true)
+		mode=$(printf '%s' "$status" |
+			sed -n 's/.*"mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+		# RMD already writing a clip (motion.record): wait for it and copy
+		# that clip instead of starting and stopping our own. Continuous
+		# mode also reports recording=true but writes no clips.
+		already=no
+		if printf '%s' "$status" | grep -q '"clip"[[:space:]]*:[[:space:]]*true'; then
+			already=yes
+		elif [ "$mode" = motion ] &&
+			printf '%s' "$status" | grep -q '"recording"[[:space:]]*:[[:space:]]*true'; then
+			already=yes
+		fi
+		if [ "$already" = "yes" ]; then
+			before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+			sleep "$CLIP_SECS"
+			clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+			if [ -n "$clip" ] && [ "$clip" != "$before" ] &&
+				thingino_send2_wait_stable_file "$clip" 15; then
 				MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
 				if [ -n "$MOTION_VIDEO_FILE" ]; then
-					if ! (thingino_send2_raptor_capture "$MOTION_VIDEO_FILE" "$CLIP_SECS"); then
+					cp "$clip" "$MOTION_VIDEO_FILE" || {
 						rm -f "$MOTION_VIDEO_FILE"
 						MOTION_VIDEO_FILE=""
-					fi
+					}
+				fi
+			fi
+		fi
+		# Continuous mode, no live clip, or no writable storage: capture once
+		# here with the same helper send2 uses, so every service gets the
+		# shared clip instead of capturing one each. The helper borrows rmr
+		# and releases it on exit; ensuring it here would leave rmr enabled.
+		if [ -z "$MOTION_VIDEO_FILE" ]; then
+			MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
+			if [ -n "$MOTION_VIDEO_FILE" ]; then
+				if ! (thingino_send2_raptor_capture "$MOTION_VIDEO_FILE" "$CLIP_SECS"); then
+					rm -f "$MOTION_VIDEO_FILE"
+					MOTION_VIDEO_FILE=""
 				fi
 			fi
 		fi
