@@ -345,7 +345,7 @@
     testOutput.textContent = text || "(no output)";
   };
 
-  $$("button[data-sendto]").forEach((btn) => {
+  $$("main button[data-sendto]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
       const target = btn.dataset.sendto;

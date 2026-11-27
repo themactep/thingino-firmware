@@ -6,6 +6,11 @@ Scans TARGET_DIR/var/www/a/plugins/*.webui.json, validates for conflicts,
 merges nav contributions, injects scripts/styles/HTML into pages (preserving
 existing asset cache-busting timestamps from data-asset-ts).
 
+Also checks the pages listed for in-place navigation (a "router" block in a
+manifest, and files/router-pages.json for the webui package's own pages)
+against the rule /a/router.js depends on, and writes the list of the ones in
+the image to plugins.js.
+
 Usage:
   assemble_plugins.py <staging-dir>            # full assembly
   assemble_plugins.py --check-only <staging-dir>  # validate only, no writes
@@ -15,6 +20,7 @@ import json
 import os
 import re
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -390,6 +396,343 @@ def process_html_files(
 
 
 # ---------------------------------------------------------------------------
+# In-place navigation: the page list and its check
+# ---------------------------------------------------------------------------
+#
+# /a/router.js swaps a page's content in place instead of loading the whole
+# page. That is only safe for a page whose one page script, /a/<page>.js, can
+# run again against new content. The pages are listed by the packages that own
+# them: a "router" block in a plugin's webui.json, and the webui package's own
+# list (files/router-pages.json). Every listed page that is in the image is checked
+# here, and the list reaches the browser (cfg.routerPages in plugins.js) only
+# if all of them pass, so a page cannot drift off the rule unnoticed.
+
+ROUTER_CORE_LIST = Path(__file__).resolve().parent.parent / "files" / "router-pages.json"
+ROUTER_PAGE_RE = re.compile(r"^[a-z0-9-]+$")
+
+# Scripts of the shell, present on every page. router.js has the same list.
+ROUTER_SHARED_SCRIPTS = frozenset(
+    {
+        "main.js",
+        "runtime-config.js",
+        "plugins.js",
+        "control-bar.js",
+        "navigation.js",
+        "footer.js",
+        "theme-init.js",
+        "router.js",
+    }
+)
+
+# A "/" after one of these starts a regular expression, not a division.
+_JS_REGEX_AFTER = frozenset("(,=:[!&|?{};+-*%<>~^}")
+_JS_REGEX_AFTER_WORDS = frozenset(
+    {
+        "return",
+        "typeof",
+        "instanceof",
+        "in",
+        "of",
+        "new",
+        "delete",
+        "void",
+        "throw",
+        "case",
+        "do",
+        "else",
+        "yield",
+        "await",
+    }
+)
+
+
+def js_top_level_residue(source: str) -> str:
+    """Return what a script has at its top level besides bracketed groups.
+
+    Comments, strings, template literals and regular expressions are skipped,
+    and everything inside (), [] and {} is dropped. For a script that is one
+    or more IIFEs, optionally after a "use strict" directive, what is left is
+    only semicolons and string markers ("S"). Anything else is code or a
+    declaration at the top level. Raises ValueError when brackets do not
+    balance.
+    """
+    out: List[str] = []
+    stack: List[str] = []
+    closers = {")": "(", "]": "[", "}": "{"}
+    prev = ""  # last significant character in code
+    word = ""  # last identifier or keyword in code
+    i = 0
+    n = len(source)
+
+    def mark(text: str) -> None:
+        if not stack:
+            out.append(text)
+
+    while i < n:
+        c = source[i]
+        nxt = source[i + 1] if i + 1 < n else ""
+
+        if stack and stack[-1] == "`":
+            # Template text: only \, ` and ${ matter.
+            if c == "\\":
+                i += 2
+            elif c == "`":
+                stack.pop()
+                prev, word = "S", ""
+                mark("S")
+                i += 1
+            elif c == "$" and nxt == "{":
+                stack.append("${")
+                prev, word = "{", ""
+                i += 2
+            else:
+                i += 1
+            continue
+
+        if c.isspace():
+            i += 1
+            continue
+        if c == "/" and nxt == "/":
+            j = source.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if c == "/" and nxt == "*":
+            j = source.find("*/", i + 2)
+            if j < 0:
+                raise ValueError("unterminated comment")
+            i = j + 2
+            continue
+        if c in "\"'":
+            j = i + 1
+            while j < n and source[j] != c:
+                if source[j] == "\n":
+                    raise ValueError("unterminated string")
+                j += 2 if source[j] == "\\" else 1
+            if j >= n:
+                raise ValueError("unterminated string")
+            i = j + 1
+            prev, word = "S", ""
+            mark("S")
+            continue
+        if c == "`":
+            stack.append("`")
+            i += 1
+            continue
+        if c == "/" and (
+            prev == "" or prev in _JS_REGEX_AFTER or word in _JS_REGEX_AFTER_WORDS
+        ):
+            j = i + 1
+            in_class = False
+            while j < n and source[j] != "\n":
+                ch = source[j]
+                if ch == "\\":
+                    j += 2
+                    continue
+                if ch == "[":
+                    in_class = True
+                elif ch == "]":
+                    in_class = False
+                elif ch == "/" and not in_class:
+                    break
+                j += 1
+            if j < n and source[j] == "/":
+                j += 1
+                while j < n and (source[j].isalnum() or source[j] == "_"):
+                    j += 1
+                i = j
+                prev, word = "R", ""
+                mark("R")
+                continue
+            # No closing slash on the line: a division after all.
+        if c in "([{":
+            stack.append(c)
+            prev, word = c, ""
+            i += 1
+            continue
+        if c in ")]}":
+            if stack and stack[-1] == "${" and c == "}":
+                stack.pop()
+                i += 1
+                continue
+            if not stack or stack[-1] != closers[c]:
+                raise ValueError(f"unbalanced '{c}'")
+            stack.pop()
+            prev, word = c, ""
+            i += 1
+            continue
+        if c.isalnum() or c in "_$":
+            j = i
+            while j < n and (source[j].isalnum() or source[j] in "_$"):
+                j += 1
+            word = source[i:j]
+            prev = "w"
+            mark(word)
+            i = j
+            continue
+        prev, word = c, ""
+        mark(c)
+        i += 1
+
+    if stack:
+        raise ValueError(f"unclosed '{stack[-1]}'")
+    return "".join(out)
+
+
+class _ScriptScan(HTMLParser):
+    """Collect a page's <script> tags as (section, src, type)."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.section = ""
+        self.scripts: List[Tuple[str, Optional[str], str]] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+        if tag in ("head", "body"):
+            self.section = tag
+        elif tag == "script":
+            values = dict(attrs)
+            self.scripts.append(
+                (self.section, values.get("src"), (values.get("type") or "").lower())
+            )
+
+
+def _router_script_name(src: str) -> Optional[str]:
+    """Name of a camera script under /a/ (not /a/vendor/), without its tag."""
+    path = src.split("?", 1)[0].split("#", 1)[0]
+    if not path.startswith("/a/") or path.startswith("/a/vendor/"):
+        return None
+    return path[len("/a/"):]
+
+
+def check_router_page(
+    www_root: Path, page: str, plugin_scripts: frozenset
+) -> List[str]:
+    """Return what keeps a listed page from being swapped in place."""
+    problems: List[str] = []
+    html_path = www_root / f"{page}.html"
+    scan = _ScriptScan()
+    scan.feed(html_path.read_text(encoding="utf-8"))
+    shared = ROUTER_SHARED_SCRIPTS | plugin_scripts
+
+    page_scripts: List[str] = []
+    for section, src, script_type in scan.scripts:
+        if src is None:
+            if not script_type or "javascript" in script_type or "module" in script_type:
+                problems.append(f"an inline script in <{section or 'html'}>")
+            continue
+        name = _router_script_name(src)
+        if section == "head":
+            if name is None or name not in shared:
+                problems.append(f"a head script that is not shared: {src}")
+        elif name is not None and name not in shared:
+            page_scripts.append(name)
+
+    if page_scripts != [f"{page}.js"]:
+        found = ", ".join(page_scripts) if page_scripts else "none"
+        problems.append(f"its page scripts must be exactly {page}.js (found: {found})")
+        return problems
+
+    script_path = www_root / "a" / f"{page}.js"
+    if not script_path.is_file():
+        problems.append(f"a/{page}.js is not in the image")
+        return problems
+    try:
+        residue = js_top_level_residue(script_path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        problems.append(f"a/{page}.js could not be read as a script: {e}")
+        return problems
+    leftover = residue.replace("S", "").replace(";", "")
+    if leftover:
+        problems.append(
+            f"a/{page}.js has code outside an IIFE at its top level "
+            f"(near '{leftover[:40]}'); wrap the script in (function () {{ ... }})();"
+        )
+    return problems
+
+
+def listed_router_pages(manifests: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Return {page: who listed it} for every page a package lists for the router."""
+    listed: Dict[str, str] = {}
+    streamers: Dict[str, Optional[str]] = {}
+
+    def add(page: Any, source: str, streamer: Optional[str]) -> None:
+        if not isinstance(page, str) or not ROUTER_PAGE_RE.match(page):
+            raise PluginError(
+                f"{source}: router page {page!r} must be a page name such as "
+                f"'config-time' (lowercase letters, digits and hyphens, no .html)"
+            )
+        if page in listed:
+            other = streamers.get(page)
+            if streamer and other and streamer != other:
+                return
+            raise PluginError(
+                f"{source}: router page '{page}' is already listed by {listed[page]}"
+            )
+        listed[page] = source
+        streamers[page] = streamer
+
+    core = ROUTER_CORE_LIST
+    if core.is_file():
+        try:
+            data = json.loads(core.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise PluginError(f"Invalid JSON in {core}: {e}") from e
+        pages = data.get("pages") if isinstance(data, dict) else None
+        if not isinstance(pages, list):
+            raise PluginError(f"{core}: expected an object with a 'pages' list")
+        for page in pages:
+            add(page, "the webui package's list", None)
+
+    for m in manifests:
+        block = m.get("router")
+        if block is None:
+            continue
+        source = f"plugin '{m.get('name', '?')}'"
+        pages = block.get("pages") if isinstance(block, dict) else None
+        if not isinstance(pages, list):
+            raise PluginError(f"{source}: 'router' must be an object with a 'pages' list")
+        for page in pages:
+            add(page, source, _streamer_flag(m))
+    return listed
+
+
+def collect_router_pages(
+    www_root: Path, manifests: List[Dict[str, Any]]
+) -> List[str]:
+    """Check every listed page that is in the image; return the ones to offer."""
+    listed = listed_router_pages(manifests)
+    plugin_scripts = set()
+    for m in manifests:
+        for src in list(m.get("scripts", [])) + list(m.get("preview", {}).get("scripts", [])):
+            name = _router_script_name(src)
+            if name:
+                plugin_scripts.add(name)
+
+    pages: List[str] = []
+    failures: List[str] = []
+    for page in sorted(listed):
+        if not (www_root / f"{page}.html").is_file():
+            continue
+        problems = check_router_page(www_root, page, frozenset(plugin_scripts))
+        if problems:
+            failures.extend(
+                f"{page}.html (listed by {listed[page]}): {p}" for p in problems
+            )
+        else:
+            pages.append(page)
+
+    if failures:
+        raise PluginError(
+            "Pages listed for in-place navigation break its rule:\n  "
+            + "\n  ".join(failures)
+            + "\n  Fix the page, or take it off the list."
+        )
+    if listed:
+        print(f"  Router: {len(pages)} of {len(listed)} listed page(s) are in this image and pass")
+    return pages
+
+
+# ---------------------------------------------------------------------------
 # Plugins.js generation
 # ---------------------------------------------------------------------------
 
@@ -423,7 +766,9 @@ def build_plugins_config(
 
 
 def write_plugins_js(
-    www_root: Path, manifests: List[Dict[str, Any]]
+    www_root: Path,
+    manifests: List[Dict[str, Any]],
+    router_pages: Optional[List[str]] = None,
 ) -> None:
     """Generate /var/www/a/plugins.js with merged plugin configuration."""
     config = build_plugins_config(manifests)
@@ -438,6 +783,9 @@ def write_plugins_js(
         "  window.thinginoUIConfig = cfg;",
         "",
         f"  cfg.plugins = {json.dumps(config['plugins'], indent=2, sort_keys=True)};",
+        "",
+        "  // Pages /a/router.js may swap in place (checked at build time)",
+        f"  cfg.routerPages = {json.dumps(sorted(router_pages or []))};",
         "",
         "  // Merge feature flags into cfg.device",
         "  cfg.device = cfg.device || {};",
@@ -516,6 +864,7 @@ def main() -> int:
 
     try:
         validate_manifests(manifests, manifest_paths)
+        router_pages = collect_router_pages(www_root, manifests)
     except PluginError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
@@ -525,7 +874,7 @@ def main() -> int:
         return 0
 
     # Generate plugins.js with merged config
-    write_plugins_js(www_root, manifests)
+    write_plugins_js(www_root, manifests, router_pages)
 
     # Inject scripts, styles, and preview HTML into HTML pages
     process_html_files(www_root, manifests)

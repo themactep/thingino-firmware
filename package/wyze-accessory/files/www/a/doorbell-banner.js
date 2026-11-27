@@ -21,6 +21,7 @@
           var banner = document.createElement("div");
           banner.className =
             "alert alert-warning text-center rounded-0 mb-3 py-2";
+          banner.setAttribute("data-shell", "");
           banner.innerHTML =
             '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
             "No doorbell chime configured. " +

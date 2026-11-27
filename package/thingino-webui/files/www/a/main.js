@@ -2325,6 +2325,17 @@ function initPasswordRevealToggles(root = document) {
     const outputEl = within("pre#output")[0];
     if (outputEl) {
       let commandInFlight = false;
+      let streamAbort = null;
+      let pageLeft = false;
+
+      document.addEventListener(
+        "thingino:page-leave",
+        () => {
+          pageLeft = true;
+          if (streamAbort) streamAbort.abort();
+        },
+        { once: true },
+      );
 
       async function* makeLineIterator(reader) {
         const td = new TextDecoder("utf-8");
@@ -2354,6 +2365,7 @@ function initPasswordRevealToggles(root = document) {
 
       const finalizeStream = () => {
         commandInFlight = false;
+        if (pageLeft) return;
         if ("true" === outputEl.dataset["reboot"]) {
           window.location.href = "/x/reboot.cgi";
         } else {
@@ -2363,10 +2375,13 @@ function initPasswordRevealToggles(root = document) {
       };
 
       async function streamCommand(url) {
-        if (!url || commandInFlight) return;
+        if (!url || commandInFlight || pageLeft) return;
         commandInFlight = true;
+        streamAbort = new AbortController();
         try {
-          const streamResponse = await fetch(url);
+          const streamResponse = await fetch(url, {
+            signal: streamAbort.signal,
+          });
           if (!streamResponse.ok) {
             outputEl.innerHTML =
               "Error: server returned " +
@@ -2402,6 +2417,8 @@ function initPasswordRevealToggles(root = document) {
 
             outputEl.scrollTop = outputEl.scrollHeight;
           }
+        } catch (err) {
+          if (!pageLeft) throw err;
         } finally {
           finalizeStream();
         }

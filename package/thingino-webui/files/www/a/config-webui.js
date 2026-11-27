@@ -5,6 +5,7 @@
   const passwordReveal = $("#webui_password_reveal");
   const themeSelect = $("#webui_theme");
   const paranoidSwitch = $("#webui_paranoid");
+  const routerSwitch = $("#webui_router");
   const trackFocusSwitch = $("#webui_track_focus");
   const focusTimeoutInput = $("#webui_focus_timeout");
   const authBypassIpsInput = $("#webui_auth_bypass_ips");
@@ -13,6 +14,7 @@
     username: "root",
     theme: "auto",
     paranoid: false,
+    router: false,
     track_focus: false,
     focus_timeout: 0,
     auth_bypass_ips: "",
@@ -28,6 +30,7 @@
     }
     themeSelect.disabled = state;
     paranoidSwitch.disabled = state;
+    if (routerSwitch) routerSwitch.disabled = state;
     trackFocusSwitch.disabled = state;
     focusTimeoutInput.disabled = state;
     if (authBypassIpsInput) authBypassIpsInput.disabled = state;
@@ -74,6 +77,7 @@
       username: raw.username || webuiDefaults.username,
       theme,
       paranoid: raw.paranoid === true,
+      router: raw.router === true,
       track_focus: raw.track_focus === true,
       focus_timeout: Math.max(0, Math.min(300, focusTimeout)),
       auth_bypass_ips:
@@ -100,6 +104,7 @@
       themeSelect.value = normalized.theme;
       loadedTheme = normalized.theme;
       paranoidSwitch.checked = normalized.paranoid;
+      if (routerSwitch) routerSwitch.checked = normalized.router;
       trackFocusSwitch.checked = normalized.track_focus;
       focusTimeoutInput.value = normalized.focus_timeout;
       if (authBypassIpsInput)
@@ -143,6 +148,14 @@
         window.thinginoTheme.remember(payload.theme, payload.theme);
       }
       await loadConfig({ preserveBusy: true });
+      // The browser that saved learns the navigation setting at once; it
+      // applies from the next page.
+      if (
+        window.thinginoNav &&
+        typeof window.thinginoNav.rememberRouter === "function"
+      ) {
+        window.thinginoNav.rememberRouter(payload.router === true);
+      }
       // Reload preview focus settings if the function is available
       if (
         window.reloadPreviewFocusSettings &&
@@ -162,6 +175,7 @@
     const payload = {
       theme: themeSelect.value,
       paranoid: paranoidSwitch.checked,
+      router: routerSwitch ? routerSwitch.checked : false,
       track_focus: trackFocusSwitch.checked,
       focus_timeout: parseInt(focusTimeoutInput.value) || 0,
       auth_bypass_ips: authBypassIpsInput
