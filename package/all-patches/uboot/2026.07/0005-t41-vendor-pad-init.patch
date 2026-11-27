@@ -1,0 +1,334 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Tue, 17 Nov 2026
+Subject: [PATCH] T41: add the DML16-Z533 vendor pad/USB-PHY init
+
+The stock SPL on the DML16-Z533 programs pad-function and CPM USB-PHY
+registers before DDR init. Without them the onboard RTL8733BU drops off
+the USB bus shortly after enumeration and the SD slot never completes
+ACMD41. U-Boot proper also has to leave the CPM state the stock loader
+leaves at its prompt, including MSC0CDR.
+
+Keep it behind CONFIG_T41_VENDOR_PAD_INIT (default n) and a dedicated
+isvp_t41nq_sfcnor_dml16 defconfig, so other T41 boards keep the current
+bring-up. The shared t41nq-isvp device tree is unchanged.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+ arch/mips/mach-xburst/t41/Kconfig         |  12 ++++
+ arch/mips/mach-xburst/t41/soc.c           |  27 +++++
+ board/ingenic/isvp-t41/isvp-t41.c         |  88 +++++++++++++++-
+ configs/isvp_t41nq_sfcnor_dml16_defconfig | 132 ++++++++++++++++++++++
+ 4 files changed, 258 insertions(+), 1 deletion(-)
+
+diff --git a/arch/mips/mach-xburst/t41/Kconfig b/arch/mips/mach-xburst/t41/Kconfig
+index 83af26b..c1c101c 100644
+--- a/arch/mips/mach-xburst/t41/Kconfig
++++ b/arch/mips/mach-xburst/t41/Kconfig
+@@ -29,4 +29,16 @@ config SPL_T41_SFC_NAND_BOOT
+ 	  (isvp_t41nq_sfc0_nand_defconfig). The driver lives in
+ 	  arch/mips/mach-xburst/t41/sfc_nand.c (ported from T40).
+ 
++config T41_VENDOR_PAD_INIT
++	bool "T41 SPL: DML16-Z533 vendor pad/USB-PHY init"
++	depends on SPL
++	select BOARD_LATE_INIT
++	default n
++	help
++	  Replay the pad-function and CPM USB-PHY register writes that the
++	  stock DML16-Z533 (T41NQ) SPL performs before DDR init. Required on
++	  that board for the onboard RTL8733BU USB WiFi to stay enumerated
++	  and for the SD slot to initialise. Board-specific; leave disabled
++	  for other T41 boards.
++
+ endif
+diff --git a/arch/mips/mach-xburst/t41/soc.c b/arch/mips/mach-xburst/t41/soc.c
+index 2d4b22b..cb7770f 100644
+--- a/arch/mips/mach-xburst/t41/soc.c
++++ b/arch/mips/mach-xburst/t41/soc.c
+@@ -50,6 +50,33 @@ void board_init_f(ulong dummy)
+ 	/* Disable watchdog */
+ 	writel(0, (void __iomem *)(WDT_BASE + 0x04));
+ 
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++	/*
++	 * Board pad/function init transliterated from the stock
++	 * DML16-Z533 (T41NQ) SPL at 0x83c-0x8b8. The stock SPL programs
++	 * these before DDR/PLL init; without them the on-board RTL8733BU
++	 * USB WiFi drops off the bus ~2 s after enumeration and the SD
++	 * card never completes ACMD41 init. Registers: GPIO function
++	 * strobes (PB6-14/16-19 -> func3, PB15 -> func0 + pad cfg), two
++	 * undocumented pad-config blocks at 0x10011000/0x10012000, and
++	 * the CPM USB PHY ref-clock registers (USBVBFIL/USBPCR1).
++	 */
++	writel(0x000f7fc0, (void __iomem *)0xb0010134); /* PB PAT1S */
++	writel(0x000f7fc0, (void __iomem *)0xb0010144); /* PB PAT0S */
++	writel(0x00008000, (void __iomem *)0xb0010138); /* PB15 PAT1C */
++	writel(0x00008000, (void __iomem *)0xb00101a4); /* PB15 pad cfg */
++	writel(0xffffffff, (void __iomem *)0xb0011134); /* pad blk B */
++	writel(0xffffffff, (void __iomem *)0xb0011148);
++	writel(0xffffffff, (void __iomem *)0xb0012134); /* pad blk C */
++	writel(0xffffffff, (void __iomem *)0xb0012148);
++	writel(0xe0700000, (void __iomem *)0xb0010044); /* PA PAT0S 20-22,29-31 */
++	writel(0xe0700000, (void __iomem *)0xb0010038); /* PA PAT1C */
++	writel(0xe0700000, (void __iomem *)0xb0010028); /* PA MSKC -> func1 */
++	writel(0x0000002f, (void __iomem *)0xb0011110); /* pad blk B +0x110 */
++	writel(0x00ff0080, (void __iomem *)0xb0000044); /* USBVBFIL */
++	writel(0x8a800090, (void __iomem *)0xb0000048); /* USBPCR1 */
++#endif
++
+ 	/*
+ 	 * XBurst2 CCU tweak - exactly match vendor T40 U-Boot 2013
+ 	 * (board_init_f, 0x80001ccc): CCU +0xfe0 |= 0x18 (bits 3,4 -
+diff --git a/board/ingenic/isvp-t41/isvp-t41.c b/board/ingenic/isvp-t41/isvp-t41.c
+index ccc51a0..1285c7a 100644
+--- a/board/ingenic/isvp-t41/isvp-t41.c
++++ b/board/ingenic/isvp-t41/isvp-t41.c
+@@ -49,7 +49,7 @@ int dram_init(void)
+  * Untested on real T41 silicon. Bring-up sequence transliterated
+  * from the working A1 a1_usb_phy_init().
+  */
+-static void t41_usb_phy_init(void)
++static __maybe_unused void t41_usb_phy_init(void)
+ {
+ 	void __iomem *cpm = (void __iomem *)CPM_BASE;
+ 	u32 v;
+@@ -118,14 +118,100 @@ void otg_phy_init(struct dwc2_udc *dev)
+ }
+ #endif /* CONFIG_USB || CONFIG_USB_GADGET */
+ 
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++/*
++ * Normalize the CPM clock-gate/CDR and USB-PHY register state to what the
++ * stock DML16-Z533 U-Boot leaves behind at its prompt. Linux inherits much
++ * of this: with the thingino defaults the SD card never completes ACMD41
++ * init (stale CE/divider in MSC0CDR) and the RTL8733BU USB WiFi drops off
++ * the bus (USBPCR1/USBVBFIL).
++ */
++static void t41_vendor_cpm_state(void)
++{
++	void __iomem *cpm = (void __iomem *)CPM_BASE;
++
++	/*
++	 * PB pad-config block, reg +0x110 = 0x2f. Without this the
++	 * RTL8733BU drops off the USB bus ~2 s after enumeration. The
++	 * SPL-time write does not stick (cleared during U-Boot proper
++	 * init), so it has to be reapplied here.
++	 */
++	writel(0x0000002f, (void __iomem *)0xb0011110);
++
++	/*
++	 * PB pad attribute reg +0x030: clear bits 29/30 (wifi side) but
++	 * keep bit 28 (PB28) so the Ethernet reset stays in the state the
++	 * dwmac driver expects. The full vendor value also clears bit 28
++	 * and breaks Ethernet on this board.
++	 */
++	{
++		u32 v = readl((void __iomem *)0xb0011030);
++
++		v &= ~((1u << 29) | (1u << 30));
++		writel(v, (void __iomem *)0xb0011030);
++	}
++
++	/* pinmux: PA20-22, PA29-31 to device function 1 */
++	writel(0xe0700000, (void __iomem *)0xb0010044); /* PA PAT0S */
++	writel(0xe0700000, (void __iomem *)0xb0010038); /* PA PAT1C */
++	writel(0xe0700000, (void __iomem *)0xb0010028); /* PA MSKC */
++
++	/* clock gates: CLKGR0 bit12, CLKGR1 bits 3,17 ungated */
++	clrbits_le32(cpm + 0x20, BIT(12));
++	clrbits_le32(cpm + 0x28, BIT(3) | BIT(17));
++
++	/* CDRs, including MSC0CDR cleared of stale CE/divider */
++	writel(0x800000ff, cpm + 0x64);
++	writel(0x00108000, cpm + 0x68); /* MSC0CDR */
++	writel(0x40108000, cpm + 0x6c);
++	writel(0x001000ff, cpm + 0x70);
++	writel(0x0000007f, cpm + 0x78);
++	writel(0x6000011b, cpm + 0x7c);
++	writel(0x4000000f, cpm + 0x80);
++	writel(0x4000000f, cpm + 0xa8);
++	writel(0x4000000f, cpm + 0xac);
++	writel(0x00000001, cpm + 0xb0);
++	writel(0x0000000f, cpm + 0xbc);
++
++	/* USB PHY register file as stock U-Boot leaves it */
++	writel(0x00ff0080, cpm + CPM_USBVBFIL);
++	writel(0x8a800090, cpm + CPM_USBPCR1);
++	writel(0x00000004, cpm + CPM_USBRDT);
++	writel(0x409919b8, cpm + CPM_USBPCR);
++}
++#endif
++
+ int board_init(void)
+ {
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++	/*
++	 * Stock U-Boot never brings the USB PHY up; it only leaves the
++	 * register file preset. Mimic that instead of the A1-derived
++	 * bring-up.
++	 */
++	t41_vendor_cpm_state();
++#else
+ #if defined(CONFIG_USB) || defined(CONFIG_USB_GADGET)
+ 	t41_usb_phy_init();
++#endif
+ #endif
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++/*
++ * Reapply the vendor CPM state after U-Boot's own driver probing. The
++ * DM clk/mmc path re-dirties MSC0CDR after board_init(), and Linux
++ * inherits whatever is left here; board_late_init() is the last hook
++ * before autoboot.
++ */
++int board_late_init(void)
++{
++	t41_vendor_cpm_state();
++	return 0;
++}
++#endif
++
+ int checkboard(void)
+ {
+ 	return 0;
+diff --git a/configs/isvp_t41nq_sfcnor_dml16_defconfig b/configs/isvp_t41nq_sfcnor_dml16_defconfig
+new file mode 100644
+index 0000000..60a9738
+--- /dev/null
++++ b/configs/isvp_t41nq_sfcnor_dml16_defconfig
+@@ -0,0 +1,132 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_ENV_SIZE=0x10000
++CONFIG_ENV_OFFSET=0x50000
++CONFIG_ENV_SECT_SIZE=0x10000
++CONFIG_DM_GPIO=y
++CONFIG_SPL_DM_SPI=y
++CONFIG_DEFAULT_DEVICE_TREE="t41nq-isvp"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x4000
++CONFIG_SPL_SERIAL=y
++CONFIG_SPL_STACK=0x8001f000
++CONFIG_SPL_TEXT_BASE=0x80001000
++CONFIG_SPL_BSS_START_ADDR=0x80014000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_SPL_SPI_FLASH_SUPPORT=y
++CONFIG_SPL_SPI=y
++CONFIG_ARCH_XBURST=y
++CONFIG_SOC_T41=y
++CONFIG_T41_VENDOR_PAD_INIT=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TARGET_ISVP_T41=y
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=1104000000
++CONFIG_BUTTON_CMD=y
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=1
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_SPL_DM_SPI_FLASH=y
++CONFIG_SPL_SPI_LOAD=y
++CONFIG_SYS_SPI_U_BOOT_OFFS=0x14000
++CONFIG_HUSH_PARSER=y
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP6=y
++CONFIG_IPV6_ROUTER_DISCOVERY=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_NFS=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_SOUND=y
++CONFIG_CMD_FAT=y
++CONFIG_CMD_FS_GENERIC=y
++CONFIG_CMD_TFTPPUT=y
++# CONFIG_CMD_CYCLIC is not set
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_ENV_OVERWRITE=y
++CONFIG_ENV_IS_IN_SPI_FLASH=y
++CONFIG_IPV6=y
++CONFIG_BUTTON=y
++CONFIG_BUTTON_GPIO=y
++CONFIG_CLK=y
++CONFIG_CLK_INGENIC_T41=y
++CONFIG_MMC=y
++CONFIG_MMC_SDHCI_INGENIC=y
++CONFIG_MMC_SDHCI=y
++CONFIG_MTD=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_DM_MDIO=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_MOTORCOMM=y
++CONFIG_PHY=y
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_RAM=y
++CONFIG_RAM_INGENIC_DDR_INNOPHY=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SOUND=y
++CONFIG_I2S=y
++CONFIG_I2S_INGENIC=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_USB_DWC2=y
++CONFIG_USB_HOST_ETHER=y
++CONFIG_USB_ETHER_ASIX=y
++CONFIG_USB_ETHER_ASIX88179=y
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++# CONFIG_BINMAN_FDT is not set
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
