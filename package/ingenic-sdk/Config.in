@@ -32,8 +32,8 @@ config BR2_INGENIC_SDK_HAS_NNA
 
 config BR2_INGENIC_SDK_HAS_MPSYS
 	bool
-	# The 7.x tree has no mpsys: libimp only warns about the missing node.
-	default y if (BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41") && !KERNEL_VERSION_7
+	default y if BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	default y if BR2_SOC_FAMILY = "t32" && KERNEL_VERSION_7
 
 config BR2_INGENIC_SDK_K310
 	bool
@@ -82,7 +82,8 @@ config BR2_INGENIC_SDK_MPSYS
 	default y if BR2_INGENIC_SDK_HAS_MPSYS
 	help
 	  Multi-processor system driver and the jz-dtrng hardware random
-	  number generator. The TRNG is T40/T41 only; the T33 gets MPSYS alone.
+	  number generator. The TRNG is T40/T41 only; the T32 (mainline
+	  kernel) and the T33 get MPSYS alone.
 
 config BR2_INGENIC_SDK_GPIO_USERKEYS
 	bool "GPIO user keys (physical buttons)"

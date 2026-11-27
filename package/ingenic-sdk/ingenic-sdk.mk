@@ -277,10 +277,11 @@ define GENERATE_MODULE_LOADER
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
+	if [ "$(BR2_INGENIC_SDK_MPSYS)" = "y" ]; then \
+		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
+	fi
+
 	if [ "$(KERNEL_VERSION_7)" != "y" ]; then \
-		if [ "$(SOC_FAMILY)" = "t33" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-			echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
-		fi; \
 		if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/07-nna; \
 		fi; \
@@ -306,7 +307,8 @@ endef
 # Mainline only: libimp's /dev/rmem and /dev/log_* come from modules that the
 # vendor kernels build in, and the OSD block (plus, off the T31, the encoder)
 # has a module of its own. The T40 and T41 encode on the AVPU and have no IPU
-# module.
+# module; their I2D (libimp rotation) and the T41's JPEG helix (soc-vpu,
+# libimp's *_Ex encoder calls), built in on 4.4, are modules.
 ifeq ($(KERNEL_VERSION_7),y)
 define GENERATE_MODULE_LOADER_7X
 	printf 'rmem\nandroid_logger\n' > $(TARGET_DIR)/etc/modules.d/01-rmem
@@ -332,7 +334,10 @@ define GENERATE_MODULE_LOADER_7X
 		if [ "$(SOC_FAMILY)" = "t31" ]; then \
 			echo "ipu" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
 		elif [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-			:; \
+			if [ "$(SOC_FAMILY)" = "t41" ]; then \
+				echo "soc-vpu-t41" > $(TARGET_DIR)/etc/modules.d/10-vpu; \
+			fi; \
+			echo "i2d" > $(TARGET_DIR)/etc/modules.d/12-i2d; \
 		else \
 			echo "soc-vpu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/10-vpu; \
 			echo "ipu-$(SOC_FAMILY)" > $(TARGET_DIR)/etc/modules.d/12-ipu; \
