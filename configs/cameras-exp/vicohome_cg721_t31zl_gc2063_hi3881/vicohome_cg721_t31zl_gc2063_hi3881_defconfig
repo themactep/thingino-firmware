@@ -1,5 +1,7 @@
 # NAME: Vicohome CG721 / ST-G1 (T31ZL, GC2063, HI3881)
 # FRAG: soc-xburst1 core
+# NOTE: unvalidated — Wi-Fi needs a GPIO-IRQ wifi-hi3881 driver variant (IRQ GPIO 43 / reset GPIO 82), stock package build times out on probe
+# NOTE: GPIOs in thingino.json are placeholders (button, IRCUT, IR/white LEDs) pending on-device validation
 BR2_INGENIC_SOC_MODEL="t31zl"
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
