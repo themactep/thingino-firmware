@@ -526,16 +526,228 @@ loadInitialData().then(async () => {
   const streamChannel = preview?.dataset?.stream || "ch0";
   const streamUrl = `/x/${streamChannel}.mjpg`;
 
-  // Preview
-  const timeout = 15000;
-  const restartBackoffInitialMs = 15000;
-  const restartBackoffMaxMs = 60000;
-  let lastLoadTime = Date.now();
+  // An <img src="….mjpg"> fires "load" for the first frame only and nothing
+  // when the stream ends (a streamer restart leaves its last frame frozen), so
+  // a watchdog on "load" cannot tell a live stream from a dead one and would
+  // reconnect a healthy one every 15 s. mjpegStream() reads the stream with
+  // fetch() and puts each JPEG part on screen as it arrives; a stalled or ended
+  // stream reconnects and a live one is left alone. Parts without a
+  // Content-Length, or a browser without streaming fetch, fall back to the
+  // plain <img> source.
+  const PREVIEW_STALL_MS = 15000;
+  const PREVIEW_RETRY_MIN_MS = 2000;
+  const PREVIEW_RETRY_MAX_MS = 60000;
+  const EMPTY = new Uint8Array(0);
+
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a);
+    out.set(b, a.length);
+    return out;
+  }
+
+  // Offset of the blank line (CRLF CRLF) that ends a part's headers, or -1.
+  function headerEnd(bytes) {
+    for (let i = 0; i + 3 < bytes.length; i++) {
+      if (
+        bytes[i] === 13 &&
+        bytes[i + 1] === 10 &&
+        bytes[i + 2] === 13 &&
+        bytes[i + 3] === 10
+      )
+        return i;
+    }
+    return -1;
+  }
+
+  // One MJPEG stream shown in an <img>, read with fetch(). Returns start/stop to
+  // run or clear it, check(now) for the once-a-second stall test, and destroy to
+  // drop its listeners.
+  function mjpegStream(img, url) {
+    let native = !(window.ReadableStream && window.AbortController);
+    let controller = null;
+    let retryTimer = null;
+    let retryMs = PREVIEW_RETRY_MIN_MS;
+    let lastFrame = 0;
+    let running = false;
+    // On screen, being decoded, and the newest frame waiting for that decode
+    // (frames that arrive faster than they decode are dropped).
+    let shown = null;
+    let loading = null;
+    let pending = null;
+
+    function present(blob) {
+      if (loading) {
+        pending = blob;
+        return;
+      }
+      loading = URL.createObjectURL(blob);
+      img.src = loading;
+    }
+
+    function onDecoded() {
+      if (!loading || img.src !== loading) return;
+      if (shown) URL.revokeObjectURL(shown);
+      shown = loading;
+      loading = null;
+      if (pending) {
+        const next = pending;
+        pending = null;
+        present(next);
+      }
+    }
+
+    function frame(blob) {
+      lastFrame = Date.now();
+      retryMs = PREVIEW_RETRY_MIN_MS;
+      present(blob);
+    }
+
+    // Resolves "ended" when the server closes the stream, "native" when its
+    // parts carry no length; rejects on a network error or an abort.
+    async function read(signal) {
+      const res = await fetch(url + "?" + Date.now(), {
+        cache: "no-store",
+        signal,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      if (!res.body || typeof res.body.getReader !== "function")
+        return "native";
+      const reader = res.body.getReader();
+      let head = EMPTY; // the part header read so far
+      let need = 0; // body bytes still to come (0: reading a header)
+      let body = [];
+      for (;;) {
+        const { value, done } = await reader.read();
+        // Stopped while this read was pending: nothing more goes on screen.
+        if (signal.aborted) return "aborted";
+        if (done) return "ended";
+        let chunk = value;
+        while (chunk.length) {
+          if (need > 0) {
+            const take = Math.min(need, chunk.length);
+            body.push(chunk.subarray(0, take));
+            need -= take;
+            chunk = chunk.subarray(take);
+            if (need === 0) {
+              frame(new Blob(body, { type: "image/jpeg" }));
+              body = [];
+            }
+            continue;
+          }
+          head = head.length ? concatBytes(head, chunk) : chunk;
+          // The CRLF that ends the previous part comes before the boundary.
+          let skip = 0;
+          while (skip < head.length && (head[skip] === 13 || head[skip] === 10))
+            skip++;
+          if (skip) head = head.subarray(skip);
+          const end = headerEnd(head);
+          if (end < 0) {
+            if (head.length > 8192) throw new Error("no MJPEG part header");
+            break;
+          }
+          let text = "";
+          for (let i = 0; i < end; i++) text += String.fromCharCode(head[i]);
+          const length = /content-length:\s*(\d+)/i.exec(text);
+          if (!length) return "native";
+          need = Number(length[1]);
+          chunk = head.subarray(end + 4);
+          head = EMPTY;
+        }
+      }
+    }
+
+    function retry() {
+      running = false;
+      controller = null;
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(start, retryMs);
+      retryMs = Math.min(retryMs * 2, PREVIEW_RETRY_MAX_MS);
+    }
+
+    function start() {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      if (running || document.hidden) return;
+      running = true;
+      if (native) {
+        img.src = url + "?" + Date.now();
+        return;
+      }
+      const ac = new AbortController();
+      controller = ac;
+      lastFrame = Date.now();
+      read(ac.signal).then(
+        (how) => {
+          if (controller !== ac) return;
+          ac.abort();
+          if (how === "native") {
+            native = true;
+            running = false;
+            start();
+          } else {
+            retry();
+          }
+        },
+        () => {
+          if (controller === ac) retry();
+        },
+      );
+    }
+
+    function stop() {
+      running = false;
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      if (controller) {
+        const ac = controller;
+        controller = null;
+        ac.abort();
+      }
+      pending = null;
+      if (loading) URL.revokeObjectURL(loading);
+      loading = null;
+      img.src = ImageNoStream;
+      if (shown) URL.revokeObjectURL(shown);
+      shown = null;
+    }
+
+    // Called once a second by the preview watchdog.
+    function check(now) {
+      if (!controller || now - lastFrame < PREVIEW_STALL_MS) return;
+      const ac = controller;
+      controller = null;
+      ac.abort();
+      retry();
+    }
+
+    function destroy() {
+      stop();
+      img.removeEventListener("load", onDecoded);
+      img.removeEventListener("error", onDecoded);
+    }
+
+    img.addEventListener("load", onDecoded);
+    img.addEventListener("error", onDecoded);
+    return { start, stop, check, destroy };
+  }
+
   let isWindowVisible = true;
   let isModalOpen = false;
   let focusTimeoutId = null;
-  let nextRestartAt = 0;
-  let restartBackoffMs = restartBackoffInitialMs;
+
+  const small = mjpegStream(preview, streamUrl);
+  let full = null;
+
+  function stopAll() {
+    small.stop();
+    if (full) full.stop();
+  }
+
+  // Back from the back/forward cache: pagehide stopped the streams.
+  function onPageShow(ev) {
+    if (ev.persisted) startPreview();
+  }
 
   // Function to start the preview stream
   function startPreview() {
@@ -543,10 +755,8 @@ loadInitialData().then(async () => {
       clearTimeout(focusTimeoutId);
       focusTimeoutId = null;
     }
-    if (isWindowVisible) {
-      preview.src = streamUrl;
-      lastLoadTime = Date.now();
-      nextRestartAt = 0;
+    if (isWindowVisible && !isModalOpen) {
+      small.start();
     }
   }
 
@@ -556,8 +766,7 @@ loadInitialData().then(async () => {
       clearTimeout(focusTimeoutId);
       focusTimeoutId = null;
     }
-    preview.src = ImageNoStream;
-    nextRestartAt = 0;
+    small.stop();
   }
 
   // Function to stop preview with delay
@@ -584,27 +793,11 @@ loadInitialData().then(async () => {
   // Start the preview stream
   startPreview();
 
-  preview.addEventListener("load", () => {
-    lastLoadTime = Date.now();
-    restartBackoffMs = restartBackoffInitialMs;
-    nextRestartAt = 0;
-  });
-
-  // Stream watchdog - restart if no frames received
+  // Stream watchdog - reconnect only a stalled or ended stream.
   setInterval(() => {
     const now = Date.now();
-    if (
-      isWindowVisible &&
-      !isModalOpen &&
-      now - lastLoadTime > timeout &&
-      now >= nextRestartAt
-    ) {
-      // Restart stream
-      preview.src = preview.src.split("?")[0] + "?" + new Date().getTime();
-      lastLoadTime = now;
-      nextRestartAt = now + restartBackoffMs;
-      restartBackoffMs = Math.min(restartBackoffMs * 2, restartBackoffMaxMs);
-    }
+    small.check(now);
+    if (full) full.check(now);
   }, 1000);
 
   // Handle window visibility changes
@@ -629,8 +822,9 @@ loadInitialData().then(async () => {
     stopPreviewWithDelay();
   }
 
-  window.addEventListener("beforeunload", stopPreview);
-  window.addEventListener("pagehide", stopPreview);
+  window.addEventListener("beforeunload", stopAll);
+  window.addEventListener("pagehide", stopAll);
+  window.addEventListener("pageshow", onPageShow);
 
   // Add event listeners for visibility changes only if tracking is enabled
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -643,17 +837,16 @@ loadInitialData().then(async () => {
   // Full-screen preview modal
   const previewModal = $("#mdPreview");
   const previewFullsize = $("#preview_fullsize");
-  let savedPreviewSrc = "";
 
   if (previewModal && previewFullsize) {
+    full = mjpegStream(previewFullsize, "/x/ch0.mjpg");
+
     previewModal.addEventListener("show.bs.modal", () => {
-      // Save current small preview source
-      savedPreviewSrc = preview.src;
       // Stop the small preview and suppress watchdog restarts
       isModalOpen = true;
-      preview.src = ImageNoStream;
+      small.stop();
       // Load main stream (ch0) in full-screen modal
-      previewFullsize.src = "/x/ch0.mjpg?" + new Date().getTime();
+      full.start();
       // Apply SEI rotation to full-screen image
       fetch("/x/json-osd-sei.cgi")
         .then(function (r) {
@@ -668,16 +861,12 @@ loadInitialData().then(async () => {
 
     previewModal.addEventListener("hidden.bs.modal", () => {
       // Stop the full-screen stream
-      previewFullsize.src = ImageNoStream;
+      full.stop();
       previewFullsize.style.transform = "";
       // Allow watchdog to restart the small preview again
       isModalOpen = false;
       // Restart the small preview
-      if (savedPreviewSrc && isWindowVisible) {
-        preview.src =
-          savedPreviewSrc.split("?")[0] + "?" + new Date().getTime();
-        lastLoadTime = Date.now();
-      }
+      startPreview();
     });
   }
 });
