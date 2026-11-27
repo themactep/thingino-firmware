@@ -44,23 +44,25 @@ THINGINO_LIBBLE_LDFLAGS = $(TARGET_LDFLAGS) \
 	-L$(TARGET_DIR)/usr/lib \
 	-lstdc++
 
+THINGINO_LIBBLE_CONFIGURE_FLAGS = \
+	--with-server-support \
+	--host=$(GNU_TARGET_NAME) \
+	--build=$(GNU_HOST_NAME) \
+	CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
+	CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
+	LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)"
+
 ifneq ($(BR2_PACKAGE_WIFI_ATBM6012BX)$(BR2_PACKAGE_WIFI_ATBM6031X)$(BR2_PACKAGE_WIFI_ATBM6032X),)
 define THINGINO_LIBBLE_CONFIGURE_CMDS
-	(cd $(@D) ; ./configure --with-server-support \
+	(cd $(@D) ; ./configure $(THINGINO_LIBBLE_CONFIGURE_FLAGS) \
 				--with-nimble-support \
 				--without-bluez-support \
-				NIMBLE_LIBDIR=$(STAGING_DIR)/usr/lib \
-				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
-				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
-				LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)" )
+				NIMBLE_LIBDIR=$(STAGING_DIR)/usr/lib )
 endef
 else
 define THINGINO_LIBBLE_CONFIGURE_CMDS
-	(cd $(@D) ; ./configure --with-server-support \
-				--with-bluez-support \
-				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
-				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
-				LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)" )
+	(cd $(@D) ; ./configure $(THINGINO_LIBBLE_CONFIGURE_FLAGS) \
+				--with-bluez-support )
 endef
 endif
 
