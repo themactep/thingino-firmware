@@ -134,9 +134,17 @@ handle_post() {
 		json_error 422 "Remote host cannot be empty when enabled" "422 Unprocessable Entity"
 	fi
 
+	before=$(read_domain_json)
 	write_config
 
-	send_json '{"status":"ok"}'
+	# syslogd takes its remote target from its command line (S01syslogd), so a
+	# changed target applies only when it restarts - which also clears the
+	# in-memory log (logread). Restart only when the settings really changed.
+	if [ "$before" != "$(read_domain_json)" ] && [ -x /etc/init.d/S01syslogd ]; then
+		/etc/init.d/S01syslogd restart >/dev/null 2>&1
+		send_json '{"status":"ok","message":"Remote logging settings saved and applied. syslogd restarted, so the in-memory log starts over."}'
+	fi
+	send_json '{"status":"ok","message":"Remote logging settings saved."}'
 }
 
 case "$REQUEST_METHOD" in
