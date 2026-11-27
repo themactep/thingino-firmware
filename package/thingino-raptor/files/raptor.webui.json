@@ -52,6 +52,10 @@
           "href": "/streamer-sensor.html"
         },
         {
+          "label": "WebTorrent Share",
+          "href": "/streamer-webtorrent.html"
+        },
+        {
           "type": "divider"
         },
         {
@@ -92,6 +96,7 @@
   },
   "cgi": [
     "/x/json-config-save.cgi",
+    "/x/json-webtorrent.cgi",
     "/x/restart-streamer.cgi",
     "/x/webrtc-whip.cgi",
     "/x/zoom.cgi",
@@ -110,6 +115,7 @@
     "/streamer-image.html",
     "/streamer-osd.html",
     "/streamer-sensor.html",
-    "/config-audio.html"
+    "/config-audio.html",
+    "/streamer-webtorrent.html"
   ]
 }
