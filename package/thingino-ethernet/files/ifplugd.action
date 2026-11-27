@@ -12,4 +12,10 @@ case "$2" in
 		;;
 esac
 
+# Let the gateway script decide whether this link changes the WLAN state for
+# any wired uplink, not only the one whose ifplugd event fired.
+if [ -x /etc/init.d/S40wired-gateway ]; then
+	/etc/init.d/S40wired-gateway recheck "$2"
+fi
+
 exit 0

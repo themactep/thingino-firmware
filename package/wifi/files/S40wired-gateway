@@ -2,6 +2,29 @@
 # shellcheck disable=SC3043
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
+# Set while the gateway has the radio down for a wired uplink, so a link
+# that later has no usable route can bring the wireless back instead of
+# leaving the camera with no network at all.
+STOPPED_FLAG="/run/wired_gateway_stopped"
+
+# Wired uplinks are the on-board and USB Ethernet ports. The WLAN and an AP
+# interface are not candidates, and neither is a loopback.
+wired_ifaces() {
+	ip -o link show 2>/dev/null | awk -F': ' '{
+		n = $2
+		sub(/@.*/, "", n)
+		if (n ~ /^(eth|usb)/)
+			print n
+	}'
+}
+
+start_web_server() {
+	for init in /etc/init.d/S60uhttpd /etc/init.d/S90httpd; do
+		[ -x "$init" ] || continue
+		"$init" restart
+		return
+	done
+}
 
 unload_wlan_module() {
 	[ -n "$WLAN_MODULE_NAME" ] || return 0
@@ -17,20 +40,76 @@ unload_wlan_module() {
 }
 
 has_wired_uplink() {
-	local iface="$1"
+	local iface="$1" own
 
 	[ -z "$iface" ] && return 1
 	ip link show "$iface" >/dev/null 2>&1 || return 1
-	ip -4 route show default dev "$iface" | grep -q . && return 0
+	# A route can outlive the cable; only a connected link is an uplink.
+	[ "$(cat "/sys/class/net/$iface/carrier" 2>/dev/null)" = "1" ] || return 1
+	# A route via one of our own addresses (USB direct's fallback on
+	# usb0) leads nowhere.
+	own=$(ip -4 addr show dev "$iface" | awk '$1 == "inet" { sub(/\/.*/, "", $2); printf " %s ", $2 }')
+	ip -4 route show default dev "$iface" | awk -v own="$own" '
+		{ gw = ""; for (i = 1; i < NF; i++) if ($i == "via") gw = $(i + 1) }
+		gw == "" || !index(own, " " gw " ") { up = 1 }
+		END { exit !up }' && return 0
 	ip -6 route show default dev "$iface" | grep -q . && return 0
 	return 1
 }
 
 any_wired_iface_exists() {
-	for iface in eth0; do
-		ip link show "$iface" >/dev/null 2>&1 && return 0
+	[ -n "$(wired_ifaces)" ]
+}
+
+has_any_wired_uplink() {
+	local iface
+
+	for iface in $(wired_ifaces); do
+		has_wired_uplink "$iface" && return 0
 	done
 	return 1
+}
+
+has_any_wired_link() {
+	local iface
+
+	for iface in $(wired_ifaces); do
+		[ "$(cat "/sys/class/net/$iface/carrier" 2>/dev/null)" = "1" ] && return 0
+	done
+	return 1
+}
+
+stop_wireless() {
+	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant stop
+	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless stop
+	unload_wlan_module
+	@if WIFI_MODULE_IS_SDIO@
+	@if !WIFI_SDIO_UNSUPPORTED@
+	@if !WIFI_SDIO_RETURN_EARLY@
+	echo "Send REMOVE to MMC1"
+	mmc 1 -r
+	@endif@
+	@endif@
+	@endif@
+	touch "$STOPPED_FLAG"
+	start_web_server
+}
+
+start_wireless() {
+	rm -f "$STOPPED_FLAG"
+	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless start
+	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant start
+	# The wireless scripts do not ifup; give the STA its address. In portal or
+	# AP mode the address belongs to the AP, so leave it alone.
+	if [ ! -f /run/portal_pending ] && [ ! -f /run/portal_mode ]; then
+		ifup wlan0 2>/dev/null
+	fi
+	# With no stored credentials S38 only records the pending decision;
+	# the boot path confirms it from watch_wired_uplink, so do the same
+	# when the wired link disappears after boot.
+	if [ -f /run/portal_pending ] || [ -f /run/portal_mode ]; then
+		/etc/init.d/S38wpa_supplicant portal_confirmed
+	fi
 }
 
 watch_wired_uplink() {
@@ -38,23 +117,72 @@ watch_wired_uplink() {
 	if any_wired_iface_exists; then
 		attempt=0
 		while [ "$attempt" -lt 10 ]; do
-			for iface in eth0; do
-				if has_wired_uplink "$iface"; then
-					echo "Wired uplink on $iface found, stopping WiFi" >&2
-					/etc/init.d/S38wpa_supplicant stop
-					/etc/init.d/S36wireless stop
-					unload_wlan_module
-					exit 0
-				fi
-			done
+			if has_any_wired_uplink; then
+				echo "Wired uplink found, stopping WiFi" >&2
+				stop_wireless
+				exit 0
+			fi
 			attempt=$((attempt + 1))
 			sleep 1
 		done
 	fi
-	# Always confirm portal mode so DHCP/DNS start on WiFi-only cameras
-	if [ -f /run/portal_mode ]; then
+	# No wired uplink: this is a wireless camera, bring the portal up
+	if [ -f /run/portal_pending ] || [ -f /run/portal_mode ]; then
 		/etc/init.d/S38wpa_supplicant portal_confirmed
 	fi
+}
+
+# Link-state follow-up from ifplugd. The boot probe only runs once, so
+# without this a plugged/unplugged USB Ethernet adapter leaves the WLAN
+# module either unloaded with no way back or running beside the cable.
+recheck() {
+	case "$1" in
+		up)
+			# A wired link that comes up second cannot install its
+			# default route while the wireless owns it. Prefer the wired:
+			# stop the wireless, force the wired ifup, and only then
+			# decide. Fall back to the wireless if it has no uplink.
+			if has_any_wired_link && ! has_any_wired_uplink; then
+				stop_wireless
+				# Drop the wired address first: ifup -a does not touch an
+				# interface that is already configured, and a named ifup
+				# leaves no /run/ifstate entry for the next ifdown.
+				for iface in $(wired_ifaces); do
+					ip addr flush dev "$iface" 2>/dev/null
+				done
+				ifup -a 2>/dev/null
+				# ifup -a does not record an interface that was already
+				# configured, so record it here for the next ifdown.
+				for iface in $(wired_ifaces); do
+					grep -q "^$iface=" /run/ifstate 2>/dev/null || echo "$iface=$iface" >>/run/ifstate
+				done
+				has_any_wired_uplink && return 0
+				[ -f "$STOPPED_FLAG" ] && start_wireless
+				return 0
+			fi
+			# Give DHCP a moment to install the default route before
+			# deciding that this really is the uplink.
+			attempt=0
+			while [ "$attempt" -lt 10 ]; do
+				if has_any_wired_uplink; then
+					stop_wireless
+					return 0
+				fi
+				attempt=$((attempt + 1))
+				sleep 1
+			done
+			# A link with no usable route is not an uplink: leave a
+			# running wireless alone, and bring it back only if the
+			# gateway stopped it for a wired uplink that has since
+			# lost its route.
+			[ -f "$STOPPED_FLAG" ] && start_wireless
+			;;
+		down)
+			# Another wired interface may still be the uplink.
+			has_any_wired_uplink && return 0
+			[ -f "$STOPPED_FLAG" ] && start_wireless
+			;;
+	esac
 }
 
 case "$1" in
@@ -62,6 +190,9 @@ case "$1" in
 		# The uplink probe needs up to 10 s; on wifi-only cameras it
 		# always runs the full 10 s, so it must not hold up rcS.
 		watch_wired_uplink &
+		;;
+	recheck)
+		recheck "$2"
 		;;
 esac
 
