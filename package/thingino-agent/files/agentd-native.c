@@ -964,6 +964,9 @@ int main(int argc, char **argv)
     const char *listen_addr = "127.0.0.1";
     struct sockaddr_in addr;
     int index;
+    int max_children = 10;
+    int active = 0;
+    pid_t child;
 
     for (index = 1; index < argc; index++) {
         if (strcmp(argv[index], "--listen") == 0 && index + 1 < argc) {
@@ -975,7 +978,11 @@ int main(int argc, char **argv)
 
     signal(SIGTERM, handle_signal);
     signal(SIGINT, handle_signal);
-    signal(SIGCHLD, SIG_IGN);
+    /* No SIGCHLD handler in the parent: the accept loop reaps request
+     * handlers itself so it can bound how many run at once. */
+    if (getenv("AGENT_MAX_REQUESTS") && atoi(getenv("AGENT_MAX_REQUESTS")) > 0) {
+        max_children = atoi(getenv("AGENT_MAX_REQUESTS"));
+    }
 
     listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
@@ -1011,14 +1018,31 @@ int main(int argc, char **argv)
             perror("accept");
             break;
         }
-        if (fork() == 0) {
-            /* SIGCHLD is ignored so that these handlers are reaped; a handler has to wait for agentctl */
+        /* Bound concurrent request handlers: each runs the shell
+         * adapter, which forks a subshell per substitution, and a page
+         * can fire a dozen requests at once, enough to exhaust RAM on a
+         * small board. Reap finished handlers, then block if at the cap. */
+        while (waitpid(-1, NULL, WNOHANG) > 0) {
+            if (active > 0) active--;
+        }
+        while (active >= max_children) {
+            if (waitpid(-1, NULL, 0) > 0) {
+                active--;
+            } else if (errno != EINTR) {
+                active = 0;
+            }
+        }
+        child = fork();
+        if (child == 0) {
+            /* A handler has to wait for agentctl, so it keeps the default
+             * SIGCHLD disposition. */
             signal(SIGCHLD, SIG_DFL);
             close(listen_fd);
             serve_client(client_fd);
             close(client_fd);
             _exit(0);
         }
+        if (child > 0) active++;
         close(client_fd);
     }
 
