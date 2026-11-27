@@ -585,7 +585,11 @@ loadInitialData().then(async () => {
       img.src = loading;
     }
 
-    function onDecoded() {
+    function onDecoded(ev) {
+      if (native) {
+        if (ev.type === "load") lastFrame = Date.now();
+        return;
+      }
       if (!loading || img.src !== loading) return;
       if (shown) URL.revokeObjectURL(shown);
       shown = loading;
@@ -670,18 +674,19 @@ loadInitialData().then(async () => {
       retryTimer = null;
       if (running || document.hidden) return;
       running = true;
+      lastFrame = Date.now();
       if (native) {
         img.src = url + "?" + Date.now();
         return;
       }
       const ac = new AbortController();
       controller = ac;
-      lastFrame = Date.now();
       read(ac.signal).then(
         (how) => {
           if (controller !== ac) return;
           ac.abort();
           if (how === "native") {
+            controller = null;
             native = true;
             running = false;
             start();
@@ -714,6 +719,13 @@ loadInitialData().then(async () => {
 
     // Called once a second by the preview watchdog.
     function check(now) {
+      if (native) {
+        if (!running || document.hidden) return;
+        if (now - lastFrame < PREVIEW_STALL_MS) return;
+        lastFrame = now;
+        img.src = url + "?" + Date.now();
+        return;
+      }
       if (!controller || now - lastFrame < PREVIEW_STALL_MS) return;
       const ac = controller;
       controller = null;
@@ -746,7 +758,9 @@ loadInitialData().then(async () => {
 
   // Back from the back/forward cache: pagehide stopped the streams.
   function onPageShow(ev) {
-    if (ev.persisted) startPreview();
+    if (!ev.persisted) return;
+    if (isModalOpen && full) full.start();
+    else startPreview();
   }
 
   // Function to start the preview stream
@@ -805,9 +819,11 @@ loadInitialData().then(async () => {
     if (document.hidden) {
       isWindowVisible = false;
       stopPreview();
+      if (full) full.stop();
     } else {
       isWindowVisible = true;
-      startPreview();
+      if (isModalOpen && full) full.start();
+      else startPreview();
     }
   }
 
