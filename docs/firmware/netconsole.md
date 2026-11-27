@@ -15,7 +15,7 @@ Quick start
 
 On a camera already carrying the shipped defaults:
 
-    U=<output-dir>/build/uboot-2026.07
+    U=<output-dir>/build/uboot-2026.10
     gcc -o $U/tools/ncb $U/tools/ncb.c            # once
     $U/tools/netconsole 255.255.255.255 6666      # broadcast: no ARP, any subnet
 

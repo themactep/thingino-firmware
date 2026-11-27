@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+#include <dt-bindings/gpio/gpio.h>
+
+&gmac_phy {
+	reset-gpios = <&gpc 0 GPIO_ACTIVE_LOW>;
+};

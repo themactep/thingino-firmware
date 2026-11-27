@@ -1,0 +1,152 @@
+RTP timestamps are derived from the source clock relative to a per-session
+anchor, and a forward step larger than 500 ms is clamped. The source can
+change under a running session, and the clamp then turns the jump into a
+race that clients render as a stall:
+
+- Audio: the mic is turned off and on again. The capture gap is real, but
+  the clamp makes the audio clock lag real time; clients that sync to it
+  freeze video for ~20 s and keep extra latency after every cycle.
+- Video: a video restart recreates the encoder, whose timestamps start on
+  a new base (about 20 s ahead on a T31). The clamp replays that jump at
+  0.5 s per frame, so the video runs ahead of the audio and the client
+  shows a frozen picture while the audio plays on.
+
+Compare each jump with the monotonic time elapsed since the previous
+packet. A jump that matches it is a real gap and is kept; one that does
+not is absorbed into the session anchor, so the RTP clock keeps following
+real time. Audio and video share the same helper.
+
+diff --git a/src/network/rtsp/RtspServer.cpp b/src/network/rtsp/RtspServer.cpp
+index 3400d40..b4b7fc2 100644
+--- a/src/network/rtsp/RtspServer.cpp
++++ b/src/network/rtsp/RtspServer.cpp
+@@ -101,6 +101,30 @@ static int64_t rtpTsDelta(uint32_t a, uint32_t b) {
+     return static_cast<int32_t>(a - b);
+ }
+ 
++// Next RTP timestamp after last_ts, given new_ts derived from the source clock.
++// The source can change its time base under a running session (the encoder is
++// recreated by a video restart, the audio input by a mic restart). A jump that
++// the real time elapsed since last_ts does not explain is absorbed into the
++// session anchor (anchorShiftUs), so the RTP clock keeps following real time
++// instead of replaying the jump in capped steps that clients render as a
++// freeze. A jump that matches the elapsed time is a real gap and is kept.
++static uint32_t followSourceClock(uint32_t new_ts, uint32_t last_ts, int rate,
++                                  int64_t elapsedUs, int64_t &anchorShiftUs) {
++    static const int64_t kSlackUs = 500000;
++    anchorShiftUs = 0;
++    int64_t diff = rtpTsDelta(new_ts, last_ts);
++    int64_t jumpUs = diff * 1000000LL / rate;
++    if (elapsedUs >= 0 &&
++        (jumpUs > elapsedUs + kSlackUs || jumpUs < -kSlackUs)) {
++        anchorShiftUs = jumpUs - elapsedUs;
++        int64_t step = elapsedUs * rate / 1000000LL;
++        return last_ts + static_cast<uint32_t>(step > 0 ? step : 1);
++    }
++    if (diff <= 0)
++        return last_ts + 1;
++    return new_ts;
++}
++
+ // Crash handler + Session moved to headers
+ 
+ // Static helpers moved to RtspUtils.hpp
+@@ -2212,27 +2236,32 @@ void RtspServer::updateVideoTimestamp(Session &s, const H264NALUnit &nal,
+                 static_cast<int64_t>(mono.tv_nsec) / 1000LL - ts_us;
+         }
+         int64_t rel_us = ts_us - s.videoStartAnchorUs;
+-        if (rel_us < 0) rel_us = 0;
+-        uint32_t new_ts = static_cast<uint32_t>(
+-            (static_cast<uint64_t>(rel_us) * 9ULL) / 100ULL);
++        // Keep a backward step signed once the session runs, so a new time
++        // base behind the anchor reaches followSourceClock as a jump.
++        if (rel_us < 0 && !s.hasFrameRtpTs) rel_us = 0;
++        uint32_t new_ts = static_cast<uint32_t>(rel_us * 9LL / 100LL);
++
++        struct timespec mono;
++        clock_gettime(CLOCK_MONOTONIC, &mono);
++        const int64_t monoUs = static_cast<int64_t>(mono.tv_sec) * 1000000LL +
++                               static_cast<int64_t>(mono.tv_nsec) / 1000LL;
+ 
+         if (s.hasFrameRtpTs) {
+-            static const uint32_t kMaxVideoRtpStep = 45000;
+-            int64_t diff = rtpTsDelta(new_ts, s.lastFrameRtpTs);
+-            if (diff > kMaxVideoRtpStep)
+-                new_ts = s.lastFrameRtpTs + kMaxVideoRtpStep;
+-            else if (diff <= 0)
+-                new_ts = s.lastFrameRtpTs + 1;
++            int64_t elapsedUs = s.lastVideoTsUs >= 0 ? monoUs - s.lastVideoTsUs : -1;
++            int64_t shiftUs = 0;
++            new_ts = followSourceClock(new_ts, s.lastFrameRtpTs, 90000,
++                                       elapsedUs, shiftUs);
++            if (shiftUs != 0) {
++                s.videoStartAnchorUs += shiftUs;
++                LOG_INFO("ch" << s.videoChn << ": video time base moved by "
++                         << shiftUs / 1000 << " ms, re-anchored");
++            }
+         }
+         s.lastFrameRtpTs = new_ts;
+         s.hasFrameRtpTs = true;
+         s.videoRtp.timestamp = new_ts;
+         s.videoFrameCount++;
+-
+-        struct timespec mono;
+-        clock_gettime(CLOCK_MONOTONIC, &mono);
+-        s.lastVideoTsUs = static_cast<int64_t>(mono.tv_sec) * 1000000LL +
+-                          static_cast<int64_t>(mono.tv_nsec) / 1000LL;
++        s.lastVideoTsUs = monoUs;
+     }
+ }
+ 
+@@ -2506,30 +2535,33 @@ bool RtspServer::sendAudioFrame(Session &s, const AudioFrame &af) {
+         if (dtUs < 0) dtUs = 0;
+         uint32_t new_ts = static_cast<uint32_t>(
+             dtUs * static_cast<int64_t>(sampleRate) / 1000000LL);
+-        // Guard against forward timestamp jumps (e.g. IMP driver timestamp
+-        // domain transition from 0->real-time).  Cap the step to 500 ms of
+-        // audio; larger jumps are treated as a discontinuity and the RTP
+-        // timestamp is clamped to a smooth increment from the last value.
+-        if (s.hasAudioRtpTs) {
+-            int32_t max_step = (sampleRate > 0) ? (sampleRate / 2) : 8000;
+-            int64_t diff = rtpTsDelta(new_ts, s.audioRtp.timestamp);
+-            if (diff > max_step) {
+-                new_ts = s.audioRtp.timestamp + static_cast<uint32_t>(max_step);
+-            } else if (diff <= 0) {
+-                new_ts = s.audioRtp.timestamp + 1;
+-            }
+-        }
+-        s.audioRtp.timestamp = new_ts;
+-        s.hasAudioRtpTs = true;
+-
+         // Use CLOCK_MONOTONIC for RTCP SR consistency --- audio capture
+         // timestamps (af.time) may not be rebased by the IMP driver to
+         // the same clock domain as video imp_ts, so derive the RTCP SR
+         // reference from the monotonic clock directly.
+         struct timespec mono;
+         clock_gettime(CLOCK_MONOTONIC, &mono);
+-        s.lastAudioTsUs = static_cast<int64_t>(mono.tv_sec) * 1000000LL +
+-                          static_cast<int64_t>(mono.tv_nsec) / 1000LL;
++        const int64_t monoUs = static_cast<int64_t>(mono.tv_sec) * 1000000LL +
++                               static_cast<int64_t>(mono.tv_nsec) / 1000LL;
++
++        if (s.hasAudioRtpTs) {
++            int64_t elapsedUs = s.lastAudioTsUs >= 0 ? monoUs - s.lastAudioTsUs : -1;
++            int64_t shiftUs = 0;
++            new_ts = followSourceClock(new_ts, s.audioRtp.timestamp,
++                                       sampleRate > 0 ? sampleRate : 16000,
++                                       elapsedUs, shiftUs);
++            if (shiftUs != 0) {
++                int64_t a = static_cast<int64_t>(s.startAnchor.tv_sec) * 1000000LL +
++                            s.startAnchor.tv_usec + shiftUs;
++                s.startAnchor.tv_sec = static_cast<time_t>(a / 1000000LL);
++                s.startAnchor.tv_usec = static_cast<suseconds_t>(a % 1000000LL);
++                LOG_INFO("audio time base moved by " << shiftUs / 1000
++                         << " ms, re-anchored");
++            }
++        }
++        s.audioRtp.timestamp = new_ts;
++        s.hasAudioRtpTs = true;
++        s.lastAudioTsUs = monoUs;
+     }
+ 
+     int clientIdx = s.sessionsIndex;

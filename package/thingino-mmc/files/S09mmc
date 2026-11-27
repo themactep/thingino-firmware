@@ -155,6 +155,13 @@ set_power() {
 }
 
 load_module() {
+	if [ -z "$MMC_MODULE" ]; then
+		modprobe mmc_block 2>/dev/null || true
+		modprobe vfat 2>/dev/null || true
+		set_power
+		return
+	fi
+
 	if grep -q "^$MMC_MODULE " /proc/modules; then
 		if [ -z "$MMC_PARAM" ]; then
 			echo "$MMC_MODULE is already loaded, nothing to reload" >&2

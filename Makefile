@@ -210,8 +210,8 @@ TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc
 
 # Resolve U-Boot version fragment
 THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | head -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
-THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2026_07)
-THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
+THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2026_10)
+THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_10,$(THINGINO_UBOOT_VERSION_RAW)),2026-10,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-'))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
 UBOOT_BIN_NAME := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
@@ -334,14 +334,37 @@ ALIGN_BLOCK := 65536
 # Kconfig symbol never reaches the driver, so the fragment line and the chip
 # table have to describe the same flash, or mkfs.jffs2, the partition floor
 # below and the kernel disagree about what an erase block is.
+#
+# Today no 3.10 jz_sfc config selects CONFIG_ERASE_SIZE_64K while the chip
+# tables use 64 KiB (T10/T20/T21/T23/T30/T31), so the image is built without
+# cleanmarkers: a 32 KiB cleanmarker in the middle of an empty 64 KiB block
+# makes jffs2 write over it (see Makefile.utils,
+# scripts/check-jffs2-cleanmarkers.sh).
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
-JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
+# Mainline's spi-nor erases 64 KiB blocks: the 7.4 configs turn its 4 KiB
+# sectors off, which JFFS2 cannot pack into.
+JFFS2_ERASE_BLOCK := $(shell if [ "$(KERNEL_VERSION)" = "7.4" ] || grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
-# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data).
-# That is a block count, not a byte count: the floor follows the erase block
-# the kernel actually uses, so it doubles on a 64 KiB kernel.
-JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
+# The kernel's NOR driver block size, as opposed to the mkfs packing size
+# above: on the 3.10 jz_sfc the chip tables use 64 KiB for T10/T20/T21/T23/
+# T30/T31 while mkfs packs 32 KiB nodes; T32's 3.10 config is the 32 KiB one.
+ifeq ($(KERNEL_VERSION),7.4)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else ifeq ($(KERNEL_VERSION),3.10.14)
+ifneq ($(filter t10 t20 t21 t23 t30 t31,$(SOC_FAMILY)),)
+JFFS2_NOR_ERASE_BLOCK := 65536
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+else
+JFFS2_NOR_ERASE_BLOCK := 32768
+endif
+export JFFS2_NOR_ERASE_BLOCK
+
+# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
+# of the kernel's real block size, not of the packing size.
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_NOR_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
@@ -396,7 +419,12 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
+ifeq ($(KERNEL_VERSION),7.4)
+# Mainline with thingino's options is ~2 MB of LZMA uImage: no 1600 KiB fit.
+KERNEL_PARTITION_SIZE := 2359296  # 2304KB
+else
 KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
+endif
 
 # Largest rootfs that still leaves JFFS2_MIN_SIZE for the data partition.
 # Recursive on purpose: FLASH_SIZE and ROOTFS_OFFSET are defined further down.

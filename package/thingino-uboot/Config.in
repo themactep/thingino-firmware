@@ -2,12 +2,12 @@ menu "Thingino U-Boot integration"
 
 choice
 	prompt "U-Boot version"
-	default BR2_THINGINO_UBOOT_VERSION_2026_07
+	default BR2_THINGINO_UBOOT_VERSION_2026_10
 	help
 	  Select the U-Boot version to build.
 
-config BR2_THINGINO_UBOOT_VERSION_2026_07
-	bool "2026.07 (buildroot)"
+config BR2_THINGINO_UBOOT_VERSION_2026_10
+	bool "2026.10 (buildroot)"
 
 config BR2_THINGINO_UBOOT_VERSION_2013_07
 	bool "2013.07 (ingenic)"
@@ -59,6 +59,10 @@ config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
 
 config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 	bool "Reset PHY after being Configured"
+	depends on BR2_THINGINO_UBOOT_VERSION_2013_07
+	help
+	  2013.07 only. On newer U-Boot the reset line is the PHY node's
+	  reset-gpios; a camera overrides it in its u-boot.dtsi.
 
 config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET
 	int "GPIO to toggle for PHY Reset"

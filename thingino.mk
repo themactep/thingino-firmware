@@ -125,7 +125,7 @@ export SOC_TARGET_ARCH
 # makefile, so guarding only ever protected an environment variable, which
 # nothing sets.
 ifeq ($(KERNEL_VERSION_7),y)
-KERNEL_VERSION := 7.1-rc1
+KERNEL_VERSION := 7.4
 else ifeq ($(KERNEL_VERSION_4),y)
 KERNEL_VERSION := 4.4.94
 endif
@@ -153,7 +153,7 @@ endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 endif
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),7.4)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -536,6 +536,11 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
+# Mainline names the NOR after its SPI device; jz_sfc and sfc0_nor would match no mtd and
+# leave the kernel on the device tree's partitions.
+ifneq ($(filter yjz_sfc ysfc0_nor,$(KERNEL_VERSION_7)$(UBOOT_FLASH_CONTROLLER)),)
+	UBOOT_FLASH_CONTROLLER := spi0.0
+endif
 export UBOOT_FLASH_CONTROLLER
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
@@ -557,7 +562,7 @@ UBOOT_BOARDNAME_MISSING := $(if $(filter y,$(UBOOT_BOARDNAME_CHECKABLE)),$(if $(
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# BR2_TARGET_UBOOT_BOARDNAME only selects <name>_config on U-Boot's legacy
-	# build system. The Kconfig build system 2026.07 uses takes
+	# build system. The Kconfig build system 2026.10 uses takes
 	# <name>_defconfig from BR2_TARGET_UBOOT_BOARD_DEFCONFIG instead, so a
 	# camera that names a board has to reach that symbol -- otherwise its board
 	# choice is dropped for the plain SoC defconfig with nothing to show for it
@@ -565,7 +570,7 @@ ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 	# UBOOT_BOARDNAME is already resolved above (camera name, else SOC_UBOOT).
 	UBOOT_DEFCONFIG := $(UBOOT_BOARDNAME)
 ifeq ($(UBOOT_BOARDNAME_MISSING),y)
-	# Some camera defconfigs still name 2013.07-era boards that the 2026.07
+	# Some camera defconfigs still name 2013.07-era boards that the 2026.10
 	# tree never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
 	# the SoC default the same as before -- but say so, rather than either
 	# failing the U-Boot configure or going quiet about it again.
