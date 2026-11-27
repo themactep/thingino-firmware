@@ -36,7 +36,7 @@ done
 shift $((OPTIND - 1))
 
 case "$MODE" in
-	full|kernel|boot|rootfs|all) ;;
+	full | kernel | boot | rootfs | all) ;;
 	*) die "Invalid mode: $MODE (valid: all, full, kernel, boot, rootfs)" ;;
 esac
 
@@ -92,7 +92,7 @@ remote_mem_available_kb() {
 
 is_integer() {
 	case "$1" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			return 1
 			;;
 		*)
@@ -103,7 +103,7 @@ is_integer() {
 
 prepare_upload_memory() {
 	echo "Freeing memory before upload..."
-	remote_run "rm -f /tmp/snapshot.jpg; rm -rf /tmp/sysupgrade /tmp/fw.bin; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
+	remote_run "rm -f /tmp/snapshot.jpg; rm -rf /tmp/sysupgrade /tmp/fw.bin; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null ||
 		echo "Warning: failed to free memory before upload."
 }
 
@@ -119,7 +119,7 @@ wait_for_reboot_after_detach() {
 			return 0
 		fi
 
-		retries=$(( retries - 1 ))
+		retries=$((retries - 1))
 		sleep 2
 	done
 
@@ -128,9 +128,9 @@ wait_for_reboot_after_detach() {
 
 check_and_free_space() {
 	local fw_size_kb remote_avail_kb remote_memavail_kb dir_needed_kb mem_needed_kb
-	fw_size_kb=$(( ($(stat -c%s "$UPLOAD_FW_FILE") + 1023) / 1024 ))
+	fw_size_kb=$((($(stat -c%s "$UPLOAD_FW_FILE") + 1023) / 1024))
 	# Uploading into tmpfs also needs extra RAM for dropbear/scp buffers and page cache.
-	mem_needed_kb=$(( fw_size_kb + 4096 ))
+	mem_needed_kb=$((fw_size_kb + 4096))
 
 	select_remote_fw_path
 	prepare_upload_memory
@@ -139,7 +139,7 @@ check_and_free_space() {
 		# The image is moved into the workdir (same tmpfs rename) and
 		# streamed to flash, never duplicated, so only the ~1 MB busybox
 		# clone plus scripts/logs share the tmpfs with the firmware.
-		dir_needed_kb=$(( fw_size_kb + 2048 ))
+		dir_needed_kb=$((fw_size_kb + 2048))
 	else
 		# SD card staging does not require tmpfs working-space headroom.
 		dir_needed_kb=$fw_size_kb
@@ -178,13 +178,13 @@ check_and_free_space() {
 		die "Not enough upload headroom and rmem is not set or already zero. Cannot proceed."
 	fi
 
-	new_osmem_mb=$(( osmem_mb + rmem_mb ))
+	new_osmem_mb=$((osmem_mb + rmem_mb))
 	remap_cmd="fw_setenv rmem 0M@${rmem_addr}"
 	remap_msg="rmem ${rmem_mb}M -> 0M (at ${rmem_addr})"
 
 	# Some SoCs (t20/t10) also reserve ispmem between osmem and rmem; fold it into osmem too.
 	if is_integer "$ispmem_mb" && [ "$ispmem_mb" -gt 0 ]; then
-		new_osmem_mb=$(( new_osmem_mb + ispmem_mb ))
+		new_osmem_mb=$((new_osmem_mb + ispmem_mb))
 		remap_cmd="$remap_cmd && fw_setenv ispmem 0M@${ispmem_addr}"
 		remap_msg="$remap_msg, ispmem ${ispmem_mb}M -> 0M (at ${ispmem_addr})"
 	fi
@@ -210,7 +210,7 @@ check_and_free_space() {
 		if ssh $SSH_OPTS -o ConnectTimeout=5 $REMOTE_HOST "echo ok" >/dev/null 2>&1; then
 			break
 		fi
-		retries=$(( retries - 1 ))
+		retries=$((retries - 1))
 		sleep 3
 	done
 	[ "$retries" -eq 0 ] && die "Device did not come back online after memory remap reboot."
@@ -270,7 +270,7 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o UserKnownHostsFile=/dev/null"
 
 [ -n "${DEBUG:-}" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
-ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
+ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null ||
 	die "Failed to initialize ssh connection"
 echo "SSH connection initialized."
 
@@ -316,31 +316,51 @@ if [ "$LOCAL_IMAGE_ID" != "$REMOTE_IMAGE_ID" ]; then
 	fi
 fi
 
-echo "Firmware compatibility verified."
+# The IMAGE_ID check catches a different profile; it cannot catch the same
+# profile with the wrong die (a PT2 sc2336p image on an SC2337P unit: the
+# installed IMAGE_ID and the target both say sc2336p). Compare the sensor the
+# device actually reports with the sensor token in the target camera name.
+REMOTE_SENSOR=$(remote_run "cat /proc/jz/sensor/name 2>/dev/null" | tr -d '\r\n')
+LOCAL_SENSOR=$(printf '%s' "$LOCAL_IMAGE_ID" | awk -F_ '{print $4}')
+case "$REMOTE_SENSOR" in
+	'' | unknown) ;; # no sensor procfs on the installed image; nothing to compare
+	*)
+		if [ -n "$LOCAL_SENSOR" ] && [ "$REMOTE_SENSOR" != "$LOCAL_SENSOR" ]; then
+			MATCH_IMAGE=$(printf '%s' "$LOCAL_IMAGE_ID" | sed "s/_${LOCAL_SENSOR}_/_${REMOTE_SENSOR}_/")
+			if [ "$FORCE" -eq 1 ]; then
+				echo "Warning: sensor mismatch: device reports $REMOTE_SENSOR, image is for $LOCAL_SENSOR (forced)"
+			else
+				die "Sensor mismatch: device reports $REMOTE_SENSOR, image is for $LOCAL_SENSOR. Flash the $MATCH_IMAGE image (or use -f to override)."
+			fi
+		fi
+		;;
+esac
+
+echo "Firmware and sensor compatibility verified."
 
 echo "Current MTD layout on device:"
 remote_run "cat /proc/mtd"
 
 free_overlay_space() {
 	echo "Freeing overlay space on device..."
-	remote_run "rm -rf /overlay/var /overlay/usr 2>/dev/null; mount -o remount / 2>/dev/null; echo done" >/dev/null || \
+	remote_run "rm -rf /overlay/var /overlay/usr 2>/dev/null; mount -o remount / 2>/dev/null; echo done" >/dev/null ||
 		echo "Warning: failed to free overlay space (non-fatal)"
 }
 
 upload_sysupgrade() {
-	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" || \
+	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" ||
 		die "Failed to transfer sysupgrade utility"
-	remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" || \
+	remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" ||
 		die "Failed to transfer sysupgrade-stage2 utility"
-	remote_run "chmod +x $REMOTE_SCRIPT" || \
+	remote_run "chmod +x $REMOTE_SCRIPT" ||
 		die "Failed to set execute permissions on sysupgrade utility"
 	echo "Sysupgrade utility installed successfully."
 }
 
 upload_flash_ota() {
-	remote_copy "$LOCAL_FLASH_OTA" "$REMOTE_HOST:/tmp/flash-ota.sh" || \
+	remote_copy "$LOCAL_FLASH_OTA" "$REMOTE_HOST:/tmp/flash-ota.sh" ||
 		die "Failed to transfer flash-ota"
-	remote_run "chmod +x /tmp/flash-ota.sh" || \
+	remote_run "chmod +x /tmp/flash-ota.sh" ||
 		die "Failed to set execute permissions on flash-ota"
 	echo "flash-ota utility installed."
 }
@@ -364,12 +384,12 @@ if [ "$MODE" = "full" ]; then
 	fi
 
 	echo "Transferring firmware file to the device..."
-	remote_copy "$UPLOAD_FW_FILE" "$REMOTE_HOST:$REMOTE_FW_FILE" || \
+	remote_copy "$UPLOAD_FW_FILE" "$REMOTE_HOST:$REMOTE_FW_FILE" ||
 		die "The firmware transfer process timed out or failed."
 
 	hash_l=$(sha256sum "$UPLOAD_FW_FILE" | cut -d' ' -f1)
 	hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
-	[ "$hash_l" != "$hash_r" ] && \
+	[ "$hash_l" != "$hash_r" ] &&
 		die "SHA256 checksum does not match, exiting..."
 	echo "Firmware file transferred and SHA256 checksum verified."
 
@@ -444,7 +464,7 @@ elif [ "$MODE" = "rootfs" ]; then
 	[ ! -f "$DATA_BIN" ] && die "data.jffs2 not found alongside rootfs.squashfs"
 
 	sqfs_size=$(stat -c%s "$LOCAL_FW_FILE")
-	sqfs_aligned=$(( (sqfs_size + 65535) / 65536 * 65536 ))
+	sqfs_aligned=$(((sqfs_size + 65535) / 65536 * 65536))
 
 	ROOTFS_TRIMMED="${LOCAL_FW_FILE}.rootfs"
 	cp "$LOCAL_FW_FILE" "$ROOTFS_TRIMMED" || die "Failed to copy rootfs"
