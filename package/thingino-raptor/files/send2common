@@ -8,14 +8,14 @@ export GARBAGE_FILE
 add_to_garbage() {
 	[ -n "$1" ] || return
 	GARBAGE="${GARBAGE:+$GARBAGE }$1"
-	[ -n "$GARBAGE_FILE" ] && printf '%s\n' "$1" >> "$GARBAGE_FILE"
+	[ -n "$GARBAGE_FILE" ] && printf '%s\n' "$1" >>"$GARBAGE_FILE"
 }
 
 _cleanup() {
 	if [ -n "$GARBAGE_FILE" ] && [ -f "$GARBAGE_FILE" ]; then
 		while IFS= read -r garbage_path; do
 			[ -n "$garbage_path" ] && rm -f -- "$garbage_path"
-		done < "$GARBAGE_FILE"
+		done <"$GARBAGE_FILE"
 		rm -f -- "$GARBAGE_FILE"
 	fi
 	GARBAGE=""
@@ -79,6 +79,12 @@ thingino_send2_raptor_newest_clip() {
 thingino_send2_raptor_ensure_rmr() {
 	pidof rmr >/dev/null 2>&1 && return 0
 	# RMR only stays up when recording.enabled=true; enable and start if needed.
+	# recording was off: borrow rmr in motion mode, released after the clip
+	if [ "$(thingino_send2_raptor_cfg_get enabled)" != true ]; then
+		CLIP_RMR_BORROWED=yes
+		CLIP_BORROWED_MODE=$(thingino_send2_raptor_cfg_get mode)
+		raptorctl config set recording mode motion >/dev/null 2>&1 || true
+	fi
 	raptorctl config set recording enabled true >/dev/null 2>&1 || true
 	if command -v start-stop-daemon >/dev/null 2>&1 && [ -x /usr/bin/rmr ]; then
 		start-stop-daemon -S -b -x /usr/bin/rmr -- -c /etc/raptor.conf >/dev/null 2>&1 || true
@@ -106,12 +112,18 @@ thingino_send2_raptor_cfg_get() {
 thingino_send2_raptor_clip_target() {
 	CLIP_STORAGE=$(thingino_send2_raptor_cfg_get storage_path)
 	[ -n "$CLIP_STORAGE" ] || CLIP_STORAGE=/mnt/mmcblk0p1/raptor
+	CLIP_TMPFS=no
 	if [ ! -d "$CLIP_STORAGE" ] || [ ! -w "$CLIP_STORAGE" ]; then
-		CLIP_STORAGE=/tmp/raptor
-		mkdir -p /tmp/raptor/clips 2>/dev/null
+		# Per-capture dir: rmr refuses to create the storage, and sweeping the
+		# shared /tmp/raptor would delete recordings that were not ours.
+		mkdir -p /tmp/raptor 2>/dev/null
+		CLIP_STORAGE=$(mktemp -d /tmp/raptor/capture.XXXXXX 2>/dev/null) || CLIP_STORAGE=
+		[ -n "$CLIP_STORAGE" ] || return 1
+		CLIP_TMPFS=yes
 	fi
+	mkdir -p "$CLIP_STORAGE/clips" 2>/dev/null
 
-	if [ "$CLIP_STORAGE" = /tmp/raptor ]; then
+	if [ "$CLIP_TMPFS" = yes ]; then
 		CLIP_MODE=motion
 		return
 	fi
@@ -138,8 +150,9 @@ thingino_send2_raptor_clip_apply() {
 	raptorctl rmr restart >/dev/null 2>&1 || return 1
 	_i=0
 	while [ "$_i" -lt 50 ]; do
+		# with its default: an unset storage_path reads empty
 		if raptorctl rmr status >/dev/null 2>&1 &&
-			[ "$(thingino_send2_raptor_cfg_get storage_path)" = "$CLIP_STORAGE" ] &&
+			[ "$(thingino_send2_raptor_storage_path)" = "$CLIP_STORAGE" ] &&
 			[ "$(thingino_send2_raptor_cfg_get mode)" = "$CLIP_MODE" ]; then
 			return 0
 		fi
@@ -160,13 +173,31 @@ thingino_send2_raptor_clip_restore() {
 	_i=0
 	while [ "$_i" -lt 50 ]; do
 		if raptorctl rmr status >/dev/null 2>&1 &&
-			[ "$(thingino_send2_raptor_cfg_get storage_path)" = "$CLIP_ORIG_STORAGE" ] &&
+			[ "$(thingino_send2_raptor_storage_path)" = "$CLIP_ORIG_STORAGE" ] &&
 			[ "$(thingino_send2_raptor_cfg_get mode)" = "$CLIP_ORIG_MODE" ]; then
 			return 0
 		fi
 		sleep 0.2 2>/dev/null || sleep 1
 		_i=$((_i + 1))
 	done
+	return 0
+}
+
+thingino_send2_raptor_rmr_release() {
+	[ "${CLIP_RMR_BORROWED:-no}" = yes ] || return 0
+	CLIP_RMR_BORROWED=no
+	raptorctl config set recording mode "${CLIP_BORROWED_MODE:-continuous}" >/dev/null 2>&1 || true
+	raptorctl config set recording enabled false >/dev/null 2>&1 || true
+	raptorctl rmr stop >/dev/null 2>&1 || true
+}
+
+# motion mode also writes a segment beside the clip; drop only this capture's
+# private tmpfs tree, never the rest of /tmp/raptor.
+thingino_send2_raptor_clip_sweep() {
+	[ "${CLIP_TMPFS:-no}" = yes ] || return 0
+	case "$CLIP_STORAGE" in
+		/tmp/raptor/capture.*) rm -rf -- "$CLIP_STORAGE" ;;
+	esac
 	return 0
 }
 
@@ -181,7 +212,7 @@ thingino_send2_raptor_capture() {
 	CLIP_RECONFIGURED=no
 	CLIP_TMP=""
 	# shellcheck disable=SC2154  # _rc is assigned inside the trap
-	trap '_rc=$?; if [ "${CLIP_RECONFIGURED:-no}" = yes ] && [ -n "${CLIP_TMP:-}" ]; then rm -f -- "$CLIP_TMP"; fi; thingino_send2_raptor_clip_restore; exit $_rc' EXIT
+	trap '_rc=$?; if [ "${CLIP_RECONFIGURED:-no}" = yes ] && [ -n "${CLIP_TMP:-}" ]; then rm -f -- "$CLIP_TMP"; fi; thingino_send2_raptor_clip_restore; thingino_send2_raptor_rmr_release; thingino_send2_raptor_clip_sweep; exit $_rc' EXIT
 	trap 'exit 1' INT TERM HUP
 
 	thingino_send2_raptor_ensure_rmr || {
@@ -193,16 +224,15 @@ thingino_send2_raptor_capture() {
 	[ -n "$CLIP_ORIG_STORAGE" ] || CLIP_ORIG_STORAGE=/mnt/mmcblk0p1/raptor
 	CLIP_ORIG_MODE=$(thingino_send2_raptor_cfg_get mode)
 	[ -n "$CLIP_ORIG_MODE" ] || CLIP_ORIG_MODE=continuous
-	thingino_send2_raptor_clip_target
+	thingino_send2_raptor_clip_target || return 1
 	thingino_send2_raptor_clip_apply || return 1
 
 	_before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
-	raptorctl rmr start >/dev/null 2>&1 || {
-		echo "send2: failed to start raptor clip" >&2
+	# "rmr start|stop" are process verbs; test-motion sends the clip commands
+	raptorctl test-motion "$_duration" >/dev/null 2>&1 || {
+		echo "send2: failed to record a raptor clip" >&2
 		return 1
 	}
-	sleep "$_duration"
-	raptorctl rmr stop >/dev/null 2>&1 || true
 	# Allow the muxer to close the segment.
 	sleep 1
 	CLIP_TMP=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)

@@ -8,6 +8,7 @@ require_auth
 
 config_file="/etc/send2.json"
 prudynt_config="/etc/prudynt.json"
+thingino_config="/etc/thingino.json"
 
 send_json_response() {
 	printf 'Content-Type: application/json\r\nConnection: close\r\n\r\n'
@@ -16,6 +17,11 @@ send_json_response() {
 
 send_error() {
 	send_json_response "{\"error\":{\"message\":\"$1\"}}"
+}
+
+# send2* members of a motion object, one "key":value per line
+motion_send2_members() {
+	sed 's/[,{}]/\n/g' | sed -n 's/^[[:space:]]*\("send2[a-z0-9]*"\)[[:space:]]*:[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1:\2/p'
 }
 
 default_domain_config() {
@@ -51,7 +57,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 	esac
 	if [ -z "$motion_data" ] && command -v agentctl >/dev/null 2>&1; then
 		enabled=$(agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
-		[ -n "$enabled" ] && motion_data="{\"enabled\":$enabled}"
+		if [ -n "$enabled" ]; then
+			flags=$(jct "$thingino_config" get motion 2>/dev/null | motion_send2_members | grep -E ':(true|false)$' | tr '\n' ',')
+			motion_data="{\"enabled\":$enabled${flags:+,${flags%,}}}"
+		fi
 	fi
 	[ -n "$motion_data" ] || motion_data='{}'
 
@@ -140,6 +149,31 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 					fi
 					;;
 			esac
+			if [ ! -f "$prudynt_config" ]; then
+				# no prudynt.json: the agent stores the send2* flags
+				for member in $(jct "$temp_json" get motion 2>/dev/null | motion_send2_members | tr -d ' "'); do
+					service=${member%%:*}
+					service=${service#send2}
+					flag=${member#*:}
+					stored=1
+					case "$flag" in
+						true | false)
+							tmp=$(mktemp /tmp/send2-motion.XXXXXX) || true
+							if [ -n "$tmp" ]; then
+								printf '{"enabled":%s}\n' "$flag" >"$tmp"
+								agentctl set-setting "motion/outputs/send2/$service" "$tmp" >/dev/null 2>&1
+								stored=$?
+								rm -f "$tmp"
+							fi
+							;;
+					esac
+					if [ "$stored" -ne 0 ]; then
+						rm -f "$temp_json"
+						send_error "Could not save the motion setting for $service"
+						exit 1
+					fi
+				done
+			fi
 		fi
 		motion_temp=$(mktemp)
 		motion_val=$(jct "$temp_json" get motion)
