@@ -11,7 +11,15 @@ PORTAL_PENDING_FLAG="/run/portal_pending"
 UHTTPD_DOCROOT="${UHTTPD_DOCROOT:-/var/www}"
 UHTTPD_PORTAL_DOCROOT="${UHTTPD_PORTAL_DOCROOT:-/var/www-portal}"
 UHTTPD_CGI_PREFIX="${UHTTPD_CGI_PREFIX:-/x}"
-UHTTPD_COMMON_ARGS="${UHTTPD_COMMON_ARGS:--t 0 -T 15 -k 10 -n 20 -N 100}"
+# When memory runs out the kernel should take CGI scripts, never the video
+# daemons: uhttpd and everything it starts inherit this score.
+echo 800 >/proc/self/oom_score_adj 2>/dev/null
+# -n: CGI scripts running at once. 20 of them ran a 64 MB camera out of
+# memory (each is a shell with its own children), so boards up to 64 MB get
+# 6; an open page holds one for its heartbeat stream.
+UHTTPD_MAX_CGI=20
+[ "$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)" -lt 65536 ] && UHTTPD_MAX_CGI=6
+UHTTPD_COMMON_ARGS="${UHTTPD_COMMON_ARGS:--t 0 -T 15 -k 10 -n $UHTTPD_MAX_CGI -N 100}"
 UHTTPD_HTTP_LISTEN="${UHTTPD_HTTP_LISTEN:-80}"
 UHTTPD_HTTPS_LISTEN="${UHTTPD_HTTPS_LISTEN:-443}"
 UHTTPD_PORTAL_HTTP_LISTEN="${UHTTPD_PORTAL_HTTP_LISTEN:-172.16.0.1:80}"
@@ -193,7 +201,10 @@ stop() {
 	local i=0
 	while pgrep -x uhttpd >/dev/null 2>&1; do
 		i=$((i + 1))
-		[ "$i" -eq 5 ] && { echo "uhttpd ignoring TERM, sending KILL"; pkill -9 -x uhttpd 2>/dev/null; }
+		[ "$i" -eq 5 ] && {
+			echo "uhttpd ignoring TERM, sending KILL"
+			pkill -9 -x uhttpd 2>/dev/null
+		}
 		if [ "$i" -ge 8 ]; then
 			echo "WARNING: uhttpd would not exit"
 			return 1

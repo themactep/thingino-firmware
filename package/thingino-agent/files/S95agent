@@ -1,6 +1,10 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC2086
 
+# When memory runs out the kernel should take the web UI's helpers, never the
+# video daemons: everything started from here inherits this score.
+echo 800 >/proc/self/oom_score_adj 2>/dev/null
+
 DAEMON="agentd"
 PIDFILE="/run/agentd.pid"
 BOOTSTRAP_CONFIG="/etc/agent-bootstrap.json"
