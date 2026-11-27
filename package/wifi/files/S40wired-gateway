@@ -2,7 +2,17 @@
 # shellcheck disable=SC3043
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
-WIRED_IFACE="eth0"
+
+# Wired uplinks are the on-board and USB Ethernet ports. The WLAN and an AP
+# interface are not candidates, and neither is a loopback.
+wired_ifaces() {
+	ip -o link show 2>/dev/null | awk -F': ' '{
+		n = $2
+		sub(/@.*/, "", n)
+		if (n ~ /^(eth|usb)/)
+			print n
+	}'
+}
 
 start_web_server() {
 	for init in /etc/init.d/S60uhttpd /etc/init.d/S90httpd; do
@@ -42,7 +52,16 @@ has_wired_uplink() {
 }
 
 any_wired_iface_exists() {
-	ip link show "$WIRED_IFACE" >/dev/null 2>&1
+	[ -n "$(wired_ifaces)" ]
+}
+
+has_any_wired_uplink() {
+	local iface
+
+	for iface in $(wired_ifaces); do
+		has_wired_uplink "$iface" && return 0
+	done
+	return 1
 }
 
 stop_wireless() {
@@ -76,8 +95,8 @@ watch_wired_uplink() {
 	if any_wired_iface_exists; then
 		attempt=0
 		while [ "$attempt" -lt 10 ]; do
-			if has_wired_uplink "$WIRED_IFACE"; then
-				echo "Wired uplink on $WIRED_IFACE found, stopping WiFi" >&2
+			if has_any_wired_uplink; then
+				echo "Wired uplink found, stopping WiFi" >&2
 				stop_wireless
 				exit 0
 			fi
@@ -101,7 +120,7 @@ recheck() {
 			# deciding that this really is the uplink.
 			attempt=0
 			while [ "$attempt" -lt 10 ]; do
-				if has_wired_uplink "$WIRED_IFACE"; then
+				if has_any_wired_uplink; then
 					stop_wireless
 					return 0
 				fi
@@ -114,7 +133,7 @@ recheck() {
 			;;
 		down)
 			# Another wired interface may still be the uplink.
-			has_wired_uplink "$WIRED_IFACE" && return 0
+			has_any_wired_uplink && return 0
 			start_wireless
 			;;
 	esac
