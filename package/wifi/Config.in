@@ -19,6 +19,15 @@ menuconfig BR2_PACKAGE_WIFI
 
 if BR2_PACKAGE_WIFI
 
+config BR2_PACKAGE_WIFI_SDIO_SHARED_GMAC
+	bool "Use SDIO Wi-Fi together with GMAC"
+	help
+	  Allow the SDIO Wi-Fi path in S36wireless to run when the
+	  Ingenic GMAC is enabled. The default keeps the old guard: on
+	  boards where the GMAC and the SDIO pins are not usable
+	  together, the SDIO card stays disabled. Enable this only for
+	  a board whose hardware has been verified to support both.
+
 menu "AICSemi"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-aic8800/Config.in"
 endmenu
