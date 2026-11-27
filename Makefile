@@ -448,6 +448,14 @@ ROOTFS_PARTITION_SIZE = $(shell \
 		echo $(ROOTFS_BIN_SIZE_ALIGNED); \
 	fi)
 
+# The rootfs partition starts at a 64 KiB-aligned offset, so a fixed size has
+# to be 64 KiB-aligned too or the data partition starts mid-erase-block.
+ifneq ($(ROOTFS_PARTITION_KB),)
+ifneq ($(shell echo $$(( $(ROOTFS_PARTITION_KB) % ( $(ALIGN_BLOCK) / 1024 ) ))),0)
+$(error ROOTFS_PARTITION_KB=$(ROOTFS_PARTITION_KB) must be a multiple of $(shell echo $$(( $(ALIGN_BLOCK) / 1024 ))) KiB)
+endif
+endif
+
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE
 export BACKUP_PARTITION_SIZE
