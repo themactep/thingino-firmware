@@ -7,6 +7,7 @@
 # writes them there regardless of streamer). Runs detached so it never stalls
 # timps's motion loop; a flock stops overlapping events from piling up.
 
+THINGINO_JSON="${THINGINO_JSON:-/etc/thingino.json}"
 PRUDYNT_JSON=/etc/prudynt.json
 SEND2_JSON=/etc/send2.json
 CHAN=0
@@ -18,10 +19,24 @@ BASE="http://127.0.0.1:$port"
 
 SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
 
-get_motion() { jct "$PRUDYNT_JSON" get "motion.$1" 2>/dev/null; }
+get_motion() {
+	key=$1
+	val=
+	if command -v jct >/dev/null 2>&1; then
+		if [ -f "$THINGINO_JSON" ]; then
+			val=$(jct "$THINGINO_JSON" get "motion.$key" 2>/dev/null)
+		fi
+		if [ -z "$val" ] && [ -f "$PRUDYNT_JSON" ]; then
+			val=$(jct "$PRUDYNT_JSON" get "motion.$key" 2>/dev/null)
+		fi
+	fi
+	printf '%s' "$val"
+}
 
 run() {
-	need_photo=false; need_video=false; any=false
+	need_photo=false
+	need_video=false
+	any=false
 	for s in $SERVICES; do
 		[ "true" = "$(get_motion send2${s})" ] || continue
 		any=true
@@ -31,15 +46,19 @@ run() {
 	[ "$any" = "true" ] || exit 0
 
 	# capture once, shared by all services (send2common reuses these files)
-	MOTION_PHOTO_FILE=""; MOTION_VIDEO_FILE=""
+	MOTION_PHOTO_FILE=""
+	MOTION_VIDEO_FILE=""
 	if [ "$need_photo" = "true" ]; then
 		# Create the target atomically (mktemp, mode 0600) so curl's redirect
 		# can't be aimed at a symlink pre-planted in the sticky /tmp. Explicit
 		# /tmp template ignores any hostile TMPDIR.
 		MOTION_PHOTO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
 		if [ -n "$MOTION_PHOTO_FILE" ]; then
-			curl --silent "$BASE/snapshot.jpg?chn=$CHAN" > "$MOTION_PHOTO_FILE"
-			[ -s "$MOTION_PHOTO_FILE" ] || { rm -f "$MOTION_PHOTO_FILE"; MOTION_PHOTO_FILE=""; }
+			curl --silent "$BASE/snapshot.jpg?chn=$CHAN" >"$MOTION_PHOTO_FILE"
+			[ -s "$MOTION_PHOTO_FILE" ] || {
+				rm -f "$MOTION_PHOTO_FILE"
+				MOTION_PHOTO_FILE=""
+			}
 		fi
 	fi
 	if [ "$need_video" = "true" ]; then
@@ -76,7 +95,10 @@ run() {
 # detach so timps's motion loop isn't blocked for the clip duration; a flock
 # (when available) stops overlapping events from piling up.
 if command -v flock >/dev/null 2>&1; then
-	( flock -n 9 || exit 0; run ) 9>/run/timps-motion.lock &
+	(
+		flock -n 9 || exit 0
+		run
+	) 9>/run/timps-motion.lock &
 else
 	run &
 fi
