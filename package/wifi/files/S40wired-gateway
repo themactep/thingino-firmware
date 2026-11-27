@@ -44,6 +44,8 @@ has_wired_uplink() {
 
 	[ -z "$iface" ] && return 1
 	ip link show "$iface" >/dev/null 2>&1 || return 1
+	# A route can outlive the cable; only a connected link is an uplink.
+	[ "$(cat "/sys/class/net/$iface/carrier" 2>/dev/null)" = "1" ] || return 1
 	# A route via one of our own addresses (USB direct's fallback on
 	# usb0) leads nowhere.
 	own=$(ip -4 addr show dev "$iface" | awk '$1 == "inet" { sub(/\/.*/, "", $2); printf " %s ", $2 }')
@@ -68,6 +70,15 @@ has_any_wired_uplink() {
 	return 1
 }
 
+has_any_wired_link() {
+	local iface
+
+	for iface in $(wired_ifaces); do
+		[ "$(cat "/sys/class/net/$iface/carrier" 2>/dev/null)" = "1" ] && return 0
+	done
+	return 1
+}
+
 stop_wireless() {
 	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant stop
 	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless stop
@@ -88,6 +99,11 @@ start_wireless() {
 	rm -f "$STOPPED_FLAG"
 	[ -x /etc/init.d/S36wireless ] && /etc/init.d/S36wireless start
 	[ -x /etc/init.d/S38wpa_supplicant ] && /etc/init.d/S38wpa_supplicant start
+	# The wireless scripts do not ifup; give the STA its address. In portal or
+	# AP mode the address belongs to the AP, so leave it alone.
+	if [ ! -f /run/portal_pending ] && [ ! -f /run/portal_mode ]; then
+		ifup wlan0 2>/dev/null
+	fi
 	# With no stored credentials S38 only records the pending decision;
 	# the boot path confirms it from watch_wired_uplink, so do the same
 	# when the wired link disappears after boot.
@@ -122,6 +138,20 @@ watch_wired_uplink() {
 recheck() {
 	case "$1" in
 		up)
+			# A wired link that comes up second cannot install its
+			# default route while the wireless owns it. Prefer the wired:
+			# stop the wireless, force the wired ifup, and only then
+			# decide. Fall back to the wireless if it has no uplink.
+			if has_any_wired_link && ! has_any_wired_uplink; then
+				stop_wireless
+				# ifup -a is what records the interface in /run/ifstate;
+				# a named ifup does not, and the next ifdown then cannot
+				# remove the address.
+				ifup -a 2>/dev/null
+				has_any_wired_uplink && return 0
+				[ -f "$STOPPED_FLAG" ] && start_wireless
+				return 0
+			fi
 			# Give DHCP a moment to install the default route before
 			# deciding that this really is the uplink.
 			attempt=0
