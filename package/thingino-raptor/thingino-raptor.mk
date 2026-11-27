@@ -208,6 +208,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-substream.html \
 		$(TARGET_DIR)/var/www/streamer-substream.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-webtorrent.html \
+		$(TARGET_DIR)/var/www/streamer-webtorrent.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/tool-timelapse.html \
 		$(TARGET_DIR)/var/www/tool-timelapse.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer.js \
@@ -224,6 +226,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/tool-timelapse.js \
 		$(TARGET_DIR)/var/www/a/tool-timelapse.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-webtorrent.js \
+		$(TARGET_DIR)/var/www/a/streamer-webtorrent.js
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-config-save.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-save.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/restart-streamer.cgi \
@@ -232,6 +236,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-sensor-upload.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-timelapse.cgi \
 		$(TARGET_DIR)/var/www/x/json-timelapse.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-webtorrent.cgi \
+		$(TARGET_DIR)/var/www/x/json-webtorrent.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl0.jpg \
 		$(TARGET_DIR)/var/www/x/dl0.jpg
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl1.jpg \

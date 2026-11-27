@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · WebTorrent Share</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-streamer-webtorrent">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="webtorrentForm" class="needs-validation" novalidate>
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">WebTorrent sharing</h2>
+            <small>External live view through public WebTorrent trackers - no port forwarding needed. Save, then use Restart streamer to apply.</small>
+            <button type="button" class="btn btn-outline-secondary" id="webtorrent-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+              <div class="col">
+                <h4>Feature</h4>
+                <small>tracker signaling and share identity</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="webtorrentEnabled">
+                  <label class="form-check-label" for="webtorrentEnabled">Enable WebTorrent sharing</label>
+                </p>
+                <p>
+                  <label for="webtorrentTracker">Tracker URL</label>
+                  <input type="text" class="form-control" id="webtorrentTracker" placeholder="wss://tracker.openwebtorrent.com" spellcheck="false" autocomplete="off"
+                    data-help="WebSocket tracker URL. Empty = built-in default.">
+                </p>
+                <p>
+                  <label for="webtorrentShareKey">Share key (pinned)</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control font-monospace" id="webtorrentShareKey" spellcheck="false" autocomplete="off"
+                      data-help="4-26 characters: letters, digits, hyphen, underscore. Leave empty to have a fresh key generated on save; a pinned key keeps the share URL stable across streamer restarts. Rotate any time for a new one (restarts the streamer).">
+                  </div>
+                </p>
+              </div>
+              <div class="col">
+                <h4>NAT traversal</h4>
+                <small>STUN lookup for the reflexive candidate</small>
+                <p>
+                  <label for="webtorrentStunServer">STUN server</label>
+                  <input type="text" class="form-control" id="webtorrentStunServer" placeholder="stun.l.google.com" spellcheck="false" autocomplete="off"
+                    data-help="Empty = built-in default.">
+                </p>
+                <p>
+                  <label for="webtorrentStunPort">STUN port</label>
+                  <input type="number" class="form-control" id="webtorrentStunPort" min="1" max="65535" step="1" placeholder="19302"
+                    data-help="Empty = built-in default (19302)">
+                </p>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="webtorrentTlsVerify">
+                  <label class="form-check-label" for="webtorrentTlsVerify">Verify tracker TLS certificate</label>
+                </p>
+              </div>
+              <div class="col">
+                <h4>Viewer</h4>
+                <small>where the share link points</small>
+                <p>
+                  <label for="webtorrentViewerUrl">Viewer page URL</label>
+                  <input type="text" class="form-control" id="webtorrentViewerUrl" placeholder="https://viewer.thingino.com/share.html" spellcheck="false" autocomplete="off"
+                    data-help="Base URL of the hosted viewer page. Empty = thingino hosted viewer. Only change this for a self-hosted viewer.">
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="webtorrentSubmit">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+        <button type="button" class="btn btn-outline-primary ms-2" id="webtorrent-restart" title="Restart the streamer so saved settings take effect, then refresh the values shown">
+          <i class="bi bi-arrow-repeat me-1"></i> Restart streamer
+        </button>
+      </form>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h2 class="card-title">Share URL</h2>
+          <small>Anyone with this link can watch the live stream. Treat it like a password.</small>
+        </div>
+        <div class="card-body">
+          <p>
+            <label for="webtorrentShareUrl">Current share URL</label>
+            <div class="input-group">
+              <input type="text" class="form-control font-monospace" id="webtorrentShareUrl" readonly>
+              <button type="button" class="btn btn-outline-secondary" id="webtorrent-copy" title="Copy to clipboard">
+                <i class="bi bi-clipboard"></i> Copy
+              </button>
+              <button type="button" class="btn btn-outline-warning" id="webtorrent-rotate" title="Generate and switch to a new pinned key; restarts the streamer, invalidating the old link">
+                <i class="bi bi-arrow-repeat"></i> Rotate
+              </button>
+            </div>
+          </p>
+          <p class="form-text" id="webtorrentShareNote"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/streamer-webtorrent.js"></script>
+</body>
+</html>
