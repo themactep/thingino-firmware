@@ -44,16 +44,17 @@
 
     <section>
       <div class="card mb-3">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header">
           <div>
             <h2 class="card-title mb-0">Raptor WebRTC Live View</h2>
             <small>Native WebRTC client (no iframe)</small>
           </div>
-          <div class="d-flex gap-2">
+          <div class="preview-header-actions">
             <select class="form-select form-select-sm" id="webrtc-stream" title="Select stream" style="width:auto; min-width: 140px;">
               <option value="0">Main stream</option>
               <option value="1">Sub stream</option>
             </select>
+            <select class="form-select form-select-sm" id="webrtc-zoom" title="Select digital zoom" style="width:auto; min-width: 80px; display:none;"></select>
             <button type="button" class="btn btn-outline-secondary" id="webrtc-connect" title="Connect/Disconnect WebRTC stream">
               <i class="bi bi-play-circle"></i> Connect
             </button>
@@ -79,6 +80,16 @@
           <div class="raptor-hint mt-2" id="webrtc-status"></div>
         </div>
       </div>
+      <div class="preview-endpoints text-center" id="preview-endpoints">
+        <small>Direct endpoints. Click a link to copy its URL to clipboard.</small>
+        <div class="dropdown d-lg-none mt-2" id="preview-endpoint-dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-link-45deg"></i> Endpoints
+          </button>
+          <ul class="dropdown-menu" id="preview-endpoint-dropdown-menu"></ul>
+        </div>
+        <div class="preview-endpoint-list mx-4 d-none d-lg-inline-flex" id="preview-endpoint-list"></div>
+      </div>
     </section>
   </div>
 </main>
@@ -90,6 +101,7 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/preview-endpoints.js"></script>
 <script>
   (function () {
     const video = document.getElementById("raptor-webrtc-video");
@@ -560,5 +572,6 @@
     });
   })();
 </script>
+<script src="/a/zoom.js"></script>
 </body>
 </html>

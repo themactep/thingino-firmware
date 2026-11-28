@@ -10,6 +10,10 @@
         {
           "label": "Audio",
           "href": "/config-audio.html"
+        },
+        {
+          "label": "Privacy",
+          "href": "/config-privacy.html"
         }
       ]
     },
@@ -62,15 +66,7 @@
           "label": "Restart streamer",
           "href": "/x/restart-streamer.cgi",
           "className": "text-danger confirm",
-          "trackActive": false,
-          "action": true,
-          "confirm": {
-            "title": "Restart streamer",
-            "message": "Restart the raptor streamer? The video stream will be interrupted for a few seconds.",
-            "confirmLabel": "Restart"
-          },
-          "actionPendingMessage": "Restarting streamer…",
-          "actionMessage": "Streamer restart initiated"
+          "trackActive": false
         }
       ]
     },
@@ -98,6 +94,7 @@
     "/x/json-config-save.cgi",
     "/x/restart-streamer.cgi",
     "/x/webrtc-whip.cgi",
+    "/x/zoom.cgi",
     "/x/json-sensor-upload.cgi",
     "/x/dl0.jpg",
     "/x/dl1.jpg",

@@ -23,86 +23,89 @@
     <div data-app-controls></div>
 
     <section>
-      <div class="card mb-3">
-        <div class="card-header">
-          <h2 class="card-title">RTSP Substream</h2>
+      <h3>RTSP Substream</h3>
+
+      <div class="row mb-3">
+        <div class="col-12 col-xl-4">
+          <div id="frame" class="position-relative">
+            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+          </div>
         </div>
-        <div class="card-body">
-          <div class="row mb-3">
-            <div class="col-12 col-xl-4">
-              <div id="frame" class="position-relative">
-                <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
-              </div>
+        <div class="col col-xl-8">
+          <div class="row g-2">
+            <div class="col">
+              <p>
+                <label for="stream1_width">Width</label>
+                <input type="text" id="stream1_width" name="stream1_width" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_height">Height</label>
+                <input type="text" id="stream1_height" name="stream1_height" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_format">Format</label>
+                <select class="form-select" id="stream1_format" name="stream1_format">
+                  <option value="">- Select -</option>
+                  <option value="H264">H264</option>
+                  <option value="H265">H265</option>
+                </select>
+              </p>
             </div>
-            <div class="col col-xl-8">
-              <div class="row g-2">
-                <div class="col">
-                  <p>
-                    <label for="stream1_width">Width</label>
-                    <input type="text" id="stream1_width" name="stream1_width" class="form-control" value="">
-                  </p>
-                  <p>
-                    <label for="stream1_height">Height</label>
-                    <input type="text" id="stream1_height" name="stream1_height" class="form-control" value="">
-                  </p>
-                  <p>
-                    <label for="stream1_format">Format</label>
-                    <select class="form-select" id="stream1_format" name="stream1_format">
-                      <option value="">- Select -</option>
-                    </select>
-                  </p>
-                </div>
-                <div class="col">
-                  <p>
-                    <label for="stream1_fps">FPS</label>
-                    <input type="text" id="stream1_fps" name="stream1_fps" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="30" data-step="1">
-                  </p>
-                  <p>
-                    <label for="stream1_gop">GOP</label>
-                    <input type="text" id="stream1_gop" name="stream1_gop" class="form-control" value="">
-                  </p>
-                  <p>
-                    <label for="stream1_max_gop">Max GOP</label>
-                    <input type="text" id="stream1_max_gop" name="stream1_max_gop" class="form-control" value="">
-                  </p>
-                </div>
-                <div class="col">
-                  <p>
-                    <label for="stream1_mode">Mode</label>
-                    <select class="form-select" id="stream1_mode" name="stream1_mode">
-                      <option value="">- Select -</option>
-                    </select>
-                  </p>
-                  <p>
-                    <label for="stream1_bitrate">Bitrate</label>
-                    <input type="text" id="stream1_bitrate" name="stream1_bitrate" class="form-control" value="">
-                  </p>
-                  <p>
-                    <label for="stream1_profile">Profile</label>
-                    <input type="text" id="stream1_profile" name="stream1_profile" class="form-control" value="">
-                  </p>
-                </div>
-                <div class="col">
-                  <p>
-                    <label for="stream1_buffers">Buffers</label>
-                    <input type="text" id="stream1_buffers" name="stream1_buffers" class="form-control" value="">
-                  </p>
-                  <p>
-                    <label for="stream1_rtsp_endpoint">RTSP Endpoint</label>
-                    <input type="text" id="stream1_rtsp_endpoint" name="stream1_rtsp_endpoint" class="form-control" value="">
-                  </p>
-                  <p class="form-switch">
-                    <input type="hidden" id="stream1_enabled-false" name="stream1_enabled" value="false">
-                    <input type="checkbox" id="stream1_enabled" name="stream1_enabled" value="true" role="switch" class="form-check-input">
-                    <label for="stream1_enabled" class="form-check-label">Stream enabled</label>
-                  </p>
-                  <p class="form-switch">
-                    <input type="hidden" id="stream1_audio_enabled-false" name="stream1_audio_enabled" value="false">
-                    <input type="checkbox" id="stream1_audio_enabled" name="stream1_audio_enabled" value="true" role="switch" class="form-check-input">
-                    <label for="stream1_audio_enabled" class="form-check-label">Audio in stream</label>
-                  </p>
-                </div>
-              </div>
+            <div class="col">
+              <p>
+                <label for="stream1_fps">FPS</label>
+                <input type="text" id="stream1_fps" name="stream1_fps" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="30" data-step="1">
+              </p>
+              <p>
+                <label for="stream1_gop">GOP</label>
+                <input type="text" id="stream1_gop" name="stream1_gop" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_max_gop">Max GOP</label>
+                <input type="text" id="stream1_max_gop" name="stream1_max_gop" class="form-control" value="">
+              </p>
+            </div>
+            <div class="col">
+              <p>
+                <label for="stream1_mode">Mode</label>
+                <select class="form-select" id="stream1_mode" name="stream1_mode">
+                  <option value="">- Select -</option>
+                  <option value="CBR">CBR</option>
+                  <option value="VBR">VBR</option>
+                  <option value="FIXQP">FIXQP</option>
+                  <option value="SMART">SMART</option>
+                  <option value="CAPPED_VBR">CAPPED_VBR</option>
+                  <option value="CAPPED_QUALITY">CAPPED_QUALITY</option>
+                </select>
+              </p>
+              <p>
+                <label for="stream1_bitrate">Bitrate</label>
+                <input type="text" id="stream1_bitrate" name="stream1_bitrate" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_profile">Profile</label>
+                <input type="text" id="stream1_profile" name="stream1_profile" class="form-control" value="">
+              </p>
+            </div>
+            <div class="col">
+              <p>
+                <label for="stream1_buffers">Buffers</label>
+                <input type="text" id="stream1_buffers" name="stream1_buffers" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_rtsp_endpoint">RTSP Endpoint</label>
+                <input type="text" id="stream1_rtsp_endpoint" name="stream1_rtsp_endpoint" class="form-control" value="">
+              </p>
+              <p class="form-switch">
+                <input type="hidden" id="stream1_enabled-false" name="stream1_enabled" value="false">
+                <input type="checkbox" id="stream1_enabled" name="stream1_enabled" value="true" role="switch" class="form-check-input">
+                <label for="stream1_enabled" class="form-check-label">Stream enabled</label>
+              </p>
+              <p class="form-switch">
+                <input type="hidden" id="stream1_audio_enabled-false" name="stream1_audio_enabled" value="false">
+                <input type="checkbox" id="stream1_audio_enabled" name="stream1_audio_enabled" value="true" role="switch" class="form-check-input">
+                <label for="stream1_audio_enabled" class="form-check-label">Audio in stream</label>
+              </p>
             </div>
           </div>
         </div>
@@ -123,9 +126,8 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-<script src="/a/preview.js"></script>
 <script src="/a/streamer.js"></script>
+<script src="/a/preview.js"></script>
 <script src="/a/streamer-config.js"></script>
-<script src="/a/sei-rotate.js"></script>
 </body>
 </html>
