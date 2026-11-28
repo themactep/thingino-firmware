@@ -1,6 +1,10 @@
 #!/bin/sh
 # Render raptor.conf from a kconfig .config and conf-map.
 # usage: gen-raptor-conf.sh <dotconfig> <conf-map> <raptor.conf> <sensor_qty>
+#
+# DOTCONFIG is a runtime argument and is sourced by path, so ShellCheck
+# cannot follow it.
+# shellcheck disable=SC1090
 set -e
 DOTCONFIG=$1 MAP=$2 CONF=$3 QTY=${4:-1}
 
@@ -44,7 +48,7 @@ while read -r type section key sym rest; do
 			val=
 			for c in $rest; do
 				if [ "$(deref "${sym}_${c}")" = y ]; then
-					val=$(echo "$c" | tr 'A-Z' 'a-z')
+					val=$(echo "$c" | tr '[:upper:]' '[:lower:]')
 					break
 				fi
 			done
