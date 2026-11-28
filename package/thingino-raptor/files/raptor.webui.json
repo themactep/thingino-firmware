@@ -1,0 +1,115 @@
+{
+  "name": "raptor",
+  "label": "Raptor Streaming System",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "Audio",
+          "href": "/config-audio.html"
+        },
+        {
+          "label": "Privacy",
+          "href": "/config-privacy.html"
+        }
+      ]
+    },
+    {
+      "section": "ddInfo",
+      "position": "after:File: onvif.json",
+      "items": [
+        {
+          "label": "File: raptor.conf",
+          "href": "/info.html?raptor"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
+      "position": "append",
+      "items": [
+        {
+          "label": "Image Quality",
+          "href": "/streamer-image.html"
+        },
+        {
+          "label": "RTSP Main stream",
+          "href": "/streamer-main.html"
+        },
+        {
+          "label": "OSD Elements",
+          "href": "/streamer-osd.html"
+        },
+        {
+          "label": "RTSP Substream",
+          "href": "/streamer-substream.html"
+        },
+        {
+          "label": "Sensor IQ File",
+          "href": "/streamer-sensor.html"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "label": "Streamer config",
+          "href": "/info.html?raptor"
+        },
+        {
+          "label": "Streamer log",
+          "href": "/info.html?logcat"
+        },
+        {
+          "label": "Restart streamer",
+          "href": "/x/restart-streamer.cgi",
+          "className": "text-danger confirm",
+          "trackActive": false
+        }
+      ]
+    },
+    {
+      "section": "ddServices",
+      "position": "append",
+      "items": [
+        {
+          "label": "Timelapse Recorder",
+          "href": "/tool-timelapse.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "raptor": true
+  },
+  "cgi": [
+    "/x/json-config-save.cgi",
+    "/x/restart-streamer.cgi",
+    "/x/webrtc-whip.cgi",
+    "/x/zoom.cgi",
+    "/x/json-sensor-upload.cgi",
+    "/x/dl0.jpg",
+    "/x/dl1.jpg",
+    "/x/ch0.mjpg",
+    "/x/ch1.mjpg",
+    "/x/ch0.jpg",
+    "/x/ch1.jpg",
+    "/x/json-timelapse.cgi"
+  ],
+  "pages": [
+    "/streamer-main.html",
+    "/streamer-substream.html",
+    "/streamer-image.html",
+    "/streamer-osd.html",
+    "/streamer-sensor.html",
+    "/config-audio.html"
+  ]
+}

@@ -1,0 +1,57 @@
+#!/bin/sh
+# IR-CUT filter control for Raptor images
+# ric owns the filter pins, so this drives them through raptorctl
+# instead of raw gpio. A manual move here is a bench action: ric does
+# not track it, and the next day/night transition reasserts whatever
+# the mode wants. read/status therefore report ric's day/night state
+# (the filter follows it in normal operation), not the last manual
+# command.
+# Installed by thingino-raptor; called by the Web UI (json-imp.cgi).
+
+if ! command -v raptorctl >/dev/null 2>&1; then
+	echo "raptorctl not found" >&2
+	exit 1
+fi
+
+ric_state() {
+	raptorctl ric status 2>/dev/null |
+		sed -n 's/.*"state":"\([^"]*\)".*/\1/p' | head -n 1
+}
+
+case "$1" in
+	0 | off | night)
+		# Remove the filter (night position)
+		raptorctl ric ircut night >/dev/null || exit 1
+		;;
+	1 | on | day)
+		# Set the filter (day position)
+		raptorctl ric ircut day >/dev/null || exit 1
+		;;
+	~ | toggle)
+		if [ "night" = "$(ric_state)" ]; then
+			raptorctl ric ircut day >/dev/null || exit 1
+		else
+			raptorctl ric ircut night >/dev/null || exit 1
+		fi
+		;;
+	status)
+		case "$(ric_state)" in
+			night) echo "- IRCUT filter is removed" ;;
+			day) echo "- IRCUT filter is set" ;;
+			*) echo "- IRCUT filter is in unknown state" ;;
+		esac
+		;;
+	\? | read)
+		case "$(ric_state)" in
+			night) printf '0' ;;
+			day) printf '1' ;;
+			*) printf '%s' "-1" ;;
+		esac
+		;;
+	*)
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
+		;;
+esac
+
+exit 0

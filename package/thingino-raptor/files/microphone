@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019
 set -eu
 
 RAPTOR_INIT="/etc/init.d/S31raptor"
@@ -32,7 +33,9 @@ set_bool() {
 		echo "microphone: raptorctl is not installed" >&2
 		exit 1
 	}
+	# Persist before restart so S31raptor reloads the new value, not the old conf.
 	raptorctl config set audio "$key" "$value" >/dev/null
+	raptorctl config save >/dev/null 2>&1 || true
 	if [ -x "$RAPTOR_INIT" ] && pidof rvd >/dev/null 2>&1; then
 		"$RAPTOR_INIT" restart >/dev/null
 	fi

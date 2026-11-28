@@ -43,6 +43,10 @@ endchoice
 if BR2_PACKAGE_THINGINO_STREAMER
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-common/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-hal/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-ipc/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-config/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/strero/Config.in"
 
 endif

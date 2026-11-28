@@ -2,38 +2,47 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 	bool "Raptor Streaming System"
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
-	select BR2_PACKAGE_INGENIC_LIB
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
-	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
-	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
-	select BR2_PACKAGE_LIBIMP_DEBUG
 	select BR2_PACKAGE_LIBSCHRIFT
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
 	select BR2_PACKAGE_COMPY
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
-	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	select BR2_PACKAGE_THINGINO_RAPTOR_HAL
 	select BR2_PACKAGE_THINGINO_RAPTOR_IPC
 	select BR2_PACKAGE_THINGINO_RAPTOR_COMMON
+	select BR2_PACKAGE_THINGINO_SEND2
+	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_THINGINO_AGENT
 	help
 	  Raptor Streaming System (RSS) -- modular microservice streamer
 	  for Ingenic SoCs. Replaces prudynt-t with independent daemons:
 	  RVD (video), RAD (audio), RSD (RTSP), ROD (OSD), RHD (HTTP),
 	  RIC (IR-cut), RMR (recording), plus raptorctl management CLI.
+	  Selects thingino-send2 so motion alerts and WebUI Send-to pages
+	  work without the prudynt package.
 
 if BR2_PACKAGE_THINGINO_RAPTOR
+
+comment "Runtime settings (raptor.conf) live in: make raptor-menuconfig"
 
 menu "Daemon selection"
 
 config BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	bool "Full (all daemons)"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y
 	help
 	  Build and install all raptor daemons. Disable to select
-	  individual daemons below. RVD (video) and tools (raptorctl,
-	  ringdump, rac) are always included.
+	  individual daemons below. Tools (raptorctl, ringdump) are
+	  always included.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RVD
+	bool "RVD (sensor video capture)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL || BR2_THINGINO_DEV_CAMERA
+	help
+	  Live sensor video capture daemon. Produces the video ring
+	  buffers consumed by RSD/RHD/ROD/RWC/RWD/RMR/RMD/RSP/RSR.
+	  Disable for audio-only deployments (e.g. a security hub
+	  running just RAD); RFS can substitute as a file-based source.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RSD
 	bool "RSD (RTSP server — compy)"
@@ -49,6 +58,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RSD555
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RAD
 	bool "RAD (audio capture/speaker)"
+	default y if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RHD
@@ -62,6 +72,12 @@ config BR2_PACKAGE_THINGINO_RAPTOR_ROD
 config BR2_PACKAGE_THINGINO_RAPTOR_RIC
 	bool "RIC (IR-cut controller)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+	depends on !BR2_PACKAGE_THINGINO_DAYNIGHTD
+	help
+	  Raptor's own day/night controller. Mutually exclusive with
+	  thingino-daynightd: both would drive the same IR-CUT and LED
+	  pins and ship the same wrapper scripts. Select daynightd to
+	  use it as the day/night engine instead; RIC is then disabled.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RMR
 	bool "RMR (fMP4 recording)"
@@ -73,6 +89,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RMD
 
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	bool "RWD (WebRTC/WHIP server)"
+	default y if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
@@ -82,7 +99,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RWC
 	bool "RWC (USB webcam)"
-	default y if BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG || BR2_THINGINO_DEV_WEBCAM
+	default y if BR2_THINGINO_DEV_WEBCAM
 	select BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 	help
 	  USB webcam daemon. Reads JPEG/H.264 frames from ring buffers
@@ -91,6 +108,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RWC
 
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 	bool "WebTorrent sharing (external WebRTC)"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	help
@@ -133,6 +151,7 @@ menu "Codec and feature options"
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AAC
 	bool "AAC audio support"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y
 	select BR2_PACKAGE_FAAC
 	select BR2_PACKAGE_LIBHELIX_AAC
@@ -202,7 +221,6 @@ endif
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
 	default y
-	select BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS if !BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Noise suppression, high-pass filter, and automatic
 	  gain control. Requires libaudioProcess.so (stock or neo).
@@ -215,6 +233,5 @@ config BR2_PACKAGE_THINGINO_RAPTOR_DEBUG
 
 endmenu
 
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in.conf"
 
 endif # BR2_PACKAGE_THINGINO_RAPTOR
