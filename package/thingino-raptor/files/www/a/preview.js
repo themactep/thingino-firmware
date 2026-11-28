@@ -1,0 +1,1458 @@
+const ImageBlackMode = 1;
+const ImageColorMode = 0;
+
+// apiFetch() and thinginoApiKey() come from main.js, which loads first.
+
+// Create fullscreen preview modal dynamically if preview element exists
+(function createPreviewModal() {
+  const preview = $("#preview");
+  if (!preview) return;
+
+  // Create modal HTML
+  const modalHTML = `
+    <div class="modal fade" id="mdPreview" tabindex="-1" aria-labelledby="mdlPreview" aria-hidden="true">
+      <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-4" id="mdlPreview">Full screen preview</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img id="preview_fullsize" src="/a/nostream.svg" alt="Image: Stream Preview" class="img-fluid">
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Append modal to body
+  document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+  // Add click event to preview image to open modal
+  preview.addEventListener("click", () => {
+    const previewModal = new bootstrap.Modal($("#mdPreview"));
+    previewModal.show();
+  });
+})();
+
+const stream_params = [
+  "enabled",
+  "width",
+  "height",
+  "fps",
+  "bitrate",
+  "gop",
+  "max_gop",
+  "format",
+  "mode",
+  "buffers",
+  "profile",
+  "rtsp_endpoint",
+  "audio_enabled",
+];
+const previewEndpointState = {
+  rtsp: {
+    username: "thingino",
+    password: "thingino",
+    port: "554",
+  },
+  stream0: {
+    rtsp_endpoint: "ch0",
+  },
+  stream1: {
+    rtsp_endpoint: "ch1",
+  },
+};
+
+function rgba2color(hex8) {
+  return hex8.substring(0, 7);
+}
+
+function rgba2alpha(hex8) {
+  const alphaHex = hex8.substring(7, 9);
+  const alpha = parseInt(alphaHex, 16);
+  return alpha;
+}
+
+function previewEndpointValue(value, fallback) {
+  return value === undefined || value === null || value === ""
+    ? fallback
+    : value;
+}
+
+function wrapIpv6Host(host) {
+  return host && host.includes(":") && !host.startsWith("[")
+    ? `[${host}]`
+    : host;
+}
+
+function formatPreviewHostWithPort(host, port, defaultPort) {
+  const numericPort = parseInt(port, 10);
+  if (!port || Number.isNaN(numericPort) || numericPort === defaultPort) {
+    return host;
+  }
+  return `${host}:${numericPort}`;
+}
+
+function buildPreviewOrigin() {
+  if (window.location && window.location.origin) {
+    return window.location.origin;
+  }
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
+function buildRtspCredential(user, pass) {
+  return `${encodeURIComponent(user)}:${encodeURIComponent(pass)}`;
+}
+
+let previewEndpointApiKey = "";
+
+function markPreviewEndpointCopied(link) {
+  if (!link) return;
+  link.classList.add("copied");
+  if (link._copyTimer) {
+    clearTimeout(link._copyTimer);
+  }
+  link._copyTimer = window.setTimeout(() => {
+    link.classList.remove("copied");
+    link._copyTimer = null;
+  }, 1200);
+}
+
+async function copyPreviewEndpoint(ev) {
+  ev.preventDefault();
+  const link = ev.currentTarget;
+  const url = link?.dataset?.copyUrl || link?.href || "";
+  const clipboard = window.thinginoClipboard;
+  if (!url || !clipboard || typeof clipboard.copy !== "function") {
+    if (typeof window.showAlert === "function") {
+      window.showAlert("warning", "Clipboard copy is not available.", 3000);
+    }
+    return;
+  }
+  try {
+    await clipboard.copy(url);
+    markPreviewEndpointCopied(link);
+  } catch (err) {
+    if (typeof window.showAlert === "function") {
+      window.showAlert("danger", "Unable to copy the endpoint.", 3000);
+    }
+  }
+}
+
+function buildPreviewEndpointUrl(baseUrl) {
+  if (!previewEndpointApiKey) {
+    return baseUrl;
+  }
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}token=${encodeURIComponent(previewEndpointApiKey)}`;
+}
+
+function renderPreviewEndpoints() {
+  const list = $("#preview-endpoint-list");
+  const dropdownMenu = $("#preview-endpoint-dropdown-menu");
+  if (!list && !dropdownMenu) return;
+  const host =
+    window.location.hostname || window.network_address || "localhost";
+  const httpOrigin = buildPreviewOrigin();
+  const rtspHost = formatPreviewHostWithPort(
+    wrapIpv6Host(host),
+    previewEndpointState.rtsp.port,
+    554,
+  );
+  const rtspAuth = buildRtspCredential(
+    previewEndpointState.rtsp.username,
+    previewEndpointState.rtsp.password,
+  );
+  const entries = [
+    {
+      label: "RTSP Ch0",
+      url: `rtsp://${rtspAuth}@${rtspHost}/${previewEndpointState.stream0.rtsp_endpoint}`,
+    },
+    {
+      label: "RTSP Ch1",
+      url: `rtsp://${rtspAuth}@${rtspHost}/${previewEndpointState.stream1.rtsp_endpoint}`,
+    },
+    {
+      label: "MJPEG Ch0",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch0.mjpg`),
+    },
+    {
+      label: "MJPEG Ch1",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch1.mjpg`),
+    },
+    {
+      label: "Snapshot Ch0",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch0.jpg`),
+    },
+    {
+      label: "Snapshot Ch1",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch1.jpg`),
+    },
+  ];
+
+  if (list) {
+    list.innerHTML = "";
+  }
+  if (dropdownMenu) {
+    dropdownMenu.innerHTML = "";
+  }
+  entries.forEach((entry) => {
+    if (list) {
+      const link = document.createElement("a");
+      link.className = "preview-endpoint-link";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
+
+      const shortLabel = document.createElement("span");
+      shortLabel.className = "preview-endpoint-short";
+      shortLabel.textContent = entry.label;
+
+      const hint = document.createElement("span");
+      hint.className = "preview-endpoint-hint";
+      hint.innerHTML = '<i class="bi bi-clipboard"></i>';
+
+      link.appendChild(shortLabel);
+      link.appendChild(hint);
+      link.addEventListener("click", copyPreviewEndpoint);
+
+      list.appendChild(link);
+    }
+
+    if (dropdownMenu) {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = "dropdown-item preview-endpoint-dropdown-item";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
+      link.innerHTML = `<span class="preview-endpoint-short">${entry.label}</span> <i class="bi bi-clipboard"></i>`;
+      link.addEventListener("click", copyPreviewEndpoint);
+      li.appendChild(link);
+      dropdownMenu.appendChild(li);
+    }
+  });
+}
+
+function updatePreviewEndpointState(msg) {
+  if (msg.rtsp) {
+    previewEndpointState.rtsp.username = previewEndpointValue(
+      msg.rtsp.username,
+      previewEndpointState.rtsp.username,
+    );
+    previewEndpointState.rtsp.password = previewEndpointValue(
+      msg.rtsp.password,
+      previewEndpointState.rtsp.password,
+    );
+    previewEndpointState.rtsp.port = previewEndpointValue(
+      msg.rtsp.port,
+      previewEndpointState.rtsp.port,
+    );
+  }
+  if (msg.stream0) {
+    previewEndpointState.stream0.rtsp_endpoint = previewEndpointValue(
+      msg.stream0.rtsp_endpoint,
+      previewEndpointState.stream0.rtsp_endpoint,
+    );
+  }
+  if (msg.stream1) {
+    previewEndpointState.stream1.rtsp_endpoint = previewEndpointValue(
+      msg.stream1.rtsp_endpoint,
+      previewEndpointState.stream1.rtsp_endpoint,
+    );
+  }
+  renderPreviewEndpoints();
+}
+
+async function loadPreviewEndpointApiKey() {
+  const key = await thinginoApiKey();
+  if (key) {
+    previewEndpointApiKey = key;
+  }
+}
+
+async function initPreviewEndpoints() {
+  await loadPreviewEndpointApiKey();
+  renderPreviewEndpoints();
+}
+
+initPreviewEndpoints();
+
+function handleMessage(msg) {
+  if (msg.motion && msg.motion.enabled !== undefined) {
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.classList.toggle(
+        "active",
+        msg.motion.enabled !== 0 &&
+          msg.motion.enabled !== false &&
+          msg.motion.enabled !== "false",
+      );
+    }
+  }
+  if (msg.privacy && msg.privacy.enabled !== undefined) {
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.classList.toggle(
+        "active",
+        msg.privacy.enabled !== 0 &&
+          msg.privacy.enabled !== false &&
+          msg.privacy.enabled !== "false",
+      );
+    }
+  }
+
+  // Handle image params
+  if (msg.image) {
+    const imageParams = [
+      "hflip",
+      "vflip",
+      "wb_bgain",
+      "wb_rgain",
+      "ae_compensation",
+      "core_wb_mode",
+    ];
+    imageParams.forEach((param) => {
+      if (msg.image[param] !== undefined) {
+        setValue(msg.image, "image", param);
+      }
+    });
+  }
+
+  // Handle stream0 params
+  if (msg.stream0) {
+    stream_params.forEach((param) => {
+      if (msg.stream0[param] !== undefined) {
+        setValue(msg.stream0, "stream0", param);
+      }
+    });
+  }
+
+  // Handle stream1 params
+  if (msg.stream1) {
+    stream_params.forEach((param) => {
+      if (msg.stream1[param] !== undefined) {
+        setValue(msg.stream1, "stream1", param);
+      }
+    });
+  }
+
+  // Override FPS from config file so night-mode halving doesn't persist
+  loadConfigFps();
+
+  updatePreviewEndpointState(msg);
+}
+
+async function loadMotorParams() {
+  const uiConfig = window.thinginoUIConfig || {};
+  const hasMotors = uiConfig.device && uiConfig.device.motors === true;
+  if (!hasMotors) {
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+    return;
+  }
+  try {
+    const response = await fetch("/x/json-motor-params.cgi");
+    const motorParams = await response.json();
+    window.motorParams = motorParams;
+    console.log("Motor parameters loaded:", motorParams);
+  } catch (error) {
+    console.error("Failed to load motor parameters:", error);
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+  }
+}
+
+async function loadConfig() {
+  showBusy("Loading camera configuration...");
+  const helper = window.thinginoStreamer;
+  if (helper && helper.preferAgent && helper.preferAgent()) {
+    try {
+      const cfg = await helper.agentRequest("/api/v1/config", {
+        cache: "no-store",
+      });
+      const msg = helper.configToMessage(cfg);
+      handleMessage(msg);
+      if (typeof helper.hideUnsupportedControls === "function") {
+        helper.hideUnsupportedControls();
+      }
+      return;
+    } catch (err) {
+      console.warn("Agent config load failed, falling back:", err);
+    } finally {
+      hideBusy();
+    }
+  }
+  const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
+  try {
+    const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
+      apiFetch(BASE + "image").then((r) => r.json()),
+      apiFetch(BASE + "motion").then((r) => r.json()),
+      apiFetch(BASE + "privacy").then((r) => r.json()),
+      apiFetch(BASE + "rtsp").then((r) => r.json()),
+      apiFetch(BASE + "stream0").then((r) => r.json()),
+      apiFetch(BASE + "stream1").then((r) => r.json()),
+    ]);
+    handleMessage({ image, motion, privacy, rtsp, stream0, stream1 });
+  } catch (err) {
+    console.error("Load config error", err);
+  } finally {
+    hideBusy();
+  }
+}
+
+var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
+async function sendToEndpoint(payload) {
+  console.log(ts(), "--->", payload);
+  const helper = window.thinginoStreamer;
+  if (helper && helper.preferAgent && helper.preferAgent()) {
+    try {
+      const obj =
+        typeof payload === "string" ? JSON.parse(payload) : payload || {};
+      const applied = await helper.applyPayload(obj);
+      if (!applied) {
+        console.warn(ts(), "No agent-mapped fields in payload", obj);
+      }
+      return;
+    } catch (err) {
+      console.error("Agent send error", err);
+      return;
+    }
+  }
+  const payloadStr =
+    typeof payload === "string" ? payload : JSON.stringify(payload);
+  console.log(ts(), "===>", payloadStr);
+  try {
+    const response = await apiFetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payloadStr,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+    if (text) {
+      try {
+        const msg = JSON.parse(text);
+        console.log(ts(), "<===", JSON.stringify(msg));
+        handleMessage(msg);
+      } catch (parseErr) {
+        console.warn(ts(), "Invalid JSON response", text, parseErr);
+      }
+    } else {
+      console.log(ts(), "<===", "Empty response");
+    }
+  } catch (err) {
+    console.error("Send error", err);
+  }
+}
+
+async function loadInitialData() {
+  await Promise.all([loadConfig(), loadMotorParams()]);
+}
+
+// Init on load
+loadInitialData().then(async () => {
+  // Load webui config for focus tracking settings
+  let webuiConfig = {
+    track_focus: false,
+    focus_timeout: 0,
+  };
+
+  async function loadWebuiConfig() {
+    try {
+      const response = await fetch("/x/json-config-webui.cgi", {
+        headers: { Accept: "application/json" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        webuiConfig.track_focus = data.track_focus === true;
+        webuiConfig.focus_timeout = Math.max(
+          0,
+          parseInt(data.focus_timeout) || 0,
+        );
+      }
+    } catch (err) {
+      console.warn("Could not load webui config for focus tracking:", err);
+    }
+  }
+
+  // Load webui config before continuing
+  await loadWebuiConfig();
+
+  // Expose config reload function globally for use in config-webui.js
+  window.reloadPreviewFocusSettings = async () => {
+    await loadWebuiConfig();
+    // Update event listeners based on new settings
+    if (webuiConfig.track_focus) {
+      // Add listeners if not already added
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("focus", handleWindowFocus);
+      window.addEventListener("blur", handleWindowBlur);
+    } else {
+      // Remove listeners if tracking is disabled
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("blur", handleWindowBlur);
+      // Clear any pending timeouts
+      if (focusTimeoutId) {
+        clearTimeout(focusTimeoutId);
+        focusTimeoutId = null;
+      }
+      // Ensure window is marked as visible and start preview
+      isWindowVisible = true;
+      startPreview();
+    }
+  };
+
+  // Get stream from data-stream attribute, default to ch0 if not specified
+  const preview = $("#preview");
+  const streamChannel = preview?.dataset?.stream || "ch0";
+  const streamUrl = `/x/${streamChannel}.mjpg`;
+
+  // An <img src="….mjpg"> fires "load" for the first frame only and nothing
+  // when the stream ends (a streamer restart leaves its last frame frozen), so
+  // a watchdog on "load" cannot tell a live stream from a dead one and would
+  // reconnect a healthy one every 15 s. mjpegStream() reads the stream with
+  // fetch() and puts each JPEG part on screen as it arrives; a stalled or ended
+  // stream reconnects and a live one is left alone. Parts without a
+  // Content-Length, or a browser without streaming fetch, fall back to the
+  // plain <img> source.
+  const PREVIEW_STALL_MS = 15000;
+  const PREVIEW_RETRY_MIN_MS = 2000;
+  const PREVIEW_RETRY_MAX_MS = 60000;
+  const EMPTY = new Uint8Array(0);
+
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a);
+    out.set(b, a.length);
+    return out;
+  }
+
+  // Offset of the blank line (CRLF CRLF) that ends a part's headers, or -1.
+  function headerEnd(bytes) {
+    for (let i = 0; i + 3 < bytes.length; i++) {
+      if (
+        bytes[i] === 13 &&
+        bytes[i + 1] === 10 &&
+        bytes[i + 2] === 13 &&
+        bytes[i + 3] === 10
+      )
+        return i;
+    }
+    return -1;
+  }
+
+  // One MJPEG stream shown in an <img>, read with fetch(). Returns start/stop to
+  // run or clear it, check(now) for the once-a-second stall test, and destroy to
+  // drop its listeners.
+  function mjpegStream(img, url) {
+    let native = !(window.ReadableStream && window.AbortController);
+    let controller = null;
+    let retryTimer = null;
+    let retryMs = PREVIEW_RETRY_MIN_MS;
+    let lastFrame = 0;
+    let running = false;
+    // On screen, being decoded, and the newest frame waiting for that decode
+    // (frames that arrive faster than they decode are dropped).
+    let shown = null;
+    let loading = null;
+    let pending = null;
+
+    function present(blob) {
+      if (loading) {
+        pending = blob;
+        return;
+      }
+      loading = URL.createObjectURL(blob);
+      img.src = loading;
+    }
+
+    function onDecoded(ev) {
+      if (native) {
+        if (ev.type === "load") lastFrame = Date.now();
+        return;
+      }
+      if (!loading || img.src !== loading) return;
+      if (shown) URL.revokeObjectURL(shown);
+      shown = loading;
+      loading = null;
+      if (pending) {
+        const next = pending;
+        pending = null;
+        present(next);
+      }
+    }
+
+    function frame(blob) {
+      lastFrame = Date.now();
+      retryMs = PREVIEW_RETRY_MIN_MS;
+      present(blob);
+    }
+
+    // Resolves "ended" when the server closes the stream, "native" when its
+    // parts carry no length; rejects on a network error or an abort.
+    async function read(signal) {
+      const res = await fetch(url + "?" + Date.now(), {
+        cache: "no-store",
+        signal,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      if (!res.body || typeof res.body.getReader !== "function")
+        return "native";
+      const reader = res.body.getReader();
+      let head = EMPTY; // the part header read so far
+      let need = 0; // body bytes still to come (0: reading a header)
+      let body = [];
+      for (;;) {
+        const { value, done } = await reader.read();
+        // Stopped while this read was pending: nothing more goes on screen.
+        if (signal.aborted) return "aborted";
+        if (done) return "ended";
+        let chunk = value;
+        while (chunk.length) {
+          if (need > 0) {
+            const take = Math.min(need, chunk.length);
+            body.push(chunk.subarray(0, take));
+            need -= take;
+            chunk = chunk.subarray(take);
+            if (need === 0) {
+              frame(new Blob(body, { type: "image/jpeg" }));
+              body = [];
+            }
+            continue;
+          }
+          head = head.length ? concatBytes(head, chunk) : chunk;
+          // The CRLF that ends the previous part comes before the boundary.
+          let skip = 0;
+          while (skip < head.length && (head[skip] === 13 || head[skip] === 10))
+            skip++;
+          if (skip) head = head.subarray(skip);
+          const end = headerEnd(head);
+          if (end < 0) {
+            if (head.length > 8192) throw new Error("no MJPEG part header");
+            break;
+          }
+          let text = "";
+          for (let i = 0; i < end; i++) text += String.fromCharCode(head[i]);
+          const length = /content-length:\s*(\d+)/i.exec(text);
+          if (!length) return "native";
+          need = Number(length[1]);
+          chunk = head.subarray(end + 4);
+          head = EMPTY;
+        }
+      }
+    }
+
+    function retry() {
+      running = false;
+      controller = null;
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(start, retryMs);
+      retryMs = Math.min(retryMs * 2, PREVIEW_RETRY_MAX_MS);
+    }
+
+    function start() {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      if (running || document.hidden) return;
+      running = true;
+      lastFrame = Date.now();
+      if (native) {
+        img.src = url + "?" + Date.now();
+        return;
+      }
+      const ac = new AbortController();
+      controller = ac;
+      read(ac.signal).then(
+        (how) => {
+          if (controller !== ac) return;
+          ac.abort();
+          if (how === "native") {
+            controller = null;
+            native = true;
+            running = false;
+            start();
+          } else {
+            retry();
+          }
+        },
+        () => {
+          if (controller === ac) retry();
+        },
+      );
+    }
+
+    function stop() {
+      running = false;
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      if (controller) {
+        const ac = controller;
+        controller = null;
+        ac.abort();
+      }
+      pending = null;
+      if (loading) URL.revokeObjectURL(loading);
+      loading = null;
+      img.src = ImageNoStream;
+      if (shown) URL.revokeObjectURL(shown);
+      shown = null;
+    }
+
+    // Called once a second by the preview watchdog.
+    function check(now) {
+      if (native) {
+        if (!running || document.hidden) return;
+        if (now - lastFrame < PREVIEW_STALL_MS) return;
+        lastFrame = now;
+        img.src = url + "?" + Date.now();
+        return;
+      }
+      if (!controller || now - lastFrame < PREVIEW_STALL_MS) return;
+      const ac = controller;
+      controller = null;
+      ac.abort();
+      retry();
+    }
+
+    function destroy() {
+      stop();
+      img.removeEventListener("load", onDecoded);
+      img.removeEventListener("error", onDecoded);
+    }
+
+    img.addEventListener("load", onDecoded);
+    img.addEventListener("error", onDecoded);
+    return { start, stop, check, destroy };
+  }
+
+  let isWindowVisible = true;
+  let isModalOpen = false;
+  let focusTimeoutId = null;
+
+  const small = mjpegStream(preview, streamUrl);
+  let full = null;
+
+  function stopAll() {
+    small.stop();
+    if (full) full.stop();
+  }
+
+  // Back from the back/forward cache: pagehide stopped the streams.
+  function onPageShow(ev) {
+    if (!ev.persisted) return;
+    if (isModalOpen && full) full.start();
+    else startPreview();
+  }
+
+  // Function to start the preview stream
+  function startPreview() {
+    if (focusTimeoutId) {
+      clearTimeout(focusTimeoutId);
+      focusTimeoutId = null;
+    }
+    if (isWindowVisible && !isModalOpen) {
+      small.start();
+    }
+  }
+
+  // Function to stop the preview stream
+  function stopPreview() {
+    if (focusTimeoutId) {
+      clearTimeout(focusTimeoutId);
+      focusTimeoutId = null;
+    }
+    small.stop();
+  }
+
+  // Function to stop preview with delay
+  function stopPreviewWithDelay() {
+    if (!webuiConfig.track_focus) {
+      return; // Don't stop if tracking is disabled
+    }
+
+    if (focusTimeoutId) {
+      clearTimeout(focusTimeoutId);
+    }
+
+    if (webuiConfig.focus_timeout > 0) {
+      focusTimeoutId = setTimeout(() => {
+        if (!isWindowVisible) {
+          stopPreview();
+        }
+      }, webuiConfig.focus_timeout * 1000);
+    } else {
+      stopPreview();
+    }
+  }
+
+  // Start the preview stream
+  startPreview();
+
+  // Stream watchdog - reconnect only a stalled or ended stream.
+  setInterval(() => {
+    const now = Date.now();
+    small.check(now);
+    if (full) full.check(now);
+  }, 1000);
+
+  // Handle window visibility changes
+  function handleVisibilityChange() {
+    if (document.hidden) {
+      isWindowVisible = false;
+      stopPreview();
+      if (full) full.stop();
+    } else {
+      isWindowVisible = true;
+      if (isModalOpen && full) full.start();
+      else startPreview();
+    }
+  }
+
+  // Handle window focus/blur events
+  function handleWindowFocus() {
+    isWindowVisible = true;
+    startPreview();
+  }
+
+  function handleWindowBlur() {
+    isWindowVisible = false;
+    stopPreviewWithDelay();
+  }
+
+  window.addEventListener("beforeunload", stopAll);
+  window.addEventListener("pagehide", stopAll);
+  window.addEventListener("pageshow", onPageShow);
+
+  // Add event listeners for visibility changes only if tracking is enabled
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  if (webuiConfig.track_focus) {
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("blur", handleWindowBlur);
+  }
+
+  // Full-screen preview modal
+  const previewModal = $("#mdPreview");
+  const previewFullsize = $("#preview_fullsize");
+
+  if (previewModal && previewFullsize) {
+    full = mjpegStream(previewFullsize, "/x/ch0.mjpg");
+
+    previewModal.addEventListener("show.bs.modal", () => {
+      // Stop the small preview and suppress watchdog restarts
+      isModalOpen = true;
+      small.stop();
+      // Load main stream (ch0) in full-screen modal
+      full.start();
+      // Apply SEI rotation to full-screen image
+      fetch("/x/json-osd-sei.cgi")
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (d) {
+          if (d && d.rotation)
+            previewFullsize.style.transform = "rotate(" + d.rotation + "deg)";
+        })
+        .catch(function () {});
+    });
+
+    previewModal.addEventListener("hidden.bs.modal", () => {
+      // Stop the full-screen stream
+      full.stop();
+      previewFullsize.style.transform = "";
+      // Allow watchdog to restart the small preview again
+      isModalOpen = false;
+      // Restart the small preview
+      startPreview();
+    });
+  }
+});
+
+const imagingFields = [
+  "brightness",
+  "contrast",
+  "sharpness",
+  "saturation",
+  "backlight",
+  "wide_dynamic_range",
+  "tone",
+  "defog",
+];
+
+const imageConfigKeyMap = {
+  brightness: "brightness",
+  contrast: "contrast",
+  sharpness: "sharpness",
+  saturation: "saturation",
+  backlight: "backlight_compensation",
+  wide_dynamic_range: "drc_strength",
+  tone: "highlight_depress",
+  defog: "defog_strength",
+};
+
+const previewSliderIds = [
+  "brightness",
+  "contrast",
+  "sharpness",
+  "saturation",
+  "backlight",
+  "wide_dynamic_range",
+  "tone",
+  "defog",
+  "noise_reduction",
+  "temporal_noise_reduction",
+  "image_wb_bgain",
+  "image_wb_rgain",
+  "image_ae_compensation",
+  "stream0_fps",
+  "stream1_fps",
+];
+
+(function initPreviewSliders() {
+  if (
+    typeof window === "undefined" ||
+    typeof window.initSliders !== "function"
+  ) {
+    return;
+  }
+  const run = () => window.initSliders(previewSliderIds);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => run(), { once: true });
+  } else {
+    run();
+  }
+})();
+
+// Load sensor information on sensor page
+(function loadSensorInfo() {
+  if (!$("#sensor-info")) {
+    return; // Not on sensor page
+  }
+
+  const sensorLoading = $("#sensor-loading");
+  const sensorDetails = $("#sensor-details");
+  const sensorFilePath = $("#sensor-file-path");
+  const sensorMd5 = $("#sensor-md5");
+  const sensorSocFamily = $("#sensor-soc-family");
+  const sensorModel = $("#sensor-model");
+
+  async function fetchSensorInfo() {
+    try {
+      const response = await fetch("/x/json-sensor-info.cgi");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.message || "Unknown error");
+      }
+
+      sensorFilePath.textContent = data.file_path || "Unknown";
+      sensorMd5.textContent = data.md5 || "Unknown";
+      if (sensorSocFamily)
+        sensorSocFamily.textContent = data.soc_family || "Unknown";
+      if (sensorModel) sensorModel.textContent = data.sensor_model || "Unknown";
+
+      sensorLoading.classList.add("d-none");
+      sensorDetails.classList.remove("d-none");
+    } catch (err) {
+      sensorLoading.textContent = `Error loading sensor info: ${err.message}`;
+    }
+  }
+
+  fetchSensorInfo();
+})();
+
+// Disable all imaging controls initially
+imagingFields.forEach((field) => {
+  const input = $(`#${field}`);
+  if (input) {
+    input.disabled = true;
+    const wrapper = input.closest("p, .number-range, .col");
+    if (wrapper) wrapper.classList.add("disabled");
+  }
+  // Also disable the modal slider if it exists
+  const slider = $(`#${field}-slider`);
+  if (slider) slider.disabled = true;
+});
+
+function updateImagingLabel(name, value) {
+  const input = $(`#${name}`);
+  if (input) {
+    input.value = value === undefined || value === null ? "" : value;
+  }
+  // Also update the slider value display in modal
+  const sliderValue = $(`#${name}-slider-value`);
+  if (sliderValue) {
+    const displayValue = value === undefined || value === null ? "—" : value;
+    sliderValue.textContent = displayValue;
+  }
+  // Update the actual slider
+  const slider = $(`#${name}-slider`);
+  if (slider && value !== undefined && value !== null) {
+    slider.value = value;
+  }
+}
+
+function setSliderBounds(input, slider, min, max, value, defaultValue) {
+  if (Number.isFinite(min)) {
+    if (input) input.dataset.min = min;
+    if (slider) slider.min = min;
+  }
+  if (Number.isFinite(max)) {
+    if (input) input.dataset.max = max;
+    if (slider) slider.max = max;
+  }
+  if (Number.isFinite(value)) {
+    if (input) input.value = value;
+    if (slider) slider.value = value;
+  }
+  if (Number.isFinite(defaultValue)) {
+    if (input) input.dataset.defaultValue = defaultValue;
+    if (slider) slider.dataset.defaultValue = defaultValue;
+  } else {
+    if (input) delete input.dataset.defaultValue;
+    if (slider) delete slider.dataset.defaultValue;
+  }
+}
+
+function applyFieldMetadata(field, data) {
+  const input = $(`#${field}`);
+  const slider = $(`#${field}-slider`);
+  if (!input) return;
+  const wrapper =
+    input.closest("p, .number-range, .col") || input.parentElement;
+  const isSupported = data && data.supported !== false;
+  if (!isSupported) {
+    input.disabled = true;
+    if (slider) slider.disabled = true;
+    if (wrapper) wrapper.classList.add("disabled");
+    delete input.dataset.defaultValue;
+    if (slider) delete slider.dataset.defaultValue;
+    updateImagingLabel(field, "—");
+    return;
+  }
+  input.disabled = false;
+  if (slider) slider.disabled = false;
+  if (wrapper) wrapper.classList.remove("disabled");
+  setSliderBounds(
+    input,
+    slider,
+    Number(data.min),
+    Number(data.max),
+    Number(data.value),
+    Number(data.default),
+  );
+  updateImagingLabel(field, data.value);
+}
+
+function preferStreamerAgent() {
+  const helper = window.thinginoStreamer;
+  return !!(helper && helper.preferAgent && helper.preferAgent());
+}
+
+async function fetchImagingStateFromAgent() {
+  const helper = window.thinginoStreamer;
+  const cfg = await helper.agentRequest("/api/v1/config", {
+    cache: "no-store",
+  });
+  const image = (cfg && cfg.image) || {};
+  const mapped = {
+    brightness: image.brightness,
+    contrast: image.contrast,
+    sharpness: image.sharpness,
+    saturation: image.saturation,
+  };
+  imagingFields.forEach((field) => {
+    const value = mapped[field];
+    if (value === undefined || value === null) {
+      applyFieldMetadata(field, { supported: false });
+      return;
+    }
+    const input = $(`#${field}`);
+    const min = input ? Number(input.dataset.min) : 0;
+    const max = input ? Number(input.dataset.max) : 255;
+    applyFieldMetadata(field, {
+      supported: true,
+      min: Number.isFinite(min) ? min : 0,
+      max: Number.isFinite(max) ? max : 255,
+      value: Number(value),
+      default: Number(value),
+    });
+  });
+}
+
+async function fetchImagingState() {
+  showBusy("Loading imaging settings...");
+  try {
+    if (preferStreamerAgent()) {
+      await fetchImagingStateFromAgent();
+      return;
+    }
+    const res = await fetch("/x/json-imaging.cgi", { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    const fields = payload && payload.message && payload.message.fields;
+    if (!fields) return;
+    imagingFields.forEach((field) =>
+      applyFieldMetadata(field, fields[field] || null),
+    );
+  } catch (err) {
+    console.warn("Unable to load imaging state", err);
+  } finally {
+    hideBusy();
+  }
+}
+
+async function persistImagingSetting(field, value) {
+  const configKey = imageConfigKeyMap[field];
+  if (!configKey) return;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return;
+  try {
+    await sendToEndpoint({ image: { [configKey]: numericValue } });
+  } catch (err) {
+    console.warn("Failed to persist imaging setting", field, err);
+  }
+}
+
+async function sendImagingUpdate(field, value, element) {
+  element?.setAttribute("data-busy", "1");
+  element?.classList.add("opacity-75");
+  try {
+    if (preferStreamerAgent()) {
+      // Agent-backed streamers (raptor) have no json-imaging.cgi — PATCH leaves directly.
+      await persistImagingSetting(field, value);
+      updateImagingLabel(field, value);
+      return;
+    }
+    const params = new URLSearchParams({ cmd: "set" });
+    params.append(field, value);
+    const res = await fetch("/x/json-imaging.cgi", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (text) {
+      const payload = JSON.parse(text);
+      const fields = payload && payload.message && payload.message.fields;
+      if (fields) {
+        applyFieldMetadata(field, fields[field] || null);
+      }
+    }
+    await persistImagingSetting(field, value);
+  } catch (err) {
+    console.error("Failed to update imaging value", err);
+  } finally {
+    element?.removeAttribute("data-busy");
+    element?.classList.remove("opacity-75");
+  }
+}
+
+// Setup event handlers for imaging fields (number inputs and modal sliders)
+imagingFields.forEach((field) => {
+  const input = $(`#${field}`);
+  const slider = $(`#${field}-slider`);
+
+  // Handle text input changes
+  if (input) {
+    input.addEventListener("change", (ev) => {
+      const value = parseInt(ev.target.value);
+      if (!isNaN(value)) {
+        sendImagingUpdate(field, value, ev.target);
+      }
+    });
+
+    // Double-click on input to reset to default
+    input.addEventListener("dblclick", (ev) => {
+      const min = Number(ev.target.dataset.min ?? 0);
+      const max = Number(ev.target.dataset.max ?? 255);
+      const midpoint = Math.round((min + max) / 2);
+      const defaultValue = ev.target.dataset.defaultValue;
+      const targetValue = Number.isFinite(Number(defaultValue))
+        ? Number(defaultValue)
+        : midpoint;
+      ev.target.value = targetValue;
+      updateImagingLabel(field, targetValue);
+      sendImagingUpdate(field, targetValue, ev.target);
+    });
+  }
+
+  // Handle modal slider input (live update)
+  if (slider) {
+    slider.addEventListener("input", (ev) => {
+      updateImagingLabel(field, ev.target.value);
+    });
+
+    // Handle slider change (on release)
+    slider.addEventListener("change", (ev) => {
+      const value = parseInt(ev.target.value);
+      if (!isNaN(value)) {
+        sendImagingUpdate(field, value, ev.target);
+      }
+    });
+
+    // Double-click on slider to reset to default
+    slider.addEventListener("dblclick", (ev) => {
+      const min = Number(ev.target.min ?? 0);
+      const max = Number(ev.target.max ?? 255);
+      const midpoint = Math.round((min + max) / 2);
+      const defaultValue = ev.target.dataset.defaultValue;
+      const targetValue = Number.isFinite(Number(defaultValue))
+        ? Number(defaultValue)
+        : midpoint;
+      ev.target.value = targetValue;
+      updateImagingLabel(field, targetValue);
+      sendImagingUpdate(field, targetValue, ev.target);
+    });
+  }
+});
+
+// Streamer controls
+function coerceStreamValue(param, el) {
+  if (el.type === "checkbox") {
+    return el.checked;
+  }
+
+  const raw = typeof el.value === "string" ? el.value : "";
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return "";
+  }
+
+  // Treat any purely numeric string as a number so prudynt gets the correct type.
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return trimmed.includes(".")
+      ? Number.parseFloat(trimmed)
+      : Number.parseInt(trimmed, 10);
+  }
+
+  return trimmed;
+}
+
+function saveStreamValue(streamId, param) {
+  const el = $(`#stream${streamId}_${param}`);
+  if (!el) return;
+  const value = coerceStreamValue(param, el);
+  const payload = {
+    [`stream${streamId}`]: { [param]: value },
+    action: { restart_thread: ThreadRtsp | ThreadVideo },
+  };
+  sendToEndpoint(payload);
+}
+
+// Setup stream0 and stream1 controls
+[0, 1].forEach((streamId) => {
+  stream_params.forEach((param) => {
+    const el = $(`#stream${streamId}_${param}`);
+    if (el) {
+      el.addEventListener("change", () => saveStreamValue(streamId, param));
+      el.disabled = true;
+    }
+
+    // Also handle modal slider if it exists
+    const slider = $(`#stream${streamId}_${param}-slider`);
+    if (slider) {
+      slider.addEventListener("input", (ev) => {
+        // Update the text input while dragging
+        if (el) el.value = ev.target.value;
+        const sliderValue = $(`#stream${streamId}_${param}-slider-value`);
+        if (sliderValue) sliderValue.textContent = ev.target.value;
+      });
+      slider.addEventListener("change", () => saveStreamValue(streamId, param));
+      slider.disabled = true;
+    }
+  });
+});
+
+// OSD controls
+function sendOsdUpdate(streamId, osdPayload) {
+  // OSD changes require Video + OSD thread restart to take effect immediately
+  const payload = {
+    [`stream${streamId}`]: { osd: osdPayload },
+    action: { restart_thread: ThreadVideo | ThreadOSD },
+  };
+  sendToEndpoint(payload);
+}
+
+// Setup OSD controls for both stream0 and stream1
+[0, 1].forEach((streamId) => {
+  // Configuration for OSD controls
+  const osdControls = [
+    {
+      id: "enabled",
+      handler: (e) => sendOsdUpdate(streamId, { enabled: e.target.checked }),
+    },
+    {
+      id: "time_enabled",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { time: { enabled: e.target.checked } }),
+    },
+    {
+      id: "time_format",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { time: { format: e.target.value } }),
+    },
+    {
+      id: "time_position",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { time: { position: e.target.value } }),
+    },
+    {
+      id: "uptime_enabled",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { uptime: { enabled: e.target.checked } }),
+    },
+    {
+      id: "uptime_position",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { uptime: { position: e.target.value } }),
+    },
+    {
+      id: "usertext_enabled",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { usertext: { enabled: e.target.checked } }),
+    },
+    {
+      id: "usertext_format",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { usertext: { format: e.target.value } }),
+    },
+    {
+      id: "usertext_position",
+      handler: (e) =>
+        sendOsdUpdate(streamId, { usertext: { position: e.target.value } }),
+    },
+  ];
+
+  osdControls.forEach(({ id, handler }) => {
+    const el = $(`#osd${streamId}_${id}`);
+    if (el) {
+      el.addEventListener("change", handler);
+      el.disabled = true;
+    }
+  });
+});
+
+// Image controls (WB and AE)
+function saveImageValue(param) {
+  const el = $("#image_" + param);
+  if (!el) return;
+
+  let value;
+  if (el.type === "checkbox") {
+    value = el.checked;
+  } else if (el.type === "select-one") {
+    value = parseInt(el.value);
+  } else {
+    value = parseInt(el.value);
+  }
+
+  const payload = { image: { [param]: value } };
+  console.log(ts(), "Sending image param:", param, "=", value);
+  sendToEndpoint(payload);
+}
+
+const imageParams = [
+  "hflip",
+  "vflip",
+  "wb_bgain",
+  "wb_rgain",
+  "ae_compensation",
+  "core_wb_mode",
+];
+imageParams.forEach((param) => {
+  const el = $("#image_" + param);
+  if (el) {
+    el.addEventListener("change", () => {
+      console.log("Image param changed:", param);
+      saveImageValue(param);
+    });
+    el.disabled = true;
+  }
+});
+
+// Export configuration button
+const exportConfigBtn = $("#export-config");
+if (exportConfigBtn) {
+  exportConfigBtn.addEventListener("click", async () => {
+    exportConfigBtn.disabled = true;
+    try {
+      const res = await apiFetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: { dump_config: null } }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const json = await res.text();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "prudynt-config-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export failed:", e);
+    } finally {
+      setTimeout(() => {
+        exportConfigBtn.disabled = false;
+      }, 1000);
+    }
+  });
+}
+
+fetchImagingState();
+
+async function loadConfigFps() {
+  try {
+    if (preferStreamerAgent()) return;
+    const resp = await fetch("/etc/prudynt.json", { cache: "no-store" });
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    if (cfg.stream0 && cfg.stream0.fps !== undefined && cfg.stream0.fps !== 0) {
+      const el0 = $("#stream0_fps");
+      if (el0) el0.value = cfg.stream0.fps;
+    }
+    if (cfg.stream1 && cfg.stream1.fps !== undefined && cfg.stream1.fps !== 0) {
+      const el1 = $("#stream1_fps");
+      if (el1) el1.value = cfg.stream1.fps;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+// Add reload button handler
+const reloadBtn = $("#preview-reload");
+if (reloadBtn) {
+  reloadBtn.addEventListener("click", () => {
+    Promise.all([loadConfig(), loadMotorParams()]).then(() => {
+      console.log("Configuration and motor parameters reloaded");
+    });
+  });
+}
