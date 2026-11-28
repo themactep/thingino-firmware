@@ -22,7 +22,13 @@
 #                 or lists of those. A pin whose last action is a toggle
 #                 depends on prior state and cannot be a static hog: skipped.
 #                 An object's toggle flag only prepends a pulse and does not
-#                 change the resting level.
+#                 change the resting level. An object may set boot_state to
+#                 the level held through the boot window while state/value
+#                 stays the runtime level S36 drives later: {"pin": 51,
+#                 "state": 1, "boot_state": 0} keeps a USB module off until
+#                 S36 powers it on, instead of pre-powering it before the
+#                 kernel USB scan. Without boot_state the hog uses the final
+#                 S36 level.
 #
 #   gpio.mmc_power (list form only) - boards whose SD slot needs more than one
 #                 supply/enable pin, [{pin, active_low}, ...], each driven at
@@ -33,20 +39,33 @@
 #                 itself; a fixed regulator can only own one gpio, which is
 #                 why multi-pin boards get plain hogs instead.
 #
-#   gpio.ircut (+ gpio.ircut_sub) - IR-cut filter coil pins parked at the
-#                 /usr/sbin/ircut idle level so the solenoid is not left
-#                 floating or energised through the boot window. Dual-pin
-#                 boards rest both pins at idle between pulses and single-pin
-#                 boards de-energise at the "open" level; both work out to
-#                 active_low ? HIGH : LOW per pin. NOTE the ircut token
-#                 suffix means polarity, not a drive level as in gpio.wlan:
-#                 "57o" = active-low pin = idle HIGH ("57O" = active-high =
-#                 idle LOW). Pin 999 is the tmi8152 kernel-shim sentinel (no
-#                 gpio) and a -1 token disables the whole domain, exactly as
-#                 the runtime script treats them.
+#   gpio.ircut, gpio.ircut_2 .. gpio.ircut_4 - IR-cut filter coil pins, one
+#                 key per image sensor numbered like BR2_SENSOR_<n>_NAME
+#                 (plain ircut is sensor 1; the legacy ircut_sub is still
+#                 read), parked at the /usr/sbin/ircut idle level so the
+#                 solenoid is not left floating or energised through the boot
+#                 window. Dual-pin boards rest both pins at idle between
+#                 pulses and single-pin boards de-energise at the "open"
+#                 level; both work out to active_low ? HIGH : LOW per pin.
+#                 NOTE the ircut token suffix means polarity, not a drive
+#                 level as in gpio.wlan: "57o" = active-low pin = idle HIGH
+#                 ("57O" = active-high = idle LOW). Pin 999 is the tmi8152
+#                 kernel-shim sentinel (no gpio) and a -1 token disables the
+#                 whole domain, exactly as the runtime script treats them.
+#
+#   gpio.speaker - the speaker amplifier enable line, held at its muted
+#                 (inactive) level so the amp is not left floating through
+#                 the boot window: the kernel codec module mutes it at probe
+#                 for exactly that reason. Muted is the inverse of the active
+#                 level, so active_low=true rests HIGH and a plain pin rests
+#                 LOW. U-Boot's own codec driver drives this pin raw around
+#                 playback rather than through the gpio uclass (see
+#                 inject-uboot-audio-dt.sh, which feeds the same key to the
+#                 codec node as ingenic,spk-gpio), so the hog does not fight
+#                 it for ownership - it only defines the level until then.
 #
 # A pin that inject-uboot-mmc-dt.sh turns into a DT binding (gpio.mmc_cd ->
-# cd-gpios, single-object gpio.mmc_power -> vmmc regulator, gpio.button_reset
+# cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
 # -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
 # binding's own request then fails, breaking the subsystem that needed it
 # (cinnado_b6 lists pin 61 as both mmc_cd and a motor phase - card-detect
@@ -60,14 +79,16 @@
 # Usage: inject-uboot-gpio-dt.sh <thingino.json> <leaf.dts> <dt-name>
 set -e
 
-JSON="$1"; DTS="$2"; DT="$3"
+JSON="$1"
+DTS="$2"
 [ -f "$JSON" ] && [ -f "$DTS" ] || exit 0
 
 # Already injected on a previous incremental build?
 grep -q 'thingino GPIO presets' "$DTS" && exit 0
 
 # Emit "<name>:<pin>:<level>" tokens, or nothing when there is nothing to hog.
-vals=$(python3 - "$JSON" 2>/dev/null <<'PY'
+vals=$(
+	python3 - "$JSON" 2>/dev/null <<'PY'
 import json, sys
 
 root = json.load(open(sys.argv[1]))
@@ -112,14 +133,14 @@ def norm_state(v):  # S36wireless normalize_state_value; None = invalid
                 "false": 0, "low": 0, "off": 0, "disable": 0, "disabled": 0}.get(w[0].lower())
     return None
 
-def token(tok):  # S36wireless parse_legacy_token -> (pin, level|None=toggle) | None
+def token(tok):  # S36wireless parse_legacy_token -> (pin, level|None=toggle, boot) | None
     if tok and tok[-1] in "oOtT~":
         pin, sfx = tok[:-1], tok[-1]
     else:
         pin, sfx = tok, ""
     if not pin.isdigit():
         return None
-    return (int(pin), {"o": 0, "O": 1, "": 1}.get(sfx))
+    return (int(pin), {"o": 0, "O": 1, "": 1}.get(sfx), None)
 
 def obj(o):  # S36wireless emit_wlan_object_path final state
     pin = o.get("pin")
@@ -136,14 +157,16 @@ def obj(o):  # S36wireless emit_wlan_object_path final state
     state = o.get("state")
     if state in (None, ""):
         state = o.get("value")
+    boot = o.get("boot_state")
+    boot = norm_state(boot) if boot not in (None, "") else None
     if not action and isinstance(state, str) and state.lower() in ("toggle", "~"):
         action, state = "toggle", None
     if action == "toggle":
-        return (pin, None)
+        return (pin, None, boot)
     if state in (None, ""):
-        return (pin, 0 if is_true(al) else 1)
+        return (pin, 0 if is_true(al) else 1, boot)
     s = norm_state(state)
-    return (pin, s) if s is not None else None
+    return (pin, s, boot) if s is not None else None
 
 events = []
 def walk(v):
@@ -162,12 +185,14 @@ def walk(v):
             r and events.append(r)
 
 walk(root.get("gpio", {}).get("wlan"))
-final, order = {}, []
-for pin, lvl in events:
+final, boot_final, order = {}, {}, []
+for pin, lvl, boot in events:
     if pin not in final:
         order.append(pin)
     final[pin] = lvl  # None = toggle-final = not expressible, dropped below
-out += [("wlan", p, final[p]) for p in order if final[p] is not None]
+    boot_final[pin] = boot
+out += [("wlan", p, boot_final[p] if boot_final[p] is not None else final[p])
+        for p in order if boot_final[p] is not None or final[p] is not None]
 
 # ---- gpio.mmc_power list form: multi-pin slot power at the on level -------
 mp = root.get("gpio", {}).get("mmc_power")
@@ -176,7 +201,7 @@ if isinstance(mp, list):
         if isinstance(e, dict) and isinstance(e.get("pin"), int) and e["pin"] >= 0:
             out.append(("mmc_power", e["pin"], 0 if is_true(e.get("active_low")) else 1))
 
-# ---- gpio.ircut / gpio.ircut_sub: park filter coil pins at idle -----------
+# ---- gpio.ircut .. gpio.ircut_4 (+ legacy ircut_sub): park coil pins idle -
 def bool_flag(v, dflt):  # /usr/sbin/ircut bool_flag
     if isinstance(v, bool):
         return 1 if v else 0
@@ -213,10 +238,21 @@ def ircut_walk(v, default_al, acc):
             acc.append((int(tok), al))
     return True
 
-for key in ("ircut", "ircut_sub"):
+for key in ("ircut", "ircut_2", "ircut_3", "ircut_4", "ircut_sub"):
     acc = []
     if ircut_walk(root.get("gpio", {}).get(key), 0, acc):
         out += [("ircut", p, 1 if al else 0) for p, al in acc]
+
+# ---- gpio.speaker: hold the speaker amp muted through the boot window ----
+sp = root.get("gpio", {}).get("speaker")
+if isinstance(sp, dict):
+    sp_pin, sp_al = sp.get("pin"), is_true(sp.get("active_low"))
+elif isinstance(sp, int) and not isinstance(sp, bool):
+    sp_pin, sp_al = sp, False	# short notation: bare int = active-high pin
+else:
+    sp_pin, sp_al = None, False
+if isinstance(sp_pin, int) and not isinstance(sp_pin, bool) and sp_pin >= 0:
+    out.append(("spk_mute", sp_pin, 1 if sp_al else 0))
 
 # Pins inject-uboot-mmc-dt.sh turns into DT bindings - the binding's gpio
 # request must win, so these are never hogged (level 's' = skip note).
@@ -227,6 +263,8 @@ if isinstance(cd, int) and cd >= 0:
     reserved.add(cd)
 if isinstance(mp, dict) and isinstance(mp.get("pin"), int) and mp["pin"] >= 0:
     reserved.add(mp["pin"])
+elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
+    reserved.add(mp)  # short notation: bare int = active-high pin
 br = g.get("button_reset")
 bp = br.get("pin") if isinstance(br, dict) else br
 if isinstance(bp, int) and bp >= 0:
@@ -247,15 +285,16 @@ PY
 
 # gpio number -> bank label letter (PA=a..PE=e), empty if out of range
 bank() {
-	case $(( $1 / 32 )) in
-	0) echo a ;; 1) echo b ;; 2) echo c ;; 3) echo d ;; 4) echo e ;; *) echo "" ;;
+	case $(($1 / 32)) in
+		0) echo a ;; 1) echo b ;; 2) echo c ;; 3) echo d ;; 4) echo e ;; *) echo "" ;;
 	esac
 }
 
 emitted=""
 {
 	printf '\n/* thingino GPIO presets: hold board pins at their runtime level through\n'
-	printf ' * the boot window (motors / gpio.wlan / gpio.mmc_power / gpio.ircut). */\n'
+	printf ' * the boot window (motors / gpio.wlan / gpio.mmc_power / gpio.ircut /\n'
+	printf ' * gpio.speaker). */\n'
 	for TOK in $vals; do
 		NAME=${TOK%%:*}
 		REST=${TOK#*:}
@@ -272,12 +311,12 @@ emitted=""
 		printf '\t%s_%s {\n' "$NAME" "$PIN"
 		printf '\t\tgpio-hog;\n'
 		printf '\t\t%s;\n' "$STATE"
-		printf '\t\tgpios = <%s 0>;\t/* GPIO_ACTIVE_HIGH */\n' "$(( PIN % 32 ))"
+		printf '\t\tgpios = <%s 0>;\t/* GPIO_ACTIVE_HIGH */\n' "$((PIN % 32))"
 		printf '\t};\n'
 		printf '};\n'
 		emitted="$emitted $NAME/$PIN=$STATE"
 	done
-} >> "$DTS"
+} >>"$DTS"
 
 [ -n "$emitted" ] && echo "U-Boot: injected GPIO presets:$emitted"
 exit 0
