@@ -16,7 +16,7 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
-BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
 # Run dependency check before doing anything.
