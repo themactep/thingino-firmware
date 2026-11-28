@@ -154,9 +154,10 @@ config BR2_PACKAGE_THINGINO_RAPTOR_AAC
 	default n if BR2_THINGINO_DEV_WEBCAM
 	default y
 	select BR2_PACKAGE_FAAC
-	select BR2_PACKAGE_LIBHELIX_AAC
+	select BR2_PACKAGE_FAAC_DECODER
 	help
-	  AAC audio codec for encoding and decoding.
+	  AAC audio codec for encoding and decoding (libfaac and
+	  libfaad3 from FAAC 3.0).
 
 config BR2_PACKAGE_THINGINO_RAPTOR_OPUS
 	bool "Opus audio support"
