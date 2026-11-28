@@ -1,0 +1,71 @@
+#!/bin/sh
+# raptor-motion-watch — poll RMD and fire /usr/sbin/raptor-motion on edges.
+#
+# Raptor RMD has no on_motion script hook (unlike timps/prudynt). This watcher
+# bridges that gap so send2 alerts work without requiring an agent SSE client.
+
+INTERVAL="${RAPTOR_MOTION_POLL_MS:-500}"
+HOOK="${RAPTOR_MOTION_HOOK:-/usr/sbin/raptor-motion}"
+
+rmd_state() {
+	status=$(raptorctl rmd status 2>/dev/null) || {
+		printf 'unknown'
+		return
+	}
+	state=$(printf '%s\n' "$status" | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+	case "$state" in
+		active | triggered | detecting)
+			printf 'active'
+			;;
+		cooldown)
+			# Still part of the motion event window; treat as active for stop edge.
+			printf 'active'
+			;;
+		idle | "")
+			printf 'idle'
+			;;
+		*)
+			printf 'idle'
+			;;
+	esac
+}
+
+sleep_interval() {
+	# Prefer sub-second sleep when available; fall back to 1s.
+	ms=$INTERVAL
+	if [ "$ms" -lt 100 ] 2>/dev/null; then
+		ms=100
+	fi
+	if command -v usleep >/dev/null 2>&1; then
+		usleep $((ms * 1000)) 2>/dev/null && return
+	fi
+	# busybox sleep may accept fractional seconds
+	sec=$(awk "BEGIN { printf \"%.3f\", $ms/1000 }" 2>/dev/null)
+	if [ -n "$sec" ] && sleep "$sec" 2>/dev/null; then
+		return
+	fi
+	sleep 1
+}
+
+last=idle
+while true; do
+	if ! pidof rmd >/dev/null 2>&1; then
+		if [ "$last" = "active" ]; then
+			[ -x "$HOOK" ] && "$HOOK" stop
+			last=idle
+		fi
+		sleep 2
+		continue
+	fi
+
+	current=$(rmd_state)
+	if [ "$current" != "$last" ]; then
+		if [ "$current" = "active" ] && [ "$last" != "active" ]; then
+			[ -x "$HOOK" ] && "$HOOK" start
+		elif [ "$current" = "idle" ] && [ "$last" = "active" ]; then
+			[ -x "$HOOK" ] && "$HOOK" stop
+		fi
+		last=$current
+	fi
+	sleep_interval
+done

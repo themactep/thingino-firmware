@@ -3,7 +3,7 @@
 set -eu
 
 PORTAL_MODE_FLAG="/run/portal_mode"
-CURL_CMD="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+CURL_CMD="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2"
 
 no_internet() {
 	ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || return 0
