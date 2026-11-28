@@ -62,6 +62,10 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT),y)
 THINGINO_RAPTOR_MAKE_OPTS += IVS_DETECT=1
+# ojzdl runs inside raptor-hal: rvd links neither libjzdl.m nor libstdc++
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_IVS_OJZDL),y)
+THINGINO_RAPTOR_MAKE_OPTS += JZDL_LIBS=
+endif
 ifeq ($(BR2_PACKAGE_INGENIC_LIB_PERSONDET),y)
 THINGINO_RAPTOR_MAKE_OPTS += PERSONDET=1
 endif
