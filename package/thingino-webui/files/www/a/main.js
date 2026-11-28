@@ -5,6 +5,34 @@ const ThreadOSD = 8;
 
 const ImageNoStream = "/a/nostream.svg";
 
+// The API key ("" when none is set), fetched once per page on first use.
+function thinginoApiKey() {
+  if (!window.__thinginoApiKeyPromise) {
+    window.__thinginoApiKeyPromise = fetch("/x/api-key.cgi", {
+      cache: "no-store",
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : {};
+      })
+      .then(function (d) {
+        return d && d.exists && d.api_key ? d.api_key : "";
+      })
+      .catch(function () {
+        return "";
+      });
+  }
+  return window.__thinginoApiKeyPromise;
+}
+window.thinginoApiKey = thinginoApiKey;
+
+async function apiFetch(url, options) {
+  var key = await thinginoApiKey();
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
+
 let max = 0;
 
 if (typeof window !== "undefined") {
