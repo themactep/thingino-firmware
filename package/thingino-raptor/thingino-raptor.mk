@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = ee74471a2a65ba18a9555f64b51915f68f9f0125
+THINGINO_RAPTOR_VERSION = 6902893bc44ca1a1729cff30caeba358351e6293
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -202,3 +202,12 @@ endef
 include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 
 $(eval $(generic-package))
+
+# Raptor's copy of the preview script, installed over thingino-webui's for the
+# same reason as preview.html: the raptor pages read the stream with the MJPEG
+# fetch reader, not <img src>.
+define THINGINO_RAPTOR_INSTALL_PREVIEW_JS
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/preview.js \
+		$(TARGET_DIR)/var/www/a/preview.js
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW_JS

@@ -1,16 +1,13 @@
-FAAC 3.0 renames the encoder configuration fields, removes the old
-names without a shim, and requires the caller size in
-`faac_params_init()`.
+FAAC 3.0 renames the encoder configuration fields and removes the old
+names without a compatibility shim.
 
-Map the fields to the ABI 3 names and pass the parameter size. These
-streams are mono, so their bit_rate values are already whole-stream and
-do not need scaling.
+Map the fields to the ABI 3 names in both encoder users. These streams
+are mono, so their bit_rate values are already whole-stream and do not
+need scaling.
 
-diff --git a/rad/rad_codec_aac.c b/rad/rad_codec_aac.c
-index 26186dd..c6fe7b7 100644
 --- a/rad/rad_codec_aac.c
 +++ b/rad/rad_codec_aac.c
-@@ -45,7 +45,7 @@ static int aac_init(rad_codec_ctx_t *ctx, rss_config_t *cfg, int sample_rate)
+@@ -49,7 +49,7 @@ static int aac_init(rad_codec_ctx_t *ctx, rss_config_t *cfg, int sample_rate)
  	/* HE-AAC needs Fs >= 32kHz (the Fs/2 SBR core collapses below);
  	 * clamp an explicit request rather than failing encoder open. */
  	const char *profile = rss_config_get_str(cfg, "audio", "aac_profile", "lc");
@@ -19,14 +16,7 @@ index 26186dd..c6fe7b7 100644
  	if (strcmp(profile, "he") == 0) {
  		if (sample_rate >= 32000) {
  			object = FAAC_OBJ_HE_AAC_V1;
-@@ -60,20 +60,19 @@ static int aac_init(rad_codec_ctx_t *ctx, rss_config_t *cfg, int sample_rate)
- 	}
- 
- 	faac_params params;
--	faac_status status = faac_params_init(&params);
-+	faac_status status = faac_params_init(&params, (uint32_t)sizeof(params));
- 	if (status != FAAC_OK) {
- 		free(st);
+@@ -75,14 +75,13 @@ static int aac_init(rad_codec_ctx_t *ctx, rss_config_t *cfg, int sample_rate)
  		return -1;
  	}
  	params.sample_rate = (uint32_t)sample_rate;
@@ -47,18 +37,10 @@ index 26186dd..c6fe7b7 100644
  
  	status = faac_encoder_open(&params, &st->handle);
 diff --git a/rsp/rsp_audio.c b/rsp/rsp_audio.c
-index af7afad..1a91c82 100644
+index 3d3957b..cc087a2 100644
 --- a/rsp/rsp_audio.c
 +++ b/rsp/rsp_audio.c
-@@ -153,24 +153,23 @@ rsp_audio_enc_t *rsp_audio_init(uint32_t input_codec, uint32_t sample_rate)
- 
- 	/* Init faac encoder at output rate (48kHz for RTMP compatibility) */
- 	faac_params params;
--	faac_status status = faac_params_init(&params);
-+	faac_status status = faac_params_init(&params, (uint32_t)sizeof(params));
- 	if (status != FAAC_OK) {
- 		RSS_ERROR("rsp_audio: faac params init failed: %s", faac_strerror(status));
- 		free(enc);
+@@ -165,17 +165,16 @@ rsp_audio_enc_t *rsp_audio_init(uint32_t input_codec, uint32_t sample_rate)
  		return NULL;
  	}
  	params.sample_rate = enc->output_rate;
