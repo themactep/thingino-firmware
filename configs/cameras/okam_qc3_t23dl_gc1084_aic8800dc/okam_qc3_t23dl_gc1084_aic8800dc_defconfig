@@ -1,0 +1,57 @@
+# NAME: O-KAM QC3 (T23DL, GC1084, AIC8800DC USB)
+# FRAG: soc-xburst1 core
+# PCB "QC6-V8-T23N-202404017-V1" (U-Boot banner), 32 MB T23DL, product
+# QC3-W. Values from the OEM firmware (vp_project 2025-09, tx-isp-t23
+# H20241028a): sensor gc1084 at i2c 0x37 (sinfo.ko sensor table), IQ =
+# gc1084-okam_qc3.bin (byte-identical to the OEM gc1084-t23.bin), OEM
+# tx-isp-t23 isp_memopt=1 direct_mode=1 isp_clk=200M isp_clka=600M
+# ivdc_mem_line=300 with mem=25088K rmem=7680K.
+# WiFi: AIC8800DC on USB, a69c:88dc (device lsusb after the WLAN power
+# GPIO 62 is driven low). The OEM ships a D80 set in /addfs/wifi too, but
+# the DC firmware in /addfs/wifi/aic8800DC is the one this chip uses.
+# Open stack (open-tx-isp + OpenIMP + timps) with the OEM IVDC direct mode
+# (Lu-Fi/openimp#767). rmem is whole MB here: 7M (OEM 7.5M), Linux keeps
+# mem=25M (OEM 24.5M); the IVDC direct-mode pipeline (H.264 main via IVDC +
+# sub + JPEG) fits in 7M (Lu-Fi/openimp#800).
+# Device-checked 2026-11-23: IR-cut 53 (day) / 52 (night) and the reset key
+# PB26 (GPIO 58); the older cameras-exp profile (ircut 58/57, key PA6) is
+# replaced. The sensor is mounted upside down (OEM: mirror 1 / flip 1):
+# open-tx-isp sensor_mount_flip=3 turns it in the driver for every streamer,
+# the sensor does it with shvflip=1 (device-checked 2026-11-24).
+BR2_INGENIC_SOC_MODEL="t23dl"
+BR2_ISP_CLKA_600MHZ=y
+BR2_ISP_CLKA_SCLKA=y
+BR2_ISP_CLK_200MHZ=y
+BR2_ISP_CLK_SCLKA=y
+BR2_ISP_DIRECT_MODE_1=y
+BR2_ISP_MEMOPT_1=y
+BR2_ISP_PARAMS="sensor_mount_flip=3"
+# ivdc_mem_line 360 = height/2 (vendor guide; OEM 300 aborts jobs at 30 fps, #807)
+BR2_ISP_IVDC_MEM_LINE=y
+BR2_ISP_IVDC_MEM_LINE_VALUE=360
+BR2_PACKAGE_THINGINO_ISP_OPEN=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
+BR2_PACKAGE_THINGINO_STREAMER_TIMPS=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_AIC8800=y
+BR2_PACKAGE_WIFI_AIC8800_USB=y
+BR2_PACKAGE_WIFI_AIC8800_USB_8800DC=y
+BR2_PACKAGE_WIFI_AIC8800_USB_MSG_RX_URBS=10
+BR2_SENSOR_1_IQ_FILE="gc1084-okam_qc3.bin"
+BR2_SENSOR_1_NAME="gc1084"
+# BR2_TARGET_ROOTFS_SQUASHFS_BS_256K is not set
+BR2_TARGET_ROOTFS_SQUASHFS_BS_128K=y
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_BUTTON=y
+# 32 MB board: RAM savings that remove no function (BR2_THINGINO_LOWMEM):
+# kernel log buffers, JFFS2 deflate workspace, TCP memory cap, OOM exemptions,
+# zram swap + low-memory killer (Lu-Fi/openimp#785, #800), squashfs 128 KiB
+# blocks (read caches + XZ dictionary halve, ~640 KiB) and the OEM value of
+# 10 AIC8800 message RX URBs (Lu-Fi/openimp#802, ~360 KiB).
+BR2_THINGINO_LOWMEM=y
+BR2_THINGINO_RMEM_MB=7
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=8
+KERNEL_VERSION_3=y
