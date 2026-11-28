@@ -1,13 +1,17 @@
 #!/bin/sh
 # Render raptor.conf from a kconfig .config and conf-map.
 # usage: gen-raptor-conf.sh <dotconfig> <conf-map> <raptor.conf> <sensor_qty>
+#
+# DOTCONFIG is a runtime argument and is sourced by path, so ShellCheck
+# cannot follow it.
+# shellcheck disable=SC1090
 set -e
 DOTCONFIG=$1 MAP=$2 CONF=$3 QTY=${4:-1}
 
 # POSIX dot searches PATH when the operand has no slash
 case "$DOTCONFIG" in
-*/*) . "$DOTCONFIG" ;;
-*) . "./$DOTCONFIG" ;;
+	*/*) . "$DOTCONFIG" ;;
+	*) . "./$DOTCONFIG" ;;
 esac
 
 # Multi-sensor layout: the template ships [sensor] live and the rest commented.
@@ -31,23 +35,25 @@ deref() { eval "printf '%s' \"\${$1:-}\""; }
 
 while read -r type section key sym rest; do
 	case "$type" in
-	'#' | '') continue ;;
-	str) val=$(deref "$sym") ;;
-	bool)
-		if [ "$(deref "${sym}_TRUE")" = y ]; then val=true
-		elif [ "$(deref "${sym}_FALSE")" = y ]; then val=false
-		else val=; fi
-		;;
-	enum)
-		val=
-		for c in $rest; do
-			if [ "$(deref "${sym}_${c}")" = y ]; then
-				val=$(echo "$c" | tr 'A-Z' 'a-z')
-				break
-			fi
-		done
-		;;
-	*) continue ;;
+		'#' | '') continue ;;
+		str) val=$(deref "$sym") ;;
+		bool)
+			if [ "$(deref "${sym}_TRUE")" = y ]; then
+				val=true
+			elif [ "$(deref "${sym}_FALSE")" = y ]; then
+				val=false
+			else val=; fi
+			;;
+		enum)
+			val=
+			for c in $rest; do
+				if [ "$(deref "${sym}_${c}")" = y ]; then
+					val=$(echo "$c" | tr '[:upper:]' '[:lower:]')
+					break
+				fi
+			done
+			;;
+		*) continue ;;
 	esac
 	rset "$section" "$key" "$val"
-done < "$MAP"
+done <"$MAP"
