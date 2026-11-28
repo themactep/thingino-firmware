@@ -1,0 +1,14 @@
+diff --git a/package/libcurl/libcurl.mk b/package/libcurl/libcurl.mk
+index a8cbe65385..1b65047c5f 100644
+--- a/package/libcurl/libcurl.mk
++++ b/package/libcurl/libcurl.mk
+@@ -8,6 +8,9 @@ LIBCURL_VERSION = 8.23.0
+ LIBCURL_SOURCE = curl-$(LIBCURL_VERSION).tar.xz
+ LIBCURL_SITE = https://curl.se/download
+ LIBCURL_DEPENDENCIES = host-pkgconf \
++	host-autoconf \
++	host-automake \
++	host-libtool \
+ 	$(if $(BR2_PACKAGE_ZLIB),zlib) \
+ 	$(if $(BR2_PACKAGE_RTMPDUMP),rtmpdump)
+ LIBCURL_LICENSE = curl
