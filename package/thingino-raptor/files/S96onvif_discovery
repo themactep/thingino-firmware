@@ -1,9 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC2018,SC2019,SC2034,SC2046,SC2068,SC2086,SC2231,SC3043
 
-# shellcheck source=/dev/null
-. /etc/init.d/lib-log
-
 DAEMON="/usr/sbin/wsd_simple_server"
 DAEMON_SHORT="wsd_simple_server"
 ONVIF_CONFIG=/etc/onvif.json
@@ -51,7 +48,7 @@ raptor_bool_default() {
 }
 
 raptor_rtsp_scheme() {
-	if [ "$(raptor_bool_default rtsp tls true)" = "true" ]; then
+	if [ "$(raptor_bool_default rtsp tls false)" = "true" ]; then
 		echo "rtsps"
 	else
 		echo "rtsp"
@@ -118,6 +115,14 @@ configure_raptor_onvif_profiles() {
 	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
 	jct "$tmpfile" set audio.backchannel.uri "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
 
+	# The profiles' sizes are what ONVIF clients are told the streams are.
+	for s in 0 1; do
+		width=$(raptor_conf_get "stream$s" width)
+		height=$(raptor_conf_get "stream$s" height)
+		[ -n "$width" ] && jct "$tmpfile" set "profiles.stream$s.width" "$width"
+		[ -n "$height" ] && jct "$tmpfile" set "profiles.stream$s.height" "$height"
+	done
+
 	if [ "$(raptor_webrtc_enabled)" = "true" ]; then
 		webrtc_scheme=$(raptor_webrtc_scheme)
 		webrtc_port=$(raptor_webrtc_port)
@@ -150,15 +155,15 @@ stop_daemon() {
 iface="$(iface_default)"
 
 start() {
-	log -c 15 "Starting ONVIF discovery"
+	echo -c 15 "Starting ONVIF discovery"
 
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
-		log -c 160 -e "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
 	if ! is_gateway_reachable; then
-		log -c 160 -e "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
@@ -173,12 +178,13 @@ start() {
 	tmpfile="$(mktemp -u).json"
 	echo '{}' >$tmpfile
 	configure_raptor_onvif_profiles
+	[ -n "$iface" ] && jct $tmpfile set server.ifs "$iface"
 	jct $ONVIF_CONFIG import $tmpfile
 	rm -f $tmpfile
 }
 
 stop() {
-	log -c 15 "Stopping ONVIF discovery"
+	echo -c 15 "Stopping ONVIF discovery"
 
 	for pidfile in /run/${DAEMON_SHORT}_*.pid; do
 		[ -f "$pidfile" ] || continue

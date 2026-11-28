@@ -6,13 +6,34 @@
   "use strict";
 
   function preferAgent() {
-    const ui = global.thinginoUIConfig;
-    return !!(ui && ui.device && ui.device.agent);
+    return typeof global.agentJsonRequest === "function";
   }
 
   async function agentRequest(path, options) {
     if (!preferAgent()) {
       throw new Error("agentJsonRequest is not available");
+    }
+    // Several scripts on one page read the full config, which takes seconds
+    // on T20, so they share one request.
+    const method = ((options && options.method) || "GET").toUpperCase();
+    if (
+      method === "GET" &&
+      path === "/api/v1/config" &&
+      typeof global.getThinginoAgentConfig === "function"
+    ) {
+      return global.getThinginoAgentConfig();
+    }
+    if (
+      method !== "GET" &&
+      typeof global.invalidateThinginoAgentConfig === "function"
+    ) {
+      // Clear the cache after the write settles, so a read racing the write
+      // cannot leave the pre-write config cached.
+      try {
+        return await global.agentJsonRequest(path, options);
+      } finally {
+        global.invalidateThinginoAgentConfig();
+      }
     }
     return global.agentJsonRequest(path, options);
   }
@@ -198,6 +219,12 @@
         doc.querySelector("#" + param) ||
         doc.querySelector("#image_" + param);
       if (!el) return;
+      /* Raptor NR fields stay hidden only while the backend reports no
+       * value; the Raptor image module re-shows and wires them. */
+      if (param === "noise_reduction") {
+        el.dataset.streamerHide = "1";
+        return;
+      }
       const wrap =
         el.closest(".mb-3, .col, .form-check, .row > div, p") || el.parentElement;
       if (wrap) wrap.classList.add("d-none");

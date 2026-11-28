@@ -10,6 +10,8 @@ THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino
 THINGINO_RAPTOR_DEPENDENCIES += thingino-webui thingino-agent
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 THINGINO_RAPTOR_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_OPENIMP_USE_V4L2),y)
 THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
 endif
 ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
@@ -180,14 +182,22 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Install same-origin WHIP proxy used by native preview (no iframe).
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/zoom.cgi \
+		$(TARGET_DIR)/var/www/x/zoom.cgi
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/zoom.js \
+		$(TARGET_DIR)/var/www/a/zoom.js
 
 	# WebUI plugin (streamer pages, audio, save/restart CGIs)
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/raptor.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/raptor.webui.json
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
-		$(TARGET_DIR)/var/www/preview.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-privacy.html \
+		$(TARGET_DIR)/var/www/config-privacy.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/privacy-screen.js \
+		$(TARGET_DIR)/var/www/a/privacy-screen.js
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S33raptor-privacy \
+		$(TARGET_DIR)/etc/init.d/S33raptor-privacy
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-image.html \
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-main.html \
@@ -202,10 +212,14 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-timelapse.html
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer.js \
 		$(TARGET_DIR)/var/www/a/streamer.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/preview-endpoints.js \
+		$(TARGET_DIR)/var/www/a/preview-endpoints.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-osd.js \
 		$(TARGET_DIR)/var/www/a/streamer-osd.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-image.js \
+		$(TARGET_DIR)/var/www/a/streamer-image.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/audio.js \
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/tool-timelapse.js \
@@ -237,6 +251,13 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	else \
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
+	fi
+	# Photosensing page for ric; daynightd ships its own under the same name.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-photosensing.html \
+			$(TARGET_DIR)/var/www/config-photosensing.html; \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/daynight-thresholds.js \
+			$(TARGET_DIR)/var/www/a/daynight-thresholds.js; \
 	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
 		$(TARGET_DIR)/usr/sbin/privacy
@@ -281,10 +302,31 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		ln -sf raptor-motion $(TARGET_DIR)/usr/sbin/motion; \
 	fi
 
-	# Patch raptor.conf with buildroot config overrides
-	$(call THINGINO_RAPTOR_PATCH_CONF)
 
 endef
+
+# Raptor's own WebRTC preview page. It must land over thingino-webui's stock
+# MJPEG preview.html, and it must be in place BEFORE thingino-webui's
+# plugin-assembly finalize hook processes it (the assembler injects plugins.js
+# into whatever is on disk at that path). A plain INSTALL_TARGET_CMDS copy goes
+# into the per-package tree and loses the final per-package merge to
+# thingino-webui (alphabetically later package wins conflicts), so install it
+# from a finalize hook: parse order puts this hook before the webui's assembly
+# hook, and target-finalize runs after the per-package merge.
+define THINGINO_RAPTOR_INSTALL_PREVIEW
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+		$(TARGET_DIR)/var/www/preview.html
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW
+
+# Raptor's copy of the imaging script, installed over thingino-webui's for the
+# same reason as preview.html above. The noise-reduction fields are left to
+# streamer-image.js, so the common script stays streamer-agnostic.
+define THINGINO_RAPTOR_INSTALL_PREVIEW_JS
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/preview.js \
+		$(TARGET_DIR)/var/www/a/preview.js
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW_JS
 
 # Raptor-only send2 capture (copy_photo/copy_video via raptorctl/RMR). Installed
 # from a finalize hook so it wins over package/thingino-send2's prudynt default
@@ -296,15 +338,5 @@ define THINGINO_RAPTOR_INSTALL_SEND2COMMON
 endef
 THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_SEND2COMMON
 
-include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 
 $(eval $(generic-package))
-
-# Raptor's copy of the preview script, installed over thingino-webui's for the
-# same reason as preview.html: the raptor pages read the stream with the MJPEG
-# fetch reader, not <img src>.
-define THINGINO_RAPTOR_INSTALL_PREVIEW_JS
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/preview.js \
-		$(TARGET_DIR)/var/www/a/preview.js
-endef
-THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW_JS
