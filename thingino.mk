@@ -580,7 +580,9 @@ export FLASH_SIZE_MB
 # U-BOOT
 #
 
-ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
+ifeq ($(BR2_TARGET_UBOOT_PATCH_FILES := $(wildcard $(BR2_EXTERNAL)/package/all-patches/uboot/$(subst -,.,$(THINGINO_UBOOT_VERSION_TAG))/*.patch)
+
+UBOOT_BOARDNAME),)
 	# Get U-Boot board name based on flash type
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nand 2>/dev/null || echo "unknown")
